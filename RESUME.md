@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:08:21 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:10:40 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -70,7 +70,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:00:12 UTC  T0 -> done  ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - 2026-09-07 20:00:32 UTC  T1 -> doing  build running
 - 2026-09-07 20:00:33 UTC  T2 -> doing  reading the chart pipeline
 - 2026-09-07 20:01:13 UTC  finding F01: onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_
@@ -82,4 +81,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:08:20 UTC  T1 -> done  release APK + 276/276 tests green + checkinit ok
 - 2026-09-07 20:08:21 UTC  T2 -> done  chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded
 - 2026-09-07 20:08:21 UTC  T3 -> doing  chart range selector - designing the series API and cache
+- 2026-09-07 20:10:40 UTC  ChartModels.kt + ChartFeed.kt written (T3 data layer)
 
