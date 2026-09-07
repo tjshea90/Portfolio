@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:45:55 UTC",
+  "updated": "2026-09-07 20:48:00 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -217,8 +217,8 @@
       "id": "F17",
       "text": "purgeChartCache runs on EVERY chart write - a DELETE with an ordered subquery over the whole table each time a chart is fetched, where the other caches purge once per session.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http"
     },
     {
       "id": "F18",
@@ -300,6 +300,7 @@
     "2026-09-07 20:45:54 UTC  finding F17: purgeChartCache runs on EVERY chart write - a DELETE with an ordered subquery ov",
     "2026-09-07 20:45:55 UTC  finding F18: Fundamentals.estimates and .history are rendered as keyed LazyColumn items with ",
     "2026-09-07 20:45:55 UTC  finding F19: ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often t",
-    "2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche"
+    "2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche",
+    "2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http"
   ]
 }
