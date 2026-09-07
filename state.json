@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:20:21 UTC",
+  "updated": "2026-09-07 20:20:22 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -42,8 +42,8 @@
     {
       "id": "T4",
       "title": "Chart CACHING: survive backgrounding; periodic auto-refresh; pull-down forces",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "chart_cache at db v7 (disk-first, per-range TTL, pull-down forces); trim no longer blanks charts; sparks restored from SQLite on resume"
     },
     {
       "id": "T5",
@@ -159,6 +159,7 @@
     "2026-09-07 20:15:05 UTC  F04 fixed: refreshSparklines starts alongside the quote pass, above the no-quotes early return",
     "2026-09-07 20:15:06 UTC  F05 fixed: a locally-cooling Yahoo host is now skipped rather than abandoning the request; both chart and batch paths",
     "2026-09-07 20:18:26 UTC  T3/T4/T5/T6/T7 code written; first compile of round 58",
-    "2026-09-07 20:20:21 UTC  T3 -> done  ChartRange (8 ranges incl. after-hours-only), ChartFeed, PriceChart + RangeChips, wired into DetailScreen; range remembered across launches"
+    "2026-09-07 20:20:21 UTC  T3 -> done  ChartRange (8 ranges incl. after-hours-only), ChartFeed, PriceChart + RangeChips, wired into DetailScreen; range remembered across launches",
+    "2026-09-07 20:20:22 UTC  T4 -> done  chart_cache at db v7 (disk-first, per-range TTL, pull-down forces); trim no longer blanks charts; sparks restored from SQLite on resume"
   ]
 }
