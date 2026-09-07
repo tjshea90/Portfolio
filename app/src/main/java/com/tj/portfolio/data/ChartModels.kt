@@ -158,6 +158,7 @@ object ChartJson {
             put("currency", s.currency)
             put("fetched", s.fetched)
             put("truncated", s.truncated)
+            put("regularOnly", s.regularOnly)
         }.toString()
     }
 
@@ -181,7 +182,10 @@ object ChartJson {
             baseline = o.optDouble("baseline", 0.0).let { if (it.isFinite()) it else 0.0 },
             currency = o.optString("currency", "USD").ifBlank { "USD" },
             fetched = o.optLong("fetched", 0L),
-            truncated = o.optBoolean("truncated", false)
+            truncated = o.optBoolean("truncated", false),
+            // Defaults to false on a row written before this field existed, which is the
+            // safe direction: the worst it costs is one sparkline request not saved.
+            regularOnly = o.optBoolean("regularOnly", false)
         )
     }.getOrNull()
 }

@@ -120,9 +120,11 @@ object ChartFeed {
         // BEFORE 09:30 THERE IS NO REGULAR SESSION YET, and an empty chart on the tab the
         // screen opens on reads as broken. Same fallback `MarketData.parseYahoo` has always
         // had: with nothing from the regular session, plot what there is.
+        var usedPreOpenFallback = false
         if (regularOnly && pts.size < 2 && outside.size >= 2) {
             pts.addAll(outside)
             pts.sortBy { it.t }
+            usedPreOpenFallback = true
         }
         if (pts.size < 2) return null
 
@@ -171,7 +173,12 @@ object ChartFeed {
             baseline = baseline,
             currency = meta.optString("currency", "USD").ifBlank { "USD" },
             fetched = System.currentTimeMillis(),
-            truncated = truncated
+            truncated = truncated,
+            // Only true when the regular-session filter ran AND produced the line - the
+            // pre-open fallback above puts extended points into `pts`, and this must stay
+            // false for those. See the field's own note: it is the precondition
+            // `adoptAsSparkline` relies on, not a description of the request.
+            regularOnly = regularOnly && !usedPreOpenFallback
         )
     }
 

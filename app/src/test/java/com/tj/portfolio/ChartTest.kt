@@ -86,6 +86,70 @@ class ChartTest {
         assertEquals(s.first, s.from, 1e-9)
     }
 
+    // ------------------------------------------------- the regular-session-only rule
+
+    /**
+     * THE PRECONDITION BEHIND `adoptAsSparkline`. The 1D series is fed straight into
+     * `Quote.spark` to save a duplicate request, and `spark` has always been the regular
+     * session only. If the 1D line ever quietly included pre-market and after-hours points,
+     * every row on the portfolio screen would become a 24-hour line drawn against a
+     * previous-close baseline that no longer matched it - with nothing on screen to say so.
+     */
+    @Test
+    fun `the 1D line is the regular session and says so`() {
+        val meta = JSONObject(body).getJSONObject("chart").getJSONArray("result")
+            .getJSONObject(0).getJSONObject("meta")
+        val regular = ChartFeed.regularWindows(meta)
+        val s = parse(ChartRange.D1)!!
+
+        assertTrue("the 1D series did not declare itself regular-only", s.regularOnly)
+        assertTrue(
+            "an extended-hours point got into the 1D line",
+            s.points.all { p -> regular.any { p.t >= it.first && p.t < it.second } }
+        )
+    }
+
+    /** No other range makes that claim, so nothing else can be adopted as a sparkline. */
+    @Test
+    fun `no other range claims to be regular-only`() {
+        listOf(ChartRange.D5, ChartRange.M1, ChartRange.Y1, ChartRange.OVERNIGHT).forEach {
+            assertFalse(it.name, parse(it)!!.regularOnly)
+        }
+    }
+
+    /**
+     * Before 09:30 the regular session has produced nothing and the parser falls back to
+     * plotting the pre-market, so the chart is not blank on the tab the screen opens on.
+     * That fallback must NOT claim to be regular-only: it is exactly the case where adopting
+     * it as the sparkline would be wrong.
+     */
+    @Test
+    fun `a chart with no session metadata falls back and does not claim to be regular-only`() {
+        val root = JSONObject(body)
+        val res = root.getJSONObject("chart").getJSONArray("result").getJSONObject(0)
+        val meta = res.getJSONObject("meta")
+        meta.remove("tradingPeriods")
+        meta.remove("currentTradingPeriod")
+
+        val s = ChartFeed.parse("TEST", ChartRange.D1, root.toString())
+        assertNotNull("a chart without session metadata should still draw", s)
+        assertFalse("it claimed to be regular-only with no way to know", s!!.regularOnly)
+
+        // And the after-hours view refuses outright rather than drawing the wrong window
+        // under its own caption.
+        assertNull(ChartFeed.parse("TEST", ChartRange.OVERNIGHT, root.toString()))
+    }
+
+    @Test
+    fun `the regular-only flag survives the codec`() {
+        val s = parse(ChartRange.D1)!!
+        assertTrue(ChartJson.decode(ChartJson.encode(s))!!.regularOnly)
+        // A row written before the field existed reads as false, which is the safe direction.
+        val old = """{"v":1,"symbol":"X","range":"D1","t":[1,2],"c":[10.0,11.0],
+            "baseline":9.0,"currency":"USD","fetched":5,"truncated":false}"""
+        assertFalse(ChartJson.decode(old)!!.regularOnly)
+    }
+
     // ------------------------------------------------------- the overnight filter
 
     @Test

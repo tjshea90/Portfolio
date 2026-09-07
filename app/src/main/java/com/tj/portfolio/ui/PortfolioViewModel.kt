@@ -2910,6 +2910,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * once a quote exists.
      */
     private fun adoptAsSparkline(symbol: String, series: ChartSeries) {
+        // THE PRECONDITION, CHECKED RATHER THAN ASSUMED. `Quote.spark` has always been the
+        // regular session only, and the row sparkline's dotted baseline is the previous
+        // regular close. A 1D series that fell back to plotting pre-market - which is what
+        // happens before 09:30, and what happens if Yahoo ever returns a chart with no
+        // trading-period metadata - is a different thing wearing the same name, and adopting
+        // it would silently turn every row on the portfolio screen into a 24-hour line
+        // measured against a baseline that no longer matches it. Not adopting simply costs
+        // one sparkline request that would have been saved.
+        if (!series.regularOnly) return
         val closes = series.points.map { it.close }
         if (closes.size < 2) return
         val q = _quotes.value[symbol] ?: return
