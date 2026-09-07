@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:58:45 UTC",
+  "updated": "2026-09-07 21:02:47 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -252,8 +252,8 @@
       "id": "F22",
       "text": "An intraday chart left open keeps re-fetching itself after the session that produced it has ended. The regular-session 1D line cannot gain a candle after 16:00 ET, yet the poll clock keeps ticking through the whole EXTENDED window - roughly 48 requests an evening for a picture that cannot change. Same for the after-hours line once extended trading stops at 20:00 ET.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "intradayChartIsFinal stops the automatic refresh once the session that produced the line has ended, tested against the real MarketClock including the pre-market fallback case"
     }
   ],
   "log": [
@@ -322,6 +322,7 @@
     "2026-09-07 20:49:43 UTC  finding F21: RangeChips are ~40dp tall - under the app's own documented 48dp minimum tap targ",
     "2026-09-07 20:55:00 UTC  F21 fixed: range chips use minTapTarget(); a rendered UI test asserts 48dp at 1.0 and 1.3 font scale",
     "2026-09-07 20:57:06 UTC  T10 -> doing  sweep pass 3 - pre-existing code I have not touched",
-    "2026-09-07 20:58:45 UTC  finding F22: An intraday chart left open keeps re-fetching itself after the session that prod"
+    "2026-09-07 20:58:45 UTC  finding F22: An intraday chart left open keeps re-fetching itself after the session that prod",
+    "2026-09-07 21:02:47 UTC  F22 fixed: intradayChartIsFinal stops the automatic refresh once the session that produced the line has ended, tested against the real MarketClock including the pre-market fallback case"
   ]
 }

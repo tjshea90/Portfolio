@@ -2886,14 +2886,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * never reaches it, so a deliberate pull always re-fetches.
      */
     private fun intradayChartIsFinal(held: ChartSeries): Boolean {
-        val clock = com.tj.portfolio.net.MarketClock
-        val now = clock.phase()
-        if (now == clock.Phase.OPEN) return false
+        val now = MarketClock.phase()
+        if (now == MarketClock.Phase.OPEN) return false
         if (held.endMs <= 0L) return false
         return when (held.range) {
-            ChartRange.D1 -> clock.phase(held.endMs) == clock.Phase.OPEN
-            ChartRange.OVERNIGHT ->
-                now == clock.Phase.CLOSED && clock.phase(held.fetched) == clock.Phase.CLOSED
+            ChartRange.D1 -> MarketClock.phase(held.endMs) == MarketClock.Phase.OPEN
+            ChartRange.OVERNIGHT -> now == MarketClock.Phase.CLOSED &&
+                MarketClock.phase(held.fetched) == MarketClock.Phase.CLOSED
             else -> false
         }
     }

@@ -283,4 +283,109 @@ class ChartTest {
         assertEquals(ChartRange.DEFAULT, ChartRange.byName(null))
         assertEquals(ChartRange.Y5, ChartRange.byName("y5"))
     }
+
+    // -------------------------------------------------- the market-aware refresh gate
+    //
+    // `intradayChartIsFinal` is private to the ViewModel, so its RULE is restated here
+    // against the same MarketClock it consults. What matters is that the three cases behave
+    // differently, because the one that is easy to get wrong - pre-market - is the one where
+    // stopping the refresh would freeze a chart that is still filling in.
+
+    private fun phaseAt(ms: Long) = com.tj.portfolio.net.MarketClock.phase(ms)
+
+    /** Rebuilds the rule under test, so a change to it has to be reflected here too. */
+    private fun isFinal(range: ChartRange, endMs: Long, fetched: Long, nowMs: Long): Boolean {
+        val now = phaseAt(nowMs)
+        if (now == com.tj.portfolio.net.MarketClock.Phase.OPEN) return false
+        if (endMs <= 0L) return false
+        return when (range) {
+            ChartRange.D1 -> phaseAt(endMs) == com.tj.portfolio.net.MarketClock.Phase.OPEN
+            ChartRange.OVERNIGHT ->
+                now == com.tj.portfolio.net.MarketClock.Phase.CLOSED &&
+                    phaseAt(fetched) == com.tj.portfolio.net.MarketClock.Phase.CLOSED
+            else -> false
+        }
+    }
+
+    /** An epoch millisecond at a given US/Eastern wall-clock time on a known weekday. */
+    private fun et(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long {
+        val c = java.util.Calendar.getInstance(
+            java.util.TimeZone.getTimeZone("America/New_York"), java.util.Locale.US
+        )
+        c.clear()
+        c.set(year, month - 1, day, hour, minute, 0)
+        return c.timeInMillis
+    }
+
+    // 2026-09-09 is a Wednesday.
+    private val open1030 = et(2026, 9, 9, 10, 30)
+    private val close1555 = et(2026, 9, 9, 15, 55)
+    private val after1800 = et(2026, 9, 9, 18, 0)
+    private val night2200 = et(2026, 9, 9, 22, 0)
+    private val pre0800 = et(2026, 9, 9, 8, 0)
+    private val pre0755 = et(2026, 9, 9, 7, 55)
+
+    @Test
+    fun `the market clock agrees with the fixture times`() {
+        assertEquals(com.tj.portfolio.net.MarketClock.Phase.OPEN, phaseAt(open1030))
+        assertEquals(com.tj.portfolio.net.MarketClock.Phase.OPEN, phaseAt(close1555))
+        assertEquals(com.tj.portfolio.net.MarketClock.Phase.EXTENDED, phaseAt(after1800))
+        assertEquals(com.tj.portfolio.net.MarketClock.Phase.EXTENDED, phaseAt(pre0800))
+        assertEquals(com.tj.portfolio.net.MarketClock.Phase.CLOSED, phaseAt(night2200))
+    }
+
+    /** While the session is running, nothing is final. */
+    @Test
+    fun `an intraday chart is never final during the session`() {
+        assertFalse(isFinal(ChartRange.D1, close1555, open1030, open1030))
+        assertFalse(isFinal(ChartRange.OVERNIGHT, pre0755, pre0800, open1030))
+    }
+
+    /** After the close, a 1D line whose last point is a regular candle cannot grow. */
+    @Test
+    fun `a completed regular session stops the 1D chart refreshing`() {
+        assertTrue(isFinal(ChartRange.D1, close1555, after1800, after1800))
+        assertTrue("a weekend should be final too",
+            isFinal(ChartRange.D1, close1555, night2200, night2200))
+    }
+
+    /**
+     * THE CASE THAT WOULD BREAK IF THIS WERE SLOPPIER. Before the open, `ChartFeed` falls
+     * back to plotting the pre-market itself, and those points are still arriving - so the
+     * chart must keep refreshing even though the market is not OPEN.
+     */
+    @Test
+    fun `a pre-market fallback chart keeps refreshing`() {
+        assertFalse(isFinal(ChartRange.D1, pre0755, pre0800, pre0800))
+    }
+
+    /** The after-hours line is live all through the extended window. */
+    @Test
+    fun `the after-hours chart keeps refreshing while extended trading runs`() {
+        assertFalse(isFinal(ChartRange.OVERNIGHT, after1800, after1800, after1800))
+    }
+
+    /**
+     * It only stops once extended trading has stopped AND a pull has happened since, so the
+     * final candles are never missed by a few minutes of timing.
+     */
+    @Test
+    fun `the after-hours chart stops only after one pull inside the closed stretch`() {
+        assertFalse("stopped before any post-close fetch",
+            isFinal(ChartRange.OVERNIGHT, after1800, after1800, night2200))
+        assertTrue(isFinal(ChartRange.OVERNIGHT, after1800, night2200, night2200))
+    }
+
+    /** Longer ranges are governed by their TTL alone; this gate does not apply to them. */
+    @Test
+    fun `the gate never fires for a non-intraday range`() {
+        ChartRange.entries.filter { !it.intraday }.forEach {
+            assertFalse(it.name, isFinal(it, close1555, night2200, night2200))
+        }
+    }
+
+    @Test
+    fun `a series with no points is never called final`() {
+        assertFalse(isFinal(ChartRange.D1, 0L, night2200, night2200))
+    }
 }
