@@ -10,9 +10,18 @@
     "next_name": "6.9"
   },
   "now": {
-    "step": "T10: Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)",
-    "next": "Write data/HoldingsModels.kt, net/HoldingsFeed.kt, wire a HOLDINGS tab that only appears for funds",
-    "files": []
+    "step": "T10 sweep is COMPLETE (22 findings, all fixed). Blocked on a harness outage: the Bash tool-safety classifier keeps timing out, so no Gradle run has been possible since commit 021fad8. Edits made SINCE that last green run are committed by watchdog.sh but NOT yet compiled or tested.",
+    "next": "1) ./gradlew :app:testDebugUnitTest - expect ~351 tests. Untested edits since the last green run: ChartSeries.regularOnly (ChartModels + ChartFeed.parse + ChartJson + adoptAsSparkline guard) and its 5 new ChartTest cases; RowLayoutUiTest rewritten to useUnmergedTree (5 tests, previously failing for that reason); HoldingsTab itemsIndexed with an explicit key + hoisted topWeight; dp-based stroke widths in PriceChart and Widgets.Sparkline. 2) python3 checkinit.py. 3) ./gradlew :app:assembleRelease. 4) ./ck task T10 done; T11 done; T12 done; T13 doing; ./ck save; deliver the APK and the tarball with SendUserFile. versionCode 56 / 6.9 is already set and CHECKPOINT.md's Round 58 section is already written.",
+    "files": [
+      "app/src/main/java/com/tj/portfolio/data/ChartModels.kt",
+      "app/src/main/java/com/tj/portfolio/net/ChartFeed.kt",
+      "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt",
+      "app/src/main/java/com/tj/portfolio/ui/PriceChart.kt",
+      "app/src/main/java/com/tj/portfolio/ui/Widgets.kt",
+      "app/src/main/java/com/tj/portfolio/ui/HoldingsTab.kt",
+      "app/src/test/java/com/tj/portfolio/ChartTest.kt",
+      "app/src/test/java/com/tj/portfolio/RowLayoutUiTest.kt"
+    ]
   },
   "tasks": [
     {
