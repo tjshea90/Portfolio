@@ -70,6 +70,11 @@ fun HoldingsTab(
         return
     }
 
+    // Hoisted out of the item lambda: every bar is drawn against the LARGEST position, and
+    // computing that inside the loop would re-scan the list once per visible row on every
+    // recomposition of a screen that recomposes on every quote tick.
+    val topWeight = h.holdings.firstOrNull()?.weight ?: 0.0
+
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
 
         item {
@@ -114,15 +119,15 @@ fun HoldingsTab(
                     )
                 }
             }
-            // KEYED ON THE INDEX AS WELL AS THE NAME. A LazyColumn handed the same key
+            // KEYED ON THE INDEX AS WELL AS THE SYMBOL. A LazyColumn handed the same key
             // twice THROWS and takes the whole app down, and this project has shipped that
             // exact crash three times already - the news list, the filings list and the
-            // research rows. A fund can genuinely list two share classes under one name, or
-            // a provider can simply repeat a row, and neither is worth a crash. The index
-            // makes the key unique by construction while still being stable for a list that
-            // is only ever replaced wholesale.
-            itemsIndexed(h.holdings) { i, row ->
-                HoldingRow(row, h.holdings.firstOrNull()?.weight ?: 0.0, onOpenSymbol)
+            // research rows. A fund can genuinely list two share classes under one name, and
+            // a provider can simply repeat a row; neither is worth a crash. The index makes
+            // the key unique by construction, and the symbol keeps it meaningful for a list
+            // that is only ever replaced wholesale.
+            itemsIndexed(h.holdings, key = { i, it -> "$i:${it.symbol}:${it.name}" }) { _, row ->
+                HoldingRow(row, topWeight, onOpenSymbol)
                 RowSeparator()
             }
             item {
