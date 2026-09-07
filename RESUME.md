@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:20:22 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:20:23 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,7 +34,7 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 6/14 done
+## 4. Task ledger — 7/14 done
 
 - [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - [x] T1  Baseline: release build + 276-test suite green before any edit  — release APK + 276/276 tests green + checkinit ok
@@ -42,7 +42,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T3  Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart  — ChartRange (8 ranges incl. after-hours-only), ChartFeed, PriceChart + RangeChips, wired into DetailScreen; range remembered across launches
 - [x] T4  Chart CACHING: survive backgrounding; periodic auto-refresh; pull-down forces  — chart_cache at db v7 (disk-first, per-range TTL, pull-down forces); trim no longer blanks charts; sparks restored from SQLite on resume
 - [x] T5  Chart FETCH RELIABILITY: find and fix why charts sometimes never load  — partial-failure spark throttle, sparkline no longer gated behind the quote pass, cooling Yahoo host skipped not abandoned
-- [ ] T6  Vertical stock lists: more pronounced separation (spacing + divider)
+- [x] T6  Vertical stock lists: more pronounced separation (spacing + divider)  — RowSeparator 3dp + 5dp air between rows; InRowDivider 1dp/45% inside a row; applied to Portfolio, Watchlist, Search
 - [ ] T7  After-hours block: stack dollar and percent vertically like the other sections
 - [ ] T8  ETF detail: HOLDINGS tab listing each holding and its % of the fund
 - [ ] T9  Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
 
-**Resume at T6** (Vertical stock lists: more pronounced separation (spacing + divider)).
+**Resume at T7** (After-hours block: stack dollar and percent vertically like the other sections).
 
 ## 5. Open findings — 0 still open, 5 fixed
 
@@ -70,7 +70,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:08:21 UTC  T2 -> done  chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded
 - 2026-09-07 20:08:21 UTC  T3 -> doing  chart range selector - designing the series API and cache
 - 2026-09-07 20:10:40 UTC  ChartModels.kt + ChartFeed.kt written (T3 data layer)
 - 2026-09-07 20:13:54 UTC  F01 fixed: onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts
@@ -82,4 +81,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:20:21 UTC  T3 -> done  ChartRange (8 ranges incl. after-hours-only), ChartFeed, PriceChart + RangeChips, wired into DetailScreen; range remembered across launches
 - 2026-09-07 20:20:22 UTC  T4 -> done  chart_cache at db v7 (disk-first, per-range TTL, pull-down forces); trim no longer blanks charts; sparks restored from SQLite on resume
 - 2026-09-07 20:20:22 UTC  T5 -> done  partial-failure spark throttle, sparkline no longer gated behind the quote pass, cooling Yahoo host skipped not abandoned
+- 2026-09-07 20:20:23 UTC  T6 -> done  RowSeparator 3dp + 5dp air between rows; InRowDivider 1dp/45% inside a row; applied to Portfolio, Watchlist, Search
 
