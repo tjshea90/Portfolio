@@ -238,8 +238,8 @@
       "id": "F20",
       "text": "A chart never refreshes while its screen stays open. loadChart runs from LaunchedEffect(symbol, range) and ON_START only, so watching one stock for an hour leaves the line frozen at load time with only its tip moving. TJ asked for periodic automatic refresh as well as pull-down.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the open chart re-checks its TTL on every quote tick and refreshes itself at its own cadence, answered from memory without a coroutine when nothing is due"
     }
   ],
   "log": [
@@ -303,6 +303,7 @@
     "2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche",
     "2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http",
     "2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed",
-    "2026-09-07 20:48:01 UTC  F19 fixed: D5 TTL raised to 30 minutes to match its 30-minute candle"
+    "2026-09-07 20:48:01 UTC  F19 fixed: D5 TTL raised to 30 minutes to match its 30-minute candle",
+    "2026-09-07 20:48:01 UTC  F20 fixed: the open chart re-checks its TTL on every quote tick and refreshes itself at its own cadence, answered from memory without a coroutine when nothing is due"
   ]
 }
