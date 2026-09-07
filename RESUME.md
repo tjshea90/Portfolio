@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:25:53 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:28:20 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -53,7 +53,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible).
 
-## 5. Open findings — 1 still open, 5 fixed
+## 5. Open findings — 1 still open, 6 fixed
 
 - [x] F01 (high) onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_CRITICAL 15), which Android delivers on EVERY app switch. The sparkAt 5-minute throttle is already stamped, so charts stay blank for up to 5 minutes after returning. This is TJ's 'charts disappeared when I switched back' report. The doc comment's reasoning ('they ride along with the next quote') went stale in Round 56 when the series moved off the quote path.  — onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts
 - [x] F02 (high) After a spark drop the DB (quotes.spark) still holds the series, but nothing re-reads it on return - the recovery path is a network fetch that the throttle suppresses.  — restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges
@@ -61,6 +61,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F04 (med) refreshSparklines is called at the very end of refresh(), AFTER the 'fetched.isEmpty() -> return@launch' early exit. One failed batch quote pass means the candle series is not refreshed at all that tick, even for symbols whose charts are blank.  — refreshSparklines starts alongside the quote pass, above the no-quotes early return
 - [x] F05 (med) MarketData.yahoo() and batchYahoo() return immediately when query1 is in a LOCAL cooldown instead of trying query2. Cooldowns are armed per host, so query1 cooling says nothing about query2 - the chart request is abandoned while a usable host sits unused. Contributes to charts not loading.  — a locally-cooling Yahoo host is now skipped rather than abandoning the request; both chart and batch paths
 - [ ] F06 (high) fgScope cancellation on ON_STOP has no counterpart on ON_START for the DETAIL SCREEN's own loads. A stock opened and then backgrounded mid-fetch has its news/fundamentals/insider/chart/holdings request cancelled, and the LaunchedEffect(symbol) that started it does not re-fire on return because its key has not changed - so the tab stays empty until a manual pull-to-refresh. Introduced by Round 57's fgScope work; the chart and holdings added this round inherit it.
+- [x] F07 (med) The 1D chart request and the row-sparkline request are the SAME Yahoo URL (range=1d&interval=5m&includePrePost=true) fired on two independent 5-minute clocks. With a stock's detail screen open the app pulls that body twice per window for no benefit.  — loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made
 
 ## 6. Version
 
@@ -71,8 +72,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:15:05 UTC  F04 fixed: refreshSparklines starts alongside the quote pass, above the no-quotes early return
-- 2026-09-07 20:15:06 UTC  F05 fixed: a locally-cooling Yahoo host is now skipped rather than abandoning the request; both chart and batch paths
 - 2026-09-07 20:18:26 UTC  T3/T4/T5/T6/T7 code written; first compile of round 58
 - 2026-09-07 20:20:21 UTC  T3 -> done  ChartRange (8 ranges incl. after-hours-only), ChartFeed, PriceChart + RangeChips, wired into DetailScreen; range remembered across launches
 - 2026-09-07 20:20:22 UTC  T4 -> done  chart_cache at db v7 (disk-first, per-range TTL, pull-down forces); trim no longer blanks charts; sparks restored from SQLite on resume
@@ -83,4 +82,6 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:25:26 UTC  T8 -> done  FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack
 - 2026-09-07 20:25:27 UTC  T9 -> doing  background behaviour audit
 - 2026-09-07 20:25:53 UTC  finding F06: fgScope cancellation on ON_STOP has no counterpart on ON_START for the DETAIL SC
+- 2026-09-07 20:28:02 UTC  finding F07: The 1D chart request and the row-sparkline request are the SAME Yahoo URL (range
+- 2026-09-07 20:28:20 UTC  F07 fixed: loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made
 

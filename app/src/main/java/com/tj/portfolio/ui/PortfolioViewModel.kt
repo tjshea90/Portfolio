@@ -2838,6 +2838,28 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Use a freshly fetched 1D chart as this symbol's sparkline as well.
+     *
+     * Both the quote's `spark` and `sparkAt` are updated, because the mark is what stops
+     * `refreshSparklines` going and asking for the identical body five minutes from now. The
+     * quote row is written back to SQLite for the same reason it is anywhere else: so the
+     * chart is on screen instantly on the next cold start.
+     *
+     * Silently does nothing when there is no quote yet for the symbol - and deliberately
+     * does NOT stamp `sparkAt` in that case, so the ordinary pass still picks the series up
+     * once a quote exists.
+     */
+    private fun adoptAsSparkline(symbol: String, series: ChartSeries) {
+        val closes = series.points.map { it.close }
+        if (closes.size < 2) return
+        val q = _quotes.value[symbol] ?: return
+        sparkAt[symbol] = System.currentTimeMillis()
+        val merged = q.copy(spark = closes)
+        _quotes.value = _quotes.value + (symbol to merged)
+        viewModelScope.launch(Dispatchers.IO) { runCatching { db.cacheQuotes(listOf(merged)) } }
+    }
+
     // ================================================================ PRICE CHARTS
 
     /** The identity of one (symbol, range) pair inside [_charts]. */
@@ -2922,6 +2944,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 chartFetchedAt[key] = System.currentTimeMillis()
                 if (fresh != null && !fresh.isEmpty) {
                     _charts.value = _charts.value + (key to fresh)
+                    // ONE REQUEST, TWO CONSUMERS (Round 58).
+                    //
+                    // The 1D chart and the row sparkline are the SAME Yahoo URL -
+                    // `range=1d&interval=5m&includePrePost=true` - fetched by two different
+                    // paths on two independent five-minute clocks. With a stock's detail
+                    // screen open, that is the same body pulled twice per window for no
+                    // benefit at all. Feeding this series straight into the quote, and
+                    // stamping `sparkAt` as `refreshSparklines` would have, makes the second
+                    // request simply not happen.
+                    if (range == ChartRange.D1) adoptAsSparkline(sym, fresh)
                     viewModelScope.launch(Dispatchers.IO) {
                         runCatching { db.cacheChart(fresh) }
                         runCatching { db.purgeChartCache() }

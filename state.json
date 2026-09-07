@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:25:53 UTC",
+  "updated": "2026-09-07 20:28:20 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -142,6 +142,13 @@
       "sev": "high",
       "status": "open",
       "note": ""
+    },
+    {
+      "id": "F07",
+      "text": "The 1D chart request and the row-sparkline request are the SAME Yahoo URL (range=1d&interval=5m&includePrePost=true) fired on two independent 5-minute clocks. With a stock's detail screen open the app pulls that body twice per window for no benefit.",
+      "sev": "med",
+      "status": "fixed",
+      "note": "loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made"
     }
   ],
   "log": [
@@ -174,6 +181,8 @@
     "2026-09-07 20:20:23 UTC  T8 -> doing  ETF holdings tab",
     "2026-09-07 20:25:26 UTC  T8 -> done  FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack",
     "2026-09-07 20:25:27 UTC  T9 -> doing  background behaviour audit",
-    "2026-09-07 20:25:53 UTC  finding F06: fgScope cancellation on ON_STOP has no counterpart on ON_START for the DETAIL SC"
+    "2026-09-07 20:25:53 UTC  finding F06: fgScope cancellation on ON_STOP has no counterpart on ON_START for the DETAIL SC",
+    "2026-09-07 20:28:02 UTC  finding F07: The 1D chart request and the row-sparkline request are the SAME Yahoo URL (range",
+    "2026-09-07 20:28:20 UTC  F07 fixed: loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made"
   ]
 }
