@@ -271,6 +271,17 @@ private fun ChartCanvas(
         val w = size.width
         val h = size.height
         val pad = h * 0.08f
+        // STROKE WIDTHS IN DP, NOT IN RAW PIXELS.
+        //
+        // `DrawScope` measures in pixels, so a literal `2.6f` is 2.6 PHYSICAL pixels - about
+        // 1.3dp on an xhdpi screen and well under 1dp on the ~400dpi panel this app actually
+        // runs on. The existing 64dp sparkline gets away with a pixel literal because at that
+        // size a hairline reads as delicate; on a 170dp chart that is the main thing on the
+        // screen it just reads as faint. `DrawScope` is a `Density`, so the conversion is
+        // free and correct on every phone.
+        val lineStroke = 2.2.dp.toPx()
+        val baseStroke = 1.2.dp.toPx()
+        val gridStroke = 1.dp.toPx()
         fun y(v: Double) = (h - pad) - ((v - lo) / span).toFloat() * (h - pad * 2)
         // X FROM THE TIMESTAMP, NOT THE INDEX. On the after-hours view the session has a
         // genuine gap in it; spacing the points evenly would draw a continuous line across
@@ -280,18 +291,25 @@ private fun ChartCanvas(
         // faint gridlines, so the eye has something to measure the line against
         for (i in 1..2) {
             val gy = pad + (h - pad * 2) * i / 3f
-            drawLine(grid.copy(alpha = 0.55f), Offset(0f, gy), Offset(w, gy), strokeWidth = 1f)
+            drawLine(
+                grid.copy(alpha = 0.55f), Offset(0f, gy), Offset(w, gy),
+                strokeWidth = gridStroke
+            )
         }
 
         if (base != null) {
             val by = y(base)
+            // The dash pitch is in dp too, or the dotted baseline is a solid line on a
+            // high-density screen and a row of far-apart specks on a low-density one.
+            val dash = 4.dp.toPx()
+            val gap = 4.dp.toPx()
             var sx = 0f
             while (sx < w) {
                 drawLine(
-                    Color.Gray.copy(alpha = 0.5f),
-                    Offset(sx, by), Offset(minOf(sx + 6f, w), by), strokeWidth = 1.4f
+                    Color.Gray.copy(alpha = 0.55f),
+                    Offset(sx, by), Offset(minOf(sx + dash, w), by), strokeWidth = baseStroke
                 )
-                sx += 12f
+                sx += dash + gap
             }
         }
 
@@ -310,7 +328,7 @@ private fun ChartCanvas(
         )
         drawPath(
             path, line,
-            style = Stroke(width = 2.6f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            style = Stroke(width = lineStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
     }
 }
