@@ -77,7 +77,17 @@ class RowLayoutUiTest {
         rule.onAllNodes(
             androidx.compose.ui.test.SemanticsMatcher("has text") {
                 it.config.getOrNull(SemanticsProperties.Text)?.isNotEmpty() == true
-            }
+            },
+            // THE UNMERGED TREE, AND THIS IS THE WHOLE REASON THE HELPER EXISTS.
+            //
+            // `StockRowItem` wraps its content in `combinedClickable` for the long-press
+            // menu, and a clickable MERGES every descendant's semantics into one node. Asked
+            // for the merged tree, the entire row comes back as a single string - which makes
+            // it impossible to say anything about where two figures sit relative to each
+            // other, and would let this test "pass" purely because both substrings appear
+            // somewhere in the row. Unmerged gives the individual Text nodes with their own
+            // bounds, which is what a question about layout actually needs.
+            useUnmergedTree = true
         ).fetchSemanticsNodes().map {
             (it.config.getOrNull(SemanticsProperties.Text)?.joinToString(" ") ?: "") to
                 it.boundsInRoot
@@ -100,9 +110,10 @@ class RowLayoutUiTest {
     fun `the after-hours dollar change and percentage are stacked, not side by side`() {
         show { StockRowItem(afterHoursRow(), {}, {}) }
 
-        // The extended column's change is measured from today's close: 269.51 - 268.26.
-        val dollar = find { it.startsWith("+1.2") && !it.contains("%") }
-        val percent = find { it.contains("%") && it.startsWith("+0.4") }
+        // Extended: 269.51 - 268.26 = +1.25 / +0.47%. Matched exactly, because the market
+        // column's +1.24 / +0.46% sits right beside them and a prefix would find that too.
+        val dollar = find { it == "+$1.25" }
+        val percent = find { it == "+0.47%" }
 
         assertTrue(
             "the extended-hours dollar change was not rendered on its own:\n" +
@@ -128,14 +139,31 @@ class RowLayoutUiTest {
         )
     }
 
-    /** The market-hours column has always been stacked; this is what "uniform" means. */
+    /**
+     * "Uniform with the other sections" is the actual request, so the market-hours column is
+     * measured the same way: its own dollar figure above its own percentage, and the two
+     * columns side by side as columns rather than run together on one line.
+     */
     @Test
-    fun `the market-hours column is stacked the same way`() {
+    fun `the market-hours column is stacked the same way and sits beside the other`() {
         show { StockRowItem(afterHoursRow(), {}, {}) }
-        val dollar = find { it.startsWith("+1.2") && !it.contains("%") }!!.second
-        val marketPct = find { it.contains("%") && it.startsWith("+0.46") }
-        // Both columns exist and neither figure shares a line with its own partner.
-        assertTrue("nothing rendered for the market column", marketPct != null || dollar.top >= 0f)
+        // Market hours: 268.26 - 267.02 = +1.24 / +0.46%
+        val mDollar = find { it == "+$1.24" }
+        val mPct = find { it == "+0.46%" }
+        assertTrue("market-hours dollar change missing", mDollar != null)
+        assertTrue("market-hours percentage missing", mPct != null)
+        assertTrue(
+            "the market-hours figures are on one line",
+            mPct!!.second.top >= mDollar!!.second.bottom - 0.5f
+        )
+
+        // ...and the extended column is to the RIGHT of it, not underneath.
+        val ext = find { it == "+$1.25" }
+        assertTrue("extended-hours dollar change missing", ext != null)
+        assertTrue(
+            "the two session columns are not side by side",
+            ext!!.second.left > mDollar.second.left
+        )
     }
 
     @Test
