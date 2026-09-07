@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:48:00 UTC",
+  "updated": "2026-09-07 20:48:01 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -224,8 +224,8 @@
       "id": "F18",
       "text": "Fundamentals.estimates and .history are rendered as keyed LazyColumn items with no distinctBy. A provider repeating a period or a quarter date is a duplicate key, which throws - the crash this project has already shipped three times.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "estimates and history are de-duplicated before being keyed"
     },
     {
       "id": "F19",
@@ -301,6 +301,7 @@
     "2026-09-07 20:45:55 UTC  finding F18: Fundamentals.estimates and .history are rendered as keyed LazyColumn items with ",
     "2026-09-07 20:45:55 UTC  finding F19: ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often t",
     "2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche",
-    "2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http"
+    "2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http",
+    "2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed"
   ]
 }
