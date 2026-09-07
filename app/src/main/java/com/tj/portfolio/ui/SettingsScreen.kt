@@ -954,7 +954,7 @@ private fun signerShort(ctx: Context): String = runCatching {
         }
     val cert = sigs.firstOrNull() ?: return "unknown"
     val md = java.security.MessageDigest.getInstance("SHA-256").digest(cert.toByteArray())
-    md.take(6).joinToString(":") { String.format("%02X", it) } + "..."
+    md.take(6).joinToString(":") { String.format(java.util.Locale.US, "%02X", it) } + "..."
 }.getOrDefault("unknown")
 
 /** One line of the published fee schedule. */
