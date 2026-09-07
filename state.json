@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:18:26 UTC",
+  "updated": "2026-09-07 20:20:21 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -10,7 +10,7 @@
     "next_name": "6.9"
   },
   "now": {
-    "step": "T3: Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart",
+    "step": "",
     "next": "Finish ck/watchdog, then confirm baseline build (T1)",
     "files": []
   },
@@ -36,8 +36,8 @@
     {
       "id": "T3",
       "title": "Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart",
-      "status": "doing",
-      "note": "chart range selector - designing the series API and cache"
+      "status": "done",
+      "note": "ChartRange (8 ranges incl. after-hours-only), ChartFeed, PriceChart + RangeChips, wired into DetailScreen; range remembered across launches"
     },
     {
       "id": "T4",
@@ -158,6 +158,7 @@
     "2026-09-07 20:15:05 UTC  F03 fixed: refreshSparklines un-marks every failed symbol, not only the all-failed case",
     "2026-09-07 20:15:05 UTC  F04 fixed: refreshSparklines starts alongside the quote pass, above the no-quotes early return",
     "2026-09-07 20:15:06 UTC  F05 fixed: a locally-cooling Yahoo host is now skipped rather than abandoning the request; both chart and batch paths",
-    "2026-09-07 20:18:26 UTC  T3/T4/T5/T6/T7 code written; first compile of round 58"
+    "2026-09-07 20:18:26 UTC  T3/T4/T5/T6/T7 code written; first compile of round 58",
+    "2026-09-07 20:20:21 UTC  T3 -> done  ChartRange (8 ranges incl. after-hours-only), ChartFeed, PriceChart + RangeChips, wired into DetailScreen; range remembered across launches"
   ]
 }
