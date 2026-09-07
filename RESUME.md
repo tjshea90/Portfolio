@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:44:14 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:44:22 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T7  After-hours block: stack dollar and percent vertically like the other sections  — extended-hours cell stacks price / dollar change / percent vertically
 - [x] T8  ETF detail: HOLDINGS tab listing each holding and its % of the fund  — FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack
 - [x] T9  Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible  — new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed
-- [>] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — adversarial sweep - pass 1: my own round-58 changes
+- [>] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — sweep pass 2 - the pre-existing codebase
 - [ ] T11  Fix every finding from T10 without introducing new ones
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
@@ -81,7 +81,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:38:21 UTC  finding F14: purgeChartCache binds an Int via execSQL bind args. Android's SQLiteProgram bind
 - 2026-09-07 20:38:21 UTC  finding F15: Opening a symbol from SearchSheet does not clear detailStack, so a back press fr
 - 2026-09-07 20:38:21 UTC  finding F16: The new ON_START DisposableEffect is keyed on symbol/chartRange/tab, so it re-re
 - 2026-09-07 20:41:19 UTC  F14 fixed: NOT A BUG - verified against real SQLite via ChartCacheDbTest: DatabaseUtils.bindObjectToProgram binds any Number as a long, so an Int bind arg is fine. The purge test proves rows are actually removed.
@@ -93,4 +92,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:44:13 UTC  F13 fixed: column renamed range_key; verified across all eight ranges against real SQLite
 - 2026-09-07 20:44:14 UTC  F15 fixed: opening a search result clears detailStack
 - 2026-09-07 20:44:14 UTC  F16 fixed: the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState
+- 2026-09-07 20:44:22 UTC  T10 -> doing  sweep pass 2 - the pre-existing codebase
 

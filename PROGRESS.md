@@ -141,3 +141,4 @@ app/src/test/java/com/tj/portfolio/BackgroundTest.kt
 2026-09-07 20:44:14 UTC  checkpoint 58  commit 0eb3cdd  fix F13
 2026-09-07 20:44:14 UTC  checkpoint 58  commit d69ff01  fix F15
 2026-09-07 20:44:14 UTC  checkpoint 58  commit 71ce312  fix F16
+2026-09-07 20:44:15 UTC  checkpoint 58  commit 208fceb  sweep pass 1 - nine findings on my own round-58 changes, all fixed

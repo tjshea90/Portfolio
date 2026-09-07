@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:44:14 UTC",
+  "updated": "2026-09-07 20:44:22 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -79,7 +79,7 @@
       "id": "T10",
       "title": "Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)",
       "status": "doing",
-      "note": "adversarial sweep - pass 1: my own round-58 changes"
+      "note": "sweep pass 2 - the pre-existing codebase"
     },
     {
       "id": "T11",
@@ -267,6 +267,7 @@
     "2026-09-07 20:44:13 UTC  F12 fixed: chartDiskRead is un-marked when the disk read does not complete",
     "2026-09-07 20:44:13 UTC  F13 fixed: column renamed range_key; verified across all eight ranges against real SQLite",
     "2026-09-07 20:44:14 UTC  F15 fixed: opening a search result clears detailStack",
-    "2026-09-07 20:44:14 UTC  F16 fixed: the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState"
+    "2026-09-07 20:44:14 UTC  F16 fixed: the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState",
+    "2026-09-07 20:44:22 UTC  T10 -> doing  sweep pass 2 - the pre-existing codebase"
   ]
 }
