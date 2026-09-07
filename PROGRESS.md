@@ -152,3 +152,4 @@ app/src/test/java/com/tj/portfolio/BackgroundTest.kt
 2026-09-07 20:56:56 UTC  checkpoint 58  no-change  sweep pass 2 complete; 15 rendered UI tests for the chart and holdings
 2026-09-07 20:57:07 UTC  checkpoint 58  commit c617809  T10 doing
 2026-09-07 21:02:47 UTC  checkpoint 58  commit 01a83d3  fix F22
+2026-09-07 21:02:47 UTC  checkpoint 58  commit 021fad8  market-aware chart refresh gate
