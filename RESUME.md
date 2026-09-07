@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:00:33 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:02:20 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -53,9 +53,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T1** (Baseline: release build + 276-test suite green before any edit).
 
-## 5. Open findings — 0 still open, 0 fixed
+## 5. Open findings — 2 still open, 0 fixed
 
-(none recorded yet)
+- [ ] F01 (high) onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_CRITICAL 15), which Android delivers on EVERY app switch. The sparkAt 5-minute throttle is already stamped, so charts stay blank for up to 5 minutes after returning. This is TJ's 'charts disappeared when I switched back' report. The doc comment's reasoning ('they ride along with the next quote') went stale in Round 56 when the series moved off the quote path.
+- [ ] F02 (high) After a spark drop the DB (quotes.spark) still holds the series, but nothing re-reads it on return - the recovery path is a network fetch that the throttle suppresses.
 
 ## 6. Version
 
@@ -71,4 +72,7 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:00:12 UTC  T0 -> done  ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - 2026-09-07 20:00:32 UTC  T1 -> doing  build running
 - 2026-09-07 20:00:33 UTC  T2 -> doing  reading the chart pipeline
+- 2026-09-07 20:01:13 UTC  finding F01: onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_
+- 2026-09-07 20:01:14 UTC  finding F02: After a spark drop the DB (quotes.spark) still holds the series, but nothing re-
+- 2026-09-07 20:02:20 UTC  cleaned gradle caches after a concurrent-build collision; single build running
 

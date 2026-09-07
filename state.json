@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:00:33 UTC",
+  "updated": "2026-09-07 20:02:20 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -100,12 +100,30 @@
       "note": ""
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "id": "F01",
+      "text": "onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_CRITICAL 15), which Android delivers on EVERY app switch. The sparkAt 5-minute throttle is already stamped, so charts stay blank for up to 5 minutes after returning. This is TJ's 'charts disappeared when I switched back' report. The doc comment's reasoning ('they ride along with the next quote') went stale in Round 56 when the series moved off the quote path.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F02",
+      "text": "After a spark drop the DB (quotes.spark) still holds the series, but nothing re-reads it on return - the recovery path is a network fetch that the throttle suppresses.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    }
+  ],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
     "2026-09-07 20:00:12 UTC  T0 -> done  ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten",
     "2026-09-07 20:00:32 UTC  T1 -> doing  build running",
-    "2026-09-07 20:00:33 UTC  T2 -> doing  reading the chart pipeline"
+    "2026-09-07 20:00:33 UTC  T2 -> doing  reading the chart pipeline",
+    "2026-09-07 20:01:13 UTC  finding F01: onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_",
+    "2026-09-07 20:01:14 UTC  finding F02: After a spark drop the DB (quotes.spark) still holds the series, but nothing re-",
+    "2026-09-07 20:02:20 UTC  cleaned gradle caches after a concurrent-build collision; single build running"
   ]
 }
