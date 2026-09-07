@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:57:06 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:58:45 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -53,7 +53,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T10** (Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)).
 
-## 5. Open findings — 0 still open, 21 fixed
+## 5. Open findings — 1 still open, 21 fixed
 
 - [x] F01 (high) onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_CRITICAL 15), which Android delivers on EVERY app switch. The sparkAt 5-minute throttle is already stamped, so charts stay blank for up to 5 minutes after returning. This is TJ's 'charts disappeared when I switched back' report. The doc comment's reasoning ('they ride along with the next quote') went stale in Round 56 when the series moved off the quote path.  — onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts
 - [x] F02 (high) After a spark drop the DB (quotes.spark) still holds the series, but nothing re-reads it on return - the recovery path is a network fetch that the throttle suppresses.  — restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges
@@ -76,6 +76,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F19 (low) ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often than the provider makes a new point cannot return anything new - the same rule that put D1 on five minutes.  — D5 TTL raised to 30 minutes to match its 30-minute candle
 - [x] F20 (high) A chart never refreshes while its screen stays open. loadChart runs from LaunchedEffect(symbol, range) and ON_START only, so watching one stock for an hour leaves the line frozen at load time with only its tip moving. TJ asked for periodic automatic refresh as well as pull-down.  — the open chart re-checks its TTL on every quote tick and refreshes itself at its own cadence, answered from memory without a coroutine when nothing is due
 - [x] F21 (med) RangeChips are ~40dp tall - under the app's own documented 48dp minimum tap target, which it has a helper for and a round-46 finding about. Eight chips in a scrolling row means a mis-tap selects the neighbouring range.  — range chips use minTapTarget(); a rendered UI test asserts 48dp at 1.0 and 1.3 font scale
+- [ ] F22 (med) An intraday chart left open keeps re-fetching itself after the session that produced it has ended. The regular-session 1D line cannot gain a candle after 16:00 ET, yet the poll clock keeps ticking through the whole EXTENDED window - roughly 48 requests an evening for a picture that cannot change. Same for the after-hours line once extended trading stops at 20:00 ET.
 
 ## 6. Version
 
@@ -86,7 +87,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:44:22 UTC  T10 -> doing  sweep pass 2 - the pre-existing codebase
 - 2026-09-07 20:45:54 UTC  finding F17: purgeChartCache runs on EVERY chart write - a DELETE with an ordered subquery ov
 - 2026-09-07 20:45:55 UTC  finding F18: Fundamentals.estimates and .history are rendered as keyed LazyColumn items with 
 - 2026-09-07 20:45:55 UTC  finding F19: ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often t
@@ -98,4 +98,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:49:43 UTC  finding F21: RangeChips are ~40dp tall - under the app's own documented 48dp minimum tap targ
 - 2026-09-07 20:55:00 UTC  F21 fixed: range chips use minTapTarget(); a rendered UI test asserts 48dp at 1.0 and 1.3 font scale
 - 2026-09-07 20:57:06 UTC  T10 -> doing  sweep pass 3 - pre-existing code I have not touched
+- 2026-09-07 20:58:45 UTC  finding F22: An intraday chart left open keeps re-fetching itself after the session that prod
 

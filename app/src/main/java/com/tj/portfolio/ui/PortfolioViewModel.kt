@@ -2859,6 +2859,46 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * True when an intraday chart cannot gain another point until the next session, so the
+     * automatic refresh should stop even though its TTL has lapsed.
+     *
+     * THE SAME ARGUMENT AS [pricesAreFinal], APPLIED TO THE PICTURE RATHER THAN THE NUMBER.
+     * A 1D line is the regular session, and after 16:00 ET the regular session has no more
+     * candles to give - but the quote poll keeps ticking through the whole extended window,
+     * and the chart rides that clock. Left on a stock through an evening that is roughly
+     * forty-eight requests for an image that cannot change.
+     *
+     * THE TEST IS ON THE DATA, NOT ON THE CLOCK ALONE, because "the market is shut" is not
+     * the same statement as "what we hold is final", and the difference is exactly the case
+     * that would break if this were sloppier:
+     *
+     *  - after hours, a 1D series whose LAST POINT is a regular-session candle is complete -
+     *    stop;
+     *  - in PRE-MARKET, before the open has produced anything, `ChartFeed` falls back to
+     *    plotting the pre-market itself. Those points are still arriving, so the last point
+     *    is an EXTENDED one and this correctly returns false - the chart keeps updating;
+     *  - the after-hours line is live all through the extended window and only finishes when
+     *    that window does. Requiring the held series to have been FETCHED during the closed
+     *    stretch guarantees one last pull after 20:00 ET, so the final candles are not
+     *    missed by a few minutes of timing.
+     *
+     * Only the AUTOMATIC path consults this. `force` - which is what pull-to-refresh passes -
+     * never reaches it, so a deliberate pull always re-fetches.
+     */
+    private fun intradayChartIsFinal(held: ChartSeries): Boolean {
+        val clock = com.tj.portfolio.net.MarketClock
+        val now = clock.phase()
+        if (now == clock.Phase.OPEN) return false
+        if (held.endMs <= 0L) return false
+        return when (held.range) {
+            ChartRange.D1 -> clock.phase(held.endMs) == clock.Phase.OPEN
+            ChartRange.OVERNIGHT ->
+                now == clock.Phase.CLOSED && clock.phase(held.fetched) == clock.Phase.CLOSED
+            else -> false
+        }
+    }
+
+    /**
      * Use a freshly fetched 1D chart as this symbol's sparkline as well.
      *
      * Both the quote's `spark` and `sparkAt` are updated, because the mark is what stops
@@ -2940,7 +2980,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // lookup; answering them inside a launched coroutine would cost a coroutine each.
         if (!force && sym in chartDiskRead) {
             val cached = _charts.value[key]
-            if (cached != null && !cached.isEmpty && !cached.stale()) return
+            if (cached != null && !cached.isEmpty &&
+                (!cached.stale() || intradayChartIsFinal(cached))
+            ) return
         }
 
         fgScope.launch {
