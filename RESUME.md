@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:04:09 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:08:20 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,10 +34,10 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 1/14 done
+## 4. Task ledger — 2/14 done
 
 - [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
-- [>] T1  Baseline: release build + 276-test suite green before any edit  — build running
+- [x] T1  Baseline: release build + 276-test suite green before any edit  — release APK + 276/276 tests green + checkinit ok
 - [>] T2  Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)  — reading the chart pipeline
 - [ ] T3  Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart
 - [ ] T4  Chart CACHING: survive backgrounding; periodic auto-refresh; pull-down forces
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
 
-**Resume at T1** (Baseline: release build + 276-test suite green before any edit).
+**Resume at T2** (Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)).
 
 ## 5. Open findings — 5 still open, 0 fixed
 
@@ -81,4 +81,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:03:46 UTC  finding F03: refreshSparklines only unmarks sparkAt when EVERY symbol failed. On a partial fa
 - 2026-09-07 20:03:46 UTC  finding F04: refreshSparklines is called at the very end of refresh(), AFTER the 'fetched.isE
 - 2026-09-07 20:04:09 UTC  finding F05: MarketData.yahoo() and batchYahoo() return immediately when query1 is in a LOCAL
+- 2026-09-07 20:08:20 UTC  T1 -> done  release APK + 276/276 tests green + checkinit ok
 
