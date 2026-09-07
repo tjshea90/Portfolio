@@ -99,8 +99,13 @@ fun StockRowItem(
 
             if (!row.watchOnly) {
                 // ================= YOUR MONEY =================
+                //
+                // A HAIRLINE, deliberately lighter than the line between two rows. The two
+                // used to be identical, which made the break inside a single holding look
+                // exactly as strong as the break between two different ones - see the note
+                // on `RowSeparator`.
                 Spacer(Modifier.height(10.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                InRowDivider()
                 Spacer(Modifier.height(8.dp))
 
                 Row(Modifier.fillMaxWidth()) {

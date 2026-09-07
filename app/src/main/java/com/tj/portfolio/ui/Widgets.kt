@@ -34,6 +34,55 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * THE LINE BETWEEN ONE STOCK AND THE NEXT.
+ *
+ * TJ: *"for my portfolio or anywhere else that stocks are shown in a vertical list, make
+ * the separation between stocks a little more pronounced. do this by either more space
+ * between stocks or a thicker line between stocks or both."* Both, and there was a reason
+ * the old one read as weak that is worth writing down:
+ *
+ * every row ALREADY contains a divider of its own - the one splitting "the stock" from
+ * "your money" inside `StockRowItem` - and it was drawn at exactly the same 1dp in exactly
+ * the same colour as the line between rows. So the strongest visual break on the screen was
+ * indistinguishable from a break INSIDE a single row, and the eye had nothing to group by.
+ * Making this line heavier without also making the inner one lighter would have left both
+ * shouting; the hierarchy is what was missing, not the weight.
+ *
+ * So: 3dp and full-strength here, with 5dp of air either side, against 1dp at 45% opacity
+ * inside the row. Same two elements, now unambiguous about which is which.
+ */
+@Composable
+fun RowSeparator(modifier: Modifier = Modifier) {
+    Spacer(Modifier.height(ROW_GAP.dp))
+    androidx.compose.material3.HorizontalDivider(
+        modifier = modifier,
+        thickness = ROW_RULE.dp,
+        color = MaterialTheme.colorScheme.outline
+    )
+    Spacer(Modifier.height(ROW_GAP.dp))
+}
+
+/** Breathing space either side of [RowSeparator]. */
+private const val ROW_GAP = 5
+
+/** How heavy the line between two stocks is. */
+private const val ROW_RULE = 3
+
+/**
+ * The divider used INSIDE a row, which must read as lighter than [RowSeparator].
+ *
+ * Hairline and half-strength: it is separating two halves of one thing, not two things.
+ */
+@Composable
+fun InRowDivider(modifier: Modifier = Modifier) {
+    androidx.compose.material3.HorizontalDivider(
+        modifier = modifier,
+        thickness = 1.dp,
+        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
+    )
+}
+
 /** Circular letter avatar standing in for a company logo. */
 @Composable
 fun Avatar(symbol: String, size: Int = 38) {

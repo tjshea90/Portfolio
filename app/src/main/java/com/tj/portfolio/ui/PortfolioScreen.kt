@@ -108,7 +108,7 @@ fun PortfolioScreen(
                     onNews = { onOpenNews(row.symbol) },
                     onAction = { a -> pending = PendingAction(row.symbol, a) }
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                RowSeparator()
             }
 
             if (rows.isEmpty()) {

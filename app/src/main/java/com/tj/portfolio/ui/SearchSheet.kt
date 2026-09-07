@@ -173,7 +173,7 @@ fun SearchSheet(
                             }
                         }
                     }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                    RowSeparator()
                 }
             }
         }

@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:15:06 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:18:26 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -70,7 +70,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:03:46 UTC  finding F03: refreshSparklines only unmarks sparkAt when EVERY symbol failed. On a partial fa
 - 2026-09-07 20:03:46 UTC  finding F04: refreshSparklines is called at the very end of refresh(), AFTER the 'fetched.isE
 - 2026-09-07 20:04:09 UTC  finding F05: MarketData.yahoo() and batchYahoo() return immediately when query1 is in a LOCAL
 - 2026-09-07 20:08:20 UTC  T1 -> done  release APK + 276/276 tests green + checkinit ok
@@ -82,4 +81,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:15:05 UTC  F03 fixed: refreshSparklines un-marks every failed symbol, not only the all-failed case
 - 2026-09-07 20:15:05 UTC  F04 fixed: refreshSparklines starts alongside the quote pass, above the no-quotes early return
 - 2026-09-07 20:15:06 UTC  F05 fixed: a locally-cooling Yahoo host is now skipped rather than abandoning the request; both chart and batch paths
+- 2026-09-07 20:18:26 UTC  T3/T4/T5/T6/T7 code written; first compile of round 58
 
