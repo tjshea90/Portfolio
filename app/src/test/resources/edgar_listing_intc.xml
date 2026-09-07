@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+  <feed xmlns="http://www.w3.org/2005/Atom">
+    <author>
+      <email>webmaster@sec.gov</email>
+      <name>Webmaster</name>
+    </author>
+    <company-info>
+      <addresses>
+        <address type="mailing">
+          <city>SANTA CLARA</city>
+          <state>CA</state>
+          <street1>2200 MISSION COLLEGE BLVD</street1>
+          <street2>RNB-4-151</street2>
+          <zip>95054</zip>
+        </address>
+        <address type="business">
+          <city>SANTA CLARA</city>
+          <phone>4087658080</phone>
+          <state>CA</state>
+          <street1>2200 MISSION COLLEGE BLVD</street1>
+          <street2>RNB-4-151</street2>
+          <zip>95054</zip>
+        </address>
+      </addresses>
+      <assigned-sic>3674</assigned-sic>
+      <assigned-sic-desc>SEMICONDUCTORS &amp;amp; RELATED DEVICES</assigned-sic-desc>
+      <assigned-sic-href>https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;SIC=3674&amp;owner=include&amp;count=100</assigned-sic-href>
+      <cik>0000050863</cik>
+      <cik-href>https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=0000050863&amp;owner=include&amp;count=100</cik-href>
+      <conformed-name>INTEL CORP</conformed-name>
+      <fiscal-year-end>1227</fiscal-year-end>
+      <state-location>CA</state-location>
+      <state-location-href>https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;State=CA&amp;owner=include&amp;count=100</state-location-href>
+      <state-of-incorporation>DE</state-of-incorporation>
+    </company-info>
+    <entry>
+      <category label="form type" scheme="https://www.sec.gov/" term="4" />
+      <content type="text/xml">
+        <accession-number>0000050863-26-000177</accession-number>
+        <filing-date>2026-08-14</filing-date>
+        <filing-href>https://www.sec.gov/Archives/edgar/data/50863/000005086326000177/0000050863-26-000177-index.htm</filing-href>
+        <filing-type>4</filing-type>
+        <form-name>Statement of changes in beneficial ownership of securities</form-name>
+        <size>5 KB</size>
+      </content>
+      <id>urn:tag:sec.gov,2008:accession-number=0000050863-26-000177</id>
+      <link href="https://www.sec.gov/Archives/edgar/data/50863/000005086326000177/0000050863-26-000177-index.htm" rel="alternate" type="text/html" />
+      <summary type="html"> &lt;b&gt;Filed:&lt;/b&gt; 2026-08-14 &lt;b&gt;AccNo:&lt;/b&gt; 0000050863-26-000177 &lt;b&gt;Size:&lt;/b&gt; 5 KB</summary>
+      <title>4  - Statement of changes in beneficial ownership of securities</title>
+      <updated>2026-08-14T16:27:15-04:00</updated>
+    </entry>
+    <entry>
+      <category label="form type" scheme="https://www.sec.gov/" term="424B5" />
+      <content type="text/xml">
+        <accession-number>0001193125-26-345221</accession-number>
+        <act>33</act>
+        <file-number>333-298165</file-number>
+        <file-number-href>https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;filenum=333-298165&amp;owner=include&amp;count=100</file-number-href>
+        <filing-date>2026-08-12</filing-date>
+        <filing-href>https://www.sec.gov/Archives/edgar/data/50863/000119312526345221/0001193125-26-345221-index.htm</filing-href>
+        <filing-type>424B5</filing-type>
+        <film-number>261264802</film-number>
+        <form-name>Prospectus [Rule 424(b)(5)]</form-name>
+        <size>505 KB</size>
+        <xbrl_href>https://www.sec.gov/cgi-bin/viewer?action=view&amp;cik=50863&amp;accession_number=0001193125-26-345221&amp;xbrl_type=v</xbrl_href>
+      </content>
+      <id>urn:tag:sec.gov,2008:accession-number=0001193125-26-345221</id>
+      <link href="https://www.sec.gov/Archives/edgar/data/50863/000119312526345221/0001193125-26-345221-index.htm" rel="alternate" type="text/html" />
+      <summary type="html"> &lt;b&gt;Filed:&lt;/b&gt; 2026-08-12 &lt;b&gt;AccNo:&lt;/b&gt; 0001193125-26-345221 &lt;b&gt;Size:&lt;/b&gt; 505 KB</summary>
+      <title>424B5  - Prospectus [Rule 424(b)(5)]</title>
+      <updated>2026-08-11T18:30:59-04:00</updated>
+    </entry>
+    <entry>
+      <category label="form type" scheme="https://www.sec.gov/" term="424B5" />
+      <content type="text/xml">
+        <accession-number>0001193125-26-341318</accession-number>
+        <act>33</act>
+        <file-number>333-298165</file-number>
+        <file-number-href>https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;filenum=333-298165&amp;owner=include&amp;count=100</file-number-href>
+        <filing-date>2026-08-10</filing-date>
+        <filing-href>https://www.sec.gov/Archives/edgar/data/50863/000119312526341318/0001193125-26-341318-index.htm</filing-href>
+        <filing-type>424B5</filing-type>
+        <film-number>261256325</film-number>
+        <form-name>Prospectus [Rule 424(b)(5)]</form-name>
+        <size>347 KB</size>
+      </content>
+      <id>urn:tag:sec.gov,2008:accession-number=0001193125-26-341318</id>
+      <link href="https://www.sec.gov/Archives/edgar/data/50863/000119312526341318/0001193125-26-341318-index.htm" rel="alternate" type="text/html" />
+      <summary type="html"> &lt;b&gt;Filed:&lt;/b&gt; 2026-08-10 &lt;b&gt;AccNo:&lt;/b&gt; 0001193125-26-341318 &lt;b&gt;Size:&lt;/b&gt; 347 KB</summary>
+      <title>424B5  - Prospectus [Rule 424(b)(5)]</title>
+      <updated>2026-08-10T08:08:11-04:00</updated>
+    </entry>
+    <id>https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=0000050863</id>
+    <link href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=INTC&amp;type=4&amp;datea=2026-08-05&amp;owner=include&amp;start=0&amp;count=100" rel="alternate" type="text/html" />
+    <link href="https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&amp;CIK=INTC&amp;type=4&amp;datea=2026-08-05&amp;owner=include&amp;start=0&amp;count=100&amp;output=atom" rel="self" type="application/atom+xml" />
+    <title>INTEL CORP  (0000050863)</title>
+    <updated>2026-09-05T10:33:29-04:00</updated>
+  </feed>

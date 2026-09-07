@@ -1,0 +1,412 @@
+package com.tj.portfolio.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import com.tj.portfolio.util.Fmt
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+/** Circular letter avatar standing in for a company logo. */
+@Composable
+fun Avatar(symbol: String, size: Int = 38) {
+    val palette = listOf(
+        Color(0xFF3D6BE5), Color(0xFF16A085), Color(0xFFE07B39), Color(0xFF8E44AD),
+        Color(0xFF2C82C9), Color(0xFFC0392B), Color(0xFF13878A), Color(0xFF6D4AFF)
+    )
+    // mask rather than negate: -Int.MIN_VALUE is still negative, which would index out of bounds
+    val c = palette[(symbol.hashCode() and 0x7fffffff) % palette.size]
+    Box(
+        modifier = Modifier.size(size.dp).background(c.copy(alpha = 0.14f), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            symbol.take(1).uppercase(),
+            color = c,
+            fontWeight = FontWeight.Bold,
+            fontSize = (size * 0.42f).sp
+        )
+    }
+}
+
+/**
+ * Intraday sparkline. Green when the last point is at or above the first, red otherwise,
+ * with a faint fill under the line and a dashed baseline at the previous close.
+ */
+@Composable
+fun Sparkline(
+    points: List<Double>,
+    baseline: Double = 0.0,
+    modifier: Modifier = Modifier,
+    color: Color? = null
+) {
+    val pts = points.filter { it > 0.0 }
+    if (pts.size < 2) {
+        Box(modifier)
+        return
+    }
+    val first = if (baseline > 0.0) baseline else pts.first()
+    val up = pts.last() >= first
+    val lineColor = color ?: if (up) Green else Red
+    val min = minOf(pts.min(), if (baseline > 0) baseline else pts.min())
+    val max = maxOf(pts.max(), if (baseline > 0) baseline else pts.max())
+    val span = (max - min).let { if (it < 1e-9) 1.0 else it }
+
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val pad = h * 0.12f
+        fun y(v: Double) = (h - pad) - ((v - min) / span).toFloat() * (h - pad * 2)
+        fun x(i: Int) = w * i / (pts.size - 1).toFloat()
+
+        if (baseline > 0.0) {
+            val by = y(baseline)
+            var sx = 0f
+            while (sx < w) {
+                drawLine(
+                    Color.Gray.copy(alpha = 0.45f),
+                    Offset(sx, by), Offset(minOf(sx + 5f, w), by), strokeWidth = 1f
+                )
+                sx += 10f
+            }
+        }
+
+        val path = Path().apply {
+            moveTo(x(0), y(pts[0]))
+            for (i in 1 until pts.size) lineTo(x(i), y(pts[i]))
+        }
+        val fill = Path().apply {
+            addPath(path)
+            lineTo(w, h)
+            lineTo(0f, h)
+            close()
+        }
+        drawPath(
+            fill,
+            Brush.verticalGradient(listOf(lineColor.copy(alpha = 0.20f), lineColor.copy(alpha = 0f)))
+        )
+        drawPath(
+            path,
+            lineColor,
+            style = Stroke(width = 2.2f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+    }
+}
+
+/**
+ * The extended-hours price, but only when it belongs on screen - the single rule every
+ * caller shares, so the price block, the explanatory note and the position's extended
+ * gain/loss can never disagree about whether extended trading is happening.
+ *
+ * Null during the regular session. `MarketData` already leaves `extPrice` null while the
+ * market is open, but a CACHED quote read at startup can still be carrying last night's
+ * print, and that stale number must not be shown next to a live one.
+ */
+fun extendedPrice(q: com.tj.portfolio.data.Quote?): Double? {
+    val p = q?.extPrice ?: return null
+    if (p <= 0.0 || q.marketState == "OPEN") return null
+    return p
+}
+
+/**
+ * The price display, labelled.
+ *
+ * Every number here used to be unlabelled: a big figure, then a bare "+0.13 +0.15%", then a
+ * cryptic "AH $89.42 +0.22%". Nothing said which number was the live price and which was the
+ * close, or which change belonged to which session. Now:
+ *
+ * DURING THE REGULAR SESSION - one column, no caption. The heading already says the market
+ * is open, so naming the session again adds nothing:
+ *
+ *   CURRENT PRICE  ·  MARKET OPEN
+ *   $268.26
+ *   +$1.24
+ *   +0.46%
+ *
+ * ONCE EXTENDED TRADING HAS PRINTED - two columns, and NOW the captions earn their place,
+ * because there are two different sessions on screen at the same time:
+ *
+ *   CLOSING PRICE  ·  MARKET CLOSED
+ *   $268.26
+ *   ┌ DURING MARKET HOURS ─┬ AFTER HOURS / OVERNIGHT ─┐
+ *   │ +$1.24  +0.46%       │ $269.10                  │
+ *   │                      │ +$0.84  +0.31%           │
+ *
+ * Shared by the list rows and the stock detail screen so the two can never drift apart;
+ * [big] just scales it up for the detail screen.
+ */
+@Composable
+fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
+    val q = row.quote
+    val hasPrice = row.price > 0
+    val hasDay = hasPrice && (q?.prevClose ?: 0.0) > 0.0
+    val ext = extendedPrice(q)
+    val isPre = q?.extLabel?.startsWith("Pre", true) == true
+
+    /**
+     * The extended-hours column exists ONLY when there is a real extended-hours print.
+     *
+     * It used to render unconditionally, so all through the regular session there was an
+     * "AFTER HOURS / OVERNIGHT" heading with "--" and "no trading yet" under it - a labelled
+     * space for a number that cannot exist yet. TJ asked for it gone until it has something
+     * to say. `marketState != "OPEN"` is the second half of the guard: a CACHED quote can
+     * still be carrying last night's extended print when the market reopens, and that stale
+     * figure must not reappear beside a live one.
+     *
+     * Built as a nullable triple rather than a boolean so the values are computed once,
+     * inside a single explicit null check - which is also what keeps the smart cast on `q`
+     * and `ext` and avoids reintroducing `!!` here.
+     */
+    val extCell: Triple<String, String, Double>? =
+        if (q != null && ext != null)
+            Triple(
+                Fmt.price(ext),
+                "${Fmt.changeMoney(ext, q.extChange)}   ${Fmt.pctSigned(q.extChangePct)}",
+                q.extChangePct
+            )
+        else null
+    val hasExt = extCell != null
+
+    val heading = when {
+        !hasPrice -> "NO QUOTE YET"
+        q?.marketState == "OPEN" -> "CURRENT PRICE  ·  MARKET OPEN"
+        q?.marketState == "DELAYED" -> "LAST PRICE  ·  DELAYED FEED"
+        q?.marketState == "PRE" -> "LAST CLOSING PRICE  ·  PRE-MARKET"
+        q?.marketState == "AFTER" -> "CLOSING PRICE  ·  MARKET CLOSED"
+        hasExt -> "CLOSING PRICE  ·  MARKET CLOSED"
+        else -> "LATEST PRICE"
+    }
+
+    Column(modifier) {
+        Text(
+            heading,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(if (big) 4.dp else 2.dp))
+        Text(
+            if (hasPrice) Fmt.price(row.price) else "--",
+            fontSize = if (big) 34.sp else 24.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Spacer(Modifier.height(if (big) 12.dp else 9.dp))
+        Row(Modifier.fillMaxWidth()) {
+            SessionCell(
+                modifier = if (extCell != null) Modifier.weight(1f) else Modifier.fillMaxWidth(),
+                // Labelled only when there is a second column to be told apart from. On its
+                // own it needs no caption: the heading directly above already says whether
+                // the market is open, so "DURING MARKET HOURS" was stating the obvious.
+                label = if (extCell != null) "DURING MARKET HOURS" else null,
+                first = if (hasDay) Fmt.changeMoney(row.price, row.dayChange) else "--",
+                second = if (hasDay) Fmt.pctSigned(row.dayPct) else "not available",
+                // THE BASELINE, SPELLED OUT. This is the piece TJ said was missing: the two
+                // columns are measured against DIFFERENT things - `dayChange` is
+                // `price - prevClose` while `extChange` is `extPrice - price` - and until now
+                // nothing on screen said so, leaving two percentages side by side with no way
+                // to know what either was a percentage OF.
+                basis = if (hasDay) "vs previous close" else null,
+                color = if (hasDay) signColor(row.dayPct)
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                big = big
+            )
+            if (extCell != null) {
+                VerticalRule()
+                SessionCell(
+                    modifier = Modifier.weight(1f),
+                    label = if (isPre) "PRE-MARKET" else "AFTER HOURS / OVERNIGHT",
+                    // the extended-hours PRICE is the number people actually want here
+                    firstTag = "price now",
+                    first = extCell.first,
+                    secondTag = "change",
+                    second = extCell.second,
+                    // Pre-market is measured from the last regular close, which is the
+                    // previous day's; after hours it is measured from today's close. Same
+                    // arithmetic, different day, so the wording has to differ too.
+                    basis = if (isPre) "vs last close" else "vs today's close",
+                    color = signColor(extCell.third),
+                    firstIsNeutral = true,
+                    big = big
+                )
+            }
+        }
+    }
+}
+
+/** One labelled session column inside [PriceBlock]. */
+/**
+ * One labelled session column inside [PriceBlock].
+ *
+ * EVERY NUMBER IN HERE IS NAMED, and that is the point of the tags and the basis line. TJ's
+ * report was "under the after hours/overnight there are two percentage numbers with no
+ * explanation" - the cell showed a price, then a money change and a percentage on one line,
+ * with nothing saying which was which or what they were measured from.
+ *
+ * @param firstTag  what the first figure IS ("price now"). Null where the heading already
+ *                  says it - the market-hours column's figure is plainly the day's change.
+ * @param secondTag likewise for the second figure.
+ * @param basis     what the change is measured AGAINST. The most important line here: the
+ *                  two columns use different baselines and the numbers are meaningless
+ *                  without it.
+ */
+@Composable
+private fun SessionCell(
+    label: String?,
+    first: String,
+    second: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    firstTag: String? = null,
+    secondTag: String? = null,
+    basis: String? = null,
+    firstIsNeutral: Boolean = false,
+    big: Boolean = false
+) {
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(modifier.padding(end = 8.dp)) {
+        // A null label takes its spacer with it - an empty Text would leave the gap behind
+        // and the numbers would still sit as though something were written above them.
+        if (label != null) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = muted,
+                maxLines = 2
+            )
+            Spacer(Modifier.height(3.dp))
+        }
+        if (firstTag != null) {
+            Text(firstTag, style = MaterialTheme.typography.labelSmall, color = muted, maxLines = 1)
+        }
+        Text(
+            first,
+            fontSize = if (big) 19.sp else 16.sp,
+            fontWeight = FontWeight.Bold,
+            // the after-hours PRICE is a price, not a gain, so it is not painted green/red
+            color = if (firstIsNeutral) MaterialTheme.colorScheme.onSurface else color
+        )
+        if (secondTag != null) {
+            Spacer(Modifier.height(2.dp))
+            Text(secondTag, style = MaterialTheme.typography.labelSmall, color = muted, maxLines = 1)
+        }
+        Text(
+            second,
+            fontSize = if (big) 14.sp else 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = color
+        )
+        if (basis != null) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                basis,
+                style = MaterialTheme.typography.labelSmall,
+                color = muted,
+                maxLines = 2
+            )
+        }
+    }
+}
+
+@Composable
+private fun VerticalRule() {
+    Box(
+        Modifier
+            .padding(end = 10.dp)
+            .width(1.dp)
+            .height(46.dp)
+            .background(MaterialTheme.colorScheme.outline)
+    )
+}
+
+/** Solid green/red price pill, matching the reference screenshot's market-cap chip. */
+@Composable
+fun PricePill(
+    text: String,
+    positive: Boolean,
+    modifier: Modifier = Modifier,
+    neutral: Boolean = false
+) {
+    Box(
+        modifier = modifier
+            .background(
+                if (neutral) MaterialTheme.colorScheme.outline
+                else if (positive) Green else Red,
+                RoundedCornerShape(7.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+    }
+}
+
+@Composable
+fun StatCard(
+    modifier: Modifier = Modifier,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+    ) {
+        Column(Modifier.padding(14.dp), content = content)
+    }
+}
+
+/** label / value row used throughout the stat cards. */
+@Composable
+fun KeyValue(label: String, value: String, valueColor: Color? = null, bold: Boolean = false) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = valueColor ?: MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+fun SectionHeader(text: String) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 6.dp)
+    )
+}

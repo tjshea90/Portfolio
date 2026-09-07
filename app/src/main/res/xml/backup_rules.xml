@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12 and older (fullBackupContent).
+
+  The database holds the Claude and Finnhub API keys in its `settings` table, and Settings
+  tells the user the key is "stored only on this phone". With allowBackup="true" and no rules
+  that was not quite true: Android's automatic backup would copy portfolio.db, keys included,
+  into the user's cloud backup. The app's own JSON export has always filtered secrets out
+  (Db.isSecret); this makes the platform's backup agree with what the app says it does.
+
+  These older releases cannot tell a cloud backup from a device-to-device transfer, so the
+  database is excluded from both. Nothing is lost that matters: the app keeps 14 private
+  snapshots, an uninstall-proof copy in Downloads/Portfolio, and the manual export.
+-->
+<full-backup-content>
+    <exclude domain="database" path="portfolio.db" />
+    <exclude domain="database" path="portfolio.db-journal" />
+    <exclude domain="database" path="portfolio.db-wal" />
+    <exclude domain="database" path="portfolio.db-shm" />
+</full-backup-content>

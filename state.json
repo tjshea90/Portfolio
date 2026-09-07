@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "round": 58,
+  "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
+  "updated": "2026-09-07 19:59:53 UTC",
+  "version": {
+    "code": 55,
+    "name": "6.8",
+    "next_code": 56,
+    "next_name": "6.9"
+  },
+  "now": {
+    "step": "T0: building the Cowork checkpoint system",
+    "next": "Finish ck/watchdog, then confirm baseline build (T1)",
+    "files": []
+  },
+  "tasks": [
+    {
+      "id": "T0",
+      "title": "Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog",
+      "status": "doing",
+      "note": ""
+    },
+    {
+      "id": "T1",
+      "title": "Baseline: release build + 276-test suite green before any edit",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T2",
+      "title": "Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T3",
+      "title": "Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T4",
+      "title": "Chart CACHING: survive backgrounding; periodic auto-refresh; pull-down forces",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T5",
+      "title": "Chart FETCH RELIABILITY: find and fix why charts sometimes never load",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T6",
+      "title": "Vertical stock lists: more pronounced separation (spacing + divider)",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T7",
+      "title": "After-hours block: stack dollar and percent vertically like the other sections",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T8",
+      "title": "ETF detail: HOLDINGS tab listing each holding and its % of the fund",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T9",
+      "title": "Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T10",
+      "title": "Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T11",
+      "title": "Fix every finding from T10 without introducing new ones",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T12",
+      "title": "Verification: unit tests, checkinit, lint, simulations, second-pass review",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T13",
+      "title": "Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ",
+      "status": "todo",
+      "note": ""
+    }
+  ],
+  "findings": [],
+  "log": [
+    "2026-09-07 19:59:39 UTC  round 58 started",
+    "2026-09-07 19:59:53 UTC  round 58 ledger created"
+  ]
+}

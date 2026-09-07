@@ -1,0 +1,397 @@
+package com.tj.portfolio.net
+
+import com.tj.portfolio.data.Consensus2
+import com.tj.portfolio.data.ScreenRow
+import com.tj.portfolio.util.Fmt
+import kotlin.math.abs
+import kotlin.math.ln
+import kotlin.math.max
+import kotlin.math.min
+
+/**
+ * THE SCORING ENGINE - the app's own arithmetic, and the reason the Research tab can be
+ * trusted at all.
+ *
+ * TJ's decision for this round was "app scores, Claude explains". Everything in this file is
+ * a PURE function of numbers the app fetched: no network, no clock, no model. That has three
+ * consequences worth stating, because they are the whole point:
+ *
+ *  1. **It is testable.** `ResearchScoreTest` feeds it hand-built rows and asserts the
+ *     ordering, so a change that quietly turns "cheap and growing" into "expensive and
+ *     shrinking" fails a build rather than surfacing as a bad recommendation.
+ *  2. **It can show its work.** Every scorer returns the reasons alongside the number, in
+ *     the user's language, and the UI prints them. A score with no visible reason is a
+ *     number to be suspicious of.
+ *  3. **It degrades honestly.** A missing field scores ZERO for its component instead of
+ *     being guessed at, and [confidence] reports how much of the input was actually there,
+ *     so a thinly-covered small cap cannot outrank a well-covered one on absent data.
+ *
+ * NONE OF THIS IS A RECOMMENDATION. It is a ranking of public numbers, and the UI says so.
+ */
+object ResearchScore {
+
+    // ------------------------------------------------------------------ helpers
+
+    /** Linear ramp: 0 at [lo], [maxPoints] at [hi], clamped both ends. */
+    internal fun ramp(v: Double, lo: Double, hi: Double, maxPoints: Double): Double {
+        if (v.isNaN() || hi <= lo) return 0.0
+        return ((v - lo) / (hi - lo)).coerceIn(0.0, 1.0) * maxPoints
+    }
+
+    /** Log-scaled ramp for quantities that span orders of magnitude (market cap, volume). */
+    private fun logRamp(v: Double, lo: Double, hi: Double, maxPoints: Double): Double {
+        if (v <= 0 || hi <= lo) return 0.0
+        return ramp(ln(v), ln(lo), ln(hi), maxPoints)
+    }
+
+    private fun pct(v: Double) = Fmt.pct(v)
+
+    data class Scored(val score: Int, val reasons: List<String>, val confidence: Int)
+
+    // --------------------------------------------------------------------- BEST
+
+    /**
+     * "Excellent buy" as the numbers can define it: growing, not expensive for that growth,
+     * in an uptrend, big and liquid enough to be ownable, and with a catalyst in sight.
+     *
+     * Deliberately NOT momentum-only. A stock up 40% this week scores nothing here for the
+     * move itself - that is what the Trending section is for. What earns points is the
+     * combination of forward earnings above trailing earnings, a forward multiple that has
+     * not already priced it in, and a price above both moving averages.
+     */
+    fun best(r: ScreenRow): Scored {
+        val why = ArrayList<String>()
+        var s = 0.0
+        var have = 0
+        var want = 0
+
+        // --- forward earnings growth (0-25)
+        want++
+        val g = r.epsGrowth
+        if (!g.isNaN()) {
+            have++
+            val pts = ramp(g * 100.0, 0.0, 40.0, 25.0)
+            s += pts
+            if (g > 0.05) why.add(
+                "Earnings expected to grow ${pct(g * 100.0)} - forward EPS " +
+                    "${Fmt.priceBare(r.epsForward)} vs ${Fmt.priceBare(r.epsTtm)} trailing"
+            )
+        } else if (r.epsForward > 0 && r.epsTtm <= 0) {
+            have++
+            s += 14.0
+            why.add(
+                "Turning profitable: forward EPS ${Fmt.priceBare(r.epsForward)} against a " +
+                    "trailing loss"
+            )
+        }
+
+        // --- valuation (0-20)
+        want++
+        if (r.forwardPe > 0) {
+            have++
+            // 8x is a full score, 45x is none; anything above that is priced for perfection.
+            val pts = ramp(-r.forwardPe, -45.0, -8.0, 20.0)
+            s += pts
+            if (r.forwardPe <= 25) why.add(
+                "Forward P/E ${Fmt.priceBare(r.forwardPe)} - " +
+                    (if (r.forwardPe <= 12) "cheap" else "reasonable") + " for that growth"
+            )
+        }
+
+        // --- price trend (0-20)
+        want++
+        if (r.price > 0 && r.fiftyDayAvg > 0 && r.twoHundredDayAvg > 0) {
+            have++
+            var t = 0.0
+            if (r.price > r.fiftyDayAvg) t += 10.0
+            if (r.fiftyDayAvg > r.twoHundredDayAvg) t += 10.0
+            s += t
+            if (t >= 20.0) why.add("In an uptrend - above its 50-day and the 50-day is above the 200-day")
+            else if (t > 0) why.add("Trend is mixed - above one moving average, below the other")
+        }
+
+        // --- position in the 52-week range (0-10)
+        want++
+        val pos = r.rangePos
+        if (pos >= 0) {
+            have++
+            // Best between 45% and 90% of the range: past the damage, short of the blow-off.
+            val pts = when {
+                pos in 0.45..0.90 -> 10.0
+                pos > 0.90 -> 5.0
+                else -> ramp(pos, 0.10, 0.45, 6.0)
+            }
+            s += pts
+            if (pos > 0.90) why.add("Trading within 10% of its 52-week high")
+        }
+
+        // --- size and liquidity (0-15)
+        want++
+        if (r.marketCap > 0) {
+            have++
+            s += logRamp(r.marketCap, 3e8, 2e10, 10.0)
+        }
+        want++
+        if (r.avgVolume3M > 0) {
+            have++
+            s += logRamp(r.avgVolume3M, 1e5, 5e6, 5.0)
+        }
+        if (r.marketCap >= 1e10) why.add("Large cap (${Fmt.compact(r.marketCap)}) - liquid and widely covered")
+
+        // --- which screens it turned up on (0-10)
+        var listPts = 0.0
+        if (Screener.Lists.UNDERVALUED_GROWTH in r.lists) listPts += 5.0
+        if (Screener.Lists.GROWTH_TECH in r.lists) listPts += 4.0
+        if (Screener.Lists.UNDERVALUED_LARGE in r.lists) listPts += 3.0
+        if (Screener.Lists.MOST_ACTIVE in r.lists) listPts += 2.0
+        s += min(listPts, 10.0)
+        val screens = r.lists.filter { it != Screener.Lists.DAY_GAINERS }
+        if (screens.isNotEmpty()) why.add(
+            "On Yahoo's " + screens.joinToString(" and ") { Screener.label(it) } + " screen"
+        )
+
+        // --- book value sanity: a negative one is a red flag even in the BEST list
+        if (r.priceToBook < 0) {
+            s -= 8.0
+            why.add("Negative book value - liabilities exceed assets on the balance sheet")
+        }
+
+        return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
+    }
+
+    // -------------------------------------------------------------------- WORST
+
+    /**
+     * "Failing and likely to fall further" as the numbers can define it: losing money with
+     * no forward turn, below both moving averages, deep into a 52-week decline, heavily
+     * shorted, and small enough that none of that is cushioned.
+     *
+     * A high score here is NOT a short recommendation. Heavily shorted names are exactly the
+     * ones that squeeze, and the UI says so next to the short vehicle.
+     */
+    fun worst(r: ScreenRow): Scored {
+        val why = ArrayList<String>()
+        var s = 0.0
+        var have = 0
+        var want = 0
+
+        // --- losing money (0-25)
+        want++
+        if (r.epsTtm != 0.0 || r.epsForward != 0.0) {
+            have++
+            if (r.epsTtm < 0) {
+                s += 15.0
+                if (r.epsForward < 0) {
+                    s += 10.0
+                    why.add(
+                        "Loss-making now (${Fmt.priceBare(r.epsTtm)}/share) and still " +
+                            "forecast to lose money (${Fmt.priceBare(r.epsForward)}/share)"
+                    )
+                } else {
+                    why.add("Loss-making: trailing EPS ${Fmt.priceBare(r.epsTtm)}")
+                }
+            } else if (r.epsForward in 0.0..r.epsTtm && r.epsTtm > 0.01) {
+                val shrink = (r.epsTtm - r.epsForward) / r.epsTtm
+                s += ramp(shrink * 100.0, 0.0, 50.0, 15.0)
+                if (shrink > 0.10) why.add(
+                    "Earnings shrinking - forward EPS ${Fmt.priceBare(r.epsForward)} " +
+                        "below ${Fmt.priceBare(r.epsTtm)} trailing"
+                )
+            }
+        }
+
+        // --- downtrend (0-25)
+        want++
+        if (r.price > 0 && r.fiftyDayAvg > 0 && r.twoHundredDayAvg > 0) {
+            have++
+            var t = 0.0
+            if (r.price < r.fiftyDayAvg) t += 10.0
+            if (r.fiftyDayAvg < r.twoHundredDayAvg) t += 10.0
+            if (r.price < r.twoHundredDayAvg) t += 5.0
+            s += t
+            if (t >= 25.0) why.add("In a clear downtrend - below the 50-day and the 200-day, with the 50-day falling through the 200-day")
+            else if (t > 0) why.add("Below at least one of its moving averages")
+        }
+
+        // --- a year of damage (0-20)
+        want++
+        if (r.fiftyTwoWeekChangePct != 0.0) {
+            have++
+            s += ramp(-r.fiftyTwoWeekChangePct, 10.0, 65.0, 20.0)
+            if (r.fiftyTwoWeekChangePct <= -20) why.add(
+                "Down ${pct(abs(r.fiftyTwoWeekChangePct))} over the past year"
+            )
+        }
+
+        // --- sitting on the 52-week low (0-10)
+        want++
+        val pos = r.rangePos
+        if (pos >= 0) {
+            have++
+            s += ramp(-pos, -0.35, -0.02, 10.0)
+            if (pos <= 0.12) why.add("Trading near its 52-week low of ${Fmt.price(r.fiftyTwoWeekLow)}")
+        }
+
+        // --- crowded short (0-10)
+        if (Screener.Lists.MOST_SHORTED in r.lists) {
+            s += 10.0
+            why.add("On Yahoo's most-shorted list - the market is already betting against it")
+        }
+
+        // --- valuation that cannot be defended (0-10)
+        var v = 0.0
+        if (r.forwardPe > 80) { v += 6.0; why.add("Forward P/E of ${Fmt.priceBare(r.forwardPe)} leaves no room for a miss") }
+        if (r.priceToBook < 0) { v += 5.0; why.add("Negative book value - liabilities exceed assets") }
+        else if (r.priceToBook > 15) v += 3.0
+        s += min(v, 10.0)
+
+        // --- fragility (0-10)
+        want++
+        if (r.marketCap > 0) {
+            have++
+            s += ramp(-r.marketCap, -2e9, -1e8, 10.0)
+            if (r.marketCap < 5e8) why.add(
+                "Small company (${Fmt.compact(r.marketCap)}) - little cushion and a thin market in the shares"
+            )
+        }
+
+        // A stock that is DOWN today on top of everything else is confirming, not causing.
+        if (r.changePct <= -4.0) why.add("Down ${pct(abs(r.changePct))} today")
+
+        return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
+    }
+
+    // ----------------------------------------------------------------- TRENDING
+
+    /** Everything the trending blend needs about one candidate, already gathered. */
+    data class TrendInput(
+        val symbol: String,
+        val mentions: Int = 0,
+        val mentions24hAgo: Int = 0,
+        val rankDelta: Int = 0,
+        val sentiment: String = "",
+        val sentimentScore: Double = 0.0,
+        val newsCount: Int = 0,
+        val onYahooTrending: Boolean = false,
+        val changePct: Double = 0.0
+    )
+
+    /**
+     * The blend TJ asked for: what r/wallstreetbets is posting about AND what the news is
+     * carrying, in one ranking rather than two lists side by side.
+     *
+     * Both halves are normalised against the busiest name in the same pass, so the score
+     * means "how loud is this relative to today", not "how loud in absolute mentions" -
+     * a quiet market day would otherwise produce a section of near-zero scores.
+     */
+    fun trending(t: TrendInput, maxMentions: Int, maxNews: Int): Scored {
+        val why = ArrayList<String>()
+        var s = 0.0
+
+        // --- social volume (0-45)
+        if (t.mentions > 0 && maxMentions > 0) {
+            s += ramp(t.mentions.toDouble(), 0.0, maxMentions.toDouble(), 45.0)
+            why.add("${t.mentions} r/wallstreetbets mentions today")
+        }
+
+        // --- social momentum (0-15): today against yesterday, as a ratio
+        if (t.mentions24hAgo > 0 && t.mentions > 0) {
+            val growth = (t.mentions - t.mentions24hAgo).toDouble() / t.mentions24hAgo
+            s += ramp(growth * 100.0, 0.0, 150.0, 15.0)
+            if (growth >= 0.5) why.add(
+                "Mentions up ${pct(growth * 100.0)} from yesterday (${t.mentions24hAgo} -> ${t.mentions})"
+            )
+        }
+
+        // --- climbing the board (0-10)
+        if (t.rankDelta > 0) {
+            s += ramp(t.rankDelta.toDouble(), 0.0, 25.0, 10.0)
+            why.add("Climbed ${t.rankDelta} places on the wallstreetbets board in 24h")
+        }
+
+        // --- news volume (0-25)
+        if (t.newsCount > 0 && maxNews > 0) {
+            s += ramp(t.newsCount.toDouble(), 0.0, maxNews.toDouble(), 25.0)
+            why.add("${t.newsCount} news ${if (t.newsCount == 1) "story" else "stories"} today")
+        }
+
+        // --- Yahoo's own trending tickers (0-5)
+        if (t.onYahooTrending) {
+            s += 5.0
+            why.add("On Yahoo Finance's trending tickers list")
+        }
+
+        if (t.sentiment.isNotBlank()) {
+            why.add("Reddit sentiment reads ${t.sentiment.lowercase()}")
+        }
+        if (abs(t.changePct) >= 5.0) {
+            why.add("Price ${if (t.changePct > 0) "up" else "down"} ${pct(abs(t.changePct))} today")
+        }
+
+        // Confidence here is about how many independent sources saw it at all.
+        val sources = listOf(t.mentions > 0, t.newsCount > 0, t.onYahooTrending).count { it }
+        return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(sources, 3))
+    }
+
+    // ----------------------------------------------------------- analyst overlay
+
+    /**
+     * Fold analyst coverage into a score that was computed from price and earnings alone.
+     *
+     * Kept SEPARATE from [best] / [worst] because the coverage arrives later: the screener
+     * pass ranks a few hundred candidates with no extra requests, and only the ten rows the
+     * user can actually see are then enriched with one Nasdaq call each. Blending rather
+     * than adding keeps the result on the same 0-100 scale as an un-enriched row, so a
+     * covered stock and an uncovered one can still sit in the same list.
+     *
+     * 70/30 in favour of the app's own numbers. Analysts are a real signal and a lagging,
+     * herd-prone one; they get a third of the vote, not a veto.
+     */
+    fun withAnalyst(base: Scored, c: Consensus2?, price: Double, bullish: Boolean): Scored {
+        if (c == null || (c.total == 0 && c.target <= 0)) return base
+        val why = ArrayList(base.reasons)
+        var a = 50.0
+
+        if (c.total > 0) {
+            val share = if (bullish) c.buyShare else c.sellShare + c.hold.toDouble() / c.total * 0.35
+            a = 20.0 + share.coerceIn(0.0, 1.0) * 60.0
+            val lab = c.label()
+            why.add(
+                "$lab consensus - ${c.buy} buy / ${c.hold} hold / ${c.sell} sell " +
+                    "across ${c.total} analysts"
+            )
+        }
+
+        val up = c.upsidePct(price)
+        if (!up.isNaN()) {
+            // For the BEST list upside is good; for the WORST list downside is the signal.
+            val signed = if (bullish) up else -up
+            a += ramp(signed, -20.0, 40.0, 30.0) - 12.0
+            why.add(
+                if (up >= 0)
+                    "Average price target ${Fmt.price(c.target)} - ${pct(up)} above today"
+                else
+                    "Average price target ${Fmt.price(c.target)} - ${pct(abs(up))} BELOW today"
+            )
+        }
+
+        val blended = base.score * 0.7 + a.coerceIn(0.0, 100.0) * 0.3
+        return Scored(
+            blended.coerceIn(0.0, 100.0).toInt(),
+            why,
+            min(100, base.confidence + 15)
+        )
+    }
+
+    /** How much of what the scorer wanted to read was actually reported, 0-100. */
+    private fun confidence(have: Int, want: Int): Int =
+        if (want <= 0) 0 else (have * 100 / max(1, want)).coerceIn(0, 100)
+
+    /** One-line verdict for the score, used as the row's headline label. */
+    fun grade(score: Int, bullish: Boolean): String = when {
+        score >= 75 -> if (bullish) "Strong" else "Severe"
+        score >= 60 -> if (bullish) "Good" else "Weak"
+        score >= 45 -> if (bullish) "Fair" else "Shaky"
+        else -> if (bullish) "Marginal" else "Mild"
+    }
+}
