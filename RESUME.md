@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:55:00 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:57:06 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T7  After-hours block: stack dollar and percent vertically like the other sections  — extended-hours cell stacks price / dollar change / percent vertically
 - [x] T8  ETF detail: HOLDINGS tab listing each holding and its % of the fund  — FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack
 - [x] T9  Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible  — new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed
-- [>] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — sweep pass 2 - the pre-existing codebase
+- [>] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — sweep pass 3 - pre-existing code I have not touched
 - [ ] T11  Fix every finding from T10 without introducing new ones
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
@@ -86,7 +86,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:44:14 UTC  F16 fixed: the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState
 - 2026-09-07 20:44:22 UTC  T10 -> doing  sweep pass 2 - the pre-existing codebase
 - 2026-09-07 20:45:54 UTC  finding F17: purgeChartCache runs on EVERY chart write - a DELETE with an ordered subquery ov
 - 2026-09-07 20:45:55 UTC  finding F18: Fundamentals.estimates and .history are rendered as keyed LazyColumn items with 
@@ -98,4 +97,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:48:01 UTC  F20 fixed: the open chart re-checks its TTL on every quote tick and refreshes itself at its own cadence, answered from memory without a coroutine when nothing is due
 - 2026-09-07 20:49:43 UTC  finding F21: RangeChips are ~40dp tall - under the app's own documented 48dp minimum tap targ
 - 2026-09-07 20:55:00 UTC  F21 fixed: range chips use minTapTarget(); a rendered UI test asserts 48dp at 1.0 and 1.3 font scale
+- 2026-09-07 20:57:06 UTC  T10 -> doing  sweep pass 3 - pre-existing code I have not touched
 
