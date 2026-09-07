@@ -130,3 +130,4 @@ app/src/test/java/com/tj/portfolio/BackgroundTest.kt
 2026-09-07 20:28:21 UTC  checkpoint 58  commit 58fc2b2  fix F07
 2026-09-07 20:36:05 UTC  checkpoint 58  commit 59cc31e  T9 done
 2026-09-07 20:36:05 UTC  checkpoint 58  commit fd9edd4  fix F06
+2026-09-07 20:36:06 UTC  checkpoint 58  commit 81d28f8  chart ranges, chart caching, ETF holdings, list separation, after-hours stacking; 36 new tests
