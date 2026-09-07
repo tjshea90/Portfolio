@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:44:11 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:44:12 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -53,7 +53,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T10** (Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)).
 
-## 5. Open findings — 7 still open, 9 fixed
+## 5. Open findings — 6 still open, 10 fixed
 
 - [x] F01 (high) onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_CRITICAL 15), which Android delivers on EVERY app switch. The sparkAt 5-minute throttle is already stamped, so charts stay blank for up to 5 minutes after returning. This is TJ's 'charts disappeared when I switched back' report. The doc comment's reasoning ('they ride along with the next quote') went stale in Round 56 when the series moved off the quote path.  — onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts
 - [x] F02 (high) After a spark drop the DB (quotes.spark) still holds the series, but nothing re-reads it on return - the recovery path is a network fetch that the throttle suppresses.  — restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges
@@ -63,7 +63,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F06 (high) fgScope cancellation on ON_STOP has no counterpart on ON_START for the DETAIL SCREEN's own loads. A stock opened and then backgrounded mid-fetch has its news/fundamentals/insider/chart/holdings request cancelled, and the LaunchedEffect(symbol) that started it does not re-fire on return because its key has not changed - so the tab stays empty until a manual pull-to-refresh. Introduced by Round 57's fgScope work; the chart and holdings added this round inherit it.  — DetailScreen re-requests its cache-first loads on ON_START, so an fgScope cancellation no longer strands an open screen
 - [x] F07 (med) The 1D chart request and the row-sparkline request are the SAME Yahoo URL (range=1d&interval=5m&includePrePost=true) fired on two independent 5-minute clocks. With a stock's detail screen open the app pulls that body twice per window for no benefit.  — loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made
 - [x] F08 (high) ChartRange.OVERNIGHT silently degrades into a 5-day intraday chart when meta carries no tradingPeriods and no currentTradingPeriod: with no regular windows the extended-only filter keeps everything, and it is still captioned 'After-hours and overnight only'.  — OVERNIGHT returns null when no regular session windows can be determined, rather than drawing five days under an after-hours caption
-- [ ] F09 (high) HoldingsTab keys its LazyColumn on symbol-or-name. Two share classes or a provider repeat give the same key, and a LazyColumn handed a duplicate key THROWS and takes the app down. This exact crash has shipped three times in this project (news, filings, research rows).
+- [x] F09 (high) HoldingsTab keys its LazyColumn on symbol-or-name. Two share classes or a provider repeat give the same key, and a LazyColumn handed a duplicate key THROWS and takes the app down. This exact crash has shipped three times in this project (news, filings, research rows).  — HoldingsTab uses itemsIndexed, so a duplicate symbol or name can no longer crash the LazyColumn
 - [ ] F10 (med) After a memory trim drops _holdings, a detail screen sitting on the HOLDINGS tab has that tab removed from the visible list while 'tab' still points at it: the indicator jumps to Overview while the Holdings body is still rendered.
 - [ ] F11 (high) adoptAsSparkline feeds the D1 chart series into quote.spark, but the two are NOT the same data: MarketData.parseYahoo puts only REGULAR-session points in spark, while ChartFeed keeps pre/post as well. The row sparkline would silently change from a trading-day line into a 24-hour one, with the prevClose baseline no longer matching what is drawn.
 - [ ] F12 (med) loadChart marks chartDiskRead BEFORE the disk read. A cancellation between the two leaves the symbol marked as read with nothing loaded, so the disk cache is never consulted again this session.
@@ -81,7 +81,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:36:43 UTC  T10 -> doing  adversarial sweep - pass 1: my own round-58 changes
 - 2026-09-07 20:38:20 UTC  finding F08: ChartRange.OVERNIGHT silently degrades into a 5-day intraday chart when meta car
 - 2026-09-07 20:38:20 UTC  finding F09: HoldingsTab keys its LazyColumn on symbol-or-name. Two share classes or a provid
 - 2026-09-07 20:38:20 UTC  finding F10: After a memory trim drops _holdings, a detail screen sitting on the HOLDINGS tab
@@ -93,4 +92,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:38:21 UTC  finding F16: The new ON_START DisposableEffect is keyed on symbol/chartRange/tab, so it re-re
 - 2026-09-07 20:41:19 UTC  F14 fixed: NOT A BUG - verified against real SQLite via ChartCacheDbTest: DatabaseUtils.bindObjectToProgram binds any Number as a long, so an Int bind arg is fine. The purge test proves rows are actually removed.
 - 2026-09-07 20:44:11 UTC  F08 fixed: OVERNIGHT returns null when no regular session windows can be determined, rather than drawing five days under an after-hours caption
+- 2026-09-07 20:44:12 UTC  F09 fixed: HoldingsTab uses itemsIndexed, so a duplicate symbol or name can no longer crash the LazyColumn
 
