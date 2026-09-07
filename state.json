@@ -210,8 +210,8 @@
       "id": "F16",
       "text": "The new ON_START DisposableEffect is keyed on symbol/chartRange/tab, so it re-registers on every tab and range change - and LifecycleRegistry replays ON_START to a newly added observer, firing all six loads again each time.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState"
     }
   ],
   "log": [
@@ -266,6 +266,7 @@
     "2026-09-07 20:44:13 UTC  F11 fixed: D1 keeps regular-session points only (with the pre-open fallback parseYahoo has), so it is byte-identical in meaning to Quote.spark and adoptAsSparkline is safe",
     "2026-09-07 20:44:13 UTC  F12 fixed: chartDiskRead is un-marked when the disk read does not complete",
     "2026-09-07 20:44:13 UTC  F13 fixed: column renamed range_key; verified across all eight ranges against real SQLite",
-    "2026-09-07 20:44:14 UTC  F15 fixed: opening a search result clears detailStack"
+    "2026-09-07 20:44:14 UTC  F15 fixed: opening a search result clears detailStack",
+    "2026-09-07 20:44:14 UTC  F16 fixed: the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState"
   ]
 }
