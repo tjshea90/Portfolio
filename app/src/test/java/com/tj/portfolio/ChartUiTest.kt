@@ -142,19 +142,14 @@ class ChartUiTest {
         assertNothingOverflows("6M chart")
     }
 
+    /**
+     * ONE composition, every range driven through the chips - which is also the real
+     * interaction, rather than eight independent first-compositions. `createComposeRule` is
+     * a per-test rule, so a loop of fresh rules is not available here and would not be a
+     * better test if it were.
+     */
     @Test
-    fun `every range renders without overflowing, in both themes`() {
-        ChartRange.entries.forEach { r ->
-            listOf(false, true).forEach { dark ->
-                rule.runOnIdle { }
-                val fresh = createComposeRule()
-                // The rule is per-test, so ranges are exercised through one composition that
-                // switches range rather than by making new rules; see the chip test below.
-                assertTrue(fresh != null)
-            }
-        }
-        // One composition, every range driven through the chips - which is also the real
-        // interaction, rather than eight independent first-compositions.
+    fun `every range renders without overflowing and its caption follows the chips`() {
         var range by mutableStateOf(ChartRange.D1)
         show {
             androidx.compose.foundation.layout.Column {
@@ -194,12 +189,15 @@ class ChartUiTest {
      * the first for the second is alarming. Both must say which is which.
      */
     @Test
-    fun `the empty state distinguishes loading from unavailable`() {
+    fun `a chart that has not arrived yet says it is loading`() {
         show { PriceChart(null, ChartRange.Y1, loading = true) }
         rule.onNodeWithText("Loading", substring = true).assertExists()
-
-        val second = createComposeRule()
-        assertTrue(second != null)
+        // ...and does NOT say the chart is unavailable, which is the alarming reading.
+        rule.onAllNodes(hasTextAny()).fetchSemanticsNodes().forEach {
+            val s = it.config.getOrNull(SemanticsProperties.Text)?.joinToString(" ").orEmpty()
+            assertTrue("a loading chart claimed to be unavailable: $s",
+                !s.contains("No 1Y chart"))
+        }
     }
 
     @Test
@@ -230,7 +228,8 @@ class ChartUiTest {
         show { HoldingsTab(fund(), loading = false, onOpenSymbol = {}) }
         rule.onNodeWithText("NVDA").assertExists()
         rule.onNodeWithText("8.12%").assertExists()
-        rule.onNodeWithText("Top holdings").assertExists()
+        // SectionHeader uppercases its text - assert what is actually drawn.
+        rule.onNodeWithText("TOP HOLDINGS").assertExists()
         assertNothingOverflows("holdings tab")
     }
 
@@ -248,9 +247,9 @@ class ChartUiTest {
     @Test
     fun `sector split and asset mix are both shown`() {
         show { HoldingsTab(fund(), loading = false, onOpenSymbol = {}) }
-        rule.onNodeWithText("Sector split").assertExists()
+        rule.onNodeWithText("SECTOR SPLIT").assertExists()
         rule.onNodeWithText("Technology").assertExists()
-        rule.onNodeWithText("What it is invested in").assertExists()
+        rule.onNodeWithText("WHAT IT IS INVESTED IN").assertExists()
         rule.onNodeWithText("Stocks").assertExists()
     }
 
