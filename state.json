@@ -182,8 +182,8 @@
       "id": "F12",
       "text": "loadChart marks chartDiskRead BEFORE the disk read. A cancellation between the two leaves the symbol marked as read with nothing loaded, so the disk cache is never consulted again this session.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "chartDiskRead is un-marked when the disk read does not complete"
     },
     {
       "id": "F13",
@@ -263,6 +263,7 @@
     "2026-09-07 20:44:11 UTC  F08 fixed: OVERNIGHT returns null when no regular session windows can be determined, rather than drawing five days under an after-hours caption",
     "2026-09-07 20:44:12 UTC  F09 fixed: HoldingsTab uses itemsIndexed, so a duplicate symbol or name can no longer crash the LazyColumn",
     "2026-09-07 20:44:12 UTC  F10 fixed: a tab selection that leaves the visible set falls back to Overview",
-    "2026-09-07 20:44:13 UTC  F11 fixed: D1 keeps regular-session points only (with the pre-open fallback parseYahoo has), so it is byte-identical in meaning to Quote.spark and adoptAsSparkline is safe"
+    "2026-09-07 20:44:13 UTC  F11 fixed: D1 keeps regular-session points only (with the pre-open fallback parseYahoo has), so it is byte-identical in meaning to Quote.spark and adoptAsSparkline is safe",
+    "2026-09-07 20:44:13 UTC  F12 fixed: chartDiskRead is un-marked when the disk read does not complete"
   ]
 }
