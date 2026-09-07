@@ -41,7 +41,7 @@ enum class ChartRange(
     val caption: String
 ) {
     D1("1D", "1d", "5m", true, 5 * 60_000L, "Today, 5-minute candles"),
-    D5("5D", "5d", "30m", false, 5 * 60_000L, "Five trading days, 30-minute candles"),
+    D5("5D", "5d", "30m", false, 30 * 60_000L, "Five trading days, 30-minute candles"),
     M1("1M", "1mo", "1d", false, 30 * 60_000L, "One month, daily closes"),
     M6("6M", "6mo", "1d", false, 6 * 3_600_000L, "Six months, daily closes"),
     Y1("1Y", "1y", "1d", false, 12 * 3_600_000L, "One year, daily closes"),

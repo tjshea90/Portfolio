@@ -295,6 +295,22 @@ fun DetailScreen(
     // flicking back and forth between 1D and 1Y costs nothing after the first look.
     LaunchedEffect(symbol, chartRange) { vm.loadChart(symbol, chartRange) }
 
+    // AND IT KEEPS ITSELF CURRENT WHILE YOU WATCH IT.
+    //
+    // The effect above fires on a change of symbol or range and never again, so a stock left
+    // open for an hour showed the candles it had at load time for the whole hour - only its
+    // right-hand tip moved, because that is drawn from the live quote. TJ asked for the
+    // charts to "only periodically refresh automatically, but refresh every time I gesture
+    // pull down", and this is the first half of that sentence.
+    //
+    // Keyed on `lastRefresh`, which the quote poll stamps, so it is re-evaluated about four
+    // times a minute - and `loadChart` answers all but one in twenty of those from memory
+    // without starting a coroutine. The cadence that actually reaches the network is the
+    // range's own TTL: five minutes on a five-minute candle, a day on a monthly one.
+    LaunchedEffect(state.lastRefresh, symbol, chartRange) {
+        vm.loadChart(symbol, chartRange)
+    }
+
     // REMEMBERED (Round 57). An unremembered lambda is a new object on every recomposition,
     // and this screen recomposes on every quote tick - so `Refreshable` and the header button
     // were being invalidated four times a minute for a callback that had not changed. Keyed

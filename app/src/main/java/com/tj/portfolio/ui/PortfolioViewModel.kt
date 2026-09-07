@@ -2912,6 +2912,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // loadInsider once locked a symbol out for the rest of the session.
         if (_chartLoading.value.contains(key)) return
 
+        // THE CHEAP WAY OUT, TAKEN BEFORE A COROUTINE IS EVEN STARTED.
+        //
+        // The detail screen calls this on every quote tick so the chart refreshes itself the
+        // moment its range goes stale - see the note there. That is four calls a minute, and
+        // all but one in twenty of them have nothing to do. Answering those here costs a map
+        // lookup; answering them inside a launched coroutine would cost a coroutine each.
+        if (!force && sym in chartDiskRead) {
+            val cached = _charts.value[key]
+            if (cached != null && !cached.isEmpty && !cached.stale()) return
+        }
+
         fgScope.launch {
             _chartLoading.value = _chartLoading.value + key
             try {
@@ -2966,7 +2977,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     if (range == ChartRange.D1) adoptAsSparkline(sym, fresh)
                     viewModelScope.launch(Dispatchers.IO) {
                         runCatching { db.cacheChart(fresh) }
-                        runCatching { db.purgeChartCache() }
                     }
                 }
                 // A null result deliberately changes NOTHING. Whatever was on screen stays
@@ -3228,6 +3238,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             runCatching { db.purgeFundamentals() }
             // The HTTP cache is bounded by age AND by total size - see Db.createHttpCache.
             runCatching { db.purgeHttpCache() }
+            // ONCE A SESSION, NOT ONCE PER CHART. This is a DELETE with an ordered subquery
+            // over the whole table; running it on every fetch put that sort in the path of
+            // every chart the user looked at, to enforce a bound that cannot be reached in
+            // one session anyway. Every other cache in this app purges here; so does this one.
+            runCatching { db.purgeChartCache() }
         }
     }
 

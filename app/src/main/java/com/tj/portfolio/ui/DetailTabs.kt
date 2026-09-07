@@ -427,7 +427,12 @@ fun EarningsTab(
                     ExplainedHeader("What analysts expect", Explain.TOPIC_ESTIMATES, onInfo)
                 }
             }
-            items(f.estimates, key = { "e_${it.period}" }) { e ->
+            // DE-DUPLICATED BEFORE IT IS KEYED. A LazyColumn handed the same key twice
+            // throws and takes the app down - the crash this project has already shipped
+            // three times - and nothing upstream guarantees a provider will not repeat a
+            // period. `Fundamentals.merge` takes estimates wholesale from one side with
+            // `ifEmpty`, so it never gets the chance to dedupe them either.
+            items(f.estimates.distinctBy { it.period }, key = { "e_${it.period}" }) { e ->
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                     StatCard {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -475,7 +480,11 @@ fun EarningsTab(
                     SectionHeader("Recent results - expected against actual")
                 }
             }
-            items(f.history, key = { "h_${it.quarter}_${it.date}" }) { h ->
+            // Same rule, same reason, as the estimates above.
+            items(
+                f.history.distinctBy { it.quarter to it.date },
+                key = { "h_${it.quarter}_${it.date}" }
+            ) { h ->
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically

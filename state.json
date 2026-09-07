@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:44:22 UTC",
+  "updated": "2026-09-07 20:45:55 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -212,6 +212,34 @@
       "sev": "low",
       "status": "fixed",
       "note": "the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState"
+    },
+    {
+      "id": "F17",
+      "text": "purgeChartCache runs on EVERY chart write - a DELETE with an ordered subquery over the whole table each time a chart is fetched, where the other caches purge once per session.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F18",
+      "text": "Fundamentals.estimates and .history are rendered as keyed LazyColumn items with no distinctBy. A provider repeating a period or a quarter date is a duplicate key, which throws - the crash this project has already shipped three times.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F19",
+      "text": "ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often than the provider makes a new point cannot return anything new - the same rule that put D1 on five minutes.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F20",
+      "text": "A chart never refreshes while its screen stays open. loadChart runs from LaunchedEffect(symbol, range) and ON_START only, so watching one stock for an hour leaves the line frozen at load time with only its tip moving. TJ asked for periodic automatic refresh as well as pull-down.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -268,6 +296,10 @@
     "2026-09-07 20:44:13 UTC  F13 fixed: column renamed range_key; verified across all eight ranges against real SQLite",
     "2026-09-07 20:44:14 UTC  F15 fixed: opening a search result clears detailStack",
     "2026-09-07 20:44:14 UTC  F16 fixed: the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState",
-    "2026-09-07 20:44:22 UTC  T10 -> doing  sweep pass 2 - the pre-existing codebase"
+    "2026-09-07 20:44:22 UTC  T10 -> doing  sweep pass 2 - the pre-existing codebase",
+    "2026-09-07 20:45:54 UTC  finding F17: purgeChartCache runs on EVERY chart write - a DELETE with an ordered subquery ov",
+    "2026-09-07 20:45:55 UTC  finding F18: Fundamentals.estimates and .history are rendered as keyed LazyColumn items with ",
+    "2026-09-07 20:45:55 UTC  finding F19: ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often t",
+    "2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche"
   ]
 }
