@@ -15,7 +15,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     companion object {
         const val DB_NAME = "portfolio.db"
         /** Bump only alongside an additive block in onUpgrade. */
-        const val DB_VERSION = 6
+        const val DB_VERSION = 7
         const val BACKUP_FORMAT = "tj-portfolio-backup"
         const val BACKUP_VERSION = 2
     }
@@ -177,6 +177,44 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_http_fetched ON http_cache(fetched)")
     }
 
+    /**
+     * THE PRICE-CHART CACHE (db v7, Round 58).
+     *
+     * TJ: *"when I switched apps from the tracker then switched back, the stock charts
+     * disappeared... if they reload every time, this is unnecessary. cache data that can be
+     * cached and only periodically refresh automatically, but refresh every time I gesture
+     * pull down."* This table is the "cache" half of that sentence; the TTLs on
+     * [com.tj.portfolio.data.ChartRange] are the "periodically", and `loadChart(force = true)`
+     * from pull-to-refresh is the "every time I pull down".
+     *
+     * WHY A TABLE AND NOT A SETTINGS ROW. Unlike the research and insider caches - one
+     * document each, replaced wholesale - this is queried by (symbol, range) and there can
+     * be one row per tracked symbol per range. It also has to be purgeable oldest-first,
+     * which needs an index on `fetched`.
+     *
+     * WHY IT IS SAFE UNDER THE PROJECT'S UPGRADE RULE. It is purely additive: a CREATE TABLE
+     * IF NOT EXISTS with no bearing on any table holding user data. Everything in it is
+     * derived - the worst a total loss can cost is one re-fetch per chart - so it is excluded
+     * from the JSON backup for the same reason the other derived caches are.
+     *
+     * A five-year monthly series is a few hundred points; a full intraday day is about four
+     * hundred. At roughly 6 KB a row and a couple of hundred rows in the worst case, the
+     * whole table is single-digit megabytes, which is the trade TJ asked for explicitly:
+     * storage is not a concern, re-downloading something already held is.
+     */
+    private fun createChartCache(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS chart_cache(
+                symbol TEXT NOT NULL,
+                range TEXT NOT NULL,
+                json TEXT NOT NULL,
+                fetched INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(symbol, range)
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_chart_fetched ON chart_cache(fetched)")
+    }
+
     private fun createImports(db: SQLiteDatabase) {
         db.execSQL(
             """CREATE TABLE IF NOT EXISTS imports(
@@ -205,7 +243,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         if (oldV < 4) createNews(db)
         if (oldV < 5) createFundamentals(db)
         if (oldV < 6) createHttpCache(db)
-        // future: if (oldV < 7) { ...additive changes only... }
+        if (oldV < 7) createChartCache(db)
+        // future: if (oldV < 8) { ...additive changes only... }
     }
 
     /**
@@ -222,6 +261,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         runCatching { createNews(db) }
         runCatching { createFundamentals(db) }
         runCatching { createHttpCache(db) }
+        runCatching { createChartCache(db) }
     }
 
     // ---------- HTTP response cache (Round 56) ----------
@@ -890,6 +930,91 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         }
         return m
     }
+
+    // ---------- price-chart cache (db v7, Round 58) ----------
+
+    /**
+     * Total rows kept. Beyond this the oldest are purged.
+     *
+     * Sized from the real working set: ~24 tracked symbols x 8 ranges is 192, and only the
+     * ranges actually opened are ever stored. 400 leaves headroom for a browsing session
+     * through search results without letting the table grow without bound.
+     */
+    private val CHART_CACHE_MAX_ROWS = 400
+
+    /** Read one cached series. Null when absent or unreadable - never an exception. */
+    fun cachedChart(symbol: String, range: ChartRange): ChartSeries? = runCatching {
+        readableDatabase.rawQuery(
+            "SELECT json FROM chart_cache WHERE symbol=? AND range=? LIMIT 1",
+            arrayOf(symbol.uppercase(), range.name)
+        ).use { c -> if (c.moveToNext()) ChartJson.decode(c.getString(0)) else null }
+    }.getOrNull()
+
+    /**
+     * Every cached series for one symbol, keyed by range.
+     *
+     * Read in ONE query rather than one per range. Opening a stock paints its chart from
+     * disk before any network call, and doing that as eight separate queries on the main
+     * thread was the shape of problem this project has fixed twice already.
+     */
+    fun cachedCharts(symbol: String): Map<ChartRange, ChartSeries> = runCatching {
+        val out = HashMap<ChartRange, ChartSeries>()
+        readableDatabase.rawQuery(
+            "SELECT range, json FROM chart_cache WHERE symbol=?",
+            arrayOf(symbol.uppercase())
+        ).use { c ->
+            while (c.moveToNext()) {
+                val s = ChartJson.decode(c.getString(1)) ?: continue
+                out[ChartRange.byName(c.getString(0))] = s
+            }
+        }
+        out
+    }.getOrDefault(emptyMap())
+
+    /**
+     * Store one series, replacing whatever was there.
+     *
+     * An EMPTY series is never written. A failed fetch must leave the last good chart on
+     * disk: overwriting it with nothing turns one bad request into a permanently blank
+     * chart, which is the exact failure this cache exists to prevent.
+     */
+    fun cacheChart(series: ChartSeries) {
+        if (series.isEmpty) return
+        runCatching {
+            writableDatabase.insertWithOnConflict(
+                "chart_cache", null,
+                ContentValues().apply {
+                    put("symbol", series.symbol.uppercase())
+                    put("range", series.range.name)
+                    put("json", ChartJson.encode(series))
+                    put("fetched", series.fetched)
+                },
+                SQLiteDatabase.CONFLICT_REPLACE
+            )
+        }
+    }
+
+    /** Drop the oldest rows once the table is over [CHART_CACHE_MAX_ROWS]. */
+    fun purgeChartCache() {
+        runCatching {
+            writableDatabase.execSQL(
+                "DELETE FROM chart_cache WHERE rowid NOT IN " +
+                    "(SELECT rowid FROM chart_cache ORDER BY fetched DESC LIMIT ?)",
+                arrayOf<Any>(CHART_CACHE_MAX_ROWS)
+            )
+        }
+    }
+
+    fun clearChartCache() {
+        runCatching { writableDatabase.delete("chart_cache", null, null) }
+    }
+
+    /** Rows held and the newest fetch time, for the Settings storage card. */
+    fun chartCacheStats(): Pair<Int, Long> = runCatching {
+        readableDatabase.rawQuery(
+            "SELECT COUNT(*), IFNULL(MAX(fetched),0) FROM chart_cache", null
+        ).use { c -> if (c.moveToNext()) c.getInt(0) to c.getLong(1) else 0 to 0L }
+    }.getOrDefault(0 to 0L)
 
     // ---------- watchlist (symbols with no position) ----------
 
