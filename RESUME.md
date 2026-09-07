@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:00:32 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:00:33 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T1: Baseline: release build + 276-test suite green before any edit
+- **In flight:** T2: Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)
 - **Next action:** Finish ck/watchdog, then confirm baseline build (T1)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -38,7 +38,7 @@ commit, so `git log --oneline` is the history of this round and
 
 - [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - [>] T1  Baseline: release build + 276-test suite green before any edit  — build running
-- [ ] T2  Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)
+- [>] T2  Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)  — reading the chart pipeline
 - [ ] T3  Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart
 - [ ] T4  Chart CACHING: survive backgrounding; periodic auto-refresh; pull-down forces
 - [ ] T5  Chart FETCH RELIABILITY: find and fix why charts sometimes never load
@@ -70,4 +70,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 19:59:53 UTC  round 58 ledger created
 - 2026-09-07 20:00:12 UTC  T0 -> done  ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - 2026-09-07 20:00:32 UTC  T1 -> doing  build running
+- 2026-09-07 20:00:33 UTC  T2 -> doing  reading the chart pipeline
 

@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:00:32 UTC",
+  "updated": "2026-09-07 20:00:33 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -10,7 +10,7 @@
     "next_name": "6.9"
   },
   "now": {
-    "step": "T1: Baseline: release build + 276-test suite green before any edit",
+    "step": "T2: Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)",
     "next": "Finish ck/watchdog, then confirm baseline build (T1)",
     "files": []
   },
@@ -30,8 +30,8 @@
     {
       "id": "T2",
       "title": "Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "reading the chart pipeline"
     },
     {
       "id": "T3",
@@ -105,6 +105,7 @@
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
     "2026-09-07 20:00:12 UTC  T0 -> done  ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten",
-    "2026-09-07 20:00:32 UTC  T1 -> doing  build running"
+    "2026-09-07 20:00:32 UTC  T1 -> doing  build running",
+    "2026-09-07 20:00:33 UTC  T2 -> doing  reading the chart pipeline"
   ]
 }
