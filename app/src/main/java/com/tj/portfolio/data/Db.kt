@@ -1328,6 +1328,15 @@ object Keys {
     const val IN_APP_READER = "in_app_reader"
 
     /**
+     * The price-chart range the user last selected, by [ChartRange] name (Round 58).
+     *
+     * Remembered so the choice survives closing a stock and the app: someone who reads on a
+     * one-year view should not have to re-pick it on every symbol they open. Not a derived
+     * cache - it is a genuine preference - so it IS carried in the JSON backup.
+     */
+    const val CHART_RANGE = "chart_range"
+
+    /**
      * The whole Research payload as JSON (Round 54).
      *
      * A settings row rather than a new table: it is ONE document, it is replaced wholesale on

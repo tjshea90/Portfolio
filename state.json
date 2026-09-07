@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:10:40 UTC",
+  "updated": "2026-09-07 20:13:54 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -105,8 +105,8 @@
       "id": "F01",
       "text": "onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_CRITICAL 15), which Android delivers on EVERY app switch. The sparkAt 5-minute throttle is already stamped, so charts stay blank for up to 5 minutes after returning. This is TJ's 'charts disappeared when I switched back' report. The doc comment's reasoning ('they ride along with the next quote') went stale in Round 56 when the series moved off the quote path.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts"
     },
     {
       "id": "F02",
@@ -152,6 +152,7 @@
     "2026-09-07 20:08:20 UTC  T1 -> done  release APK + 276/276 tests green + checkinit ok",
     "2026-09-07 20:08:21 UTC  T2 -> done  chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded",
     "2026-09-07 20:08:21 UTC  T3 -> doing  chart range selector - designing the series API and cache",
-    "2026-09-07 20:10:40 UTC  ChartModels.kt + ChartFeed.kt written (T3 data layer)"
+    "2026-09-07 20:10:40 UTC  ChartModels.kt + ChartFeed.kt written (T3 data layer)",
+    "2026-09-07 20:13:54 UTC  F01 fixed: onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts"
   ]
 }

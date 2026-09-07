@@ -19,6 +19,13 @@ import org.json.JSONObject
  * for it again because the user tapped back into the screen is pure waste. An intraday chart
  * changes every candle. So the two are cached for wildly different lengths, and a
  * pull-to-refresh overrides all of it - see `PortfolioViewModel.loadChart(force = true)`.
+ *
+ * THE INTRADAY TTL IS THE CANDLE INTERVAL, NOT SOMETHING SHORTER. Asking Yahoo for a
+ * 5-minute chart more often than every five minutes cannot return a point that did not exist
+ * on the last call - it is the same reasoning that put the sparkline on a five-minute clock
+ * in Round 56. Freshness at the right-hand edge is not bought with requests: the UI replaces
+ * the final point with the live quote price it already has, so the line's tip is current to
+ * the second while the series behind it is fetched twelve times an hour instead of sixty.
  */
 enum class ChartRange(
     val label: String,
@@ -33,7 +40,7 @@ enum class ChartRange(
     /** What the caption under the chart says this window is. */
     val caption: String
 ) {
-    D1("1D", "1d", "5m", true, 60_000L, "Today, 5-minute candles"),
+    D1("1D", "1d", "5m", true, 5 * 60_000L, "Today, 5-minute candles"),
     D5("5D", "5d", "30m", false, 5 * 60_000L, "Five trading days, 30-minute candles"),
     M1("1M", "1mo", "1d", false, 30 * 60_000L, "One month, daily closes"),
     M6("6M", "6mo", "1d", false, 6 * 3_600_000L, "Six months, daily closes"),
@@ -53,7 +60,7 @@ enum class ChartRange(
      * A one-day window is not enough: before 09:30 the only extended points that exist are
      * this morning's, and the after-hours session they follow on from belongs to yesterday.
      */
-    OVERNIGHT("After hrs", "5d", "5m", true, 60_000L, "After-hours and overnight only");
+    OVERNIGHT("After hrs", "5d", "5m", true, 5 * 60_000L, "After-hours and overnight only");
 
     /** True when the x-axis is a clock rather than a calendar. */
     val intraday: Boolean get() = interval.endsWith("m") || interval.endsWith("h")

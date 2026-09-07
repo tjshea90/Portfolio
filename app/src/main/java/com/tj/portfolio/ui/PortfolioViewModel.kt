@@ -6,6 +6,8 @@ import android.util.Base64
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tj.portfolio.data.Advice
+import com.tj.portfolio.data.ChartRange
+import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.Db
 import com.tj.portfolio.data.Keys
 import com.tj.portfolio.data.NewsItem
@@ -764,25 +766,54 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * headline. That is more requests to the providers, not fewer, in exchange for memory
      * the system had not actually asked for.
      *
-     * So: at UI_HIDDEN only the sparklines go, because they ride along with the next quote
-     * and cost no extra request. Everything network-backed is only released from
-     * TRIM_MEMORY_BACKGROUND upward, where the system is genuinely short of memory and the
-     * process is a kill candidate - at which point losing the caches is the cheaper outcome.
+     * ROUND 58 FINISHED THAT ARGUMENT. Nothing at all is released below MODERATE (60) now,
+     * sparklines included. The old code made an exception for the series on the grounds that
+     * it "rides along with the next quote", which stopped being true in Round 56 when the
+     * batched quote endpoint - which carries no candles - took over the poll. UI_HIDDEN is
+     * delivered on every app switch, so that exception was blanking every chart every time
+     * the user looked at another app, for up to five minutes. Everything released here is
+     * now on disk, so MODERATE and above frees the heap and costs a SQLite read on return,
+     * never a download and never a blank screen.
      */
     private fun onTrimMemory(level: Int) {
-        // Below RUNNING_CRITICAL the system is only being advisory and the app is still on
-        // screen; dropping the sparklines there would blank charts the user is looking at to
-        // solve a problem nobody has yet.
-        if (level < TRIM_RUNNING_CRITICAL) return
+        // ---------------------------------------------------------------------------------
+        // ROUND 58: THIS TEST USED TO BE `level < TRIM_RUNNING_CRITICAL`, AND IT IS WHAT TJ
+        // REPORTED AS "I switched apps and came back and the stock charts had disappeared."
+        //
+        // TRIM_MEMORY_UI_HIDDEN is 20 and TRIM_RUNNING_CRITICAL is 15, so UI_HIDDEN passed
+        // that guard - and Android delivers UI_HIDDEN on EVERY single app switch, with no
+        // memory pressure implied at all. Every switch away therefore emptied every
+        // sparkline and every detail chart.
+        //
+        // The comment that justified it said the series "arrives with the next quote, so
+        // dropping it costs nothing on the wire". That was TRUE when it was written and
+        // stopped being true in Round 56, when the batched quote endpoint - which returns no
+        // candles at all - replaced the per-symbol chart call. Since then the series has been
+        // owned by `refreshSparklines` on a five-minute clock whose `sparkAt` mark was
+        // already stamped, so the charts did not come back with the next quote: they stayed
+        // blank for up to five minutes. A stale comment outlived the design it described.
+        //
+        // The rule now matches the one the news caches already follow, and for the same
+        // reason: only MODERATE (60) and above mean the system is actually short of memory.
+        // A routine app switch is not a reason to throw away anything the user will see the
+        // instant they come back.
+        if (level < TRIM_MODERATE) return
 
-        // The intraday series is comfortably the largest thing held - a 1-minute chart over a
-        // full session is a few hundred Doubles per symbol, held for every holding AND every
-        // watchlist entry - and it arrives with the next quote, so dropping it costs nothing
-        // on the wire.
+        // The intraday series is comfortably the largest thing held - a full session at
+        // five-minute candles is a few hundred Doubles per symbol, held for every holding AND
+        // every watchlist entry. It is also the cheapest to get back: `restoreFromCache` on
+        // the next resume reads it straight out of SQLite with no request at all.
         _quotes.value = _quotes.value.mapValues { (_, q) ->
             if (q.spark.isEmpty()) q else q.copy(spark = emptyList())
         }
-        if (level < TRIM_MODERATE) return
+
+        // The fetched chart series, for the same reason and with the same recovery: every
+        // one of them is on disk in `chart_cache`, and `loadChart` reads disk before it ever
+        // reaches for the network.
+        if (_charts.value.isNotEmpty()) {
+            _charts.value = emptyMap()
+            chartDiskRead.clear()
+        }
 
         // ---------------------------------------------------------------------------------
         // THIS THRESHOLD WAS WRONG AND TJ FELT IT: "I go to the news feed tab, switch apps,
@@ -832,6 +863,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * adds whatever is new on top.
      */
     private fun restoreFromCache(force: Boolean = false) {
+        // Charts come back on EVERY resume, not just the first: a trim that ran while the
+        // app was away is exactly when they need putting back, and unlike the feed this
+        // costs nothing when there is nothing to do.
+        restoreSparklines()
         if (feedRestored && !force) return
         feedRestored = true
         viewModelScope.launch(Dispatchers.IO) {
@@ -842,6 +877,40 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // reading, and the cache must never overwrite something newer.
                 if (_feed.value.isEmpty()) publishFeed(cached)
                 else publishFeed(_feed.value + cached)
+            }
+        }
+    }
+
+    /**
+     * Put the intraday series back from SQLite, for any quote that has lost it.
+     *
+     * THE RECOVERY PATH THAT DID NOT EXIST. `quotes.spark` has been persisted since v1, so
+     * after a memory trim the series was still sitting on disk - but nothing ever read it
+     * back, and the only route to a chart was a network fetch that `sparkAt` was already
+     * suppressing. Charts therefore stayed blank for five minutes with the data they needed
+     * a single query away.
+     *
+     * Costs nothing in the ordinary case: it returns immediately unless something on screen
+     * is actually missing its series, and it never overwrites a series that is already
+     * there - a fetch that landed first is by definition newer than the disk row.
+     */
+    private fun restoreSparklines() {
+        if (_quotes.value.isEmpty()) return
+        if (_quotes.value.none { it.value.spark.isEmpty() }) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val disk = runCatching { db.cachedQuotes() }.getOrDefault(emptyMap())
+            if (disk.isEmpty()) return@launch
+            withContext(Dispatchers.Main) {
+                var changed = false
+                val m = HashMap(_quotes.value)
+                for ((sym, q) in m) {
+                    if (q.spark.isNotEmpty()) continue
+                    val series = disk[sym]?.spark ?: continue
+                    if (series.isEmpty()) continue
+                    m[sym] = q.copy(spark = series)
+                    changed = true
+                }
+                if (changed) _quotes.value = m
             }
         }
     }
@@ -881,6 +950,46 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private val vehicleDone = java.util.Collections.synchronizedSet(HashSet<String>())
     private var researchJob: Job? = null
     private var enrichJob: Job? = null
+
+    // ================================================================ PRICE CHARTS
+    //
+    // ALL OF THESE ARE ABOVE `init` DELIBERATELY - see checkinit.py and the note on the
+    // ledger cache fields. Nothing here is reached from init today; the rule is absolute
+    // because "it happens not to be touched yet" is exactly the reasoning that shipped the
+    // v4.6 startup crash.
+
+    /**
+     * Every fetched series, keyed by [chartKey] - one entry per (symbol, range) pair.
+     *
+     * ONE FLAT MAP RATHER THAN A MAP OF MAPS. The UI only ever asks for a single pair at a
+     * time, and a nested map would make every write allocate an inner map as well as an
+     * outer one - on a StateFlow that is read from composition.
+     */
+    private val _charts = MutableStateFlow<Map<String, ChartSeries>>(emptyMap())
+    val charts: StateFlow<Map<String, ChartSeries>> = _charts.asStateFlow()
+
+    /** Chart keys with a fetch in flight, so the range chips can show which one is loading. */
+    private val _chartLoading = MutableStateFlow<Set<String>>(emptySet())
+    val chartLoading: StateFlow<Set<String>> = _chartLoading.asStateFlow()
+
+    /**
+     * When each chart key was last pulled FROM THE NETWORK.
+     *
+     * Deliberately not derived from `ChartSeries.fetched`, for the same reason
+     * [coreFetchedAt] is not derived from `Fundamentals.fetched`: that field carries the age
+     * of the DATA and is preserved when a row is read back off disk, so using it as the
+     * throttle would send a request on every screen open for any cache older than its TTL,
+     * even one that was just refused.
+     */
+    private val chartFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /**
+     * Symbols whose cached chart rows have already been read off disk this session.
+     *
+     * The disk read pulls EVERY range for the symbol in one query, so it is worth doing once
+     * and never again: switching between 1D and 1Y then back must not re-query SQLite.
+     */
+    private val chartDiskRead = java.util.Collections.synchronizedSet(HashSet<String>())
 
     init {
         com.tj.portfolio.util.MemoryTrim.register(trimListener)
@@ -2632,6 +2741,104 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * quarter; polling them on the quote cadence would be roughly a thousand pointless
      * requests an hour to a provider that has no idea this is one person's phone.
      */
+    // ================================================================ PRICE CHARTS
+
+    /** The identity of one (symbol, range) pair inside [_charts]. */
+    fun chartKey(symbol: String, range: ChartRange): String =
+        symbol.uppercase() + "|" + range.name
+
+    /** Whatever is currently held for this pair, cached or fresh. Null when nothing is. */
+    fun chartOf(symbol: String, range: ChartRange): ChartSeries? =
+        _charts.value[chartKey(symbol, range)]
+
+    /**
+     * The range the user last chose, remembered across launches.
+     *
+     * A stored preference rather than screen state: someone who reads their charts on a
+     * one-year view should not have to re-select it on every stock they open, and it is the
+     * kind of choice that is annoying to make twice.
+     */
+    fun chartRange(): ChartRange = ChartRange.byName(db.get(Keys.CHART_RANGE))
+
+    fun setChartRange(range: ChartRange) {
+        // Settings writes are synchronous SQLite; this one does not affect the ledger, so it
+        // deliberately does not go through the recompute path - see `computeAffecting`.
+        viewModelScope.launch(Dispatchers.IO) { runCatching { db.set(Keys.CHART_RANGE, range.name) } }
+    }
+
+    /**
+     * Make sure a chart is on screen, fetching it only if what we hold is genuinely old.
+     *
+     * THE ORDER HERE IS THE WHOLE ANSWER TO "the charts disappeared when I switched back".
+     *
+     *   1. read every cached range for this symbol off disk, once per session, and publish
+     *      it - so the chart is drawn from SQLite before any request is made, on a cold
+     *      start and offline alike;
+     *   2. if what came back is still inside its range's TTL, stop. No request at all;
+     *   3. otherwise fetch, and write the result back to disk.
+     *
+     * [force] skips steps 2 and 3's guard entirely and is what pull-to-refresh passes -
+     * TJ's rule was "only periodically refresh automatically, but refresh every time I
+     * gesture pull down", and those are exactly these two paths.
+     *
+     * Runs on [fgScope]: a chart is only useful while its screen is up, so backgrounding
+     * cancels it and disconnects the socket. The DISK WRITE goes on `viewModelScope`,
+     * because a series already paid for should be kept even if the user leaves mid-write.
+     */
+    fun loadChart(symbol: String, range: ChartRange, force: Boolean = false) {
+        val sym = symbol.uppercase()
+        val key = chartKey(sym, range)
+        // The in-flight guard is INSIDE nothing - it is checked here and cleared in a
+        // `finally` below. A guard set here and cleared only on the happy path is how
+        // loadInsider once locked a symbol out for the rest of the session.
+        if (_chartLoading.value.contains(key)) return
+
+        fgScope.launch {
+            _chartLoading.value = _chartLoading.value + key
+            try {
+                // ---- 1. disk first, every range for this symbol in one query
+                if (chartDiskRead.add(sym)) {
+                    val disk = withContext(Dispatchers.IO) {
+                        runCatching { db.cachedCharts(sym) }.getOrDefault(emptyMap())
+                    }
+                    if (disk.isNotEmpty()) {
+                        val m = HashMap(_charts.value)
+                        // Never let a disk row overwrite something newer already in memory:
+                        // a fetch for another range can land while this query is suspended.
+                        disk.forEach { (r, s) ->
+                            val k = chartKey(sym, r)
+                            val live = m[k]
+                            if (live == null || live.fetched < s.fetched) m[k] = s
+                        }
+                        _charts.value = m
+                    }
+                }
+
+                // ---- 2. is what we hold still good?
+                val held = _charts.value[key]
+                if (!force && held != null && !held.isEmpty && !held.stale()) return@launch
+
+                // ---- 3. fetch
+                val fresh = withContext(Dispatchers.IO) {
+                    runCatching { com.tj.portfolio.net.ChartFeed.series(sym, range) }.getOrNull()
+                }
+                chartFetchedAt[key] = System.currentTimeMillis()
+                if (fresh != null && !fresh.isEmpty) {
+                    _charts.value = _charts.value + (key to fresh)
+                    viewModelScope.launch(Dispatchers.IO) {
+                        runCatching { db.cacheChart(fresh) }
+                        runCatching { db.purgeChartCache() }
+                    }
+                }
+                // A null result deliberately changes NOTHING. Whatever was on screen stays
+                // there: replacing a real chart with an empty one because a single request
+                // was refused is the failure this cache exists to prevent.
+            } finally {
+                _chartLoading.value = _chartLoading.value - key
+            }
+        }
+    }
+
     fun loadFundamentals(symbol: String, force: Boolean = false) {
         val sym = symbol.uppercase()
         val since = System.currentTimeMillis() - (coreFetchedAt[sym] ?: 0L)
