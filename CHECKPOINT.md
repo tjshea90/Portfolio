@@ -7,17 +7,47 @@
 
 ## 0. COLD-START RECOVERY (do this first in a new chat)
 
+**READ `RESUME.md` FIRST, NOT THIS FILE.** From Round 58 the live state of the work
+lives in `RESUME.md` (regenerated on every checkpoint, so it cannot go stale) and
+`state.json` (the same thing machine-readable: every task, its status, the step that
+was in flight, and every open finding). This file is 240 KB of round history — reading
+it cold burns budget that should go on the work. Sections 1-5 below are the
+architecture and are worth reading when you need them; section 6 is history.
+
 ```bash
-cd /home/claude && tar xzf /path/to/portfolio-checkpoint-57.tar.gz
-cat /home/claude/portfolio/PROGRESS.md      # what the LAST session was doing, and where it stopped
-cat /home/claude/portfolio/CHECKPOINT.md
-bash /home/claude/portfolio/setup-env.sh    # reinstalls Android SDK (~2 min, one time)
-cd /home/claude/portfolio && export ANDROID_HOME=/root/android-sdk
-nohup ./gradlew :app:assembleRelease > /home/claude/build.log 2>&1 &   # ~2-4 min cold
+cd /home/claude && tar xzf /path/to/portfolio-checkpoint-<N>.tar.gz
+cat portfolio/RESUME.md                     # where the last session stopped
+bash portfolio/setup-env.sh                 # reinstalls the Android SDK (~2 min, once)
+cd portfolio && export ANDROID_HOME=/root/android-sdk
+bash watchdog.sh &                          # restart the 3-minute autosave
+./ck status                                 # the task ledger and open findings
+git log --oneline | head -20                # what the last session actually changed
+setsid nohup ./gradlew :app:assembleRelease > /home/claude/build.log 2>&1 < /dev/null & disown
 ```
 
 The Android SDK and the Gradle distribution are NOT in the archive (too large);
 `setup-env.sh` rebuilds the SDK and the wrapper re-downloads Gradle on first run.
+
+### THE CHECKPOINT SYSTEM (Round 58 — read `ck.py`'s docstring for the full contract)
+
+`./ck` is the only thing you need to touch. It keeps `state.json` and `RESUME.md` in
+agreement, commits to git, writes a verified tarball to `/home/claude/checkpoints/`
+and copies it to `/mnt/user-data/outputs/` so the newest checkpoint is always one tap
+away in the chat even if the session dies mid-sentence.
+
+```
+./ck task T3 doing "starting the range selector"   flip a task (auto-saves)
+./ck now  "step in flight" "next action"           breadcrumb between tasks
+./ck find F12 "description" high                   record a bug the sweep found
+./ck fixed F12 "what the fix was"                  close it (auto-saves)
+./ck save "note"                                   full checkpoint
+./ck status                                        where things stand
+```
+
+`watchdog.sh` commits the tree every 3 minutes if it changed, so a cut mid-edit loses
+minutes, never a task. **Start it on every cold resume** — it does not survive a
+container restart. `checkpoint.sh` is the pre-58 script and still works, but `ck save`
+supersedes it and does strictly more.
 
 ### BUILD ENVIRONMENT TRAPS (cost real time last session — do not repeat)
 

@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 19:59:53 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:00:12 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,16 +27,16 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T0: building the Cowork checkpoint system
+- **In flight:** (nothing in flight)
 - **Next action:** Finish ck/watchdog, then confirm baseline build (T1)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 0/14 done
+## 4. Task ledger — 1/14 done
 
-- [>] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog
+- [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - [ ] T1  Baseline: release build + 276-test suite green before any edit
 - [ ] T2  Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)
 - [ ] T3  Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
 
-**Resume at T0** (Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog).
+**Resume at T1** (Baseline: release build + 276-test suite green before any edit).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -68,4 +68,5 @@ commit, so `git log --oneline` is the history of this round and
 
 - 2026-09-07 19:59:39 UTC  round 58 started
 - 2026-09-07 19:59:53 UTC  round 58 ledger created
+- 2026-09-07 20:00:12 UTC  T0 -> done  ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 
