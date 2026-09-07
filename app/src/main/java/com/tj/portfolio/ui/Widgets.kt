@@ -135,15 +135,25 @@ fun Sparkline(
         fun y(v: Double) = (h - pad) - ((v - min) / span).toFloat() * (h - pad * 2)
         fun x(i: Int) = w * i / (pts.size - 1).toFloat()
 
+        // ROUND 58: DP, NOT RAW PIXELS. `DrawScope` measures in physical pixels, so the
+        // literals here were about 1.1dp of line on an xhdpi screen and roughly 0.8dp on the
+        // ~400dpi panel this app actually runs on - a hairline, and the same figure produced
+        // a visibly different weight on every different phone. `DrawScope` is a `Density`,
+        // so converting costs nothing and is right everywhere.
+        val lineStroke = 1.6.dp.toPx()
+        val dash = 2.5.dp.toPx()
+        val gap = 2.5.dp.toPx()
+
         if (baseline > 0.0) {
             val by = y(baseline)
             var sx = 0f
             while (sx < w) {
                 drawLine(
                     Color.Gray.copy(alpha = 0.45f),
-                    Offset(sx, by), Offset(minOf(sx + 5f, w), by), strokeWidth = 1f
+                    Offset(sx, by), Offset(minOf(sx + dash, w), by),
+                    strokeWidth = 1.dp.toPx()
                 )
-                sx += 10f
+                sx += dash + gap
             }
         }
 
@@ -164,7 +174,7 @@ fun Sparkline(
         drawPath(
             path,
             lineColor,
-            style = Stroke(width = 2.2f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+            style = Stroke(width = lineStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
     }
 }
