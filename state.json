@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:36:43 UTC",
+  "updated": "2026-09-07 20:38:21 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -149,6 +149,69 @@
       "sev": "med",
       "status": "fixed",
       "note": "loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made"
+    },
+    {
+      "id": "F08",
+      "text": "ChartRange.OVERNIGHT silently degrades into a 5-day intraday chart when meta carries no tradingPeriods and no currentTradingPeriod: with no regular windows the extended-only filter keeps everything, and it is still captioned 'After-hours and overnight only'.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F09",
+      "text": "HoldingsTab keys its LazyColumn on symbol-or-name. Two share classes or a provider repeat give the same key, and a LazyColumn handed a duplicate key THROWS and takes the app down. This exact crash has shipped three times in this project (news, filings, research rows).",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F10",
+      "text": "After a memory trim drops _holdings, a detail screen sitting on the HOLDINGS tab has that tab removed from the visible list while 'tab' still points at it: the indicator jumps to Overview while the Holdings body is still rendered.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F11",
+      "text": "adoptAsSparkline feeds the D1 chart series into quote.spark, but the two are NOT the same data: MarketData.parseYahoo puts only REGULAR-session points in spark, while ChartFeed keeps pre/post as well. The row sparkline would silently change from a trading-day line into a 24-hour one, with the prevClose baseline no longer matching what is drawn.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F12",
+      "text": "loadChart marks chartDiskRead BEFORE the disk read. A cancellation between the two leaves the symbol marked as read with nothing loaded, so the disk cache is never consulted again this session.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F13",
+      "text": "chart_cache uses a column literally named 'range', which is a reserved keyword in SQLite's window-frame syntax. Unquoted, it is at best relying on the parser's leniency.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F14",
+      "text": "purgeChartCache binds an Int via execSQL bind args. Android's SQLiteProgram binds only Long/Double/String/byte[]/null and throws IllegalArgumentException otherwise - swallowed by runCatching, so the cache would grow unbounded and silently.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F15",
+      "text": "Opening a symbol from SearchSheet does not clear detailStack, so a back press from the searched stock returns to a fund left on the stack rather than dismissing the screen.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F16",
+      "text": "The new ON_START DisposableEffect is keyed on symbol/chartRange/tab, so it re-registers on every tab and range change - and LifecycleRegistry replays ON_START to a newly added observer, firing all six loads again each time.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -186,6 +249,15 @@
     "2026-09-07 20:28:20 UTC  F07 fixed: loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made",
     "2026-09-07 20:36:05 UTC  T9 -> done  new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed",
     "2026-09-07 20:36:05 UTC  F06 fixed: DetailScreen re-requests its cache-first loads on ON_START, so an fgScope cancellation no longer strands an open screen",
-    "2026-09-07 20:36:43 UTC  T10 -> doing  adversarial sweep - pass 1: my own round-58 changes"
+    "2026-09-07 20:36:43 UTC  T10 -> doing  adversarial sweep - pass 1: my own round-58 changes",
+    "2026-09-07 20:38:20 UTC  finding F08: ChartRange.OVERNIGHT silently degrades into a 5-day intraday chart when meta car",
+    "2026-09-07 20:38:20 UTC  finding F09: HoldingsTab keys its LazyColumn on symbol-or-name. Two share classes or a provid",
+    "2026-09-07 20:38:20 UTC  finding F10: After a memory trim drops _holdings, a detail screen sitting on the HOLDINGS tab",
+    "2026-09-07 20:38:20 UTC  finding F11: adoptAsSparkline feeds the D1 chart series into quote.spark, but the two are NOT",
+    "2026-09-07 20:38:21 UTC  finding F12: loadChart marks chartDiskRead BEFORE the disk read. A cancellation between the t",
+    "2026-09-07 20:38:21 UTC  finding F13: chart_cache uses a column literally named 'range', which is a reserved keyword i",
+    "2026-09-07 20:38:21 UTC  finding F14: purgeChartCache binds an Int via execSQL bind args. Android's SQLiteProgram bind",
+    "2026-09-07 20:38:21 UTC  finding F15: Opening a symbol from SearchSheet does not clear detailStack, so a back press fr",
+    "2026-09-07 20:38:21 UTC  finding F16: The new ON_START DisposableEffect is keyed on symbol/chartRange/tab, so it re-re"
   ]
 }
