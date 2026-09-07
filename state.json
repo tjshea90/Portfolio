@@ -140,8 +140,8 @@
       "id": "F06",
       "text": "fgScope cancellation on ON_STOP has no counterpart on ON_START for the DETAIL SCREEN's own loads. A stock opened and then backgrounded mid-fetch has its news/fundamentals/insider/chart/holdings request cancelled, and the LaunchedEffect(symbol) that started it does not re-fire on return because its key has not changed - so the tab stays empty until a manual pull-to-refresh. Introduced by Round 57's fgScope work; the chart and holdings added this round inherit it.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "DetailScreen re-requests its cache-first loads on ON_START, so an fgScope cancellation no longer strands an open screen"
     },
     {
       "id": "F07",
@@ -184,6 +184,7 @@
     "2026-09-07 20:25:53 UTC  finding F06: fgScope cancellation on ON_STOP has no counterpart on ON_START for the DETAIL SC",
     "2026-09-07 20:28:02 UTC  finding F07: The 1D chart request and the row-sparkline request are the SAME Yahoo URL (range",
     "2026-09-07 20:28:20 UTC  F07 fixed: loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made",
-    "2026-09-07 20:36:05 UTC  T9 -> done  new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed"
+    "2026-09-07 20:36:05 UTC  T9 -> done  new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed",
+    "2026-09-07 20:36:05 UTC  F06 fixed: DetailScreen re-requests its cache-first loads on ON_START, so an fgScope cancellation no longer strands an open screen"
   ]
 }
