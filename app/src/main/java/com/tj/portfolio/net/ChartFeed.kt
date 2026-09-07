@@ -80,8 +80,29 @@ object ChartFeed {
         val regular = regularWindows(meta)
         val onlyExtended = range == ChartRange.OVERNIGHT
 
+        // WITHOUT SESSION BOUNDARIES THE AFTER-HOURS VIEW CANNOT BE HONEST.
+        //
+        // With no regular windows the extended-only filter below keeps everything, and the
+        // result is an ordinary five-day intraday chart still captioned "After-hours and
+        // overnight only". Refusing is the right answer: the caller keeps whatever chart it
+        // already had and retries, which is strictly better than drawing a different window
+        // under this one's label.
+        if (onlyExtended && regular.isEmpty()) return null
+
+        // The 1D line is the TRADING DAY, and its dotted baseline is the previous REGULAR
+        // close - so mixing pre-market and after-hours points into it would draw a line
+        // measured against something it is not. The extended sessions have their own range,
+        // which is the whole reason it exists. This also keeps the series identical to what
+        // `MarketData.parseYahoo` puts in `Quote.spark`, which matters because
+        // `adoptAsSparkline` feeds this exact series into the row sparkline to save a
+        // duplicate request: if the two ever diverge, that optimisation silently changes
+        // what every row on the portfolio screen is drawing.
+        val regularOnly = range == ChartRange.D1 && regular.isNotEmpty()
+
         val n = minOf(ts.length(), closes.length())
         val pts = ArrayList<ChartPoint>(n)
+        /** Points outside the regular session, kept only for the pre-open fallback below. */
+        val outside = ArrayList<ChartPoint>()
         for (i in 0 until n) {
             if (closes.isNull(i)) continue
             val v = closes.optDouble(i, Double.NaN)
@@ -91,8 +112,17 @@ object ChartFeed {
             if (v.isNaN() || v <= 0.0) continue
             val t = ts.optLong(i, 0L)
             if (t <= 0L) continue
-            if (onlyExtended && regular.any { t >= it.first && t < it.second }) continue
+            val inRegular = regular.any { t >= it.first && t < it.second }
+            if (onlyExtended && inRegular) continue
+            if (regularOnly && !inRegular) { outside.add(ChartPoint(t, v)); continue }
             pts.add(ChartPoint(t, v))
+        }
+        // BEFORE 09:30 THERE IS NO REGULAR SESSION YET, and an empty chart on the tab the
+        // screen opens on reads as broken. Same fallback `MarketData.parseYahoo` has always
+        // had: with nothing from the regular session, plot what there is.
+        if (regularOnly && pts.size < 2 && outside.size >= 2) {
+            pts.addAll(outside)
+            pts.sortBy { it.t }
         }
         if (pts.size < 2) return null
 

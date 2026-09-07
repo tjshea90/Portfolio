@@ -2917,8 +2917,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 // ---- 1. disk first, every range for this symbol in one query
                 if (chartDiskRead.add(sym)) {
-                    val disk = withContext(Dispatchers.IO) {
-                        runCatching { db.cachedCharts(sym) }.getOrDefault(emptyMap())
+                    // UN-MARKED IF THE READ DOES NOT FINISH. The mark is set before the
+                    // query so two ranges loading at once do not both run it - but that also
+                    // means a cancellation between the two leaves the symbol marked as read
+                    // with nothing loaded, and the disk cache is then never consulted again
+                    // for it this session. Same trap, same fix, as the `sparkAt` marks.
+                    var read = false
+                    val disk = try {
+                        withContext(Dispatchers.IO) {
+                            runCatching { db.cachedCharts(sym) }.getOrDefault(emptyMap())
+                        }.also { read = true }
+                    } finally {
+                        if (!read) chartDiskRead.remove(sym)
                     }
                     if (disk.isNotEmpty()) {
                         val m = HashMap(_charts.value)

@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -114,7 +114,14 @@ fun HoldingsTab(
                     )
                 }
             }
-            items(h.holdings, key = { it.symbol.ifBlank { it.name } }) { row ->
+            // KEYED ON THE INDEX AS WELL AS THE NAME. A LazyColumn handed the same key
+            // twice THROWS and takes the whole app down, and this project has shipped that
+            // exact crash three times already - the news list, the filings list and the
+            // research rows. A fund can genuinely list two share classes under one name, or
+            // a provider can simply repeat a row, and neither is worth a crash. The index
+            // makes the key unique by construction while still being stable for a list that
+            // is only ever replaced wholesale.
+            itemsIndexed(h.holdings) { i, row ->
                 HoldingRow(row, h.holdings.firstOrNull()?.weight ?: 0.0, onOpenSymbol)
                 RowSeparator()
             }

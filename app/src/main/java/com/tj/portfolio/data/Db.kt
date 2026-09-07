@@ -202,14 +202,18 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      * whole table is single-digit megabytes, which is the trade TJ asked for explicitly:
      * storage is not a concern, re-downloading something already held is.
      */
+    // NOT NAMED `range`. That is a reserved word in SQLite's window-frame syntax, and
+    // whether an unquoted one parses is a property of whichever SQLite the device ships,
+    // not of this file. The table is new, so there is no migration cost to simply not
+    // finding out the hard way on a future Android release.
     private fun createChartCache(db: SQLiteDatabase) {
         db.execSQL(
             """CREATE TABLE IF NOT EXISTS chart_cache(
                 symbol TEXT NOT NULL,
-                range TEXT NOT NULL,
+                range_key TEXT NOT NULL,
                 json TEXT NOT NULL,
                 fetched INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY(symbol, range)
+                PRIMARY KEY(symbol, range_key)
             )"""
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_chart_fetched ON chart_cache(fetched)")
@@ -983,7 +987,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     /** Read one cached series. Null when absent or unreadable - never an exception. */
     fun cachedChart(symbol: String, range: ChartRange): ChartSeries? = runCatching {
         readableDatabase.rawQuery(
-            "SELECT json FROM chart_cache WHERE symbol=? AND range=? LIMIT 1",
+            "SELECT json FROM chart_cache WHERE symbol=? AND range_key=? LIMIT 1",
             arrayOf(symbol.uppercase(), range.name)
         ).use { c -> if (c.moveToNext()) ChartJson.decode(c.getString(0)) else null }
     }.getOrNull()
@@ -998,7 +1002,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     fun cachedCharts(symbol: String): Map<ChartRange, ChartSeries> = runCatching {
         val out = HashMap<ChartRange, ChartSeries>()
         readableDatabase.rawQuery(
-            "SELECT range, json FROM chart_cache WHERE symbol=?",
+            "SELECT range_key, json FROM chart_cache WHERE symbol=?",
             arrayOf(symbol.uppercase())
         ).use { c ->
             while (c.moveToNext()) {
@@ -1023,7 +1027,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 "chart_cache", null,
                 ContentValues().apply {
                     put("symbol", series.symbol.uppercase())
-                    put("range", series.range.name)
+                    put("range_key", series.range.name)
                     put("json", ChartJson.encode(series))
                     put("fetched", series.fetched)
                 },

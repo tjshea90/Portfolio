@@ -357,7 +357,15 @@ fun App() {
                 searching -> SearchSheet(
                     vm,
                     onDismiss = { searching = false },
-                    onOpen = { searching = false; detail = it; detailToNews = false }
+                    onOpen = {
+                        searching = false
+                        // A search result is a fresh destination, not a step deeper into a
+                        // fund - so it starts a new stack rather than pushing onto one that
+                        // a Holdings tap may have left behind.
+                        detailStack.clear()
+                        detail = it
+                        detailToNews = false
+                    }
                 )
 
                 open != null -> DetailScreen(
