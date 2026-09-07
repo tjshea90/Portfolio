@@ -555,9 +555,9 @@ portfolio/
   `ui/` the data class `Row` shadows nothing because layouts are called qualified by
   import order; if a new file uses both, alias the import.
 
-## 6. STATUS — FEATURE COMPLETE, v6.8 SHIPPED
+## 6. STATUS — FEATURE COMPLETE, v6.9 SHIPPED
 
-APK: `portfolio-v6.8.apk`, versionCode 55 / versionName 6.8.
+APK: `portfolio-v6.9.apk`, versionCode 56 / versionName 6.9.
 Version history: v1.0 (core app), v1.1 (watchlist/search/backup/offline bridge),
 v1.2 (gestures, editing, long-press), v1.3 (navigation-bar inset fix),
 v1.4 (update-safety hardening + daily auto-backup),
@@ -629,6 +629,176 @@ news - see Round 55 below),
 v6.7 (RESEARCH IN TABS, and the whole app's network traffic cut by about 80% - see Round 56),
 v6.8 (THE APP NOW ACTUALLY STOPS WHEN IT IS PUT DOWN, and immutable data is never fetched
 twice - see Round 57).
+
+### Round 58 (v6.9) — THE CHARTS: A RANGE YOU CAN CHOOSE, AND ONE THAT STAYS ON SCREEN
+
+**What TJ asked for.** Seven things, all of them about the charts and the lists:
+
+> when I click on stocks there is a chart showing the price change but I cannot see how long
+> the chart is tracking... make a menu or buttons near the charts that let me select time
+> length... including 1 day, 5 day, 1 month, 6 months, 1 year, 5 year, all time, and after
+> hours/overnight which charts only after hours and afternight movement
+>
+> for my portfolio or anywhere else that stocks are shown in a vertical list, make the
+> separation between stocks a little more pronounced
+>
+> when I switched apps from the tracker then switched back, the stock charts disappeared...
+> cache data that can be cached and only periodically refresh automatically, but refresh
+> every time I gesture pull down to manually refresh
+>
+> for the after market/overnight section of stock prices, stack the dollar amount and percent
+> change vertically to be uniform with the other sections
+>
+> double check how the stock graphs are being loaded/downloaded. sometimes they don't load
+>
+> when I click on etfs, add a tab called holdings and show all of the stocks that the etf
+> currently holds and the percentage of each holding
+
+#### A. "The charts disappeared when I switched back" — and it was one line
+
+`onTrimMemory` released every sparkline from `TRIM_RUNNING_CRITICAL` (15) upward. Android
+delivers `TRIM_MEMORY_UI_HIDDEN` (20) on **every single app switch**, with no memory pressure
+implied at all — so 20 passed that guard and every switch away emptied every chart in the app.
+
+What makes this worth writing down is not the constant. It is that the comment above it was a
+correct argument that had **outlived the design it described**: the series "arrives with the
+next quote, so dropping it costs nothing on the wire" was true when written, and stopped being
+true in Round 56, when the batched quote endpoint — which returns no candles at all — replaced
+the per-symbol chart call. From then on the series was owned by `refreshSparklines` on a
+five-minute clock whose `sparkAt` mark was **already stamped**, so the charts did not come back
+with the next quote. They stayed blank for up to five minutes.
+
+Nothing is released below `TRIM_MODERATE` (60) now, which is the rule the news caches were
+already corrected to in Round 53 for the identical reason. And everything released has a
+recovery path that is a SQLite read rather than a download: `restoreSparklines()` puts
+`quotes.spark` back on every resume, and `chart_cache` does the same for fetched ranges.
+
+**Rule for the future: when a mechanism moves, re-read the comments that justified the code
+around it.** This round found two stale ones and both had become bugs.
+
+#### B. "Sometimes they don't load" — three independent causes
+
+1. `refreshSparklines` un-marked its five-minute throttle only when **every** symbol failed.
+   On a partial failure the symbols that failed kept a mark saying "just fetched", so their
+   retry was suppressed for the full window while their neighbours drew fine. Which is exactly
+   the shape of the report: not every chart, just some, and not for long enough to look like
+   an outage.
+2. The sparkline pass was the last line of `refresh()`, **below** the "no quotes came back,
+   give up" early return. One failed batch — a tunnel, a lift, a cooldown — skipped the candle
+   series entirely for that tick, including for symbols whose chart was blank on screen.
+3. `MarketData.yahoo` returned `null` the moment query1 was in a **local** cooldown. Cooldowns
+   are armed and held per host, so query1 being left alone says nothing about query2 — the
+   request was abandoned with a usable host sitting unused. Skipping a cooling host still
+   honours it completely: nothing is sent to it.
+
+#### C. The range selector, and what a chart now says about itself
+
+`data/ChartModels.kt` defines the eight ranges; `net/ChartFeed.kt` fetches them;
+`ui/PriceChart.kt` draws one with `RangeChips` above it. The chart states its window in words
+underneath ("Six months, daily closes"), prints the first and last date on the x-axis, the
+high and low on the y-axis, and says what the price did over exactly that window and what it
+is measured from. The chosen range is remembered across launches (`Keys.CHART_RANGE`).
+
+Three decisions worth keeping:
+
+- **X comes from the timestamp, not the index.** On a 1D line that is invisible; on the
+  after-hours line the session has a real gap in it, and evenly spaced points would draw a
+  continuous line across hours in which nothing traded.
+- **1D is the REGULAR SESSION ONLY**, with a fallback to whatever exists before 09:30 so the
+  tab the screen opens on is never blank. This is not a style choice: `adoptAsSparkline` feeds
+  the 1D series straight into `Quote.spark` to avoid a duplicate request, and `spark` has
+  always been regular-session-only. Let the two diverge and every row on the portfolio screen
+  silently becomes a 24-hour line drawn against a previous-close baseline that no longer
+  matches it.
+- **After hours is ONE session, not five days of them.** The request has to span several days
+  — before 09:30 the only extended points that exist are this morning's, and the after-hours
+  they continue from belongs to yesterday — so the parse then keeps only the stretch after the
+  most recent regular close, and measures it from that close rather than from
+  `meta.previousClose`, which at 18:00 on a Monday would still be Friday's.
+
+#### D. Caching, and the two clocks that decide when to fetch
+
+`chart_cache` (db v7) holds one series per (symbol, range). `loadChart` reads **every** range
+for a symbol off disk in one query before it considers the network, so a chart paints from
+SQLite on a cold start and offline alike. Each range then has its own TTL, and the rule is the
+project's existing one: **never ask more often than the provider can produce a new point.**
+Five minutes on a five-minute candle, thirty on a thirty-minute one, a day on a monthly one.
+Freshness at the right-hand edge is not bought with requests — `withLiveEdge` replaces the
+final point with the live quote price the app already holds.
+
+On top of the TTL sits `intradayChartIsFinal`, which is `pricesAreFinal` applied to the picture
+instead of the number: a 1D line whose last point is a regular-session candle cannot grow once
+the session has closed, so the automatic refresh stops. It is a test **on the data, not on the
+clock alone**, and that matters — in pre-market the fallback chart is still filling in, so the
+same function correctly keeps refreshing then.
+
+A pull-to-refresh passes `force` and bypasses all of it, which is the other half of what TJ
+asked for.
+
+#### E. The Holdings tab, and the limit it states out loud
+
+`net/HoldingsFeed.kt` asks `quoteSummary` for `topHoldings,fundProfile,quoteType` — its own
+request, not more modules on `core`, because `topHoldings` is meaningless for an ordinary share
+and Yahoo rejects a bad module set with a 4xx for the **whole** request.
+
+The free feed publishes a fund's **top** holdings, typically ten, not its register. So the tab
+says how many positions it is showing and what share of the fund they add up to, and puts the
+sector split and asset mix under them — both of which do account for 100%. A limit stated is a
+limit; a limit unstated is a lie. Tapping a holding opens that stock, which needed a real
+detail stack in `MainActivity` (`detailStack`) so back returns to the fund.
+
+The tab is **hidden** unless the provider's own `quoteType` says this is a fund. "Not a fund"
+is cached like any other answer, so opening an ordinary share does not re-ask Yahoo the same
+dead question every time.
+
+#### F. The separation between stocks, and why it read as weak
+
+Every row already contained a divider of its own — the one splitting "the stock" from "your
+money" inside `StockRowItem` — drawn at exactly the same 1dp in exactly the same colour as the
+line between rows. So the strongest visual break on the screen was indistinguishable from a
+break **inside** a single row, and the eye had nothing to group by. Making the outer line
+heavier alone would have left both shouting: the missing thing was hierarchy, not weight.
+`RowSeparator` is 3dp with 5dp of air either side; `InRowDivider` is a 1dp hairline at 45%.
+
+#### G. The sweep — 22 findings, all closed
+
+Nine were in this round's own new code, found by re-reading it adversarially before shipping.
+The ones worth remembering:
+
+- The Holdings list was keyed on symbol-or-name. A fund listing two share classes under one
+  name is a duplicate key, and a `LazyColumn` handed one **throws**. This project has shipped
+  that exact crash three times (news, filings, research rows); it is now keyed by index, and
+  `estimates`/`history` — which had the same exposure — are de-duplicated before being keyed.
+- `chart_cache` originally had a column named `range`, a reserved word in SQLite's window-frame
+  syntax. Whether an unquoted one parses is a property of whichever SQLite the device ships,
+  not of this file. Renamed to `range_key` and verified against the real engine.
+- `chartDiskRead` was marked **before** the disk read, so a cancellation between the two left a
+  symbol marked as read with nothing loaded and the disk cache never consulted again. Same trap
+  as the `sparkAt` marks, same fix.
+- Round 57's `fgScope` cancellation had no counterpart on the way back in. A stock opened and
+  then backgrounded a second later had its loads cancelled, and `LaunchedEffect(symbol)` does
+  not re-fire on resume because the key has not changed — so news, numbers, filings and chart
+  stayed empty until a manual pull. `DetailScreen` now re-requests them on ON_START; every call
+  is cache-first, so an ordinary resume sends nothing.
+- One finding was investigated and **dismissed**: `execSQL` binding an `Int` looked wrong, and
+  a real-SQLite test proved `DatabaseUtils.bindObjectToProgram` binds any `Number` as a long.
+  Written down because the fix would have been harmless and the reasoning would have been wrong.
+
+#### H. Tests: 276 -> 341
+
+`ChartTest` (26) covers the parser against a synthetic five-day body carrying a null candle and
+the nested `tradingPeriods` shape, the codec, staleness, the live edge, and the market-aware
+refresh gate including the pre-market case. `HoldingsTest` (19) covers Yahoo's three number
+shapes and the empty-object trap. `ChartCacheDbTest` (13) runs the two new caches against real
+SQLite — it is what proved the `range` column and disproved the bind-argument finding.
+`ChartUiTest` (15) and `RowLayoutUiTest` (5) render the new widgets and **measure** them: that
+the after-hours dollar and percent are geometrically stacked, that two rows have real space
+between them, that every range chip clears 48dp, and that nothing overflows at 1.3x font scale
+in either theme.
+
+`RowLayoutUiTest` needs `useUnmergedTree = true`: `StockRowItem` is wrapped in
+`combinedClickable`, which merges all descendant semantics into one node, and a merged tree
+would let a layout test pass purely because both substrings appear somewhere in the row.
 
 ### Round 57 (v6.8) — WHAT THE APP DOES WHEN YOU ARE NOT LOOKING AT IT
 
