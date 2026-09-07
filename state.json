@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:02:20 UTC",
+  "updated": "2026-09-07 20:04:09 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -114,6 +114,27 @@
       "sev": "high",
       "status": "open",
       "note": ""
+    },
+    {
+      "id": "F03",
+      "text": "refreshSparklines only unmarks sparkAt when EVERY symbol failed. On a partial failure the symbols that failed stay stamped 'just fetched' and are not retried for a full 5 minutes, so individual charts are intermittently missing - TJ's 'sometimes they don't load'.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F04",
+      "text": "refreshSparklines is called at the very end of refresh(), AFTER the 'fetched.isEmpty() -> return@launch' early exit. One failed batch quote pass means the candle series is not refreshed at all that tick, even for symbols whose charts are blank.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F05",
+      "text": "MarketData.yahoo() and batchYahoo() return immediately when query1 is in a LOCAL cooldown instead of trying query2. Cooldowns are armed per host, so query1 cooling says nothing about query2 - the chart request is abandoned while a usable host sits unused. Contributes to charts not loading.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -124,6 +145,9 @@
     "2026-09-07 20:00:33 UTC  T2 -> doing  reading the chart pipeline",
     "2026-09-07 20:01:13 UTC  finding F01: onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_",
     "2026-09-07 20:01:14 UTC  finding F02: After a spark drop the DB (quotes.spark) still holds the series, but nothing re-",
-    "2026-09-07 20:02:20 UTC  cleaned gradle caches after a concurrent-build collision; single build running"
+    "2026-09-07 20:02:20 UTC  cleaned gradle caches after a concurrent-build collision; single build running",
+    "2026-09-07 20:03:46 UTC  finding F03: refreshSparklines only unmarks sparkAt when EVERY symbol failed. On a partial fa",
+    "2026-09-07 20:03:46 UTC  finding F04: refreshSparklines is called at the very end of refresh(), AFTER the 'fetched.isE",
+    "2026-09-07 20:04:09 UTC  finding F05: MarketData.yahoo() and batchYahoo() return immediately when query1 is in a LOCAL"
   ]
 }
