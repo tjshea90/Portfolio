@@ -31,6 +31,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -44,6 +45,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tj.portfolio.data.MetricCatalog
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tj.portfolio.data.Txn
 import com.tj.portfolio.util.Fmt
 
@@ -233,6 +237,37 @@ fun DetailScreen(
     // fetched when the tab is opened rather than when the screen is.
     LaunchedEffect(symbol, tab) {
         if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol)
+    }
+
+    /**
+     * ASK AGAIN WHEN THE APP COMES BACK. The other half of Round 57's `fgScope`.
+     *
+     * Round 57 made every on-demand fetch cancellable and cancelled them all on ON_STOP,
+     * which was right - but nothing restarted the ones belonging to a screen that is STILL
+     * OPEN. `LaunchedEffect(symbol)` above does not re-fire on resume, because `symbol` has
+     * not changed; the composition was never torn down. So a stock opened and then
+     * backgrounded a second later came back with its news, numbers, filings and chart
+     * permanently empty, and the only way out was a manual pull-to-refresh.
+     *
+     * Every call here is idempotent and cache-first: each one returns immediately if it
+     * already holds a fresh answer, and none passes `force`, so an ordinary resume with
+     * everything cached sends nothing at all. It costs a request only in exactly the case
+     * this exists for - something the user is looking at is genuinely missing.
+     */
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, symbol, chartRange, tab) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) {
+                vm.loadNews(symbol)
+                vm.loadFundamentals(symbol)
+                vm.loadInsider(symbol)
+                vm.loadHoldings(symbol)
+                vm.loadChart(symbol, chartRange)
+                if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
     }
 
     // The chart follows the range the user picked. `loadChart` reads its disk cache first
