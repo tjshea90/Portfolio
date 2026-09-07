@@ -10,9 +10,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.Density
-import com.tj.portfolio.data.Position
 import com.tj.portfolio.data.Quote
+import com.tj.portfolio.domain.Position
 import com.tj.portfolio.ui.PortfolioTheme
 import com.tj.portfolio.ui.Row
 import com.tj.portfolio.ui.RowSeparator
