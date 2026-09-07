@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:28:20 UTC",
+  "updated": "2026-09-07 20:36:05 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -10,7 +10,7 @@
     "next_name": "6.9"
   },
   "now": {
-    "step": "T9: Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible",
+    "step": "",
     "next": "Write data/HoldingsModels.kt, net/HoldingsFeed.kt, wire a HOLDINGS tab that only appears for funds",
     "files": []
   },
@@ -72,8 +72,8 @@
     {
       "id": "T9",
       "title": "Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible",
-      "status": "doing",
-      "note": "background behaviour audit"
+      "status": "done",
+      "note": "new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed"
     },
     {
       "id": "T10",
@@ -183,6 +183,7 @@
     "2026-09-07 20:25:27 UTC  T9 -> doing  background behaviour audit",
     "2026-09-07 20:25:53 UTC  finding F06: fgScope cancellation on ON_STOP has no counterpart on ON_START for the DETAIL SC",
     "2026-09-07 20:28:02 UTC  finding F07: The 1D chart request and the row-sparkline request are the SAME Yahoo URL (range",
-    "2026-09-07 20:28:20 UTC  F07 fixed: loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made"
+    "2026-09-07 20:28:20 UTC  F07 fixed: loadChart(D1) feeds its series into the quote's spark and stamps sparkAt, so the identical sparkline request is not made",
+    "2026-09-07 20:36:05 UTC  T9 -> done  new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed"
   ]
 }
