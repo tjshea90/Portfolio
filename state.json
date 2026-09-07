@@ -189,8 +189,8 @@
       "id": "F13",
       "text": "chart_cache uses a column literally named 'range', which is a reserved keyword in SQLite's window-frame syntax. Unquoted, it is at best relying on the parser's leniency.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "column renamed range_key; verified across all eight ranges against real SQLite"
     },
     {
       "id": "F14",
@@ -264,6 +264,7 @@
     "2026-09-07 20:44:12 UTC  F09 fixed: HoldingsTab uses itemsIndexed, so a duplicate symbol or name can no longer crash the LazyColumn",
     "2026-09-07 20:44:12 UTC  F10 fixed: a tab selection that leaves the visible set falls back to Overview",
     "2026-09-07 20:44:13 UTC  F11 fixed: D1 keeps regular-session points only (with the pre-open fallback parseYahoo has), so it is byte-identical in meaning to Quote.spark and adoptAsSparkline is safe",
-    "2026-09-07 20:44:13 UTC  F12 fixed: chartDiskRead is un-marked when the disk read does not complete"
+    "2026-09-07 20:44:13 UTC  F12 fixed: chartDiskRead is un-marked when the disk read does not complete",
+    "2026-09-07 20:44:13 UTC  F13 fixed: column renamed range_key; verified across all eight ranges against real SQLite"
   ]
 }
