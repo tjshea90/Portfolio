@@ -25,6 +25,29 @@ at once or kill one mid-flight; always background the build with
 
 > Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.
 
+## 3a. READ THIS FIRST IF YOU ARE PICKING UP FROM THE ROUND-58 SESSION
+
+The sweep is **finished** — 22 findings, all fixed — and CHECKPOINT.md's Round 58 section,
+the file map, the locked-decisions table and the version bump (56 / 6.9) are all written.
+
+That session ended blocked on a **harness outage**, not on the work: the tool-safety check
+that gates shell commands kept timing out, so no Gradle run was possible after commit
+`021fad8` (the last fully green one: 341 tests). Everything written after that is committed by
+`watchdog.sh` but has **not been compiled or tested**. Nothing is lost; it just needs a run.
+
+What is untested, and what to look at first if something fails:
+
+| Change | Files |
+|---|---|
+| `ChartSeries.regularOnly` — the precondition `adoptAsSparkline` now requires | `data/ChartModels.kt`, `net/ChartFeed.kt`, `ui/PortfolioViewModel.kt` |
+| 5 new `ChartTest` cases for that flag, including the pre-open fallback | `ChartTest.kt` |
+| `RowLayoutUiTest` rewritten to `useUnmergedTree = true` (it was failing without it, because `combinedClickable` merges the whole row into one semantics node) | `RowLayoutUiTest.kt` |
+| `HoldingsTab` — `itemsIndexed` with an explicit key, `topWeight` hoisted out of the item lambda | `ui/HoldingsTab.kt` |
+| Stroke widths converted from raw pixels to dp | `ui/PriceChart.kt`, `ui/Widgets.kt` |
+
+Then: `python3 checkinit.py`, `./gradlew :app:assembleRelease`, `./ck task T10 done` /
+`T11 done` / `T12 done` / `T13 doing`, `./ck save`, and send TJ the APK and the tarball.
+
 ## 3. WHERE THE WORK STOPPED
 
 - **In flight:** T10: Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)
