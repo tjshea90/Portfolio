@@ -1507,17 +1507,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         sym to runCatching { MarketData.sparkline(sym) }.getOrNull()
                     }
                 }
-            }.awaitAll().mapNotNull { (s, v) -> if (v == null) null else s to v }
-            if (fresh.isEmpty()) {
-                // Let a failed symbol be retried on the next tick rather than sitting out the
-                // whole five minutes for a request that never landed.
-                due.forEach { sparkAt.remove(it) }
-                return@launch
-            }
+            }.awaitAll()
+            // ROUND 58: UN-MARK EVERY SYMBOL THAT FAILED, NOT ONLY THE ALL-FAILED CASE.
+            //
+            // This used to un-mark only when the WHOLE pass came back empty. On a PARTIAL
+            // failure - one symbol 404s, one host is mid-cooldown, one socket times out -
+            // the symbols that failed kept a mark saying "just fetched", so their retry was
+            // suppressed for the full five minutes while their neighbours drew fine. That is
+            // TJ's "sometimes they don't load": not every chart, just some of them, and not
+            // for long enough to look like an outage.
+            //
+            // A mark means "we hold a series this recent". A symbol with no series has no
+            // business holding one.
+            fresh.forEach { (sym, v) -> if (v == null) sparkAt.remove(sym) }
+            val landed = fresh.mapNotNull { (s, v) -> if (v == null) null else s to v }
+            if (landed.isEmpty()) return@launch
             withContext(Dispatchers.Main) {
                 val updated = HashMap(_quotes.value)
-                val written = ArrayList<Quote>(fresh.size)
-                for ((sym, series) in fresh) {
+                val written = ArrayList<Quote>(landed.size)
+                for ((sym, series) in landed) {
                     val q = updated[sym]
                     if (q == null) {
                         // The quote pass failed for this symbol but the series arrived. Do
