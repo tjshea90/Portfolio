@@ -121,6 +121,12 @@ Package `com.tj.portfolio`. Output: a signed release APK. **BUILT AND DELIVERED.
 | On-demand fetches | **`fgScope`** — a supervisor scope cancelled on ON_STOP, rebuilt on ON_START | Round 57: 42 launch sites, only 3 stopped on background. DB writes stay on `viewModelScope` |
 | Cancelling a request | **Disconnect the socket**, not just skip what is queued | Round 57: cancelling mid-transfer otherwise still paid for the whole body |
 | Unparseable SEC filings | Recorded permanently in `Keys.INSIDER_SKIP` | Round 57: a filed Form 4 is immutable — one that cannot be read never can be |
+| Chart ranges | Eight, in `ChartRange`, each with its own candle size and TTL | Round 58: TJ asked for 1D/5D/1M/6M/1Y/5Y/All plus an after-hours-only view by name |
+| Chart cache | `chart_cache` (db v7), one row per (symbol, range), disk read BEFORE any request | Round 58: switching apps must never blank a chart, and a five-year line cannot change today |
+| Chart refresh rate | The range's own candle interval, never faster | Round 58: asking more often than the provider makes a point cannot return anything new. The live tip comes from the quote the app already holds |
+| 1D chart contents | **Regular session only**, with a pre-open fallback | Round 58: `adoptAsSparkline` feeds this series into `Quote.spark`, which has always been regular-only. Divergence silently changes every row on the portfolio screen |
+| Trim thresholds | Nothing is released below `TRIM_MODERATE` (60) | Round 58: `TRIM_MEMORY_UI_HIDDEN` fires on every app switch and was blanking every chart |
+| Fund holdings | Yahoo `topHoldings` — the TOP holdings, and the screen says so | Round 58: no keyless feed publishes a 500-name fund's register. The tab states its coverage rather than implying completeness |
 
 ## 3. TOOLCHAIN — VERIFIED BUILDING (do not "upgrade" these)
 
@@ -170,7 +176,22 @@ portfolio/
   app/src/main/AndroidManifest.xml
   app/src/main/res/       themes (light + night), adaptive launcher icon, strings
   app/src/main/java/com/tj/portfolio/
+    ck / ck.py             THE CHECKPOINT TOOL (Round 58). Keeps RESUME.md and state.json in
+                           agreement, commits to git, writes and VERIFIES the tarball, copies
+                           it to /mnt/user-data/outputs. Read its docstring for the contract.
+    watchdog.sh            3-minute autosave commit. Start it on every cold resume.
+    RESUME.md              GENERATED. Where the last session stopped. Read this first.
+    state.json             The same thing machine-readable: tasks, statuses, open findings.
     data/Models.kt       Txn, Quote, NewsItem, Advice, StockRating, Override, TxnType
+    data/ChartModels.kt  ChartRange (the 8 time windows + their candle sizes and TTLs),
+                         ChartPoint, ChartSeries, ChartJson codec (Round 58)
+    data/HoldingsModels.kt  FundHolding, SectorWeight, FundHoldings + HoldingsJson (Round 58)
+    net/ChartFeed.kt     A price series for ANY range. Per-DAY session boundaries, the
+                         after-hours filter, and the regular-session-only 1D rule (Round 58)
+    net/HoldingsFeed.kt  Yahoo topHoldings/fundProfile/quoteType -> FundHoldings (Round 58)
+    ui/PriceChart.kt     PriceChart + RangeChips: the chart, the range buttons, the axis
+                         labels and the caption that says what window is on screen (Round 58)
+    ui/HoldingsTab.kt    What a fund holds, its sector split and its asset mix (Round 58)
     data/Db.kt           SQLiteOpenHelper: txns, settings, overrides, quotes, watchlist,
                          news_cache (v4: saved headlines, month retention),
                          fundamentals (v5: company numbers + analyst ratings, TTL cache)
