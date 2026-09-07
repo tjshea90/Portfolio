@@ -10,7 +10,7 @@
     "next_name": "6.9"
   },
   "now": {
-    "step": "",
+    "step": "T8: ETF detail: HOLDINGS tab listing each holding and its % of the fund",
     "next": "Finish ck/watchdog, then confirm baseline build (T1)",
     "files": []
   },
@@ -66,8 +66,8 @@
     {
       "id": "T8",
       "title": "ETF detail: HOLDINGS tab listing each holding and its % of the fund",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "ETF holdings tab"
     },
     {
       "id": "T9",
@@ -163,6 +163,7 @@
     "2026-09-07 20:20:22 UTC  T4 -> done  chart_cache at db v7 (disk-first, per-range TTL, pull-down forces); trim no longer blanks charts; sparks restored from SQLite on resume",
     "2026-09-07 20:20:22 UTC  T5 -> done  partial-failure spark throttle, sparkline no longer gated behind the quote pass, cooling Yahoo host skipped not abandoned",
     "2026-09-07 20:20:23 UTC  T6 -> done  RowSeparator 3dp + 5dp air between rows; InRowDivider 1dp/45% inside a row; applied to Portfolio, Watchlist, Search",
-    "2026-09-07 20:20:23 UTC  T7 -> done  extended-hours cell stacks price / dollar change / percent vertically"
+    "2026-09-07 20:20:23 UTC  T7 -> done  extended-hours cell stacks price / dollar change / percent vertically",
+    "2026-09-07 20:20:23 UTC  T8 -> doing  ETF holdings tab"
   ]
 }
