@@ -126,8 +126,8 @@
       "id": "F04",
       "text": "refreshSparklines is called at the very end of refresh(), AFTER the 'fetched.isEmpty() -> return@launch' early exit. One failed batch quote pass means the candle series is not refreshed at all that tick, even for symbols whose charts are blank.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "refreshSparklines starts alongside the quote pass, above the no-quotes early return"
     },
     {
       "id": "F05",
@@ -155,6 +155,7 @@
     "2026-09-07 20:10:40 UTC  ChartModels.kt + ChartFeed.kt written (T3 data layer)",
     "2026-09-07 20:13:54 UTC  F01 fixed: onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts",
     "2026-09-07 20:13:54 UTC  F02 fixed: restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges",
-    "2026-09-07 20:15:05 UTC  F03 fixed: refreshSparklines un-marks every failed symbol, not only the all-failed case"
+    "2026-09-07 20:15:05 UTC  F03 fixed: refreshSparklines un-marks every failed symbol, not only the all-failed case",
+    "2026-09-07 20:15:05 UTC  F04 fixed: refreshSparklines starts alongside the quote pass, above the no-quotes early return"
   ]
 }
