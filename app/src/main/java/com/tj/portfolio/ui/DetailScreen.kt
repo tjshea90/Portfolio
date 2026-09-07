@@ -152,6 +152,20 @@ fun DetailScreen(
      */
     var infoKey by remember { mutableStateOf<String?>(null) }
 
+    // ---- the price chart's range.
+    //
+    // Seeded from the stored preference and then owned by this screen, so switching range
+    // here changes it for the next stock too - the choice is about how you read charts, not
+    // about this one symbol. `remember(Unit)` rather than `remember(symbol)`: re-reading the
+    // setting on every symbol change would be a DB read from composition, which is the exact
+    // rule this project already fixed in Settings and SearchSheet.
+    var chartRange by remember { mutableStateOf(vm.chartRange()) }
+    val chartMap by vm.charts.collectAsState()
+    val chartLoadingSet by vm.chartLoading.collectAsState()
+    val chartKey = vm.chartKey(symbol, chartRange)
+    val chart = chartMap[chartKey]
+    val chartLoading = chartLoadingSet.contains(chartKey)
+
     // The "News" chip on a holding row used to open this screen and then try to SCROLL to
     // the news section, which was fragile arithmetic over a list whose length changed as
     // headlines arrived. With tabs it just opens the right tab.
@@ -179,16 +193,24 @@ fun DetailScreen(
         if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol)
     }
 
+    // The chart follows the range the user picked. `loadChart` reads its disk cache first
+    // and only reaches for the network when what it holds is past that range's TTL, so
+    // flicking back and forth between 1D and 1Y costs nothing after the first look.
+    LaunchedEffect(symbol, chartRange) { vm.loadChart(symbol, chartRange) }
+
     // REMEMBERED (Round 57). An unremembered lambda is a new object on every recomposition,
     // and this screen recomposes on every quote tick - so `Refreshable` and the header button
     // were being invalidated four times a minute for a callback that had not changed. Keyed
     // on what it actually captures.
-    val refreshEverything = remember(symbol, tab) {
+    val refreshEverything = remember(symbol, tab, chartRange) {
         {
             vm.refresh(manual = true)
             vm.loadNews(symbol, force = true)
             vm.loadInsider(symbol, force = true)
             vm.loadFundamentals(symbol, force = true)
+            // TJ's rule for this round, exactly: cache and refresh periodically on its own,
+            // but a pull-down always re-fetches. `force` is what bypasses the TTL.
+            vm.loadChart(symbol, chartRange, force = true)
             if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol, force = true)
         }
     }
@@ -271,6 +293,13 @@ fun DetailScreen(
                     tracked = tracked,
                     fundamentals = fundamentals,
                     txns = txns,
+                    chart = chart,
+                    chartRange = chartRange,
+                    chartLoading = chartLoading,
+                    onChartRange = { r ->
+                        chartRange = r
+                        vm.setChartRange(r)
+                    },
                     onInfo = { infoKey = it },
                     onEditPosition = { pending = PendingAction(symbol, RowAction.EDIT_POSITION) },
                     onAddTxn = { addingTxn = true },
@@ -384,6 +413,10 @@ private fun OverviewTab(
     tracked: Boolean,
     fundamentals: com.tj.portfolio.data.Fundamentals?,
     txns: List<Txn>,
+    chart: com.tj.portfolio.data.ChartSeries?,
+    chartRange: com.tj.portfolio.data.ChartRange,
+    chartLoading: Boolean,
+    onChartRange: (com.tj.portfolio.data.ChartRange) -> Unit,
     onInfo: (String) -> Unit,
     onEditPosition: () -> Unit,
     onAddTxn: () -> Unit,
@@ -436,11 +469,24 @@ private fun OverviewTab(
                     )
                 }
 
+                Spacer(Modifier.height(12.dp))
+
+                // ---- THE CHART, AND THE BUTTONS THAT SAY WHAT IT COVERS (Round 58).
+                //
+                // This was a bare 130dp `Sparkline` of `q.spark` - one fixed day, at five
+                // minutes, with nothing anywhere on screen saying so. TJ: "I cannot see how
+                // long the chart is tracking."
+                RangeChips(selected = chartRange, onSelect = onChartRange)
                 Spacer(Modifier.height(10.dp))
-                Sparkline(
-                    points = q?.spark ?: emptyList(),
-                    baseline = q?.prevClose ?: 0.0,
-                    modifier = Modifier.fillMaxWidth().height(130.dp)
+                PriceChart(
+                    series = chart,
+                    range = chartRange,
+                    loading = chartLoading,
+                    livePrice = liveEdgePrice(q, chartRange),
+                    // The live tip belongs to whichever session the chart is drawing: the
+                    // regular price on the 1D line while the market is open, the extended
+                    // print on the after-hours line once it has closed. See withLiveEdge.
+                    liveEdge = liveEdgePrice(q, chartRange) > 0.0
                 )
                 Spacer(Modifier.height(14.dp))
             }
@@ -796,5 +842,28 @@ private fun NewsTab(
                 )
             }
         }
+    }
+}
+
+/**
+ * The price that belongs at the right-hand tip of an intraday chart, or 0 when none does.
+ *
+ * The 1D line ends at the last regular print, so it is only extended by the live regular
+ * price and only while the market is open. The after-hours line ends at the last extended
+ * print, so it is extended by `extPrice` and only once the regular session has closed.
+ * Outside those two cases the chart's own last point is already the truth and moving it
+ * would paint one session's price onto another session's line.
+ */
+private fun liveEdgePrice(
+    q: com.tj.portfolio.data.Quote?,
+    range: com.tj.portfolio.data.ChartRange
+): Double {
+    if (q == null) return 0.0
+    return when (range) {
+        com.tj.portfolio.data.ChartRange.D1 ->
+            if (q.marketState == "OPEN" && q.price > 0.0) q.price else 0.0
+        com.tj.portfolio.data.ChartRange.OVERNIGHT ->
+            if (q.marketState != "OPEN") (q.extPrice ?: 0.0).coerceAtLeast(0.0) else 0.0
+        else -> 0.0
     }
 }

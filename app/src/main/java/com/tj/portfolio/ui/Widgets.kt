@@ -184,12 +184,25 @@ fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
      * inside a single explicit null check - which is also what keeps the smart cast on `q`
      * and `ext` and avoids reintroducing `!!` here.
      */
-    val extCell: Triple<String, String, Double>? =
+    /**
+     * (price, dollar change, percent change, percent as a number for the colour).
+     *
+     * ROUND 58 - TJ: *"for the after market/overnight section of stock prices, stack the
+     * dollar amount and percent change vertically to be uniform with the other sections.
+     * right now they are side by side horizontally."*
+     *
+     * They were one pre-joined string - `"+0.42   +0.19%"` - which is why they sat on a
+     * line together while the market-hours column beside them had its two figures stacked.
+     * Kept apart now so [SessionCell] can lay them out the same way as every other cell, and
+     * so neither can be silently clipped off the end of a shared line.
+     */
+    val extCell: ExtCell? =
         if (q != null && ext != null)
-            Triple(
-                Fmt.price(ext),
-                "${Fmt.changeMoney(ext, q.extChange)}   ${Fmt.pctSigned(q.extChangePct)}",
-                q.extChangePct
+            ExtCell(
+                price = Fmt.price(ext),
+                change = Fmt.changeMoney(ext, q.extChange),
+                percent = Fmt.pctSigned(q.extChangePct),
+                pct = q.extChangePct
             )
         else null
     val hasExt = extCell != null
@@ -245,14 +258,18 @@ fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
                     label = if (isPre) "PRE-MARKET" else "AFTER HOURS / OVERNIGHT",
                     // the extended-hours PRICE is the number people actually want here
                     firstTag = "price now",
-                    first = extCell.first,
+                    first = extCell.price,
                     secondTag = "change",
-                    second = extCell.second,
+                    second = extCell.change,
+                    // The percentage now sits UNDER the dollar figure rather than beside it,
+                    // which is what makes this column read the same way as the market-hours
+                    // one to its left.
+                    third = extCell.percent,
                     // Pre-market is measured from the last regular close, which is the
                     // previous day's; after hours it is measured from today's close. Same
                     // arithmetic, different day, so the wording has to differ too.
                     basis = if (isPre) "vs last close" else "vs today's close",
-                    color = signColor(extCell.third),
+                    color = signColor(extCell.pct),
                     firstIsNeutral = true,
                     big = big
                 )
@@ -261,7 +278,14 @@ fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
     }
 }
 
-/** One labelled session column inside [PriceBlock]. */
+/** The three strings the extended-hours column shows, plus the number that colours them. */
+private data class ExtCell(
+    val price: String,
+    val change: String,
+    val percent: String,
+    val pct: Double
+)
+
 /**
  * One labelled session column inside [PriceBlock].
  *
@@ -286,6 +310,14 @@ private fun SessionCell(
     modifier: Modifier = Modifier,
     firstTag: String? = null,
     secondTag: String? = null,
+    /**
+     * A third figure stacked under [second], in the same colour and at the same size.
+     *
+     * Exists so the extended-hours column can show its dollar change and its percentage the
+     * way the market-hours column already did - one above the other - instead of joined into
+     * a single string. Null everywhere else, and a null takes no vertical space with it.
+     */
+    third: String? = null,
     basis: String? = null,
     firstIsNeutral: Boolean = false,
     big: Boolean = false
@@ -323,6 +355,14 @@ private fun SessionCell(
             fontWeight = FontWeight.SemiBold,
             color = color
         )
+        if (third != null) {
+            Text(
+                third,
+                fontSize = if (big) 14.sp else 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = color
+            )
+        }
         if (basis != null) {
             Spacer(Modifier.height(2.dp))
             Text(
