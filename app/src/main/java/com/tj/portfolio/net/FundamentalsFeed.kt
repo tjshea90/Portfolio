@@ -153,6 +153,19 @@ object FundamentalsFeed {
      * @param fallbackModules a reduced module set to retry with, but ONLY when the first
      *        attempt was rejected for its modules. Null means "do not retry".
      */
+    /**
+     * The quoteSummary plumbing, exposed for [HoldingsFeed].
+     *
+     * Sharing this rather than copying it is the point: the cookie+crumb handshake, the 401
+     * re-mint, the crumb-independent cache key and the module-rejection fallback are four
+     * things that took two rounds to get right and must not exist twice.
+     */
+    internal suspend fun quoteSummary(
+        symbol: String,
+        modules: String,
+        fallbackModules: String? = null
+    ): JSONObject? = yahoo(symbol, modules, fallbackModules)
+
     private suspend fun yahoo(
         symbol: String,
         modules: String,

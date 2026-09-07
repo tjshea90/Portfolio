@@ -400,6 +400,44 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         }
     }.getOrNull()
 
+    /**
+     * The fund-holdings cache (Round 58).
+     *
+     * Rides the EXISTING `fundamentals` table under its own [Keys.KIND_HOLDINGS] kind rather
+     * than adding a fifth table. It has exactly the same shape as the two rows already there
+     * - one current snapshot per symbol, replaced wholesale, read by (symbol, kind) - so a
+     * new table would have bought a schema migration and nothing else, and `onUpgrade` is
+     * the one part of this app where a mistake destroys user data.
+     *
+     * It also inherits the retention and purge the other kinds already have, for free.
+     */
+    fun cacheHoldings(h: FundHoldings) {
+        runCatching {
+            writableDatabase.insertWithOnConflict(
+                "fundamentals", null,
+                ContentValues().apply {
+                    put("symbol", h.symbol.uppercase())
+                    put("kind", Keys.KIND_HOLDINGS)
+                    put("json", HoldingsJson.encode(h))
+                    put("fetched", if (h.fetched > 0) h.fetched else System.currentTimeMillis())
+                },
+                SQLiteDatabase.CONFLICT_REPLACE
+            )
+        }
+    }
+
+    /** Null for a missing row AND for an unreadable one - both must read as "fetch it". */
+    fun cachedHoldings(symbol: String): FundHoldings? = runCatching {
+        readableDatabase.rawQuery(
+            "SELECT json, fetched FROM fundamentals WHERE symbol=? AND kind=?",
+            arrayOf(symbol.uppercase(), Keys.KIND_HOLDINGS)
+        ).use { c ->
+            if (!c.moveToFirst()) return@use null
+            val h = HoldingsJson.decode(c.getString(0)) ?: return@use null
+            if (h.fetched > 0) h else h.copy(fetched = c.getLong(1))
+        }
+    }.getOrNull()
+
     /** Rows older than [olderThanMs] are dropped. Called on the same schedule as the news purge. */
     fun purgeFundamentals(olderThanMs: Long = 30L * 86_400_000L): Int = runCatching {
         writableDatabase.delete(
@@ -1421,6 +1459,12 @@ object Keys {
      */
     const val KIND_CORE = "core"
     const val KIND_RATINGS = "ratings"
+
+    /**
+     * What a fund holds (Round 58). Shares the `fundamentals` table with the two kinds
+     * above - see `Db.cacheHoldings` for why it is a third KIND and not a fourth table.
+     */
+    const val KIND_HOLDINGS = "holdings"
 
     /** Which detail-screen tab was last open, so reopening a stock lands where you left. */
     const val DETAIL_TAB = "detail_tab"

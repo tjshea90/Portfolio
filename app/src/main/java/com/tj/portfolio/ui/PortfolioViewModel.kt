@@ -9,6 +9,7 @@ import com.tj.portfolio.data.Advice
 import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.Db
+import com.tj.portfolio.data.FundHoldings
 import com.tj.portfolio.data.Keys
 import com.tj.portfolio.data.NewsItem
 import com.tj.portfolio.data.Override
@@ -845,6 +846,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         _fundamentals.value = emptyMap()
         coreFetchedAt.clear()
         ratingsFetchedAt.clear()
+        // Same reasoning again: on disk since Round 58, so dropping them frees the heap and
+        // costs one SQLite read when the tab is reopened.
+        _holdings.value = emptyMap()
+        holdingsFetchedAt.clear()
         _feed.value = emptyList()
         _trending.value = emptyList()
         storyKeys.clear()
@@ -990,6 +995,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * and never again: switching between 1D and 1Y then back must not re-query SQLite.
      */
     private val chartDiskRead = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    // ================================================================ FUND HOLDINGS
+
+    /** What each fund holds, by symbol. Absent means "not looked up yet". */
+    private val _holdings = MutableStateFlow<Map<String, FundHoldings>>(emptyMap())
+    val holdings: StateFlow<Map<String, FundHoldings>> = _holdings.asStateFlow()
+
+    /** Symbols with a holdings fetch in flight. */
+    private val _holdingsLoading = MutableStateFlow<Set<String>>(emptySet())
+    val holdingsLoading: StateFlow<Set<String>> = _holdingsLoading.asStateFlow()
+
+    /** When each symbol's holdings were last pulled from the NETWORK - see [coreFetchedAt]. */
+    private val holdingsFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     init {
         com.tj.portfolio.util.MemoryTrim.register(trimListener)
@@ -2762,6 +2780,64 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * quarter; polling them on the quote cadence would be roughly a thousand pointless
      * requests an hour to a provider that has no idea this is one person's phone.
      */
+    // ================================================================ FUND HOLDINGS
+
+    /**
+     * What this fund holds. Cheap and idempotent - safe to call on every screen open.
+     *
+     * Disk first, exactly like [loadChart] and [loadFundamentals]: the tab paints from
+     * SQLite before any request, so reopening an ETF costs nothing, and a fund's register is
+     * republished daily at most so the 12-hour TTL is already more often than the data moves.
+     *
+     * On `fgScope`, because the answer is only useful while the tab is up; the disk write
+     * goes on `viewModelScope` so a series already paid for survives the user leaving.
+     */
+    fun loadHoldings(symbol: String, force: Boolean = false) {
+        val sym = symbol.uppercase()
+        if (_holdingsLoading.value.contains(sym)) return
+        val held = _holdings.value[sym]
+        if (!force && held != null && !held.stale()) return
+
+        fgScope.launch {
+            _holdingsLoading.value = _holdingsLoading.value + sym
+            try {
+                if (held == null) {
+                    val disk = withContext(Dispatchers.IO) {
+                        runCatching { db.cachedHoldings(sym) }.getOrNull()
+                    }
+                    if (disk != null) {
+                        _holdings.value = _holdings.value + (sym to disk)
+                        // A disk row inside its life is a complete answer; going to the
+                        // network for it could only return the same register.
+                        if (!force && !disk.stale()) {
+                            holdingsFetchedAt[sym] = disk.fetched
+                            return@launch
+                        }
+                    }
+                }
+
+                val fresh = withContext(Dispatchers.IO) {
+                    runCatching { com.tj.portfolio.net.HoldingsFeed.holdings(sym) }.getOrNull()
+                }
+                holdingsFetchedAt[sym] = System.currentTimeMillis()
+                if (fresh != null) {
+                    // WRITTEN EVEN WHEN EMPTY, and that is deliberate. "This symbol is an
+                    // ordinary share and has no holdings" is a real answer with a real
+                    // lifetime, and caching it is what stops the app asking Yahoo the same
+                    // dead question every time TJ opens one of his sixteen stocks.
+                    _holdings.value = _holdings.value + (sym to fresh)
+                    viewModelScope.launch(Dispatchers.IO) {
+                        runCatching { db.cacheHoldings(fresh) }
+                    }
+                }
+            } finally {
+                // Always cleared, or this symbol is locked out of every later attempt - the
+                // trap loadNews, loadInsider and loadFundamentals each had once.
+                _holdingsLoading.value = _holdingsLoading.value - sym
+            }
+        }
+    }
+
     // ================================================================ PRICE CHARTS
 
     /** The identity of one (symbol, range) pair inside [_charts]. */

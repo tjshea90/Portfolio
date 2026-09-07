@@ -66,11 +66,36 @@ private fun newsKey(n: com.tj.portfolio.data.NewsItem): String =
  */
 enum class DetailTab(val label: String) {
     OVERVIEW("Overview"),
+    /**
+     * ETFs and funds only - see [visibleTabs].
+     *
+     * Placed second rather than last because for a fund it is the most interesting tab on
+     * the screen: what it holds is what it IS. It sits between Overview and Stats, which is
+     * also where the other apps TJ compared against put it.
+     */
+    HOLDINGS("Holdings"),
     STATS("Stats"),
     ANALYSTS("Analysts"),
     EARNINGS("Earnings"),
     NEWS("News")
 }
+
+/**
+ * Which tabs this particular symbol gets.
+ *
+ * HOLDINGS IS HIDDEN UNTIL THE PROVIDER SAYS THIS IS A FUND, and hiding it is the right
+ * default rather than showing an empty one: fifteen of TJ's sixteen positions are ordinary
+ * shares, and a permanently blank tab on every one of them would be exactly the
+ * "labelled space for a number that cannot exist" the price block was corrected for in
+ * Round 51.
+ *
+ * The test is the provider's own `quoteType`, never the ticker - a four-letter symbol is not
+ * a fund, and this project has a standing rule against inferring something a feed will state.
+ * Until the lookup returns, the tab is absent; when it returns "fund", the tab appears.
+ */
+fun visibleTabs(isFund: Boolean): List<DetailTab> =
+    if (isFund) DetailTab.entries
+    else DetailTab.entries.filter { it != DetailTab.HOLDINGS }
 
 /**
  * Everything about one symbol.
@@ -87,7 +112,13 @@ fun DetailScreen(
     symbol: String,
     scrollToNews: Boolean,
     onBack: () -> Unit,
-    onOpenUrl: (String, String) -> Unit
+    onOpenUrl: (String, String) -> Unit,
+    /**
+     * Open another stock's detail screen. Used by the Holdings tab, where tapping a fund's
+     * position is the obvious next move. Defaults to doing nothing so a caller that has no
+     * navigation stack to push onto is not forced to invent one.
+     */
+    onOpenSymbol: (String) -> Unit = {}
 ) {
     val quotes by vm.quotes.collectAsState()
     /**
@@ -159,6 +190,12 @@ fun DetailScreen(
     // about this one symbol. `remember(Unit)` rather than `remember(symbol)`: re-reading the
     // setting on every symbol change would be a DB read from composition, which is the exact
     // rule this project already fixed in Settings and SearchSheet.
+    val holdingsMap by vm.holdings.collectAsState()
+    val holdingsLoadingSet by vm.holdingsLoading.collectAsState()
+    val fundHoldings = holdingsMap[symbol]
+    val loadingHoldings = holdingsLoadingSet.contains(symbol)
+    val tabs = remember(fundHoldings?.isFund) { visibleTabs(fundHoldings?.isFund == true) }
+
     var chartRange by remember { mutableStateOf(vm.chartRange()) }
     val chartMap by vm.charts.collectAsState()
     val chartLoadingSet by vm.chartLoading.collectAsState()
@@ -185,6 +222,11 @@ fun DetailScreen(
         // cached - and "who inside the company has been buying" is exactly the kind of thing
         // you want when researching a stock you do not own yet.
         vm.loadInsider(symbol)
+        // Cheap and cached for twelve hours, and it has to run for every symbol because its
+        // answer is what decides whether the Holdings tab exists at all. For an ordinary
+        // share the "not a fund" verdict is cached too, so this is one request per symbol
+        // per half-day, not one per screen open.
+        vm.loadHoldings(symbol)
     }
 
     // The analyst history is an order of magnitude bigger than everything else, so it is
@@ -212,6 +254,7 @@ fun DetailScreen(
             // but a pull-down always re-fetches. `force` is what bypasses the TTL.
             vm.loadChart(symbol, chartRange, force = true)
             if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol, force = true)
+            if (tab == DetailTab.HOLDINGS) vm.loadHoldings(symbol, force = true)
         }
     }
 
@@ -262,11 +305,16 @@ fun DetailScreen(
         Spacer(Modifier.height(6.dp))
 
         ScrollableTabRow(
-            selectedTabIndex = tab.ordinal,
+            // INDEXED INTO THE VISIBLE LIST, NOT THE ENUM. `tab.ordinal` was fine while every
+            // tab was always shown; with Holdings hidden on ordinary shares the ordinals no
+            // longer match the tabs on screen, and the indicator would sit under the wrong
+            // one. `coerceAtLeast(0)` covers the instant after a fund's data arrives, when
+            // the list grows underneath a selection that is briefly not in it.
+            selectedTabIndex = tabs.indexOf(tab).coerceAtLeast(0),
             edgePadding = 8.dp,
             containerColor = MaterialTheme.colorScheme.background
         ) {
-            DetailTab.entries.forEach { t ->
+            tabs.forEach { t ->
                 Tab(
                     selected = tab == t,
                     onClick = { tab = t },
@@ -331,6 +379,12 @@ fun DetailScreen(
                     f = fundamentals,
                     loading = loadingFund,
                     onInfo = { infoKey = it }
+                )
+
+                DetailTab.HOLDINGS -> HoldingsTab(
+                    h = fundHoldings,
+                    loading = loadingHoldings,
+                    onOpenSymbol = onOpenSymbol
                 )
 
                 DetailTab.NEWS -> NewsTab(
