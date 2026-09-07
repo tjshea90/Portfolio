@@ -231,8 +231,8 @@
       "id": "F19",
       "text": "ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often than the provider makes a new point cannot return anything new - the same rule that put D1 on five minutes.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "D5 TTL raised to 30 minutes to match its 30-minute candle"
     },
     {
       "id": "F20",
@@ -302,6 +302,7 @@
     "2026-09-07 20:45:55 UTC  finding F19: ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often t",
     "2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche",
     "2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http",
-    "2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed"
+    "2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed",
+    "2026-09-07 20:48:01 UTC  F19 fixed: D5 TTL raised to 30 minutes to match its 30-minute candle"
   ]
 }

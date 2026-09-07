@@ -53,7 +53,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T10** (Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)).
 
-## 5. Open findings — 2 still open, 18 fixed
+## 5. Open findings — 1 still open, 19 fixed
 
 - [x] F01 (high) onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_CRITICAL 15), which Android delivers on EVERY app switch. The sparkAt 5-minute throttle is already stamped, so charts stay blank for up to 5 minutes after returning. This is TJ's 'charts disappeared when I switched back' report. The doc comment's reasoning ('they ride along with the next quote') went stale in Round 56 when the series moved off the quote path.  — onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts
 - [x] F02 (high) After a spark drop the DB (quotes.spark) still holds the series, but nothing re-reads it on return - the recovery path is a network fetch that the throttle suppresses.  — restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges
@@ -73,7 +73,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F16 (low) The new ON_START DisposableEffect is keyed on symbol/chartRange/tab, so it re-registers on every tab and range change - and LifecycleRegistry replays ON_START to a newly added observer, firing all six loads again each time.  — the ON_START observer is keyed only on the lifecycle owner and reads current values via rememberUpdatedState
 - [x] F17 (low) purgeChartCache runs on EVERY chart write - a DELETE with an ordered subquery over the whole table each time a chart is fetched, where the other caches purge once per session.  — purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http
 - [x] F18 (med) Fundamentals.estimates and .history are rendered as keyed LazyColumn items with no distinctBy. A provider repeating a period or a quarter date is a duplicate key, which throws - the crash this project has already shipped three times.  — estimates and history are de-duplicated before being keyed
-- [ ] F19 (low) ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often than the provider makes a new point cannot return anything new - the same rule that put D1 on five minutes.
+- [x] F19 (low) ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often than the provider makes a new point cannot return anything new - the same rule that put D1 on five minutes.  — D5 TTL raised to 30 minutes to match its 30-minute candle
 - [ ] F20 (high) A chart never refreshes while its screen stays open. loadChart runs from LaunchedEffect(symbol, range) and ON_START only, so watching one stock for an hour leaves the line frozen at load time with only its tip moving. TJ asked for periodic automatic refresh as well as pull-down.
 
 ## 6. Version
@@ -85,7 +85,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:44:13 UTC  F11 fixed: D1 keeps regular-session points only (with the pre-open fallback parseYahoo has), so it is byte-identical in meaning to Quote.spark and adoptAsSparkline is safe
 - 2026-09-07 20:44:13 UTC  F12 fixed: chartDiskRead is un-marked when the disk read does not complete
 - 2026-09-07 20:44:13 UTC  F13 fixed: column renamed range_key; verified across all eight ranges against real SQLite
 - 2026-09-07 20:44:14 UTC  F15 fixed: opening a search result clears detailStack
@@ -97,4 +96,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche
 - 2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http
 - 2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed
+- 2026-09-07 20:48:01 UTC  F19 fixed: D5 TTL raised to 30 minutes to match its 30-minute candle
 
