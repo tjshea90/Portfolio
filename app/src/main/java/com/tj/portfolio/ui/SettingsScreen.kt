@@ -279,6 +279,28 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
+        // ---- the price-chart cache (Round 58)
+        val chartStats = remember(infoTick) { vm.chartCacheStats() }
+        SectionHeader("Saved price charts")
+        KeyValue("Charts kept", chartStats.first.toString())
+        KeyValue(
+            "Newest",
+            if (chartStats.second <= 0L) "-" else Fmt.relative(chartStats.second)
+        )
+        Text(
+            "Every chart you open is kept on the phone, one per stock per time range, so " +
+                "coming back to it draws instantly and switching apps never blanks it. " +
+                "Each range is refreshed on its own clock - a five-minute chart every five " +
+                "minutes, a five-year chart once a day - and pulling down on a stock always " +
+                "fetches a fresh one whatever the clock says.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedButton(
+            onClick = { vm.clearChartCache(); infoTick++ },
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+        ) { Text("Clear saved charts") }
+
         // ---- the downloaded-page cache (Round 56)
         val httpStats = remember(infoTick) { vm.httpCacheStats() }
         SectionHeader("Saved downloads")

@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:48:01 UTC",
+  "updated": "2026-09-07 20:49:43 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -240,6 +240,13 @@
       "sev": "high",
       "status": "fixed",
       "note": "the open chart re-checks its TTL on every quote tick and refreshes itself at its own cadence, answered from memory without a coroutine when nothing is due"
+    },
+    {
+      "id": "F21",
+      "text": "RangeChips are ~40dp tall - under the app's own documented 48dp minimum tap target, which it has a helper for and a round-46 finding about. Eight chips in a scrolling row means a mis-tap selects the neighbouring range.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -304,6 +311,7 @@
     "2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http",
     "2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed",
     "2026-09-07 20:48:01 UTC  F19 fixed: D5 TTL raised to 30 minutes to match its 30-minute candle",
-    "2026-09-07 20:48:01 UTC  F20 fixed: the open chart re-checks its TTL on every quote tick and refreshes itself at its own cadence, answered from memory without a coroutine when nothing is due"
+    "2026-09-07 20:48:01 UTC  F20 fixed: the open chart re-checks its TTL on every quote tick and refreshes itself at its own cadence, answered from memory without a coroutine when nothing is due",
+    "2026-09-07 20:49:43 UTC  finding F21: RangeChips are ~40dp tall - under the app's own documented 48dp minimum tap targ"
   ]
 }

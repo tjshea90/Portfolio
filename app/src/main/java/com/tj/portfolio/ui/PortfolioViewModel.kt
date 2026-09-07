@@ -1109,6 +1109,26 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Rows held and the age of the oldest, for the Settings card. */
     fun newsCacheStats(): Pair<Int, Long> = db.newsCacheStats()
 
+    /** Rows held by the price-chart cache and the newest fetch time (Round 58). */
+    fun chartCacheStats(): Pair<Int, Long> = runCatching { db.chartCacheStats() }
+        .getOrDefault(0 to 0L)
+
+    /**
+     * Empty the price-chart cache from Settings.
+     *
+     * BOTH LAYERS, in that order, for the same reason `clearHttpCache` does it: clearing the
+     * table alone would leave the in-memory copy answering every read, so nothing visibly
+     * happens and the next disk write puts the same rows straight back. `chartDiskRead` goes
+     * with them, or the next `loadChart` would skip the disk read that is now the only way
+     * to discover the table is empty.
+     */
+    fun clearChartCache() {
+        _charts.value = emptyMap()
+        chartDiskRead.clear()
+        chartFetchedAt.clear()
+        viewModelScope.launch(Dispatchers.IO) { runCatching { db.clearChartCache() } }
+    }
+
     /** Row count and total characters held by the HTTP response cache (Round 56). */
     fun httpCacheStats(): Pair<Int, Long> = runCatching { db.httpCacheStats() }
         .getOrDefault(0 to 0L)

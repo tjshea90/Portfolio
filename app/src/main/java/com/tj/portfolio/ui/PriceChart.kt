@@ -223,15 +223,20 @@ fun RangeChips(
             val on = r == selected
             Box(
                 Modifier
+                    // THE APP'S OWN 48dp RULE, and it is not decorative here. Round 46 found
+                    // a 33dp target on this screen and the fix was measured, not estimated.
+                    // Eight chips in a scrolling row are the worst case for a mis-tap:
+                    // everything a near-miss can land on is another range button.
+                    //
+                    // `defaultMinSize` before the background, so the painted chip is the
+                    // full 48dp rather than a smaller pill with dead space around it.
+                    .minTapTarget()
                     .background(
                         if (on) Accent else MaterialTheme.colorScheme.surfaceVariant,
-                        RoundedCornerShape(8.dp)
+                        RoundedCornerShape(10.dp)
                     )
-                    // 44dp is deliberately close to the 48dp minimum: eight chips have to fit
-                    // on a phone, and these sit in a scrolling row with nothing behind them,
-                    // so a near-miss lands on empty space rather than on another control.
                     .clickable { onSelect(r) }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
