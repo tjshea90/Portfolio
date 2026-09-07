@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:13:54 UTC",
+  "updated": "2026-09-07 20:15:05 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -119,8 +119,8 @@
       "id": "F03",
       "text": "refreshSparklines only unmarks sparkAt when EVERY symbol failed. On a partial failure the symbols that failed stay stamped 'just fetched' and are not retried for a full 5 minutes, so individual charts are intermittently missing - TJ's 'sometimes they don't load'.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "refreshSparklines un-marks every failed symbol, not only the all-failed case"
     },
     {
       "id": "F04",
@@ -154,6 +154,7 @@
     "2026-09-07 20:08:21 UTC  T3 -> doing  chart range selector - designing the series API and cache",
     "2026-09-07 20:10:40 UTC  ChartModels.kt + ChartFeed.kt written (T3 data layer)",
     "2026-09-07 20:13:54 UTC  F01 fixed: onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts",
-    "2026-09-07 20:13:54 UTC  F02 fixed: restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges"
+    "2026-09-07 20:13:54 UTC  F02 fixed: restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges",
+    "2026-09-07 20:15:05 UTC  F03 fixed: refreshSparklines un-marks every failed symbol, not only the all-failed case"
   ]
 }

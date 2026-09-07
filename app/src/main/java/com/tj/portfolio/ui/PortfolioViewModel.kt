@@ -1358,6 +1358,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val symbols = if (manual) allTrackedSymbols() else symbolsToQuote()
                 if (symbols.isEmpty()) return@launch
 
+                // ROUND 58: STARTED HERE, NOT AFTER THE QUOTE PASS.
+                //
+                // This used to be the last line of the try block, which put it AFTER the
+                // "no quotes came back, give up" early return below. One failed batch - a
+                // tunnel, a lift, a cooldown - therefore skipped the candle series entirely
+                // for that tick, including for symbols whose chart was blank on screen and
+                // whose only route back to one is this call.
+                //
+                // The two are independent: the series comes from a different endpoint and is
+                // merged by symbol, and the quote merge below is deliberately rebuilt from
+                // the CURRENT `_quotes` rather than a snapshot, precisely so a sparkline
+                // landing mid-pass is not overwritten. Starting them together also takes the
+                // series off the end of the critical path.
+                refreshSparklines(symbols)
+
                 val fk = finnhubKey()
                 // ONE REQUEST FOR THE WHOLE PORTFOLIO, not one per symbol - see the long note
                 // on MarketData.quotes. This single line is ~85% of the app's outbound
@@ -1407,8 +1422,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     error = if (missing > 0) "$missing symbol(s) failed to update" else null
                 )
 
-                // The candle series rides its own much slower clock - see refreshSparklines.
-                refreshSparklines(symbols)
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(error = "Refresh failed: ${e.message}")
             } finally {

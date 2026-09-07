@@ -164,13 +164,17 @@ object MarketData {
         // Nothing has been learned about the batch endpoint itself.
         if (crumb.isBlank()) return Batch.INCONCLUSIVE to emptyList()
         val list = symbols.joinToString(",")
+        var throttled = 0
         for (host in listOf("query1", "query2")) {
             val url = "https://$host.finance.yahoo.com/v7/finance/quote?symbols=" +
                 enc(list) + "&crumb=" + enc(crumb)
             val r = Http.get(url, mapOf("Accept" to "application/json"))
-            // A local cooldown means this host is being deliberately left alone; trying the
-            // other Yahoo host would defeat the point, since the throttle is on us, not it.
-            if (r.throttledLocally) return Batch.INCONCLUSIVE to emptyList()
+            // Skip a cooling host and try the other one - cooldowns are per host, so this
+            // one being left alone says nothing about the next. See the note in [yahoo].
+            // Falling out of the loop with nothing but throttles is INCONCLUSIVE below, not
+            // FAILED: no request was sent, so nothing was learned about the endpoint, and
+            // counting it would arm the batch-disable that Round 56 already had to undo.
+            if (r.throttledLocally) { throttled++; continue }
             if (r.code == 401) {
                 // Stale crumb, or one minted against a cookie we no longer hold. Exactly the
                 // recovery quoteSummary does: invalidate and let the next pass re-mint. Not a
@@ -183,6 +187,8 @@ object MarketData {
             val parsed = runCatching { parseBatch(r.body) }.getOrDefault(emptyList())
             if (parsed.isNotEmpty()) return Batch.OK to parsed
         }
+        // Every host was in a local cooldown, so nothing was actually sent. Not a verdict.
+        if (throttled >= 2) return Batch.INCONCLUSIVE to emptyList()
         // Both hosts answered and neither gave anything usable. That IS a verdict.
         return Batch.FAILED to emptyList()
     }
@@ -287,9 +293,19 @@ object MarketData {
             val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
                 enc(symbol) + "?range=1d&interval=$INTERVAL&includePrePost=true"
             val r = Http.get(url, mapOf("Accept" to "application/json"))
-            // A local cooldown means this host is being deliberately left alone; trying the
-            // other Yahoo host would defeat the point, since the throttle is on us, not it.
-            if (r.throttledLocally) return null
+            // ROUND 58: SKIP A COOLING HOST, DO NOT ABANDON THE REQUEST.
+            //
+            // This was `return null`, on the reading that "the throttle is on us, not the
+            // host, so the other Yahoo host is no better". That is not what `Http` actually
+            // does: cooldowns are armed and held PER HOST, so query1 being left alone says
+            // nothing whatsoever about query2. The old line therefore threw away the call
+            // with a perfectly usable host sitting unused - one of the reasons a chart could
+            // silently fail to appear while the rest of the screen was fine.
+            //
+            // Skipping rather than returning still honours the cooldown completely: no
+            // request is sent to the cooling host. If BOTH are cooling, both are skipped and
+            // the loop falls through to `return null` exactly as before.
+            if (r.throttledLocally) continue
             if (!r.ok) continue
             try {
                 val parsed = parseYahoo(symbol, r.body)
