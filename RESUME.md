@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:08:20 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:08:21 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,18 +27,18 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T2: Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)
+- **In flight:** (nothing in flight)
 - **Next action:** Finish ck/watchdog, then confirm baseline build (T1)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 2/14 done
+## 4. Task ledger — 3/14 done
 
 - [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - [x] T1  Baseline: release build + 276-test suite green before any edit  — release APK + 276/276 tests green + checkinit ok
-- [>] T2  Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)  — reading the chart pipeline
+- [x] T2  Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)  — chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded
 - [ ] T3  Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart
 - [ ] T4  Chart CACHING: survive backgrounding; periodic auto-refresh; pull-down forces
 - [ ] T5  Chart FETCH RELIABILITY: find and fix why charts sometimes never load
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
 
-**Resume at T2** (Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)).
+**Resume at T3** (Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart).
 
 ## 5. Open findings — 5 still open, 0 fixed
 
@@ -70,7 +70,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 19:59:39 UTC  round 58 started
 - 2026-09-07 19:59:53 UTC  round 58 ledger created
 - 2026-09-07 20:00:12 UTC  T0 -> done  ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - 2026-09-07 20:00:32 UTC  T1 -> doing  build running
@@ -82,4 +81,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:03:46 UTC  finding F04: refreshSparklines is called at the very end of refresh(), AFTER the 'fetched.isE
 - 2026-09-07 20:04:09 UTC  finding F05: MarketData.yahoo() and batchYahoo() return immediately when query1 is in a LOCAL
 - 2026-09-07 20:08:20 UTC  T1 -> done  release APK + 276/276 tests green + checkinit ok
+- 2026-09-07 20:08:21 UTC  T2 -> done  chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded
 
