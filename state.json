@@ -10,7 +10,7 @@
     "next_name": "6.9"
   },
   "now": {
-    "step": "",
+    "step": "T3: Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart",
     "next": "Finish ck/watchdog, then confirm baseline build (T1)",
     "files": []
   },
@@ -36,8 +36,8 @@
     {
       "id": "T3",
       "title": "Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "chart range selector - designing the series API and cache"
     },
     {
       "id": "T4",
@@ -150,6 +150,7 @@
     "2026-09-07 20:03:46 UTC  finding F04: refreshSparklines is called at the very end of refresh(), AFTER the 'fetched.isE",
     "2026-09-07 20:04:09 UTC  finding F05: MarketData.yahoo() and batchYahoo() return immediately when query1 is in a LOCAL",
     "2026-09-07 20:08:20 UTC  T1 -> done  release APK + 276/276 tests green + checkinit ok",
-    "2026-09-07 20:08:21 UTC  T2 -> done  chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded"
+    "2026-09-07 20:08:21 UTC  T2 -> done  chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded",
+    "2026-09-07 20:08:21 UTC  T3 -> doing  chart range selector - designing the series API and cache"
   ]
 }

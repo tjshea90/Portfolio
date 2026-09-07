@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T3: Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart
 - **Next action:** Finish ck/watchdog, then confirm baseline build (T1)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -39,7 +39,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - [x] T1  Baseline: release build + 276-test suite green before any edit  — release APK + 276/276 tests green + checkinit ok
 - [x] T2  Map the chart pipeline end to end (MarketData, ViewModel, DetailScreen, Widgets)  — chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded
-- [ ] T3  Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart
+- [>] T3  Chart RANGE SELECTOR: 1D/5D/1M/6M/1Y/5Y/All + after-hours-only, near the chart  — chart range selector - designing the series API and cache
 - [ ] T4  Chart CACHING: survive backgrounding; periodic auto-refresh; pull-down forces
 - [ ] T5  Chart FETCH RELIABILITY: find and fix why charts sometimes never load
 - [ ] T6  Vertical stock lists: more pronounced separation (spacing + divider)
@@ -70,7 +70,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 19:59:53 UTC  round 58 ledger created
 - 2026-09-07 20:00:12 UTC  T0 -> done  ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - 2026-09-07 20:00:32 UTC  T1 -> doing  build running
 - 2026-09-07 20:00:33 UTC  T2 -> doing  reading the chart pipeline
@@ -82,4 +81,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:04:09 UTC  finding F05: MarketData.yahoo() and batchYahoo() return immediately when query1 is in a LOCAL
 - 2026-09-07 20:08:20 UTC  T1 -> done  release APK + 276/276 tests green + checkinit ok
 - 2026-09-07 20:08:21 UTC  T2 -> done  chart path mapped: MarketData.yahoo(1d/5m) -> Quote.spark -> Widgets.Sparkline; series cached in quotes.spark; 5 findings recorded
+- 2026-09-07 20:08:21 UTC  T3 -> doing  chart range selector - designing the series API and cache
 
