@@ -37,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -214,6 +215,14 @@ fun DetailScreen(
         mutableStateOf(if (scrollToNews) DetailTab.NEWS else DetailTab.OVERVIEW)
     }
 
+    // A SELECTION THAT IS NO LONGER ON SCREEN GOES BACK TO OVERVIEW.
+    //
+    // `tabs` shrinks when the Holdings data goes away - a memory trim at MODERATE drops
+    // `_holdings`, and `isFund` reverts to unknown. Without this the tab row's indicator
+    // jumps to Overview (because `indexOf` returns -1 and is coerced to 0) while the body
+    // below still renders the Holdings tab: two different tabs claiming to be selected.
+    LaunchedEffect(tabs) { if (tab !in tabs) tab = DetailTab.OVERVIEW }
+
     // state.txns is the full history and this screen recomposes on every price tick, so
     // the filter is keyed on the list identity - it only re-runs when the ledger changes.
     val txns = remember(state.txns, symbol) { state.txns.filter { it.symbol == symbol } }
@@ -255,15 +264,26 @@ fun DetailScreen(
      * this exists for - something the user is looking at is genuinely missing.
      */
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, symbol, chartRange, tab) {
+    // READ THROUGH `rememberUpdatedState`, AND KEYED ONLY ON THE OWNER.
+    //
+    // Keying the effect on symbol/range/tab looks harmless and is not: `LifecycleRegistry`
+    // brings a newly added observer up to the current state, which means it replays ON_START
+    // immediately. Re-registering on every tab tap and every range chip would therefore have
+    // fired all six loads again each time. The calls are cache-first and guarded, so nothing
+    // would have gone on the wire - but relying on that is how a cheap call becomes an
+    // expensive one two rounds later. This way the observer is registered once per screen.
+    val currentSymbol by rememberUpdatedState(symbol)
+    val currentRange by rememberUpdatedState(chartRange)
+    val currentTab by rememberUpdatedState(tab)
+    DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
-                vm.loadNews(symbol)
-                vm.loadFundamentals(symbol)
-                vm.loadInsider(symbol)
-                vm.loadHoldings(symbol)
-                vm.loadChart(symbol, chartRange)
-                if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol)
+                vm.loadNews(currentSymbol)
+                vm.loadFundamentals(currentSymbol)
+                vm.loadInsider(currentSymbol)
+                vm.loadHoldings(currentSymbol)
+                vm.loadChart(currentSymbol, currentRange)
+                if (currentTab == DetailTab.ANALYSTS) vm.loadRatings(currentSymbol)
             }
         }
         lifecycleOwner.lifecycle.addObserver(obs)

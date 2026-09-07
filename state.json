@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:41:19 UTC",
+  "updated": "2026-09-07 20:44:11 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -154,8 +154,8 @@
       "id": "F08",
       "text": "ChartRange.OVERNIGHT silently degrades into a 5-day intraday chart when meta carries no tradingPeriods and no currentTradingPeriod: with no regular windows the extended-only filter keeps everything, and it is still captioned 'After-hours and overnight only'.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "OVERNIGHT returns null when no regular session windows can be determined, rather than drawing five days under an after-hours caption"
     },
     {
       "id": "F09",
@@ -259,6 +259,7 @@
     "2026-09-07 20:38:21 UTC  finding F14: purgeChartCache binds an Int via execSQL bind args. Android's SQLiteProgram bind",
     "2026-09-07 20:38:21 UTC  finding F15: Opening a symbol from SearchSheet does not clear detailStack, so a back press fr",
     "2026-09-07 20:38:21 UTC  finding F16: The new ON_START DisposableEffect is keyed on symbol/chartRange/tab, so it re-re",
-    "2026-09-07 20:41:19 UTC  F14 fixed: NOT A BUG - verified against real SQLite via ChartCacheDbTest: DatabaseUtils.bindObjectToProgram binds any Number as a long, so an Int bind arg is fine. The purge test proves rows are actually removed."
+    "2026-09-07 20:41:19 UTC  F14 fixed: NOT A BUG - verified against real SQLite via ChartCacheDbTest: DatabaseUtils.bindObjectToProgram binds any Number as a long, so an Int bind arg is fine. The purge test proves rows are actually removed.",
+    "2026-09-07 20:44:11 UTC  F08 fixed: OVERNIGHT returns null when no regular session windows can be determined, rather than drawing five days under an after-hours caption"
   ]
 }
