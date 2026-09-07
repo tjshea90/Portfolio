@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:25:26 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:25:27 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T9: Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible
 - **Next action:** Write data/HoldingsModels.kt, net/HoldingsFeed.kt, wire a HOLDINGS tab that only appears for funds
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -45,7 +45,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T6  Vertical stock lists: more pronounced separation (spacing + divider)  — RowSeparator 3dp + 5dp air between rows; InRowDivider 1dp/45% inside a row; applied to Portfolio, Watchlist, Search
 - [x] T7  After-hours block: stack dollar and percent vertically like the other sections  — extended-hours cell stacks price / dollar change / percent vertically
 - [x] T8  ETF detail: HOLDINGS tab listing each holding and its % of the fund  — FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack
-- [ ] T9  Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible
+- [>] T9  Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible  — background behaviour audit
 - [ ] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)
 - [ ] T11  Fix every finding from T10 without introducing new ones
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
@@ -70,7 +70,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:13:54 UTC  F02 fixed: restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges
 - 2026-09-07 20:15:05 UTC  F03 fixed: refreshSparklines un-marks every failed symbol, not only the all-failed case
 - 2026-09-07 20:15:05 UTC  F04 fixed: refreshSparklines starts alongside the quote pass, above the no-quotes early return
 - 2026-09-07 20:15:06 UTC  F05 fixed: a locally-cooling Yahoo host is now skipped rather than abandoning the request; both chart and batch paths
@@ -82,4 +81,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:20:23 UTC  T7 -> done  extended-hours cell stacks price / dollar change / percent vertically
 - 2026-09-07 20:20:23 UTC  T8 -> doing  ETF holdings tab
 - 2026-09-07 20:25:26 UTC  T8 -> done  FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack
+- 2026-09-07 20:25:27 UTC  T9 -> doing  background behaviour audit
 

@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-07 20:25:26 UTC",
+  "updated": "2026-09-07 20:25:27 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -10,7 +10,7 @@
     "next_name": "6.9"
   },
   "now": {
-    "step": "",
+    "step": "T9: Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible",
     "next": "Write data/HoldingsModels.kt, net/HoldingsFeed.kt, wire a HOLDINGS tab that only appears for funds",
     "files": []
   },
@@ -72,8 +72,8 @@
     {
       "id": "T9",
       "title": "Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "background behaviour audit"
     },
     {
       "id": "T10",
@@ -165,6 +165,7 @@
     "2026-09-07 20:20:23 UTC  T6 -> done  RowSeparator 3dp + 5dp air between rows; InRowDivider 1dp/45% inside a row; applied to Portfolio, Watchlist, Search",
     "2026-09-07 20:20:23 UTC  T7 -> done  extended-hours cell stacks price / dollar change / percent vertically",
     "2026-09-07 20:20:23 UTC  T8 -> doing  ETF holdings tab",
-    "2026-09-07 20:25:26 UTC  T8 -> done  FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack"
+    "2026-09-07 20:25:26 UTC  T8 -> done  FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack",
+    "2026-09-07 20:25:27 UTC  T9 -> doing  background behaviour audit"
   ]
 }
