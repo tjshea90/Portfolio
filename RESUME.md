@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:20:23 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:20:52 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,8 +27,8 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T8: ETF detail: HOLDINGS tab listing each holding and its % of the fund
-- **Next action:** Finish ck/watchdog, then confirm baseline build (T1)
+- **In flight:** T8: ETF holdings - building the model, feed and tab
+- **Next action:** Write data/HoldingsModels.kt, net/HoldingsFeed.kt, wire a HOLDINGS tab that only appears for funds
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
