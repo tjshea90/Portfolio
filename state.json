@@ -48,8 +48,8 @@
     {
       "id": "T5",
       "title": "Chart FETCH RELIABILITY: find and fix why charts sometimes never load",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "partial-failure spark throttle, sparkline no longer gated behind the quote pass, cooling Yahoo host skipped not abandoned"
     },
     {
       "id": "T6",
@@ -160,6 +160,7 @@
     "2026-09-07 20:15:06 UTC  F05 fixed: a locally-cooling Yahoo host is now skipped rather than abandoning the request; both chart and batch paths",
     "2026-09-07 20:18:26 UTC  T3/T4/T5/T6/T7 code written; first compile of round 58",
     "2026-09-07 20:20:21 UTC  T3 -> done  ChartRange (8 ranges incl. after-hours-only), ChartFeed, PriceChart + RangeChips, wired into DetailScreen; range remembered across launches",
-    "2026-09-07 20:20:22 UTC  T4 -> done  chart_cache at db v7 (disk-first, per-range TTL, pull-down forces); trim no longer blanks charts; sparks restored from SQLite on resume"
+    "2026-09-07 20:20:22 UTC  T4 -> done  chart_cache at db v7 (disk-first, per-range TTL, pull-down forces); trim no longer blanks charts; sparks restored from SQLite on resume",
+    "2026-09-07 20:20:22 UTC  T5 -> done  partial-failure spark throttle, sparkline no longer gated behind the quote pass, cooling Yahoo host skipped not abandoned"
   ]
 }
