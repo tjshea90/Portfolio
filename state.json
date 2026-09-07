@@ -168,8 +168,8 @@
       "id": "F10",
       "text": "After a memory trim drops _holdings, a detail screen sitting on the HOLDINGS tab has that tab removed from the visible list while 'tab' still points at it: the indicator jumps to Overview while the Holdings body is still rendered.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "a tab selection that leaves the visible set falls back to Overview"
     },
     {
       "id": "F11",
@@ -261,6 +261,7 @@
     "2026-09-07 20:38:21 UTC  finding F16: The new ON_START DisposableEffect is keyed on symbol/chartRange/tab, so it re-re",
     "2026-09-07 20:41:19 UTC  F14 fixed: NOT A BUG - verified against real SQLite via ChartCacheDbTest: DatabaseUtils.bindObjectToProgram binds any Number as a long, so an Int bind arg is fine. The purge test proves rows are actually removed.",
     "2026-09-07 20:44:11 UTC  F08 fixed: OVERNIGHT returns null when no regular session windows can be determined, rather than drawing five days under an after-hours caption",
-    "2026-09-07 20:44:12 UTC  F09 fixed: HoldingsTab uses itemsIndexed, so a duplicate symbol or name can no longer crash the LazyColumn"
+    "2026-09-07 20:44:12 UTC  F09 fixed: HoldingsTab uses itemsIndexed, so a duplicate symbol or name can no longer crash the LazyColumn",
+    "2026-09-07 20:44:12 UTC  F10 fixed: a tab selection that leaves the visible set falls back to Overview"
   ]
 }
