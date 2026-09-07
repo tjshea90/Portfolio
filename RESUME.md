@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:44:12 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 20:44:13 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -53,7 +53,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T10** (Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)).
 
-## 5. Open findings — 5 still open, 11 fixed
+## 5. Open findings — 4 still open, 12 fixed
 
 - [x] F01 (high) onTrimMemory drops every sparkline at TRIM_MEMORY_UI_HIDDEN (20 >= TRIM_RUNNING_CRITICAL 15), which Android delivers on EVERY app switch. The sparkAt 5-minute throttle is already stamped, so charts stay blank for up to 5 minutes after returning. This is TJ's 'charts disappeared when I switched back' report. The doc comment's reasoning ('they ride along with the next quote') went stale in Round 56 when the series moved off the quote path.  — onTrimMemory now releases nothing below TRIM_MODERATE (60); UI_HIDDEN no longer blanks charts
 - [x] F02 (high) After a spark drop the DB (quotes.spark) still holds the series, but nothing re-reads it on return - the recovery path is a network fetch that the throttle suppresses.  — restoreSparklines() reads quotes.spark back from SQLite on every resume; chart_cache does the same for fetched ranges
@@ -65,7 +65,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F08 (high) ChartRange.OVERNIGHT silently degrades into a 5-day intraday chart when meta carries no tradingPeriods and no currentTradingPeriod: with no regular windows the extended-only filter keeps everything, and it is still captioned 'After-hours and overnight only'.  — OVERNIGHT returns null when no regular session windows can be determined, rather than drawing five days under an after-hours caption
 - [x] F09 (high) HoldingsTab keys its LazyColumn on symbol-or-name. Two share classes or a provider repeat give the same key, and a LazyColumn handed a duplicate key THROWS and takes the app down. This exact crash has shipped three times in this project (news, filings, research rows).  — HoldingsTab uses itemsIndexed, so a duplicate symbol or name can no longer crash the LazyColumn
 - [x] F10 (med) After a memory trim drops _holdings, a detail screen sitting on the HOLDINGS tab has that tab removed from the visible list while 'tab' still points at it: the indicator jumps to Overview while the Holdings body is still rendered.  — a tab selection that leaves the visible set falls back to Overview
-- [ ] F11 (high) adoptAsSparkline feeds the D1 chart series into quote.spark, but the two are NOT the same data: MarketData.parseYahoo puts only REGULAR-session points in spark, while ChartFeed keeps pre/post as well. The row sparkline would silently change from a trading-day line into a 24-hour one, with the prevClose baseline no longer matching what is drawn.
+- [x] F11 (high) adoptAsSparkline feeds the D1 chart series into quote.spark, but the two are NOT the same data: MarketData.parseYahoo puts only REGULAR-session points in spark, while ChartFeed keeps pre/post as well. The row sparkline would silently change from a trading-day line into a 24-hour one, with the prevClose baseline no longer matching what is drawn.  — D1 keeps regular-session points only (with the pre-open fallback parseYahoo has), so it is byte-identical in meaning to Quote.spark and adoptAsSparkline is safe
 - [ ] F12 (med) loadChart marks chartDiskRead BEFORE the disk read. A cancellation between the two leaves the symbol marked as read with nothing loaded, so the disk cache is never consulted again this session.
 - [ ] F13 (high) chart_cache uses a column literally named 'range', which is a reserved keyword in SQLite's window-frame syntax. Unquoted, it is at best relying on the parser's leniency.
 - [x] F14 (high) purgeChartCache binds an Int via execSQL bind args. Android's SQLiteProgram binds only Long/Double/String/byte[]/null and throws IllegalArgumentException otherwise - swallowed by runCatching, so the cache would grow unbounded and silently.  — NOT A BUG - verified against real SQLite via ChartCacheDbTest: DatabaseUtils.bindObjectToProgram binds any Number as a long, so an Int bind arg is fine. The purge test proves rows are actually removed.
@@ -81,7 +81,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:38:20 UTC  finding F09: HoldingsTab keys its LazyColumn on symbol-or-name. Two share classes or a provid
 - 2026-09-07 20:38:20 UTC  finding F10: After a memory trim drops _holdings, a detail screen sitting on the HOLDINGS tab
 - 2026-09-07 20:38:20 UTC  finding F11: adoptAsSparkline feeds the D1 chart series into quote.spark, but the two are NOT
 - 2026-09-07 20:38:21 UTC  finding F12: loadChart marks chartDiskRead BEFORE the disk read. A cancellation between the t
@@ -93,4 +92,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:44:11 UTC  F08 fixed: OVERNIGHT returns null when no regular session windows can be determined, rather than drawing five days under an after-hours caption
 - 2026-09-07 20:44:12 UTC  F09 fixed: HoldingsTab uses itemsIndexed, so a duplicate symbol or name can no longer crash the LazyColumn
 - 2026-09-07 20:44:12 UTC  F10 fixed: a tab selection that leaves the visible set falls back to Overview
+- 2026-09-07 20:44:13 UTC  F11 fixed: D1 keeps regular-session points only (with the pre-open fallback parseYahoo has), so it is byte-identical in meaning to Quote.spark and adoptAsSparkline is safe
 
