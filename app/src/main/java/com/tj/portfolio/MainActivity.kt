@@ -153,6 +153,19 @@ fun App() {
     var tab by remember { mutableIntStateOf(vm.lastTab().coerceIn(0, TABS.lastIndex)) }
     var detail by remember { mutableStateOf<String?>(null) }
     var detailToNews by remember { mutableStateOf(false) }
+
+    /**
+     * Detail screens opened FROM another detail screen, oldest first (Round 58).
+     *
+     * There is exactly one way to get here: tapping a position on a fund's Holdings tab.
+     * That single hop needs a real stack, not a boolean - open SPY, tap NVDA, tap back, and
+     * back has to return you to SPY rather than to the list you came from three taps ago.
+     *
+     * Capped for the same reason `tabHistory` is: a determined user hopping between funds
+     * and their holdings should not be able to grow it without bound. Cleared by
+     * `goToTab`, which is the one action that means "I am done with this screen entirely".
+     */
+    val detailStack = remember { mutableStateListOf<String>() }
     var searching by remember { mutableStateOf(false) }
     // Which half of the Watch tab is showing. Hoisted here - not held inside WatchTab -
     // because the visible-scope calculation and the back handler below both depend on it.
@@ -201,6 +214,7 @@ fun App() {
         tab = i
         vm.setLastTab(i)
         detail = null
+        detailStack.clear()
         detailToNews = false
         searching = false
         reader = null
@@ -223,7 +237,14 @@ fun App() {
             // the article's history first; this branch is the fallback that closes it.
             reader != null -> reader = null
             searching -> searching = false
-            detail != null -> { detail = null; detailToNews = false }
+            // Pop one detail screen at a time. `detailStack` is only ever non-empty when a
+            // fund's holding was tapped, so for every other route this is the old behaviour
+            // exactly: one back press closes the stock.
+            detail != null -> {
+                detailToNews = false
+                detail = if (detailStack.isEmpty()) null
+                else detailStack.removeAt(detailStack.lastIndex)
+            }
             // Research is a layer inside the Watch tab, so back undoes it before it leaves
             // the tab - the same "one step at a time" rule every other layer here follows.
             tab == TAB_WATCHLIST && watchSubTab != WATCH_LIST -> {
@@ -341,8 +362,23 @@ fun App() {
 
                 open != null -> DetailScreen(
                     vm, state, open, detailToNews,
-                    onBack = { detail = null; detailToNews = false },
-                    onOpenUrl = { url, title -> openArticle(url, title) }
+                    onBack = {
+                        detailToNews = false
+                        detail = if (detailStack.isEmpty()) null
+                        else detailStack.removeAt(detailStack.lastIndex)
+                    },
+                    onOpenUrl = { url, title -> openArticle(url, title) },
+                    onOpenSymbol = { sym ->
+                        // Guarded against opening the screen that is already showing - a
+                        // fund that lists itself, or a double tap - which would otherwise
+                        // push a duplicate and cost two back presses to undo one action.
+                        if (!sym.equals(open, true)) {
+                            detailStack.add(open)
+                            if (detailStack.size > 12) detailStack.removeAt(0)
+                            detail = sym.uppercase()
+                            detailToNews = false
+                        }
+                    }
                 )
 
                 else -> when (tab) {
