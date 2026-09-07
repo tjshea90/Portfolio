@@ -94,7 +94,21 @@ data class ChartSeries(
     val baseline: Double = 0.0,
     val currency: String = "USD",
     val fetched: Long = 0L,
-    val truncated: Boolean = false
+    val truncated: Boolean = false,
+    /**
+     * True when every point is from a REGULAR trading session.
+     *
+     * Set by the parser for [ChartRange.D1], and it is a precondition rather than a
+     * description: `PortfolioViewModel.adoptAsSparkline` feeds a 1D series straight into
+     * `Quote.spark` to save a duplicate request, and `spark` has always been regular-session
+     * only. If the two silently diverge, every row on the portfolio screen becomes a
+     * 24-hour line drawn against a previous-close baseline that no longer matches it.
+     *
+     * The 1D parse falls back to plotting pre-market when the regular session has produced
+     * nothing yet, and that fallback correctly leaves this false - so the sparkline is simply
+     * not adopted from it, rather than being adopted from the wrong thing.
+     */
+    val regularOnly: Boolean = false
 ) {
     val isEmpty: Boolean get() = points.size < 2
     val first: Double get() = points.firstOrNull()?.close ?: 0.0
