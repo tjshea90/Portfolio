@@ -400,6 +400,56 @@ private const val AUTOSAVE_FILE = "portfolio-autosave.json"
 private const val ADVICE_PROMPT_FILE = "claude-advice-prompt.md"
 private const val SCREENSHOT_PROMPT_FILE = "claude-screenshot-prompt.md"
 
+/**
+ * A PER-KEY FAILURE BACKOFF: ask again, but less and less often.
+ *
+ * TOP-LEVEL AND `internal` RATHER THAN PRIVATE TO THE VIEWMODEL (Round 63). It used to be a
+ * private nested class, which meant `RetryBackoffTest` could only RESTATE its rule in a copy -
+ * so a change to the real one could not fail that test, which is the opposite of what a test
+ * is for. It now guards four separate request storms (charts, sparklines, fund holdings and,
+ * since Round 63, the two Research builds), and the last of those can loop unboundedly if the
+ * rule is wrong. It is worth testing the real thing.
+ */
+internal class RetryClock {
+    private val attemptedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    private val failures = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    /** 30s, 1m, 2m, 4m, then held at 5m. Matches `Http`'s unreachable backoff. */
+    internal fun backoffMs(fails: Int): Long =
+        minOf(30_000L shl (fails - 1).coerceIn(0, 4), 300_000L)
+
+    /**
+     * True when this key failed recently enough that asking again would be noise.
+     *
+     * A key that has never failed is never blocked, so this can be added to an existing
+     * guard without changing the behaviour of anything that works.
+     */
+    fun blocked(key: String, now: Long = System.currentTimeMillis()): Boolean {
+        val fails = failures[key] ?: return false
+        if (fails <= 0) return false
+        return now - (attemptedAt[key] ?: 0L) < backoffMs(fails)
+    }
+
+    // `now` is a parameter with a default rather than a bare call to the clock, so the rule
+    // can be exercised on a timeline a test controls. Every caller in the app omits it.
+    fun success(key: String, now: Long = System.currentTimeMillis()) {
+        attemptedAt[key] = now
+        failures.remove(key)
+    }
+
+    fun failure(key: String, now: Long = System.currentTimeMillis()) {
+        attemptedAt[key] = now
+        failures[key] = (failures[key] ?: 0) + 1
+    }
+
+    /** Called by a manual refresh: the user asking counts as "try it now, whatever". */
+    fun clear() {
+        attemptedAt.clear()
+        failures.clear()
+    }
+}
+
+
 class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     private val db = Db(app)
@@ -1039,43 +1089,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * A SUCCESS CLEARS THE COUNT. The window is about consecutive failures; one good answer
      * means the next failure starts again at thirty seconds, not at five minutes.
      */
-    private class RetryClock {
-        private val attemptedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
-        private val failures = java.util.concurrent.ConcurrentHashMap<String, Int>()
-
-        /** 30s, 1m, 2m, 4m, then held at 5m. Matches `Http`'s unreachable backoff. */
-        private fun backoffMs(fails: Int): Long =
-            minOf(30_000L shl (fails - 1).coerceIn(0, 4), 300_000L)
-
-        /**
-         * True when this key failed recently enough that asking again would be noise.
-         *
-         * A key that has never failed is never blocked, so this can be added to an existing
-         * guard without changing the behaviour of anything that works.
-         */
-        fun blocked(key: String, now: Long = System.currentTimeMillis()): Boolean {
-            val fails = failures[key] ?: return false
-            if (fails <= 0) return false
-            return now - (attemptedAt[key] ?: 0L) < backoffMs(fails)
-        }
-
-        fun success(key: String) {
-            attemptedAt[key] = System.currentTimeMillis()
-            failures.remove(key)
-        }
-
-        fun failure(key: String) {
-            attemptedAt[key] = System.currentTimeMillis()
-            failures[key] = (failures[key] ?: 0) + 1
-        }
-
-        /** Called by a manual refresh: the user asking counts as "try it now, whatever". */
-        fun clear() {
-            attemptedAt.clear()
-            failures.clear()
-        }
-    }
-
     /** Failure backoff for chart fetches, keyed by [chartKey]. */
     private val chartRetry = RetryClock()
 

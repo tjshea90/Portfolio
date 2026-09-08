@@ -2,6 +2,7 @@ package com.tj.portfolio
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.tj.portfolio.ui.RetryClock
 import com.tj.portfolio.util.Connectivity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,26 +32,16 @@ import org.robolectric.annotation.Config
 @Config(sdk = [34])
 class RetryBackoffTest {
 
-    /** Rebuilds the ViewModel's private RetryClock so a change to it must be mirrored here. */
-    private class Clock {
-        val attemptedAt = HashMap<String, Long>()
-        val failures = HashMap<String, Int>()
-
-        fun backoffMs(fails: Int): Long =
-            minOf(30_000L shl (fails - 1).coerceIn(0, 4), 300_000L)
-
-        fun blocked(key: String, now: Long): Boolean {
-            val f = failures[key] ?: return false
-            if (f <= 0) return false
-            return now - (attemptedAt[key] ?: 0L) < backoffMs(f)
-        }
-
-        fun success(key: String, now: Long) { attemptedAt[key] = now; failures.remove(key) }
-        fun failure(key: String, now: Long) {
-            attemptedAt[key] = now; failures[key] = (failures[key] ?: 0) + 1
-        }
-        fun clear() { attemptedAt.clear(); failures.clear() }
-    }
+    /**
+     * THE REAL CLASS, not a copy of it (Round 63).
+     *
+     * This used to be a hand-written restatement of the ViewModel's private `RetryClock`, on
+     * the reasoning that a private class cannot be reached from a test. The consequence was
+     * that changing the real backoff could not fail this file - the test asserted a
+     * duplicate. `RetryClock` is now top-level and `internal`, so what is exercised below is
+     * the code that actually runs.
+     */
+    private fun clock() = RetryClock()
 
     private val t0 = 1_757_000_000_000L
 
@@ -60,7 +51,7 @@ class RetryBackoffTest {
      */
     @Test
     fun `a key that has never failed is never blocked`() {
-        val c = Clock()
+        val c = clock()
         assertFalse(c.blocked("AAPL", t0))
         c.success("AAPL", t0)
         assertFalse(c.blocked("AAPL", t0 + 1))
@@ -74,7 +65,7 @@ class RetryBackoffTest {
      */
     @Test
     fun `one failure blocks the next tick but not the next minute`() {
-        val c = Clock()
+        val c = clock()
         c.failure("AAPL", t0)
         assertTrue("retried on the very next 15s tick", c.blocked("AAPL", t0 + 15_000L))
         assertTrue(c.blocked("AAPL", t0 + 29_000L))
@@ -83,7 +74,7 @@ class RetryBackoffTest {
 
     @Test
     fun `the window widens with each consecutive failure`() {
-        val c = Clock()
+        val c = clock()
         val expected = listOf(30_000L, 60_000L, 120_000L, 240_000L, 300_000L, 300_000L)
         expected.forEachIndexed { i, window ->
             val now = t0 + i * 1_000_000L
@@ -97,7 +88,7 @@ class RetryBackoffTest {
     /** Capped, so a symbol that is dead forever still gets a look every five minutes. */
     @Test
     fun `the backoff is capped at five minutes however many times it fails`() {
-        val c = Clock()
+        val c = clock()
         repeat(50) { c.failure("DEAD", t0) }
         assertEquals(300_000L, c.backoffMs(50))
         assertFalse(c.blocked("DEAD", t0 + 300_001L))
@@ -109,7 +100,7 @@ class RetryBackoffTest {
      */
     @Test
     fun `a success resets the count`() {
-        val c = Clock()
+        val c = clock()
         repeat(4) { c.failure("X", t0) }
         assertTrue(c.blocked("X", t0 + 60_000L))
         c.success("X", t0 + 300_001L)
@@ -122,7 +113,7 @@ class RetryBackoffTest {
     /** A deliberate pull-to-refresh is the user saying "try it now, whatever you think". */
     @Test
     fun `clearing unblocks everything`() {
-        val c = Clock()
+        val c = clock()
         repeat(5) { c.failure("A", t0); c.failure("B", t0) }
         assertTrue(c.blocked("A", t0 + 1))
         c.clear()
@@ -133,7 +124,7 @@ class RetryBackoffTest {
     /** Keys are independent - one dead symbol must not hold back its neighbours. */
     @Test
     fun `one failing key does not block another`() {
-        val c = Clock()
+        val c = clock()
         c.failure("DEAD", t0)
         assertTrue(c.blocked("DEAD", t0 + 1_000L))
         assertFalse(c.blocked("ALIVE", t0 + 1_000L))
