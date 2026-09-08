@@ -414,8 +414,8 @@
       "id": "U15",
       "text": "ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its hyphen - the identical trap FeedScreen documents and fixes with widthIn(min = 34.dp). It survives at 2.0x today, but it is the same latent bug in the same codebase.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "widthIn(min) rather than a fixed width for the reason bullet"
     },
     {
       "id": "U16",
@@ -708,6 +708,7 @@
     "2026-09-08 15:53:36 UTC  U11 fixed: renamed to 'Share of your stocks' - the denominator is market value, not total equity",
     "2026-09-08 15:53:37 UTC  U12 fixed: a third branch: while the ledger is still loading the screen says so instead of showing the 'No holdings yet' copy",
     "2026-09-08 15:53:38 UTC  U13 fixed: BenchmarkFill (#7E5A22, 6.23:1 under white) for the vs-SPY chip, and accentText (#5B92F0 on dark, 5.30:1) for the News chip; the score card's three tiers are now theme-aware too - the middling amber was 2.46:1 on white while carrying the number itself",
-    "2026-09-08 15:53:39 UTC  U14 fixed: the Portfolio title is weighted so all three header buttons keep 52dp"
+    "2026-09-08 15:53:39 UTC  U14 fixed: the Portfolio title is weighted so all three header buttons keep 52dp",
+    "2026-09-08 15:53:39 UTC  U15 fixed: widthIn(min) rather than a fixed width for the reason bullet"
   ]
 }
