@@ -1,6 +1,7 @@
 package com.tj.portfolio.net
 
 import com.tj.portfolio.data.ScreenRow
+import com.tj.portfolio.util.text
 import org.json.JSONObject
 
 /**
@@ -91,14 +92,14 @@ object Screener {
             val q = quotes.optJSONObject(i) ?: continue
             // ETFs, funds, currencies and indices come back from some lists; the scorers read
             // company fundamentals, which none of those have.
-            if (q.optString("quoteType") != "EQUITY") continue
-            val sym = q.optString("symbol").uppercase()
+            if (q.text("quoteType") != "EQUITY") continue
+            val sym = q.text("symbol").uppercase()
             if (sym.isBlank() || sym.contains('-') || sym.contains('^')) continue
             out.add(
                 ScreenRow(
                     symbol = sym,
-                    name = q.optString("longName").ifBlank {
-                        q.optString("displayName").ifBlank { q.optString("shortName") }
+                    name = q.text("longName").ifBlank {
+                        q.text("displayName").ifBlank { q.text("shortName") }
                     },
                     price = d(q, "regularMarketPrice"),
                     prevClose = d(q, "regularMarketPreviousClose"),
@@ -126,7 +127,7 @@ object Screener {
                         if (it > 0) (it * 1000L).toLong() else 0L
                     },
                     earningsEstimated = q.optBoolean("isEarningsDateEstimate", false),
-                    exchange = q.optString("fullExchangeName"),
+                    exchange = q.text("fullExchangeName"),
                     lists = setOf(listId)
                 )
             )
@@ -163,7 +164,7 @@ object Screener {
         val quotes = res.optJSONObject(0)?.optJSONArray("quotes") ?: return emptyList()
         val out = ArrayList<String>(quotes.length())
         for (i in 0 until quotes.length()) {
-            val s = quotes.optJSONObject(i)?.optString("symbol")?.uppercase() ?: continue
+            val s = quotes.optJSONObject(i)?.text("symbol")?.uppercase() ?: continue
             // Indices (^GSPC) and crypto pairs (BTC-USD) ride this list too and are not
             // stocks anyone can research here.
             if (s.isBlank() || s.startsWith("^") || s.contains('-')) continue

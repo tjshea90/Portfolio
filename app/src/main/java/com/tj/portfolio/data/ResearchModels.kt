@@ -1,5 +1,6 @@
 package com.tj.portfolio.data
 
+import com.tj.portfolio.util.text
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -192,30 +193,30 @@ data class ResearchRow(
 
     companion object {
         fun fromJson(o: JSONObject): ResearchRow? {
-            val sym = o.optString("symbol").uppercase()
+            val sym = o.text("symbol").uppercase()
             if (sym.isBlank()) return null
             val reasons = ArrayList<String>()
             o.optJSONArray("reasons")?.let { a ->
-                for (i in 0 until a.length()) a.optString(i).takeIf { it.isNotBlank() }
+                for (i in 0 until a.length()) a.text(i).takeIf { it.isNotBlank() }
                     ?.let { reasons.add(it) }
             }
             val an = o.optJSONObject("analyst")
             return ResearchRow(
                 symbol = sym,
-                name = o.optString("name"),
+                name = o.text("name"),
                 price = o.optDouble("price", 0.0).orZero(),
                 changePct = o.optDouble("changePct", 0.0).orZero(),
                 score = o.optInt("score", 0),
                 reasons = reasons,
-                why = o.optString("why"),
+                why = o.text("why"),
                 mentions = o.optInt("mentions", 0),
                 mentionDelta = o.optInt("mentionDelta", 0),
                 rankDelta = o.optInt("rankDelta", 0),
-                sentiment = o.optString("sentiment"),
+                sentiment = o.text("sentiment"),
                 newsCount = o.optInt("newsCount", 0),
-                headline = o.optString("headline"),
-                headlineUrl = o.optString("headlineUrl"),
-                headlineSource = o.optString("headlineSource"),
+                headline = o.text("headline"),
+                headlineUrl = o.text("headlineUrl"),
+                headlineSource = o.text("headlineSource"),
                 onYahooTrending = o.optBoolean("yahooTrending", false),
                 consensus = if (an == null) null else Consensus2(
                     buy = an.optInt("buy", 0),
@@ -223,9 +224,9 @@ data class ResearchRow(
                     sell = an.optInt("sell", 0),
                     target = an.optDouble("target", 0.0).orZero()
                 ),
-                catalyst = o.optString("catalyst"),
-                shortVehicle = o.optString("shortVehicle"),
-                shortVehicleNote = o.optString("shortVehicleNote"),
+                catalyst = o.text("catalyst"),
+                shortVehicle = o.text("shortVehicle"),
+                shortVehicleNote = o.text("shortVehicleNote"),
                 etf = EtfFacts.fromJson(o.optJSONObject("etf"))
             )
         }
@@ -338,12 +339,12 @@ data class ResearchSet(
 
             val warn = ArrayList<String>()
             o.optJSONArray("warnings")?.let { a ->
-                for (i in 0 until a.length()) a.optString(i).takeIf { it.isNotBlank() }
+                for (i in 0 until a.length()) a.text(i).takeIf { it.isNotBlank() }
                     ?.let { warn.add(it) }
             }
             val etfWarn = ArrayList<String>()
             o.optJSONArray("etfWarnings")?.let { a ->
-                for (i in 0 until a.length()) a.optString(i).takeIf { it.isNotBlank() }
+                for (i in 0 until a.length()) a.text(i).takeIf { it.isNotBlank() }
                     ?.let { etfWarn.add(it) }
             }
             return ResearchSet(
@@ -354,11 +355,11 @@ data class ResearchSet(
                 etfGenerated = o.optLong("etfGenerated", 0L),
                 etfWarnings = etfWarn,
                 generated = o.optLong("generated", 0L),
-                sources = o.optString("sources"),
+                sources = o.text("sources"),
                 warnings = warn,
                 explained = o.optLong("explained", 0L),
-                explainedBy = o.optString("explainedBy"),
-                notes = o.optString("notes")
+                explainedBy = o.text("explainedBy"),
+                notes = o.text("notes")
             )
         }
     }

@@ -1,6 +1,7 @@
 package com.tj.portfolio.net
 
 import com.tj.portfolio.data.EtfRow
+import com.tj.portfolio.util.text
 import org.json.JSONObject
 
 /**
@@ -88,9 +89,20 @@ object EtfScreener {
             if (!r.ok) continue
             val parsed = runCatching { parse(listId, r.body) }.getOrDefault(emptyList())
             if (parsed.isNotEmpty()) return parsed
+            // AN EMPTY PAGE THAT PARSED IS AN ANSWER, NOT A FAILURE - it is how a list says
+            // "that is the end of me", and `fetchAll` relies on exactly that to stop. Falling
+            // through to the other Yahoo host here asked the identical question twice, so
+            // every list's terminal page cost two requests rather than one.
+            if (isWellFormed(r.body)) return emptyList()
         }
         return emptyList()
     }
+
+    /** True when the body is a screener response we understood, however few rows it carried. */
+    internal fun isWellFormed(body: String): Boolean = runCatching {
+        JSONObject(body).optJSONObject("finance")?.optJSONArray("result")
+            ?.optJSONObject(0)?.has("quotes") == true
+    }.getOrDefault(false)
 
     /**
      * [pages] pages of one list, IN SEQUENCE.
@@ -126,20 +138,26 @@ object EtfScreener {
             // BOTH LISTS RETURN THE OCCASIONAL NON-FUND. `top_performing_etfs` in particular
             // carries a few rows typed EQUITY, and scoring a share on an expense ratio it does
             // not have would put a fund-shaped hole in the middle of the list.
-            if (q.optString("quoteType") != "ETF") continue
-            val sym = q.optString("symbol").uppercase()
+            if (q.text("quoteType") != "ETF") continue
+            val sym = q.text("symbol").uppercase()
             if (sym.isBlank() || sym.contains('^')) continue
             out.add(
                 EtfRow(
                     symbol = sym,
-                    name = q.optString("longName").ifBlank {
-                        q.optString("displayName").ifBlank { q.optString("shortName") }
+                    name = q.text("longName").ifBlank {
+                        q.text("displayName").ifBlank { q.text("shortName") }
                     },
                     price = d(q, "regularMarketPrice"),
                     changePct = d(q, "regularMarketChangePercent"),
-                    // Yahoo publishes this already in percent - 0.03 is three basis points -
-                    // unlike `dividendYield`, which it publishes as a fraction. Do not
-                    // "normalise" one to match the other; they arrive different.
+                    // PERCENT, NOT A FRACTION: 0.03 is three basis points. Verified live in
+                    // September 2026 against `top_etfs_us` - SPY came back with
+                    // `netExpenseRatio: 0.0945`, `yieldTTM: 0.98` and `dividendYield: 0.98`,
+                    // and SPY's yield is 0.98%, not 98%.
+                    //
+                    // DO NOT "FIX" THIS BY MULTIPLYING BY 100 to match [Screener]. That file
+                    // multiplies a DIFFERENT FIELD - `trailingAnnualDividendYield` on an
+                    // EQUITY row - which really is a fraction. Two field names, two units,
+                    // and reading one rule onto the other is a 100x error on a card.
                     expenseRatio = d(q, "netExpenseRatio"),
                     netAssets = d(q, "netAssets"),
                     yieldPct = d(q, "yieldTTM").takeIf { it != 0.0 } ?: d(q, "dividendYield"),
@@ -160,7 +178,7 @@ object EtfScreener {
                     // Already in ms in this feed, unlike `earningsTimestamp` on the stock
                     // screener which arrives in seconds. Checked, not assumed.
                     inceptionMs = q.optLong("firstTradeDateMilliseconds", 0L),
-                    exchange = q.optString("fullExchangeName"),
+                    exchange = q.text("fullExchangeName"),
                     lists = setOf(listId)
                 )
             )

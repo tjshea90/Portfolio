@@ -3,6 +3,7 @@ package com.tj.portfolio.net
 import com.tj.portfolio.data.ResearchRow
 import com.tj.portfolio.data.ResearchSet
 import com.tj.portfolio.util.Fmt
+import com.tj.portfolio.util.text
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -350,7 +351,7 @@ $SHAPE
             best = section(res, "best"),
             worst = section(res, "worst"),
             etfs = section(res, "etfs"),
-            notes = ClaudeBridge.scrub(res.optString("notes"))
+            notes = ClaudeBridge.scrub(res.text("notes"))
         )
         if (out.isEmpty) return Parsed(
             notes = out.notes,
@@ -365,19 +366,19 @@ $SHAPE
         val out = ArrayList<ResearchRow>(arr.length())
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i) ?: continue
-            val sym = o.optString("symbol").uppercase().trim()
+            val sym = o.text("symbol").uppercase().trim()
             if (sym.isBlank() || sym.length > 6) continue
-            val why = ClaudeBridge.scrub(o.optString("why"))
+            val why = ClaudeBridge.scrub(o.text("why"))
             // `category` is the ETF list's version of `catalyst` - the one line under the
             // reasons that says what kind of thing this row IS. Read into the same field so
             // one card layout serves all four sections.
             val catalyst = ClaudeBridge.scrub(
-                o.optString("catalyst").ifBlank { o.optString("category") }
+                o.text("catalyst").ifBlank { o.text("category") }
             )
-            val risk = ClaudeBridge.scrub(o.optString("risk"))
-            val target = ClaudeBridge.scrub(o.optString("target"))
-            val vehicle = o.optString("shortVehicle").uppercase().trim()
-            val note = ClaudeBridge.scrub(o.optString("shortVehicleNote"))
+            val risk = ClaudeBridge.scrub(o.text("risk"))
+            val target = ClaudeBridge.scrub(o.text("target"))
+            val vehicle = o.text("shortVehicle").uppercase().trim()
+            val note = ClaudeBridge.scrub(o.text("shortVehicleNote"))
             // A row with nothing but a ticker adds nothing and would blank a good app row.
             if (why.isBlank() && catalyst.isBlank() && risk.isBlank() && vehicle.isBlank()) continue
             out.add(
