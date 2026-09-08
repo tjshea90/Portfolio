@@ -54,8 +54,8 @@
     {
       "id": "T6",
       "title": "REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would"
     },
     {
       "id": "T7",
@@ -219,6 +219,7 @@
     "2026-09-08 04:34:26 UTC  T3 -> done  two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height",
     "2026-09-08 04:34:27 UTC  T4 -> done  DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean",
     "2026-09-08 04:34:27 UTC  T5 -> doing  tests",
-    "2026-09-08 04:43:56 UTC  T5 -> done  RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)"
+    "2026-09-08 04:43:56 UTC  T5 -> done  RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)",
+    "2026-09-08 04:43:56 UTC  T6 -> done  440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would"
   ]
 }

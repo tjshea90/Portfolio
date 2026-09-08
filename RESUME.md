@@ -34,7 +34,7 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 6/9 done
+## 4. Task ledger — 7/9 done
 
 - [x] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  — 416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
 - [x] T1  Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests  — chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
@@ -42,11 +42,11 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription  — two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
 - [x] T4  Wire DetailScreen: per-range live edge, loading state, no extra fetches  — DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
 - [x] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof  — RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
-- [ ] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged
+- [x] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged  — 440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
 - [ ] T7  Adversarial review of the feature, then fix what it finds
 - [ ] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint
 
-**Resume at T6** (REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged).
+**Resume at T7** (Adversarial review of the feature, then fix what it finds).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it
 - 2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2
 - 2026-09-08 04:27:06 UTC  round 62 started
 - 2026-09-08 04:27:34 UTC  T0 -> doing  baseline build + suite
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:34:27 UTC  T4 -> done  DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
 - 2026-09-08 04:34:27 UTC  T5 -> doing  tests
 - 2026-09-08 04:43:56 UTC  T5 -> done  RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
+- 2026-09-08 04:43:56 UTC  T6 -> done  440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
 
