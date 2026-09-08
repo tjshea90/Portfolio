@@ -190,7 +190,9 @@ portfolio/
                          after-hours filter, and the regular-session-only 1D rule (Round 58)
     net/HoldingsFeed.kt  Yahoo topHoldings/fundProfile/quoteType -> FundHoldings (Round 58)
     ui/PriceChart.kt     PriceChart + RangeChips: the chart, the range buttons, the axis
-                         labels and the caption that says what window is on screen (Round 58)
+                         labels and the caption that says what window is on screen (Round 58);
+                         plus scrubbing - crosshair, per-point readout and `nearestIndex`
+                         (Round 60)
     ui/HoldingsTab.kt    What a fund holds, its sector split and its asset mix (Round 58)
     data/Db.kt           SQLiteOpenHelper: txns, settings, overrides, quotes, watchlist,
                          news_cache (v4: saved headlines, month retention),
@@ -576,9 +578,9 @@ portfolio/
   `ui/` the data class `Row` shadows nothing because layouts are called qualified by
   import order; if a new file uses both, alias the import.
 
-## 6. STATUS — FEATURE COMPLETE, v7.0 SHIPPED
+## 6. STATUS — FEATURE COMPLETE, v7.1 SHIPPED
 
-APK: `portfolio-v7.0.apk`, versionCode 57 / versionName 7.0.
+APK: `portfolio-v7.1.apk`, versionCode 58 / versionName 7.1.
 Version history: v1.0 (core app), v1.1 (watchlist/search/backup/offline bridge),
 v1.2 (gestures, editing, long-press), v1.3 (navigation-bar inset fix),
 v1.4 (update-safety hardening + daily auto-backup),
@@ -650,6 +652,71 @@ news - see Round 55 below),
 v6.7 (RESEARCH IN TABS, and the whole app's network traffic cut by about 80% - see Round 56),
 v6.8 (THE APP NOW ACTUALLY STOPS WHEN IT IS PUT DOWN, and immutable data is never fetched
 twice - see Round 57).
+
+### Round 60 (v7.1) — CHART SCRUBBING (feature 1 of 4, shipped on its own)
+
+**What TJ asked for.** *"add the new features one at a time in case my usage runs out. start
+on one of the new features and test to make sure it works well and is optimized before
+shipping the new version. make sure it doesn't mess up anything else in the app"*
+
+Scrubbing was chosen first of the four approved features because it is the only one that is
+entirely LOCAL: no new request, no new table, no new provider, and it lives in one file. The
+other three (a percent/dollar toggle, per-range performance chips, an SPY overlay) all either
+touch every row's rendering or add network traffic, so they are worth doing on their own.
+
+Drag across the chart and the price at that point appears above it with its date, a crosshair
+and a dot follow your finger, and lifting returns the normal window readout.
+
+#### The one thing that could have made the app worse
+
+The chart is 170dp of a SCROLLING screen. The obvious implementation - a raw pointer loop
+that claims the gesture on touch-down - turns that into a dead zone where an ordinary downward
+swipe does nothing. That would be a regression affecting every use of the detail screen, in
+exchange for a chart feature.
+
+`detectHorizontalDragGestures` is the answer: it waits for the HORIZONTAL touch slop before
+claiming the gesture and does not consume the initial press, so a vertical swipe falls straight
+through to the list. **Both scroll directions are asserted in `ScrubGestureUiTest` against real
+touch events**, because that is the one property source review cannot settle.
+
+#### The bug it almost shipped with
+
+`withLiveEdge` rebuilds the series on every quote tick - four times a minute while the market
+is open. The first version keyed both the scrub state and the pointer handler on that rebuilt
+series, so a tick mid-gesture handed back a fresh state (crosshair gone) and cancelled the
+handler (drag aborted). **It would have worked perfectly in testing after hours and broken
+every fifteen seconds during the day**, which is the worst possible shape for a bug.
+
+The state is now a plain `remember {}` reset by an explicit `LaunchedEffect(symbol, range)` -
+a different chart clears the position, new data for the same chart does not - and the handler
+is `pointerInput(Unit)` reading the series through `rememberUpdatedState`. The regression test
+was verified the only way that means anything: by putting the bug back and watching it fail.
+
+#### Kept cheap, because a drag emits an event per frame
+
+- `mutableIntStateOf`, not a boxed `Int` state: no allocation per frame.
+- The canvas takes the state OBJECT and reads it inside the draw block, so a scrub invalidates
+  the DRAW phase only - it does not recompose the chart.
+- The readout is its own composable, so the one thing that must recompose is the only thing
+  that does. Reading the state up in `PriceChart` would have recomposed the canvas, both axis
+  labels and the caption sixty times a second to change one string.
+- `nearestIndex` is a binary search: a five-day series is ~900 points, and linear would be
+  ~450 comparisons every frame. It matches by TIMESTAMP, not list position, because the x-axis
+  is linear in time - on the after-hours view, which has a real gap where nothing traded, an
+  index-based lookup puts the crosshair somewhere the finger is not.
+- `spansMoreThanADay` was formatting two ISO dates per frame to answer a question that cannot
+  change during a gesture. Hoisted.
+
+#### Tests: 371 -> 390
+
+`ScrubTest` (10) covers the lookup as a pure function - closest-by-time everywhere across the
+width, the gapped after-hours case, tie-breaking, and totality against NaN, infinities, empty
+and single-point series, since this runs from a gesture handler where an exception is a crash.
+`ScrubGestureUiTest` (9) drives real touch events: scrub, release, both ends, both scroll
+directions, the after-hours range, an empty chart, and the mid-drag quote tick above.
+
+**Still unbuilt, and still approved:** the percent/dollar toggle, per-range performance chips,
+and the SPY comparison overlay.
 
 ### Round 59 (v7.0) — THE REQUEST STORMS NOBODY WAS COUNTING
 
