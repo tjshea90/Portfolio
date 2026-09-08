@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:15:07 UTC)
+# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:15:08 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -47,13 +47,13 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T5** (Fix every finding without introducing new ones).
 
-## 5. Open findings — 3 still open, 4 fixed
+## 5. Open findings — 2 still open, 5 fixed
 
 - [x] G01 (high) refresh() launches its network pass into viewModelScope, which OUTLIVES backgrounding. autoJob.cancel() stops the LOOP but not a refresh already in flight, so the batched quote request keeps transferring after the user leaves and its socket is never disconnected - the exact class of work Round 57 moved to fgScope. It also strands loading=true for up to 15s, during which the resume refresh returns early at its own guard and the user comes back to stale prices.  — refresh() moved to fgScope so a backgrounded pass is cancelled and its socket disconnected; the quote cache write moved to viewModelScope so a fetched price is never lost
 - [x] G02 (med) ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever reads connectivity. Two costs: an install-time permission that buys nothing, and - more importantly - the app fires a full pass of requests while the phone has no network at all, waking the radio, failing every socket and escalating per-host cooldowns, when one cheap check could skip the pass entirely.  — util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries.
 - [x] G03 (high) chartFetchedAt is written and NEVER read. A chart that cannot be fetched - a delisted ticker, a 404, a range Yahoo refuses - leaves no entry in _charts, so the guard falls through and the detail screen re-requests it on EVERY quote tick: ~240 requests an hour to Yahoo for a chart that will never arrive. loadFundamentals uses coreFetchedAt exactly this way; the chart path was modelled on it and then guarded on the wrong thing.  — chart fetches go through a RetryClock; a failure backs off 30s/1m/2m/4m/5m instead of retrying every 15s
 - [x] G04 (med) Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fund whose holdings fetch fails is re-requested on every screen open and every ON_START with no throttle at all.  — loadHoldings uses the same RetryClock
-- [ ] G05 (high) REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the sparkAt mark for every symbol that failed, so a TRANSIENT failure retries on the next tick - which is what fixed TJ's missing charts - but a PERMANENT one (a delisted watchlist ticker, a symbol Yahoo has no series for) is now retried every 15 seconds forever instead of every 5 minutes. Two dead symbols is ~480 wasted requests an hour.
+- [x] G05 (high) REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the sparkAt mark for every symbol that failed, so a TRANSIENT failure retries on the next tick - which is what fixed TJ's missing charts - but a PERMANENT one (a delisted watchlist ticker, a symbol Yahoo has no series for) is now retried every 15 seconds forever instead of every 5 minutes. Two dead symbols is ~480 wasted requests an hour.  — refreshSparklines records failures in a RetryClock, so a transient failure still retries quickly but a dead symbol settles at one attempt per 5 minutes
 - [ ] G06 (med) AdviceScreen numbers each suggested action in a FIXED 22dp-wide Text. Compose's default overflow is Clip, so from ten actions up - or at a large font scale with fewer - the number is silently cut off. This is the v1.6 clipping trap the project has a standing rule about, recurring in a new place.
 - [ ] G07 (med) FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0 font scale is wider than that and is silently clipped. Same trap as G06.
 
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:04:48 UTC  T2 -> doing  UI sweep
 - 2026-09-08 01:05:23 UTC  finding G06: AdviceScreen numbers each suggested action in a FIXED 22dp-wide Text. Compose's 
 - 2026-09-08 01:05:23 UTC  finding G07: FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0
 - 2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:15:06 UTC  G02 fixed: util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries.
 - 2026-09-08 01:15:07 UTC  G03 fixed: chart fetches go through a RetryClock; a failure backs off 30s/1m/2m/4m/5m instead of retrying every 15s
 - 2026-09-08 01:15:07 UTC  G04 fixed: loadHoldings uses the same RetryClock
+- 2026-09-08 01:15:08 UTC  G05 fixed: refreshSparklines records failures in a RetryClock, so a transient failure still retries quickly but a dead symbol settles at one attempt per 5 minutes
 
