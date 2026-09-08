@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:05:44 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:05:45 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T8** (SWEEP 1: adversarial bug hunt across the whole app; fix everything found).
 
-## 5. Open findings — 1 still open, 20 fixed
+## 5. Open findings — 0 still open, 21 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -73,7 +73,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F17 (low) RESEARCH: an imported reply with no notes blanks the previous notes; every other field in that copy merges rather than overwrites.  — notes merges with ifBlank rather than overwriting
 - [x] F18 (low) RESEARCH: the FOLLOWING chip's watched/held set is remembered on set.generated and set.explained, neither of which changes when the ETF list rebuilds - so on the ETFs tab the chip can lag until the stock pass runs.  — the watched/held set is keyed on etfGenerated as well
 - [x] F19 (low) RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as a failure and retries the identical request against the other Yahoo host, so each list's terminal page costs two requests instead of one.  — a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host
-- [ ] F20 (low) RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as a fraction, copying the stock screener's rule for a DIFFERENT field name. Measured live: on ETF rows yieldTTM and dividendYield are both percentages (SPY 0.98). The code is right and its comment is wrong, which is how a later 'fix' introduces a 100x error.
+- [x] F20 (low) RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as a fraction, copying the stock screener's rule for a DIFFERENT field name. Measured live: on ETF rows yieldTTM and dividendYield are both percentages (SPY 0.98). The code is right and its comment is wrong, which is how a later 'fix' introduces a 100x error.  — comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other
 
 ## 6. Version
 
@@ -84,7 +84,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 08:05:36 UTC  F08 fixed: on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge
 - 2026-09-08 08:05:36 UTC  F09 fixed: priceBounds() is now the single source for both the canvas scale and the corner labels, so the number printed at the top of the axis is by construction the value drawn there
 - 2026-09-08 08:05:37 UTC  F10 fixed: ComparePair.pairedIndex() - the last index at which BOTH lines have a reading - now feeds the spread and the resting benchmark figure, and the spread normalises negative zero
 - 2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit
@@ -96,4 +95,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 08:05:43 UTC  F17 fixed: notes merges with ifBlank rather than overwriting
 - 2026-09-08 08:05:43 UTC  F18 fixed: the watched/held set is keyed on etfGenerated as well
 - 2026-09-08 08:05:44 UTC  F19 fixed: a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host
+- 2026-09-08 08:05:45 UTC  F20 fixed: comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other
 

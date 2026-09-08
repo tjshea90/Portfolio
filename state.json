@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 08:05:44 UTC",
+  "updated": "2026-09-08 08:05:45 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -232,8 +232,8 @@
       "id": "F20",
       "text": "RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as a fraction, copying the stock screener's rule for a DIFFERENT field name. Measured live: on ETF rows yieldTTM and dividendYield are both percentages (SPY 0.98). The code is right and its comment is wrong, which is how a later 'fix' introduces a 100x error.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other"
     }
   ],
   "log": [
@@ -455,6 +455,7 @@
     "2026-09-08 08:05:42 UTC  F16 fixed: a fund Claude returned with a category but no paragraph now survives a rebuild",
     "2026-09-08 08:05:43 UTC  F17 fixed: notes merges with ifBlank rather than overwriting",
     "2026-09-08 08:05:43 UTC  F18 fixed: the watched/held set is keyed on etfGenerated as well",
-    "2026-09-08 08:05:44 UTC  F19 fixed: a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host"
+    "2026-09-08 08:05:44 UTC  F19 fixed: a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host",
+    "2026-09-08 08:05:45 UTC  F20 fixed: comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other"
   ]
 }
