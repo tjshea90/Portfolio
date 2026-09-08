@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 22:38:19 UTC",
+  "updated": "2026-09-08 22:38:20 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -144,7 +144,7 @@
       "id": "G02",
       "text": "Canvas scaled to the padded series while the corner labels read the strict one: on every zoomed chart the top label named a price the line never reaches",
       "sev": "high",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     },
     {
@@ -572,6 +572,7 @@
     "2026-09-08 22:38:19 UTC  finding G07: Zoomed caption for the after-hours range read oddly (no comma to splice)",
     "2026-09-08 22:38:19 UTC  finding G08: ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds in",
     "2026-09-08 22:38:19 UTC  finding G09: Re-anchoring the window did not re-evaluate which range should draw it",
-    "2026-09-08 22:38:19 UTC  G01 fixed"
+    "2026-09-08 22:38:19 UTC  G01 fixed",
+    "2026-09-08 22:38:20 UTC  G02 fixed"
   ]
 }
