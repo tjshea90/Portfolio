@@ -120,8 +120,8 @@
       "id": "F04",
       "text": "showMoreResearch on the ETF section calls enrichVisible, which only has work for BEST and WORST - so revealing ten more funds starts an analyst pass and flips the busy indicator for nothing.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage"
     }
   ],
   "log": [
@@ -310,6 +310,7 @@
     "2026-09-08 07:08:13 UTC  finding F04: showMoreResearch on the ETF section calls enrichVisible, which only has work for",
     "2026-09-08 07:15:27 UTC  F01 fixed: the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL",
     "2026-09-08 07:15:27 UTC  F02 fixed: tapping a range chip clears zoomSettling rather than merely not setting it - an explicit destination has no intermediate rungs to swallow",
-    "2026-09-08 07:15:28 UTC  F03 fixed: the pinch now measures a NAMED pair of pointer ids chosen when the gesture begins; if either finger leaves, the pair is re-chosen and that frame yields no reading, so a third finger costs one frame instead of an arbitrary jump"
+    "2026-09-08 07:15:28 UTC  F03 fixed: the pinch now measures a NAMED pair of pointer ids chosen when the gesture begins; if either finger leaves, the pair is re-chosen and that frame yields no reading, so a third finger costs one frame instead of an arbitrary jump",
+    "2026-09-08 07:15:28 UTC  F04 fixed: showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage"
   ]
 }
