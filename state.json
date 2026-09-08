@@ -588,8 +588,8 @@
       "id": "S08",
       "text": "RetryClock's new ten-minute forgetting rule has no test, in the file whose whole purpose is testing that rule.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "two tests for the forgetting rule: a key untouched for ten minutes starts again at 30s, and one still failing steadily keeps its streak"
     }
   ],
   "log": [
@@ -918,6 +918,7 @@
     "2026-09-08 17:06:35 UTC  S04 fixed: onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes",
     "2026-09-08 17:06:36 UTC  S05 fixed: forSymbol delegates to forSymbolResult instead of duplicating its body",
     "2026-09-08 17:06:37 UTC  S06 fixed: SymbolResult carries how many filings the listing named, so a listing that was answered but whose fetches all failed is no longer cached as 'this company filed nothing'",
-    "2026-09-08 17:06:38 UTC  S07 fixed: KeyValue falls back to its children's intrinsic width when maxWidth is unbounded"
+    "2026-09-08 17:06:38 UTC  S07 fixed: KeyValue falls back to its children's intrinsic width when maxWidth is unbounded",
+    "2026-09-08 17:06:38 UTC  S08 fixed: two tests for the forgetting rule: a key untouched for ten minutes starts again at 30s, and one still failing steadily keeps its streak"
   ]
 }
