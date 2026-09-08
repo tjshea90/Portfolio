@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:05:35 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:05:36 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T8** (SWEEP 1: adversarial bug hunt across the whole app; fix everything found).
 
-## 5. Open findings — 13 still open, 8 fixed
+## 5. Open findings — 12 still open, 9 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -61,7 +61,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F05 (high) The F01 fix reintroduced a worse bug: keying the build effect on the shared busy flag means a FAILED pass re-triggers itself the instant busy clears. An empty result leaves the set stale, so loadResearch/loadEtfs launch again immediately - an unbounded retry loop of 18 (or 10) requests against providers that are almost certainly rate-limiting, which is exactly what the backoff machinery elsewhere in the app exists to prevent.  — both auto-builds now sit behind RetryClock (30s/1m/2m/4m/5m per section), so an empty pass backs off instead of re-firing the moment busy clears; force still ignores it. RetryClock promoted to top-level internal and RetryBackoffTest now exercises the real class instead of a copy of its rule.
 - [x] F06 (high) CHART: PriceChart returns from the Column BEFORE the gesture surface whenever the series is null or empty. Pinching to a range that has never been fetched therefore destroys the gesture node mid-pinch: the zoom stops after exactly one rung, the badge vanishes, and the remaining fingers fall through to the list underneath. 'Zoom all the way down to 5 minute' is impossible in one gesture on any stock opened for the first time.  — the gesture surface and its state are hoisted above the empty-state branch and the placeholder carries the same modifier, so a pinch continues across a window that has not been fetched yet
 - [x] F07 (high) CHART: onZoomStep = liveZoom.value is read ONCE inside pointerInput(Unit), so rememberUpdatedState is defeated and the captured lambda is whatever onZoom was on first composition. Opening a fund and tapping through to one of its holdings reuses the node, so the stale lambda writes zoomSettling into a dead MutableState - the 380ms settle never applies and a four-rung spread fires four chart fetches (eight with the overlay on), which is the exact traffic the feature was built to avoid.  — chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)
-- [ ] F08 (med) CHART: the benchmark's live edge is discarded whenever its last candle is later than the stock's - comparePercents looks every value up by the STOCK's timestamps, so valueAtOrBefore returns SPY's second-to-last point and the live price written into its tip is never read. The two ends being compared are then up to five minutes apart, which is precisely what compareLivePrice exists to prevent.
+- [x] F08 (med) CHART: the benchmark's live edge is discarded whenever its last candle is later than the stock's - comparePercents looks every value up by the STOCK's timestamps, so valueAtOrBefore returns SPY's second-to-last point and the live price written into its tip is never read. The two ends being compared are then up to five minutes apart, which is precisely what compareLivePrice exists to prevent.  — on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge
 - [ ] F09 (med) CHART: in price mode the y-axis corner labels print the series high and low, but the axis is widened to include the dotted previous-close baseline. On a gap-down day - previous close 110, session 98-104 - the top of the axis is 110 while the label pinned to it reads 104.00. Comparison mode uses the real bounds for the same two labels, so the two modes give the same corners different meanings.
 - [ ] F10 (low) CHART: the 'pts vs SPY' spread and the resting SPY readout take the benchmark's LAST FINITE value, which can be an earlier index than the stock's last point when the benchmark's tail is NaN. The printed out-performance is then a difference between two different moments.
 - [ ] F11 (high) RESEARCH: every stock rebuild destroys the ETF list. carryExplanations returns the freshly built set, which Research.build never populates with etfs/etfGenerated/etfWarnings - so the 30-minute stock pass wipes the 6-hour fund pass, in memory and on disk. Ten Yahoo requests are then re-spent to rebuild it, repeatedly, which is exactly what TJ's 'keep the current list in cache until each update' rule forbids. notes is lost the same way while explained/explainedBy survive, so the screen claims an explanation whose text is gone.
@@ -84,7 +84,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 07:49:07 UTC  finding F11: RESEARCH: every stock rebuild destroys the ETF list. carryExplanations returns t
 - 2026-09-08 07:49:07 UTC  finding F12: RESEARCH: fillResearchPrices writes the fetched quotes back into trending/best/w
 - 2026-09-08 07:49:07 UTC  finding F13: RESEARCH: the org.json NULL trap, in the one place the architecture notes warn a
 - 2026-09-08 07:49:07 UTC  finding F14: RESEARCH: the same NULL trap in EtfScreener.parse - a Yahoo row with a null long
@@ -96,4 +95,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 07:49:08 UTC  finding F20: RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as
 - 2026-09-08 08:05:34 UTC  F06 fixed: the gesture surface and its state are hoisted above the empty-state branch and the placeholder carries the same modifier, so a pinch continues across a window that has not been fetched yet
 - 2026-09-08 08:05:35 UTC  F07 fixed: chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)
+- 2026-09-08 08:05:36 UTC  F08 fixed: on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge
 

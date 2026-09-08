@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 08:05:35 UTC",
+  "updated": "2026-09-08 08:05:36 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -148,8 +148,8 @@
       "id": "F08",
       "text": "CHART: the benchmark's live edge is discarded whenever its last candle is later than the stock's - comparePercents looks every value up by the STOCK's timestamps, so valueAtOrBefore returns SPY's second-to-last point and the live price written into its tip is never read. The two ends being compared are then up to five minutes apart, which is precisely what compareLivePrice exists to prevent.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge"
     },
     {
       "id": "F09",
@@ -443,6 +443,7 @@
     "2026-09-08 07:49:08 UTC  finding F19: RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as ",
     "2026-09-08 07:49:08 UTC  finding F20: RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as",
     "2026-09-08 08:05:34 UTC  F06 fixed: the gesture surface and its state are hoisted above the empty-state branch and the placeholder carries the same modifier, so a pinch continues across a window that has not been fetched yet",
-    "2026-09-08 08:05:35 UTC  F07 fixed: chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)"
+    "2026-09-08 08:05:35 UTC  F07 fixed: chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)",
+    "2026-09-08 08:05:36 UTC  F08 fixed: on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge"
   ]
 }
