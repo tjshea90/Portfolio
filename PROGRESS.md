@@ -368,3 +368,4 @@ Tasks 9/12 done, findings 2/2 fixed
 2026-09-08 17:06:39 UTC  checkpoint 63  commit 7be10a5  fix S08
 2026-09-08 17:06:40 UTC  checkpoint 63  commit fd3e4a5  sweep 4: 8 more findings incl. a deadlock I introduced; 569 green
 2026-09-08 17:06:58 UTC  checkpoint 63  commit 3b950eb  T12 done
+2026-09-08 17:06:59 UTC  checkpoint 63  commit 2117670  T13 doing

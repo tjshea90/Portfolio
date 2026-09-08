@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 17:06:58 UTC",
+  "updated": "2026-09-08 20:03:55 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -10,7 +10,7 @@
     "next_name": "7.4"
   },
   "now": {
-    "step": "T13: SWEEP 5: final verification pass; ship only if it finds nothing above cosmetic",
+    "step": "",
     "next": ""
   },
   "tasks": [
@@ -95,8 +95,8 @@
     {
       "id": "T13",
       "title": "SWEEP 5: final verification pass; ship only if it finds nothing above cosmetic",
-      "status": "doing",
-      "note": "sweep 5"
+      "status": "done",
+      "note": "verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases."
     }
   ],
   "findings": [
@@ -927,6 +927,7 @@
     "2026-09-08 17:06:38 UTC  S07 fixed: KeyValue falls back to its children's intrinsic width when maxWidth is unbounded",
     "2026-09-08 17:06:38 UTC  S08 fixed: two tests for the forgetting rule: a key untouched for ten minutes starts again at 30s, and one still failing steadily keeps its streak",
     "2026-09-08 17:06:57 UTC  T12 -> done  8 findings (S01-S08) incl. a deadlock between the new settings lock and restoreJson's transaction",
-    "2026-09-08 17:06:58 UTC  T13 -> doing  sweep 5"
+    "2026-09-08 17:06:58 UTC  T13 -> doing  sweep 5",
+    "2026-09-08 20:03:55 UTC  T13 -> done  verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases."
   ]
 }

@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 17:06:58 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 20:03:55 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,14 +27,14 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T13: SWEEP 5: final verification pass; ship only if it finds nothing above cosmetic
+- **In flight:** (nothing in flight)
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 12/14 done
+## 4. Task ledger — 13/14 done
 
 - [x] T0  Baseline: v7.3 tree builds and 443 tests green before any edit  — 443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
 - [x] T1  Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs  — gesture-based tab paging (not a pager - neighbours stay uncomposed so VisibleScope still describes one screen); pure swipeTarget decision + slide animation shared with the bar
@@ -49,9 +49,9 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug  — 14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales.
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 - [x] T12  SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters  — 8 findings (S01-S08) incl. a deadlock between the new settings lock and restoreJson's transaction
-- [>] T13  SWEEP 5: final verification pass; ship only if it finds nothing above cosmetic  — sweep 5
+- [x] T13  SWEEP 5: final verification pass; ship only if it finds nothing above cosmetic  — verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases.
 
-**Resume at T13** (SWEEP 5: final verification pass; ship only if it finds nothing above cosmetic).
+**Resume at T11** (Ship v7.4 (versionCode 61) + final checkpoint).
 
 ## 5. Open findings — 0 still open, 71 fixed
 
@@ -136,7 +136,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:52:21 UTC  finding S07: KeyValue's Layout does not guard against an unbounded maxWidth - unreachable tod
 - 2026-09-08 16:52:21 UTC  finding S08: RetryClock's new ten-minute forgetting rule has no test, in the file whose whole
 - 2026-09-08 17:06:33 UTC  S01 fixed: restoreJson writes settings rows through a lock-free writeSetting against its own transaction handle instead of calling set(); the cache is dropped wholesale afterwards. The lock-order inversion is gone.
 - 2026-09-08 17:06:34 UTC  S02 fixed: only feedDue stamps _feedAt - it governs the market-wide list and the refresh-on-open rule, and a per-symbol fetch is not that
@@ -148,4 +147,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 17:06:38 UTC  S08 fixed: two tests for the forgetting rule: a key untouched for ten minutes starts again at 30s, and one still failing steadily keeps its streak
 - 2026-09-08 17:06:57 UTC  T12 -> done  8 findings (S01-S08) incl. a deadlock between the new settings lock and restoreJson's transaction
 - 2026-09-08 17:06:58 UTC  T13 -> doing  sweep 5
+- 2026-09-08 20:03:55 UTC  T13 -> done  verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases.
 
