@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,6 +142,10 @@ fun PriceChart(
             Modifier
                 .fillMaxWidth()
                 .height(CHART_HEIGHT.dp)
+                // So the gesture can be driven from a rendered test. The one thing about
+                // scrubbing that source review cannot answer is whether it has stolen the
+                // list's vertical scroll, and that has to be measured on a real touch.
+                .testTag(CHART_TEST_TAG)
                 // ---- THE SCRUB GESTURE.
                 //
                 // `detectHorizontalDragGestures` is chosen over a raw pointer loop for one
@@ -318,6 +323,9 @@ private const val READOUT_HEIGHT = 22
 
 /** Nothing under the finger. */
 internal const val NO_SCRUB = -1
+
+/** Test handle for the scrubbable area. See the note at its use site. */
+internal const val CHART_TEST_TAG = "priceChartSurface"
 
 /** How tall the detail chart is. One place, so the empty state matches the drawn one. */
 private const val CHART_HEIGHT = 170
