@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 21:13:54 UTC",
+  "updated": "2026-09-08 21:13:55 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -35,8 +35,8 @@
     {
       "id": "T3",
       "title": "Full-screen chart: tap any chart to open it, sensor rotation, back to close",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "FullScreenChart dialog + sensor orientation + manifest configChanges"
     },
     {
       "id": "T4",
@@ -408,6 +408,7 @@
     "2026-09-08 20:37:55 UTC  T0 -> done  v7.4 baseline green",
     "2026-09-08 20:37:56 UTC  T2 -> doing  continuous window zoom",
     "2026-09-08 21:13:52 UTC  T2 -> done  continuous window zoom + pan, axis-scaled canvas, reset chip",
-    "2026-09-08 21:13:54 UTC  T1 -> done  row sparkline 1.4:1 weights, 48dp tall"
+    "2026-09-08 21:13:54 UTC  T1 -> done  row sparkline 1.4:1 weights, 48dp tall",
+    "2026-09-08 21:13:55 UTC  T3 -> done  FullScreenChart dialog + sensor orientation + manifest configChanges"
   ]
 }
