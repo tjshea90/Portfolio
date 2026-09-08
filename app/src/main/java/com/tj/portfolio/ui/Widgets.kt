@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import com.tj.portfolio.data.PlMode
 import com.tj.portfolio.util.Fmt
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -509,3 +510,24 @@ fun SectionHeader(text: String) {
         modifier = Modifier.padding(start = 4.dp, top = 14.dp, bottom = 6.dp)
     )
 }
+
+/**
+ * THE TWO HALVES OF A PROFIT-AND-LOSS FIGURE, IN THE ORDER THE USER ASKED FOR.
+ *
+ * Round 61. Every P/L on screen already showed both a dollar amount and a percentage; these
+ * decide which one leads. Kept as two tiny pure functions, in one place, for a specific
+ * reason: the figure appears on the holding row, the summary card and the stock's own page,
+ * and a toggle that reorders two of those three is worse than no toggle at all. One helper
+ * means the three cannot drift apart.
+ *
+ * `plLead` is the big, bold number; `plSub` is the smaller one under or beside it.
+ */
+fun plLead(mode: PlMode, money: Double, pct: Double): String =
+    if (mode == PlMode.PERCENT) Fmt.pctSigned(pct) else Fmt.usdSigned(money)
+
+fun plSub(mode: PlMode, money: Double, pct: Double): String =
+    if (mode == PlMode.PERCENT) Fmt.usdSigned(money) else Fmt.pctSigned(pct)
+
+/** Both on one line, as the stock page shows them: "lead  (sub)". */
+fun plInline(mode: PlMode, money: Double, pct: Double): String =
+    plLead(mode, money, pct) + "  (" + plSub(mode, money, pct) + ")"

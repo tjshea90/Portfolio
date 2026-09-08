@@ -92,6 +92,16 @@ data class UiState(
     val totals: PortfolioTotals? = null,
     val loading: Boolean = false,
     /**
+     * Whether P/L figures lead with dollars or with a percentage (Round 61).
+     *
+     * ON `UiState` RATHER THAN A PLAIN `var` LIKE `sortMode`. That one works as a bare
+     * property only because changing it also changes the ROWS, which republishes this object
+     * and recomposes everything by itself. Switching this changes no data at all - it changes
+     * which of two numbers is bold - so a bare property would be written, persisted, and
+     * simply not redraw until something else happened to.
+     */
+    val plMode: com.tj.portfolio.data.PlMode = com.tj.portfolio.data.PlMode.DOLLAR,
+    /**
      * True only while a refresh the USER started is running. `loading` covers the automatic
      * 15-second tick too, and feeding that to the pull-to-refresh box made the spinner drop
      * down and retract by itself every 15 seconds on every tab. The thin progress bar still
@@ -1093,6 +1103,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             _ui.value = _ui.value.copy(lastRefresh = it)
         }
         _lastImport.value = db.lastImport()
+        // Seeded BEFORE recompute(), which copies the existing state - set it after and the
+        // first publish would overwrite it with the default.
+        _ui.value = _ui.value.copy(plMode = com.tj.portfolio.data.PlMode.byName(db.get(Keys.PL_MODE)))
         recompute()
         tidyDownloadsOnce()
         checkForRecoverableBackup()
@@ -1256,6 +1269,26 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         db.setB(key, value)
         if (key in computeAffecting) recompute()
     }
+
+    /**
+     * Switch which half of a P/L figure is the big one.
+     *
+     * The write is on `viewModelScope`, not `fgScope`: a preference the user has just changed
+     * must reach disk even if they leave the app in the same second. It deliberately does NOT
+     * go through `computeAffecting` / `recompute()` - nothing about the ledger changes, only
+     * which of two already-computed numbers is drawn larger, and replaying every transaction
+     * for that would be the kind of waste this project has removed twice.
+     */
+    fun setPlMode(mode: com.tj.portfolio.data.PlMode) {
+        if (_ui.value.plMode == mode) return
+        _ui.value = _ui.value.copy(plMode = mode)
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { db.set(Keys.PL_MODE, mode.name) }
+        }
+    }
+
+    /** Flip it. What the tappable figures on the summary card call. */
+    fun togglePlMode() = setPlMode(_ui.value.plMode.flipped)
 
     fun setSort(mode: String) {
         sortMode = mode

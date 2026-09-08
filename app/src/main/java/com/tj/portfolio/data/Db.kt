@@ -1379,6 +1379,14 @@ object Keys {
     const val CHART_RANGE = "chart_range"
 
     /**
+     * Whether profit-and-loss figures lead with dollars or with a percentage (Round 61).
+     *
+     * A genuine preference rather than a derived cache, so it IS carried in the JSON backup -
+     * the same treatment the cost method and the sort order get.
+     */
+    const val PL_MODE = "pl_mode"
+
+    /**
      * The whole Research payload as JSON (Round 54).
      *
      * A settings row rather than a new table: it is ONE document, it is replaced wholesale on

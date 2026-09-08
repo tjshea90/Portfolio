@@ -203,3 +203,33 @@ data class Trending(
 
     val activity: Int get() = if (mentions > 0) mentions else comments
 }
+
+/**
+ * WHETHER A PROFIT-AND-LOSS FIGURE LEADS WITH DOLLARS OR WITH A PERCENTAGE.
+ *
+ * Round 61. Every P/L on screen already showed BOTH numbers - a bold dollar figure with the
+ * percentage under or beside it - so this does not add or remove information. It swaps which
+ * of the two is the big one, which is the thing other stock apps let you tap, and which of
+ * the two you want depends entirely on the question you are asking: "how much did I make
+ * today" is a dollar question, "which of these is actually performing" is a percentage one.
+ *
+ * A DISPLAY PREFERENCE, NOT DERIVED DATA. It is stored in settings, it survives a restart,
+ * and it is carried in the JSON backup for the same reason the cost method and the sort order
+ * are: restoring onto a new phone should give back the app the user had set up, not the
+ * defaults.
+ */
+enum class PlMode {
+    /** The dollar figure leads. What the app has always done, and the default. */
+    DOLLAR,
+
+    /** The percentage leads. */
+    PERCENT;
+
+    val flipped: PlMode get() = if (this == DOLLAR) PERCENT else DOLLAR
+
+    companion object {
+        /** Total: an unreadable stored value falls back to the default rather than throwing. */
+        fun byName(s: String?): PlMode =
+            entries.firstOrNull { it.name.equals(s, true) } ?: DOLLAR
+    }
+}
