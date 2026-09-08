@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:28:05 UTC",
+  "updated": "2026-09-08 15:28:06 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -260,8 +260,8 @@
       "id": "N04",
       "text": "The 1D chart and the row sparkline are the same Yahoo URL on the same five-minute TTL. Round 58 closed one direction (adoptAsSparkline) but refreshSparklines' due filter never consults _charts, so on the tick where both lapse together the same ~30KB body is fetched twice - about 12 duplicated requests an hour per open detail screen.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "refreshSparklines skips any symbol whose cached 1D chart is regular-session and inside its TTL - exactly the condition adoptAsSparkline requires - so the shared URL is never fetched twice in one window."
     },
     {
       "id": "N05",
@@ -685,6 +685,7 @@
     "2026-09-08 15:08:51 UTC  finding U17: A Research headline with a blank URL still renders a minTapTarget()-sized clicka",
     "2026-09-08 15:28:01 UTC  N01 fixed: MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds.",
     "2026-09-08 15:28:04 UTC  N02 fixed: the seven market feeds are gated on the same newsDue rule the per-symbol loop uses, and setNewsVisible(true) kicks a pass when what is held is already past its interval - so the tab is no less fresh, it just stops fetching for a screen nobody is on.",
-    "2026-09-08 15:28:05 UTC  N03 fixed: newsVisible and newsSymbol are now two signals: the Feed tab asks for every followed symbol because that is the list it draws, a detail screen asks for its own one. Opening a stock went from ~480 requests an hour to ~20."
+    "2026-09-08 15:28:05 UTC  N03 fixed: newsVisible and newsSymbol are now two signals: the Feed tab asks for every followed symbol because that is the list it draws, a detail screen asks for its own one. Opening a stock went from ~480 requests an hour to ~20.",
+    "2026-09-08 15:28:06 UTC  N04 fixed: refreshSparklines skips any symbol whose cached 1D chart is regular-session and inside its TTL - exactly the condition adoptAsSparkline requires - so the shared URL is never fetched twice in one window."
   ]
 }
