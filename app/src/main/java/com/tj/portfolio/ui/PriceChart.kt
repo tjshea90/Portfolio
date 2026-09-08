@@ -106,7 +106,16 @@ fun PriceChart(
      * Null - the default - leaves the pinch handler out of the tree entirely, which is what
      * the places that draw a chart without a range selector want.
      */
-    onZoom: ((Int) -> Unit)? = null
+    onZoom: ((Int) -> Unit)? = null,
+    /**
+     * The benchmark series to draw against this one, or null for the ordinary price chart.
+     *
+     * When this is present the chart switches to PERCENTAGE mode - both lines measured from
+     * the same moment, a percentage y-axis and a zero line - because two prices in dollars
+     * cannot honestly share an axis. See [comparePercents].
+     */
+    compare: ChartSeries? = null,
+    compareLabel: String = BENCHMARK_SYMBOL
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val shown = remember(series, livePrice, liveEdge) {
@@ -140,6 +149,19 @@ fun PriceChart(
 
         val up = shown.change >= 0
         val line = if (up) Green else Red
+
+        // ---- COMPARISON MODE, computed once per data change rather than per frame.
+        //
+        // `remember(shown, compare)` and not `remember(compare)`: `shown` is rebuilt on every
+        // quote tick by `withLiveEdge`, and the overlay has to follow the line it is drawn
+        // against or the two disagree at the right-hand edge. Both arrays are null whenever
+        // the comparison cannot be made honestly, and every reader below treats null as
+        // "draw the ordinary price chart", so there is no half-comparison state.
+        val cmp = remember(shown, compare) {
+            val other = comparePercents(shown, compare)
+            val own = if (other == null) null else primaryPercents(shown)
+            if (other == null || own == null) null else ComparePair(own, other)
+        }
 
         // ---- SCRUB STATE.
         //
@@ -183,7 +205,7 @@ fun PriceChart(
         // ITS OWN COMPOSABLE so that scrubbing recomposes only this line. Read `scrub` here
         // in `PriceChart` instead and every drag event would recompose the whole chart -
         // canvas, axis labels and caption included - to change one string.
-        ChartReadout(shown, range, line, muted, scrub)
+        ChartReadout(shown, range, line, muted, scrub, cmp, compareLabel)
 
         Spacer(Modifier.height(8.dp))
 
@@ -233,18 +255,25 @@ fun PriceChart(
         ) {
             ChartCanvas(
                 shown, line, MaterialTheme.colorScheme.outline,
-                scrub, MaterialTheme.colorScheme.surface, Modifier.fillMaxSize()
+                scrub, MaterialTheme.colorScheme.surface, Modifier.fillMaxSize(),
+                cmp, Benchmark
             )
             // The y-axis, as two labels rather than a drawn scale: on a 170dp chart on a
             // phone the high and the low are the only two values anyone reads off it.
+            //
+            // IN PERCENT WHEN COMPARING, because that is what the axis is then measuring.
+            // Leaving dollar labels on a percentage chart is the kind of quiet wrongness this
+            // project has spent rounds removing - the numbers would be real and would describe
+            // a different chart.
+            val bounds = remember(cmp, shown) { cmp?.bounds() }
             Text(
-                Fmt.price(shown.high),
+                if (bounds != null) Fmt.pctSigned(bounds[1]) else Fmt.price(shown.high),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted,
                 modifier = Modifier.align(Alignment.TopEnd)
             )
             Text(
-                Fmt.price(shown.low),
+                if (bounds != null) Fmt.pctSigned(bounds[0]) else Fmt.price(shown.low),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted,
                 modifier = Modifier.align(Alignment.BottomEnd)
@@ -293,10 +322,36 @@ fun PriceChart(
             )
         }
 
+        // ---- THE LEGEND, only when there are two lines to tell apart.
+        if (cmp != null) {
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                LegendDot(line)
+                Text(
+                    "  " + shown.symbol + "  ",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = muted
+                )
+                LegendDot(Benchmark)
+                Text(
+                    "  " + compareLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = muted
+                )
+            }
+        }
+
         Spacer(Modifier.height(4.dp))
 
         Text(
             buildString {
+                if (cmp != null) {
+                    // SAID BEFORE THE WINDOW, because it changes what every number on the
+                    // chart means. A reader who misses this reads percentages as prices.
+                    append("Percent change, both lines from the same start  -  ")
+                }
                 append(range.caption)
                 append("  -  ")
                 append(shown.points.size)
@@ -340,7 +395,10 @@ private fun ChartReadout(
     range: ChartRange,
     line: Color,
     muted: Color,
-    scrub: MutableIntState
+    scrub: MutableIntState,
+    /** Both percent series when comparing, null for the ordinary price readout. */
+    cmp: ComparePair? = null,
+    compareLabel: String = BENCHMARK_SYMBOL
 ) {
     val i = scrub.intValue
     val point = if (i in s.points.indices) s.points[i] else null
@@ -370,8 +428,24 @@ private fun ChartReadout(
                     else -> "over ${range.label.lowercase()}"
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = muted
+                color = muted,
+                maxLines = 1
             )
+            // ---- AND WHAT THE MARKET DID OVER THE SAME WINDOW.
+            //
+            // The whole reason for the overlay, in one line: the difference between the two
+            // is what "beat the market" means, and reading it off two lines by eye is exactly
+            // what people get wrong.
+            cmp?.lastOf(cmp.other)?.let { m ->
+                Spacer(Modifier.weight(1f))
+                Text(
+                    "$compareLabel " + Fmt.pctSigned(m),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Benchmark,
+                    maxLines = 1
+                )
+            }
         } else {
             // THE PRICE AT THE FINGER, and the change measured from the SAME baseline the
             // resting readout uses - not from the left-hand edge of the line. Those differ on
@@ -394,6 +468,20 @@ private fun ChartReadout(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = signColor(pct)
+                )
+            }
+            // THE BENCHMARK AT THE SAME MOMENT, not at the end of the window. Comparing a
+            // scrubbed price against a whole-window benchmark figure would be comparing two
+            // different moments and calling it out-performance.
+            val atFinger = cmp?.other?.getOrNull(i)?.takeIf { it.isFinite() }
+            if (atFinger != null) {
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "$compareLabel " + Fmt.pctSigned(atFinger),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Benchmark,
+                    maxLines = 1
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -653,12 +741,23 @@ private fun ChartCanvas(
      */
     scrub: MutableIntState,
     dot: Color,
-    modifier: Modifier
+    modifier: Modifier,
+    /** Both percent series when comparing; null draws the ordinary price chart. */
+    cmp: ComparePair? = null,
+    benchmarkColor: Color = Benchmark
 ) {
     val pts = s.points
-    val base = s.baseline.takeIf { it > 0.0 }
-    val lo = minOf(s.low, base ?: s.low)
-    val hi = maxOf(s.high, base ?: s.high)
+    // ---- THE Y SCALE. Two different questions, so two different answers.
+    //
+    // In price mode the axis spans the series' own high and low, widened to include the
+    // dotted previous-close baseline so that line is always visible. In comparison mode it
+    // spans BOTH percent series together and always includes zero - the zero line is the
+    // whole reference and an axis that excluded it would draw two lines with nothing to
+    // measure them against.
+    val base = if (cmp != null) null else s.baseline.takeIf { it > 0.0 }
+    val bounds = cmp?.bounds()
+    val lo = if (bounds != null) bounds[0] else minOf(s.low, base ?: s.low)
+    val hi = if (bounds != null) bounds[1] else maxOf(s.high, base ?: s.high)
     val span = (hi - lo).let { if (it < 1e-9) 1.0 else it }
     val t0 = pts.first().t
     val tSpan = (pts.last().t - t0).let { if (it <= 0L) 1L else it }
@@ -709,19 +808,70 @@ private fun ChartCanvas(
             }
         }
 
-        val path = Path().apply {
-            moveTo(x(pts[0]), y(pts[0].close))
-            for (i in 1 until pts.size) lineTo(x(pts[i]), y(pts[i].close))
+        // WHAT EACH POINT IS WORTH ON THE AXIS. Price normally; percent change when a
+        // benchmark is drawn beside it. One function, so the fill, the stroke and the
+        // crosshair below cannot end up reading different scales.
+        fun value(i: Int): Double = cmp?.own?.get(i) ?: pts[i].close
+
+        // ---- the zero line, in comparison mode only. It is what both lines are measured
+        // from, so it replaces the dotted previous-close baseline rather than joining it.
+        if (cmp != null && 0.0 in lo..hi) {
+            val zy = y(0.0)
+            drawLine(
+                grid.copy(alpha = 0.85f), Offset(0f, zy), Offset(w, zy),
+                strokeWidth = baseStroke
+            )
         }
-        drawPath(
-            Path().apply {
-                addPath(path)
-                lineTo(x(pts.last()), h)
-                lineTo(x(pts.first()), h)
-                close()
-            },
-            Brush.verticalGradient(listOf(line.copy(alpha = 0.22f), line.copy(alpha = 0f)))
-        )
+
+        val path = Path().apply {
+            moveTo(x(pts[0]), y(value(0)))
+            for (i in 1 until pts.size) lineTo(x(pts[i]), y(value(i)))
+        }
+        // NO FILL UNDER A COMPARED LINE. The gradient reads as "area", and an area under a
+        // percentage line that crosses zero is meaningless - worse, it would be painted over
+        // the benchmark line wherever the two cross.
+        if (cmp == null) {
+            drawPath(
+                Path().apply {
+                    addPath(path)
+                    lineTo(x(pts.last()), h)
+                    lineTo(x(pts.first()), h)
+                    close()
+                },
+                Brush.verticalGradient(listOf(line.copy(alpha = 0.22f), line.copy(alpha = 0f)))
+            )
+        }
+
+        // ---- THE BENCHMARK, DRAWN FIRST AND THINNER, so the stock stays the subject of its
+        // own chart. Broken into segments at every gap: the benchmark can be missing points
+        // the stock has - a fund that did not trade in an extended session, a stock that
+        // listed mid-window - and joining across a gap would draw a straight line through
+        // days that were never measured.
+        cmp?.let { c ->
+            var started = false
+            var seg = Path()
+            for (i in pts.indices) {
+                val v = c.other[i]
+                if (!v.isFinite()) {
+                    if (started) {
+                        drawPath(
+                            seg, benchmarkColor.copy(alpha = 0.85f),
+                            style = Stroke(width = baseStroke * 1.4f, cap = StrokeCap.Round)
+                        )
+                        seg = Path()
+                        started = false
+                    }
+                    continue
+                }
+                if (!started) { seg.moveTo(x(pts[i]), y(v)); started = true }
+                else seg.lineTo(x(pts[i]), y(v))
+            }
+            if (started) drawPath(
+                seg, benchmarkColor.copy(alpha = 0.85f),
+                style = Stroke(width = baseStroke * 1.4f, cap = StrokeCap.Round)
+            )
+        }
+
         drawPath(
             path, line,
             style = Stroke(width = lineStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
@@ -732,7 +882,7 @@ private fun ChartCanvas(
         if (i in pts.indices) {
             val p = pts[i]
             val px = x(p)
-            val py = y(p.close)
+            val py = y(value(i))
             drawLine(
                 grid.copy(alpha = 0.9f),
                 Offset(px, 0f), Offset(px, h),
@@ -742,6 +892,13 @@ private fun ChartCanvas(
             // lands - over the filled gradient, over a gridline, or over the line itself.
             drawCircle(dot, radius = 5.dp.toPx(), center = Offset(px, py))
             drawCircle(line, radius = 3.5.dp.toPx(), center = Offset(px, py))
+            // A second, smaller dot on the benchmark, so the crosshair reads BOTH lines at
+            // the moment under the finger rather than only one of them.
+            cmp?.other?.getOrNull(i)?.takeIf { it.isFinite() }?.let { v ->
+                val by2 = y(v)
+                drawCircle(dot, radius = 4.dp.toPx(), center = Offset(px, by2))
+                drawCircle(benchmarkColor, radius = 2.5.dp.toPx(), center = Offset(px, by2))
+            }
         }
     }
 }
@@ -1078,4 +1235,49 @@ internal fun primaryPercents(s: ChartSeries): DoubleArray? {
         out[i] = if (v.isFinite()) v else Double.NaN
     }
     return out
+}
+
+/**
+ * The two aligned percent series, held together because they are only ever meaningful
+ * together: [own] is the stock, [other] the benchmark, both measured from the same moment and
+ * both indexed by the STOCK's points, so index i is the same instant in either.
+ *
+ * [other] may contain NaN where the benchmark has no reading for one of the stock's points;
+ * [own] never does, because a point with no price is not plotted at all.
+ */
+internal class ComparePair(val own: DoubleArray, val other: DoubleArray) {
+
+    /**
+     * The y-axis range: the lowest and highest value across BOTH lines, and always including
+     * zero.
+     *
+     * Zero is included unconditionally because it is the reference the whole chart is about -
+     * an axis running from +4% to +9% would draw two lines with nothing on screen saying that
+     * both are up. A little wasted vertical space is the correct price for that.
+     */
+    fun bounds(): DoubleArray {
+        var lo = 0.0
+        var hi = 0.0
+        for (v in own) if (v.isFinite()) { if (v < lo) lo = v; if (v > hi) hi = v }
+        for (v in other) if (v.isFinite()) { if (v < lo) lo = v; if (v > hi) hi = v }
+        // A dead-flat pair would give a zero-height axis and divide by nothing.
+        if (hi - lo < 1e-9) { lo -= 1.0; hi += 1.0 }
+        return doubleArrayOf(lo, hi)
+    }
+
+    /** The last real value in a series, or null when it has none. Used for the readout. */
+    fun lastOf(a: DoubleArray): Double? {
+        for (i in a.indices.reversed()) if (a[i].isFinite()) return a[i]
+        return null
+    }
+}
+
+/** A filled dot for the legend, at text size. */
+@Composable
+private fun LegendDot(color: Color) {
+    Box(
+        Modifier
+            .size(8.dp)
+            .background(color, androidx.compose.foundation.shape.CircleShape)
+    )
 }

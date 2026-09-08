@@ -16,6 +16,17 @@ val Green = Color(0xFF16C784)
 val Red = Color(0xFFEA4B5D)
 val Accent = Color(0xFF2E6BE6)
 
+/**
+ * The benchmark line on a comparison chart (Round 63).
+ *
+ * DELIBERATELY NOT [Green], [Red] OR [Accent]. Green and red already mean up and down
+ * everywhere in this app, and painting a second line in either would say something about its
+ * direction that is not being said. [Accent] is the selection colour and is already on the
+ * screen - on the chosen range chip, directly above the chart. A muted amber is the only
+ * thing left that reads clearly against both themes and claims nothing.
+ */
+val Benchmark = Color(0xFFB4863B)
+
 fun signColor(v: Double): Color = if (v >= 0) Green else Red
 
 private val LightColors = lightColorScheme(
