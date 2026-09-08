@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:11 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:19 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -45,7 +45,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T6  Tests for T1-T5: pure + rendered  — SwipeTabTest 15, ChartZoomTest 12, CompareChartTest 10, EtfTest 23, GestureUiTest 11 (real multi-touch), CompareChartUiTest 8 - 79 new
 - [x] T7  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok
 - [x] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found  — two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
-- [>] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found  — sweep 2: UI, code and network efficiency
+- [>] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found  — sweep 2: UI half
 - [ ] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:08:51 UTC  finding U17: A Research headline with a blank URL still renders a minTapTarget()-sized clicka
 - 2026-09-08 15:28:01 UTC  N01 fixed: MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds.
 - 2026-09-08 15:28:04 UTC  N02 fixed: the seven market feeds are gated on the same newsDue rule the per-symbol loop uses, and setNewsVisible(true) kicks a pass when what is held is already past its interval - so the tab is no less fresh, it just stops fetching for a screen nobody is on.
 - 2026-09-08 15:28:05 UTC  N03 fixed: newsVisible and newsSymbol are now two signals: the Feed tab asks for every followed symbol because that is the list it draws, a detail screen asks for its own one. Opening a stock went from ~480 requests an hour to ~20.
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:28:09 UTC  N09 fixed: chartFetchedAt and holdingsFetchedAt deleted along with their writes; the KDoc that described the first as the bug RetryClock replaced now says it was removed
 - 2026-09-08 15:28:10 UTC  N10 fixed: a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh
 - 2026-09-08 15:28:11 UTC  N11 fixed: fillResearchPrices uses the batched MarketData.quotes and reads the Finnhub key once
+- 2026-09-08 15:28:19 UTC  T9 -> doing  sweep 2: UI half
 

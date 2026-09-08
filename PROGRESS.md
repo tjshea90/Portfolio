@@ -319,3 +319,4 @@ Tasks 9/12 done, findings 2/2 fixed
 2026-09-08 15:28:10 UTC  checkpoint 63  commit 38b4ae1  fix N09
 2026-09-08 15:28:11 UTC  checkpoint 63  commit f27f11f  fix N10
 2026-09-08 15:28:12 UTC  checkpoint 63  commit 4135970  fix N11
+2026-09-08 15:28:12 UTC  checkpoint 63  commit 7cf9e56  N01-N11 fixed: network and main-thread waste, 556 tests green
