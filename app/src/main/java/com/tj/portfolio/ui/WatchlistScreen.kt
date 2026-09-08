@@ -96,10 +96,13 @@ fun WatchTab(
         }
 
         if (subTab == WATCH_RESEARCH) {
-            // Build on first sight, and only then. This is ~18 requests across four
-            // providers; doing it on launch would spend them on a screen the user may never
-            // open, which is exactly what the Round 50 provider-safety work forbade.
-            LaunchedEffect(Unit) { vm.loadResearch() }
+            // Build on first sight, and only then - but WHICH list is built is decided inside
+            // `ResearchScreen`, by which of its four sections is showing (Round 63). The ETF
+            // list is ten requests on a six-hour clock and the other three are eighteen on a
+            // thirty-minute one; firing the stock pass here regardless meant someone sitting
+            // on the ETFs tab paid for three lists they were not looking at. The rule itself
+            // is unchanged and is the Round 50 one: nothing is fetched for a screen nobody
+            // has opened.
             ResearchScreen(vm, state, onOpen = onOpen, onOpenUrl = onOpenUrl)
         } else {
             WatchlistScreen(vm, state, onOpen, onOpenNews, onSearch)

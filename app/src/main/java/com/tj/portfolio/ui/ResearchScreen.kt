@@ -32,6 +32,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -83,12 +84,28 @@ private enum class Section(
         "Losing money with no forward turn, below both moving averages, deep into a 52-week " +
             "decline, heavily shorted, small.",
         false
+    ),
+
+    /**
+     * BEST ETFS (Round 63). The fourth list, and the only one built on its own clock.
+     *
+     * Its blurb leads with what it is RANKED ON rather than with what it contains, because
+     * the honest headline for a fund list is the weighting: five- and three-year annualised
+     * returns above anything recent, and cost counted against them.
+     */
+    ETFS(
+        ResearchSet.SECTION_ETF, "ETFs",
+        "Funds ranked on five- and three-year annualised returns, weighted above anything " +
+            "recent, then expense ratio, fund size, dollar volume, how long it has existed " +
+            "and its trend. Leveraged and inverse funds are left out.",
+        true
     );
 
     fun rowsIn(set: ResearchSet): List<ResearchRow> = when (this) {
         TRENDING -> set.trending
         BEST -> set.best
         WORST -> set.worst
+        ETFS -> set.etfs
     }
 }
 
@@ -139,6 +156,20 @@ fun ResearchScreen(
         }
     }
 
+    // ---- BUILD WHAT IS BEING LOOKED AT, AND NOTHING ELSE (Round 63).
+    //
+    // This used to live in `WatchTab` as a single `loadResearch()` on first sight, which was
+    // right when there were three lists built by one pass. It is not any more: the ETF list
+    // is its own ten requests on its own six-hour clock, and someone who left the app on the
+    // ETFs tab would have paid eighteen stock requests on every launch to fill three lists
+    // they were not looking at - and still had no fund data.
+    //
+    // Both calls are cheap when there is nothing to do: each returns immediately if its own
+    // cache is inside its own TTL, so switching between tabs costs nothing at all.
+    LaunchedEffect(section) {
+        if (section == Section.ETFS) vm.loadEtfs() else vm.loadResearch()
+    }
+
     val watched = remember(set.generated, set.explained) { vm.watchedSymbols() + vm.heldSymbols() }
     val rows = section.rowsIn(set)
     val visibleCount = shown[section.key] ?: ResearchSet.PAGE
@@ -159,15 +190,32 @@ fun ResearchScreen(
             Text(
                 when (busy) {
                     BUSY_BUILDING -> "Scanning the market..."
+                    BUSY_ETFS -> "Screening funds..."
                     BUSY_DETAIL -> "Analyst data..."
                     BUSY_EXPLAINING -> "Claude is reading..."
-                    else -> if (set.generated > 0) "Updated ${Fmt.relative(set.generated)}" else ""
+                    else -> {
+                        // ITS OWN STAMP. The ETF list is rebuilt on a six-hour clock and the
+                        // stock lists on a thirty-minute one, so showing the stock timestamp
+                        // over a fund list would claim a freshness the fund list does not have
+                        // - and, more often, deny one it does.
+                        val at = if (section == Section.ETFS) set.etfGenerated else set.generated
+                        if (at > 0) "Updated ${Fmt.relative(at)}" else ""
+                    }
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            BigIconButton(Icons.Filled.Refresh, "Rebuild research") {
-                vm.loadResearch(force = true)
+            // WHICHEVER LIST IS ON SCREEN. The ETF pass and the stock pass are ten and
+            // eighteen requests on six-hour and thirty-minute clocks; a refresh button that
+            // always rebuilt the stock lists would leave the ETF tab with no way to be
+            // refreshed at all, and one that rebuilt both would spend twenty-eight requests
+            // to update the ten rows being looked at.
+            BigIconButton(
+                Icons.Filled.Refresh,
+                if (section == Section.ETFS) "Rebuild the fund list" else "Rebuild research"
+            ) {
+                if (section == Section.ETFS) vm.loadEtfs(force = true)
+                else vm.loadResearch(force = true)
             }
         }
 
@@ -205,7 +253,10 @@ fun ResearchScreen(
 
         Refreshable(
             refreshing = state.pulling(PULL_RESEARCH),
-            onRefresh = { vm.loadResearch(force = true) }
+            onRefresh = {
+                if (section == Section.ETFS) vm.loadEtfs(force = true)
+                else vm.loadResearch(force = true)
+            }
         ) {
             // ONE SCROLL STATE PER SECTION, all three created unconditionally so each keeps
             // its own position. Sharing a single state means switching from row 40 of Best
@@ -219,10 +270,12 @@ fun ResearchScreen(
             val trendingState = androidx.compose.foundation.lazy.rememberLazyListState()
             val bestState = androidx.compose.foundation.lazy.rememberLazyListState()
             val worstState = androidx.compose.foundation.lazy.rememberLazyListState()
+            val etfState = androidx.compose.foundation.lazy.rememberLazyListState()
             val listState = when (section) {
                 Section.TRENDING -> trendingState
                 Section.BEST -> bestState
                 Section.WORST -> worstState
+                Section.ETFS -> etfState
             }
             LazyColumn(
                 Modifier.fillMaxSize(),
@@ -253,6 +306,10 @@ fun ResearchScreen(
                         Text(
                             when {
                                 busy.isNotEmpty() -> "Scanning..."
+                                section == Section.ETFS ->
+                                    "No fund list yet. Pull down, or tap the refresh button, " +
+                                        "to screen about 850 funds. It updates itself every " +
+                                        "six hours after that."
                                 set.isEmpty ->
                                     "Nothing loaded yet. Pull down, or tap the refresh " +
                                         "button, to scan the market."
@@ -313,7 +370,7 @@ fun ResearchScreen(
                         Spacer(Modifier.height(12.dp))
                         Button(
                             onClick = { vm.explainResearch() },
-                            enabled = busy.isEmpty() && !set.isEmpty,
+                            enabled = busy.isEmpty() && !set.isFullyEmpty,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
@@ -326,7 +383,7 @@ fun ResearchScreen(
                         Row {
                             OutlinedButton(
                                 onClick = { vm.writeResearchPrompt { msg -> vm.toast(msg) } },
-                                enabled = !set.isEmpty,
+                                enabled = !set.isFullyEmpty,
                                 modifier = Modifier.weight(1f)
                             ) { Text("Make prompt file") }
                             Spacer(Modifier.width(8.dp))
@@ -376,10 +433,12 @@ fun ResearchScreen(
                                 Text(set.notes, style = MaterialTheme.typography.bodyMedium)
                             }
                         }
-                        if (set.warnings.isNotEmpty()) {
+                        val warnings =
+                            if (section == Section.ETFS) set.etfWarnings else set.warnings
+                        if (warnings.isNotEmpty()) {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                "Partial data this pass: " + set.warnings.joinToString("; "),
+                                "Partial data this pass: " + warnings.joinToString("; "),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -393,7 +452,9 @@ fun ResearchScreen(
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            set.sources.ifBlank { com.tj.portfolio.net.Research.SOURCES },
+                            if (section == Section.ETFS)
+                                com.tj.portfolio.net.Research.ETF_SOURCES
+                            else set.sources.ifBlank { com.tj.portfolio.net.Research.SOURCES },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -466,6 +527,15 @@ private fun ResearchCard(
                     }
                 }
             }
+
+            // --- THE FUND NUMBERS, as a grid rather than as prose (Round 63).
+            //
+            // Choosing between two funds is a COMPARISON, and a comparison wants the same
+            // figure in the same place on every card - which reason lines, written in
+            // sentences and ordered by what happened to score, cannot give. The six here are
+            // the ones every fund fact sheet leads with; the reason lines below still explain
+            // what the score made of them.
+            r.etf?.let { f -> EtfFactsGrid(f) }
 
             // --- the app's own reasons
             if (r.reasons.isNotEmpty()) {
@@ -554,5 +624,92 @@ private fun ResearchCard(
                 }
             }
         }
+    }
+}
+
+
+/**
+ * The six numbers a person actually compares two funds on, in a fixed layout.
+ *
+ * A FIXED LAYOUT IS THE FEATURE. Every card puts the expense ratio in the same place, so
+ * scrolling the list compares like with like instead of making the reader re-find each figure
+ * in a differently-worded sentence.
+ *
+ * A cell whose number is missing shows an em dash, not a zero. "0.00%" in the cost cell would
+ * read as a free fund, which is a claim; "-" reads as "the fund did not publish this", which
+ * is the truth. Same rule the rest of this app follows for an absent price.
+ */
+@Composable
+private fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
+    Spacer(Modifier.height(9.dp))
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                RoundedCornerShape(10.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Row(Modifier.fillMaxWidth()) {
+            FactCell("5Y / yr", pctOrDash(f.fiveYearAnnualPct), signed = true, weight = 1f)
+            FactCell("3Y / yr", pctOrDash(f.threeYearAnnualPct), signed = true, weight = 1f)
+            FactCell("1Y", pctOrDash(f.oneYearPct), signed = true, weight = 1f)
+        }
+        Spacer(Modifier.height(7.dp))
+        Row(Modifier.fillMaxWidth()) {
+            FactCell(
+                "Expense",
+                if (f.expenseRatio > 0) Fmt.pct(f.expenseRatio) else DASH,
+                weight = 1f
+            )
+            FactCell(
+                "Assets",
+                if (f.netAssets > 0) Fmt.compactMoney(f.netAssets) else DASH,
+                weight = 1f
+            )
+            FactCell(
+                "Yield",
+                if (f.yieldPct > 0) Fmt.pct(f.yieldPct) else DASH,
+                weight = 1f
+            )
+        }
+    }
+}
+
+private const val DASH = "\u2014"
+
+/** A percentage, or an em dash when the fund published none. Never a fabricated zero. */
+private fun pctOrDash(v: Double): String =
+    if (v == 0.0 || !v.isFinite()) DASH else Fmt.pctSigned(v)
+
+@Composable
+private fun androidx.compose.foundation.layout.RowScope.FactCell(
+    label: String,
+    value: String,
+    weight: Float,
+    signed: Boolean = false
+) {
+    Column(Modifier.weight(weight)) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+        Text(
+            value,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            // Coloured only where the sign means something. A 0.03% expense ratio painted
+            // green would read as a gain.
+            color = when {
+                !signed || value == DASH -> MaterialTheme.colorScheme.onSurface
+                value.startsWith("-") -> Red
+                else -> Green
+            },
+            maxLines = 1,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
     }
 }
