@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 08:05:34 UTC",
+  "updated": "2026-09-08 08:05:35 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -141,8 +141,8 @@
       "id": "F07",
       "text": "CHART: onZoomStep = liveZoom.value is read ONCE inside pointerInput(Unit), so rememberUpdatedState is defeated and the captured lambda is whatever onZoom was on first composition. Opening a fund and tapping through to one of its holdings reuses the node, so the stale lambda writes zoomSettling into a dead MutableState - the 380ms settle never applies and a four-rung spread fires four chart fetches (eight with the overlay on), which is the exact traffic the feature was built to avoid.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)"
     },
     {
       "id": "F08",
@@ -442,6 +442,7 @@
     "2026-09-08 07:49:08 UTC  finding F18: RESEARCH: the FOLLOWING chip's watched/held set is remembered on set.generated a",
     "2026-09-08 07:49:08 UTC  finding F19: RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as ",
     "2026-09-08 07:49:08 UTC  finding F20: RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as",
-    "2026-09-08 08:05:34 UTC  F06 fixed: the gesture surface and its state are hoisted above the empty-state branch and the placeholder carries the same modifier, so a pinch continues across a window that has not been fetched yet"
+    "2026-09-08 08:05:34 UTC  F06 fixed: the gesture surface and its state are hoisted above the empty-state branch and the placeholder carries the same modifier, so a pinch continues across a window that has not been fetched yet",
+    "2026-09-08 08:05:35 UTC  F07 fixed: chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)"
   ]
 }
