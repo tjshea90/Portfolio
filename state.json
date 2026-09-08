@@ -365,8 +365,8 @@
       "id": "U08",
       "text": "The Research card's score is a bare integer in a coloured circle. Nothing on the card, and nothing in any section blurb, says it is a score or what the scale is - the blurbs describe the inputs but never the output. The only mention is 300dp below, past ten cards.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'"
     },
     {
       "id": "U09",
@@ -701,6 +701,7 @@
     "2026-09-08 15:53:32 UTC  U04 fixed: the tab bar uses heightIn(min = 74.dp) so it grows with the font, and every label is one line, centred, ellipsised",
     "2026-09-08 15:53:32 UTC  U05 fixed: text and fill palettes separated: Green/Red are untouched as fills, and signColor - which every signed figure uses - is now theme-aware, resolving to #0A8055 (4.96:1) and #C62B3C (5.51:1) on light and to the brand colours on dark. Standalone green/red TEXT sites routed the same way.",
     "2026-09-08 15:53:33 UTC  U06 fixed: the Research header's texts are weighted, so the Rebuild button is measured first and keeps its 52dp at every font scale",
-    "2026-09-08 15:53:34 UTC  U07 fixed: BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first"
+    "2026-09-08 15:53:34 UTC  U07 fixed: BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first",
+    "2026-09-08 15:53:34 UTC  U08 fixed: the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'"
   ]
 }
