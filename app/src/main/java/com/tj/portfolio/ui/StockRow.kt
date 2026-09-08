@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +35,9 @@ import com.tj.portfolio.util.Fmt
 
 /** What the long-press menu asked for. */
 enum class RowAction { OPEN, EDIT_POSITION, ADD_TXN, NEWS, WATCH_TOGGLE, DELETE }
+
+/** Test handle for the row's chart, so its size can be measured rather than assumed. */
+internal const val SPARK_TEST_TAG = "rowSparkline"
 
 /**
  * One holding, split into two clearly separated halves by a divider:
@@ -78,7 +82,28 @@ fun StockRowItem(
                 Avatar(row.symbol, 36)
                 Spacer(Modifier.width(10.dp))
 
-                Column(Modifier.weight(1f)) {
+                // ---- HOW THE ROW'S TOP LINE IS DIVIDED (Round 64).
+                //
+                // TJ, with a screenshot: *"in the portfolio section notice the charts are
+                // small. can you make them fill that blank area they are inside? they do not
+                // need to be squares."*
+                //
+                // The old split was `weight(1f)` for the text and a FIXED 64x34dp box for the
+                // chart - so the text column was handed the whole of the row it did not use
+                // and the chart got a stamp at the far right, with about 150dp of nothing
+                // between them. That blank strip is what TJ is pointing at.
+                //
+                // TWO WEIGHTS INSTEAD OF ONE, so there is no unclaimed space left to be
+                // blank: 1.4 to 1 hands the text about 190dp and the chart about 135dp on a
+                // 411dp phone, and stays in proportion on a narrower or wider one - which a
+                // fixed width cannot do. 1.4 is the smallest ratio at which the widest
+                // realistic holdings line ("1,234.5678 shares - avg $1,234.56") still fits
+                // without ellipsis at the default font scale; `SparklineSizeUiTest` measures
+                // that rather than trusting the arithmetic.
+                //
+                // AND TALLER: 34dp -> 48dp. The row is not made taller by it - the avatar and
+                // two text lines already stand 46dp - so the height was free all along.
+                Column(Modifier.weight(1.4f)) {
                     Text(
                         row.symbol,
                         fontWeight = FontWeight.Bold,
@@ -95,10 +120,14 @@ fun StockRowItem(
                     )
                 }
 
+                Spacer(Modifier.width(8.dp))
                 Sparkline(
                     points = q?.spark ?: emptyList(),
                     baseline = q?.prevClose ?: 0.0,
-                    modifier = Modifier.width(64.dp).height(34.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .testTag(SPARK_TEST_TAG)
                 )
             }
 

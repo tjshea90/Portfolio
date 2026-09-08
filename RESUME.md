@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 20:37:56 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 21:13:52 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,18 +27,18 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T2: Continuous pinch zoom: a real time window scaled smoothly, with the range ladder behind it as the data source
+- **In flight:** (nothing in flight)
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 1/9 done
+## 4. Task ledger — 2/9 done
 
 - [x] T0  Baseline: v7.4 tree builds and 569 tests green before any edit  — v7.4 baseline green
 - [ ] T1  Row sparklines fill their space: measure what the row actually gives them and use it
-- [>] T2  Continuous pinch zoom: a real time window scaled smoothly, with the range ladder behind it as the data source  — continuous window zoom
+- [x] T2  Continuous pinch zoom: a real time window scaled smoothly, with the range ladder behind it as the data source  — continuous window zoom + pan, axis-scaled canvas, reset chip
 - [ ] T3  Full-screen chart: tap any chart to open it, sensor rotation, back to close
 - [ ] T4  Tests for T1-T3: pure + rendered + measured
 - [ ] T5  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic
 - [ ] T8  Ship v7.5 (versionCode 62) + final checkpoint
 
-**Resume at T2** (Continuous pinch zoom: a real time window scaled smoothly, with the range ladder behind it as the data source).
+**Resume at T1** (Row sparklines fill their space: measure what the row actually gives them and use it).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 17:06:37 UTC  S06 fixed: SymbolResult carries how many filings the listing named, so a listing that was answered but whose fetches all failed is no longer cached as 'this company filed nothing'
 - 2026-09-08 17:06:38 UTC  S07 fixed: KeyValue falls back to its children's intrinsic width when maxWidth is unbounded
 - 2026-09-08 17:06:38 UTC  S08 fixed: two tests for the forgetting rule: a key untouched for ten minutes starts again at 30s, and one still failing steadily keeps its streak
 - 2026-09-08 17:06:57 UTC  T12 -> done  8 findings (S01-S08) incl. a deadlock between the new settings lock and restoreJson's transaction
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 20:26:04 UTC  T0 -> doing  baseline
 - 2026-09-08 20:37:55 UTC  T0 -> done  v7.4 baseline green
 - 2026-09-08 20:37:56 UTC  T2 -> doing  continuous window zoom
+- 2026-09-08 21:13:52 UTC  T2 -> done  continuous window zoom + pan, axis-scaled canvas, reset chip
 

@@ -49,6 +49,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tj.portfolio.data.ChartPoint
@@ -145,7 +146,28 @@ fun PriceChart(
      * it matters most. Zero when the app holds no quote for the benchmark, which simply
      * leaves its line ending on its last candle.
      */
-    compareLivePrice: Double = 0.0
+    compareLivePrice: Double = 0.0,
+    /**
+     * How tall the drawn area is (Round 64).
+     *
+     * A PARAMETER because the full-screen viewer is the same chart at a different size, and
+     * two copies of this composable that could drift apart is exactly the kind of duplication
+     * that has cost this project rounds. The default is the 170dp the detail screen has always
+     * used, so every existing caller is unchanged.
+     */
+    chartHeight: Dp = CHART_HEIGHT.dp,
+    /**
+     * Tap-to-open-full-screen, or null for a chart that has nowhere to open to.
+     *
+     * TJ: *"for any chart anywhere in the app, make it so I can press it and it opens full
+     * screen and can rotate landscape or portrait with the phone sensors."*
+     *
+     * AN EXPLICIT BUTTON RATHER THAN A TAP ON THE CANVAS. The canvas already belongs to the
+     * crosshair: a tap there is the beginning of a scrub, and the two cannot share it without
+     * one of them becoming unreliable - either the crosshair flickers on every tap, or the
+     * expand needs a long-press, which nothing on this screen would advertise.
+     */
+    onExpand: (() -> Unit)? = null
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val shown = remember(series, livePrice, liveEdge) {
@@ -313,7 +335,7 @@ fun PriceChart(
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(CHART_HEIGHT.dp)
+                    .height(chartHeight)
                     .background(
                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                         RoundedCornerShape(10.dp)
@@ -381,7 +403,7 @@ fun PriceChart(
         Box(
             Modifier
                 .fillMaxWidth()
-                .height(CHART_HEIGHT.dp)
+                .height(chartHeight)
                 .then(gestures)
         ) {
             ChartCanvas(
@@ -445,7 +467,23 @@ fun PriceChart(
                         color = Color.White
                     )
                 }
-            } else if (zoomedIn && onWindow != null && windowBounds != null) {
+            }
+
+            if (onExpand != null) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 4.dp, end = 2.dp)
+                        .size(34.dp)
+                        .clickable(onClick = onExpand)
+                        .testTag(EXPAND_TEST_TAG),
+                    contentAlignment = Alignment.Center
+                ) {
+                    ExpandGlyph(muted)
+                }
+            }
+
+            if (!zooming && zoomedIn && onWindow != null && windowBounds != null) {
                 // ---- THE WAY BACK OUT.
                 //
                 // A continuous zoom can leave the chart anywhere, and pinching all the way
@@ -707,6 +745,37 @@ internal const val CHART_TEST_TAG = "priceChartSurface"
 
 /** Test handle for the reset-zoom affordance. */
 internal const val RESET_ZOOM_TAG = "chartResetZoom"
+
+/** Test handle for the open-full-screen button. */
+internal const val EXPAND_TEST_TAG = "chartExpand"
+
+/**
+ * FOUR CORNER BRACKETS - the universal "make this bigger" mark.
+ *
+ * DRAWN RATHER THAN AN ICON because this app depends on `material-icons-core`, which has no
+ * fullscreen glyph, and pulling in the whole extended icon set (several thousand vectors) to
+ * get one 16dp mark is not a trade worth making on an app that is sideloaded over a phone
+ * connection. Four strokes are cheaper than the dependency and look the same.
+ */
+@Composable
+private fun ExpandGlyph(color: Color) {
+    Canvas(Modifier.size(16.dp)) {
+        val w = size.width
+        val h = size.height
+        val arm = w * 0.32f
+        val stroke = 1.6.dp.toPx()
+        fun corner(x: Float, y: Float, dx: Float, dy: Float) {
+            drawLine(color, Offset(x, y), Offset(x + dx * arm, y), strokeWidth = stroke,
+                cap = StrokeCap.Round)
+            drawLine(color, Offset(x, y), Offset(x, y + dy * arm), strokeWidth = stroke,
+                cap = StrokeCap.Round)
+        }
+        corner(0f, 0f, 1f, 1f)
+        corner(w, 0f, -1f, 1f)
+        corner(0f, h, 1f, -1f)
+        corner(w, h, -1f, -1f)
+    }
+}
 
 /**
  * The window a pinch is currently working from, held OUTSIDE Compose state (Round 64).

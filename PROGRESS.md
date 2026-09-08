@@ -468,3 +468,4 @@ Tasks 14/14 done, findings 71/71 fixed
 - [x] S08 (low) RetryClock's new ten-minute forgetting rule has no test, in the file whose whole purpose is testing that rule.  - two tests for the forgetting rule: a key untouched for ten minutes starts again at 30s, and one still failing steadily keeps its streak
 2026-09-08 20:26:05 UTC  checkpoint 64  commit 4048a8f  T0 doing
 2026-09-08 20:37:56 UTC  checkpoint 64  commit f6347ef  T0 done
+2026-09-08 20:37:57 UTC  checkpoint 64  commit d3786d6  T2 doing

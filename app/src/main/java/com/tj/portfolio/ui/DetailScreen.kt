@@ -397,6 +397,10 @@ fun DetailScreen(
         mutableStateOf<com.tj.portfolio.data.ChartWindow?>(null)
     }
 
+    // ---- THE FULL-SCREEN VIEWER (Round 64). See [FullScreenChart] for what it does and why
+    // it forces the sensor orientation while it is open.
+    var chartExpanded by remember(symbol) { mutableStateOf(false) }
+
     // How far a zoom may go, from EVERY series the app is holding for this symbol rather than
     // from the one on screen - so pinching out past the end of a one-month chart continues
     // into the five-year one instead of stopping at a boundary the user cannot see.
@@ -603,6 +607,7 @@ fun DetailScreen(
                     chartWindow = chartWindow,
                     chartBounds = chartBounds,
                     onChartWindow = onChartWindow,
+                    onExpandChart = { chartExpanded = true },
                     compare = compareSeries,
                     compareLive = liveEdgePrice(benchmarkQuote, chartRange),
                     compareOn = compareOn && !isBenchmark,
@@ -661,6 +666,38 @@ fun DetailScreen(
                 )
             }
         }
+    }
+
+    // ---- THE FULL-SCREEN CHART.
+    //
+    // Outside the `Scaffold` because it is a window of its own, and the same state feeds it as
+    // feeds the inline chart - so the zoom window, the range and the comparison are shared:
+    // expand a zoomed chart and it opens zoomed, close it and the screen behind is where the
+    // fingers left it.
+    if (chartExpanded) {
+        FullScreenChart(
+            symbol = symbol,
+            series = chart,
+            range = chartRange,
+            loading = chartLoading,
+            onRange = { r ->
+                zoomSettling = false
+                chartWindow = null
+                chartRange = r
+                vm.setChartRange(r)
+            },
+            perf = chartPerf,
+            loadingRanges = chartLoadingRanges,
+            livePrice = liveEdgePrice(row?.quote, chartRange),
+            liveEdge = liveEdgePrice(row?.quote, chartRange) > 0.0,
+            window = chartWindow,
+            windowBounds = chartBounds,
+            onWindow = onChartWindow,
+            compare = if (compareOn && !isBenchmark) compareSeries else null,
+            compareLabel = BENCHMARK_SYMBOL,
+            compareLivePrice = liveEdgePrice(benchmarkQuote, chartRange),
+            onClose = { chartExpanded = false }
+        )
     }
 
     // ---- the "i" sheet. One dialog for every number on every tab.
@@ -747,6 +784,8 @@ private fun OverviewTab(
     /** How far a zoom may go, from every series the app holds for this symbol. */
     chartBounds: com.tj.portfolio.data.ChartWindow?,
     onChartWindow: (com.tj.portfolio.data.ChartWindow) -> Unit,
+    /** Opens the chart full screen. See [FullScreenChart]. */
+    onExpandChart: () -> Unit,
     /** The benchmark series for this range, or null when the overlay is off or unloaded. */
     compare: com.tj.portfolio.data.ChartSeries?,
     /** The benchmark's live price, so both lines end at the same instant. */
@@ -849,6 +888,7 @@ private fun OverviewTab(
                     window = chartWindow,
                     windowBounds = chartBounds,
                     onWindow = onChartWindow,
+                    onExpand = onExpandChart,
                     compare = compare,
                     compareLabel = BENCHMARK_SYMBOL,
                     compareLivePrice = compareLive
