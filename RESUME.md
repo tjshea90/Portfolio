@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:27 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:28 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -69,7 +69,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 21:56:12 UTC  finding F07: Reset zoom chip appears on its own every ~5 min as windowBounds advances with th
 - 2026-09-08 21:56:12 UTC  finding F08: Crosshair can land on a carried off-window point: readout updates but the dot an
 - 2026-09-08 21:56:12 UTC  finding F09: Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gut
 - 2026-09-08 22:15:19 UTC  F01 fixed
@@ -81,4 +80,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 22:15:25 UTC  F07 fixed
 - 2026-09-08 22:15:26 UTC  F08 fixed
 - 2026-09-08 22:15:27 UTC  F09 fixed
+- 2026-09-08 22:15:28 UTC  sweep 1 fixes: F01-F09 all closed; 640 tests green
 
