@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:36:45 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:36:46 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T10** (SWEEP 3: re-scan until clean - verify no fix introduced a new bug).
 
-## 5. Open findings — 12 still open, 51 fixed
+## 5. Open findings — 11 still open, 52 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -104,7 +104,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] U17 (low) A Research headline with a blank URL still renders a minTapTarget()-sized clickable(enabled = false) block that looks identical to a tappable one.  — a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control
 - [x] R01 (high) CRITICAL, and it would have shipped: changing the tab bar's height(74.dp) to heightIn(min = 74.dp) removed the maxHeight that each tab's Column.weight(1f).fillMaxSize() was being bounded by. Scaffold measures a bottomBar with loose constraints, so every child filled the SCREEN and the bar sized to its tallest child. Measured in a real Scaffold: bar 891dp, content 0dp. The app would render nothing at all, at any font scale.  — reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version.
 - [x] R02 (high) The Research header's title is ellipsised at the DEFAULT font scale. Weighting the title left the old weighted Spacer in place, so three weighted children split the space 1:1:2 and the title's share is 84dp against a 93.5dp natural width - 'Researc...' beside 140dp of blank.  — removed the leftover weighted Spacer; the status text carries the weight and the title is measured at what it needs
-- [ ] R03 (high) The new SCORE cap-label clips the score it labels from about 1.1x: both Texts inherit bodyLarge's 21sp lineHeight, so the Column needs 42sp of line box inside a fixed 46dp circle and Arrangement.Center gives the label its full box first. At 1.3x - Android's ordinary largest step - a third of the digits are cut.
+- [x] R03 (high) The new SCORE cap-label clips the score it labels from about 1.1x: both Texts inherit bodyLarge's 21sp lineHeight, so the Column needs 42sp of line box inside a fixed 46dp circle and Arrangement.Center gives the label its full box first. At 1.3x - Android's ordinary largest step - a third of the digits are cut.  — both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless
 - [ ] R04 (high) KeyValue no longer loses the value; it loses the LABEL instead. Measured with a long value in a 359dp card: label 48.5dp at 1.5x, 14.5dp at 1.8x, 0dp at 2.0x - an unlabelled signed figure. And the value sets softWrap=false with no overflow, so it clips with no ellipsis. The failure threshold moved from 1.15x to 1.5x; it was not removed.
 - [ ] R05 (high) AutoFitNumber's floor is expressed in sp, so it scales with the user's font setting - at 2.0x the 11sp floor is 22dp of type in a 118dp cell and the number ellipsises anyway, which is the exact case the widget was written for. It also renders the three cells of one row at sizes up to 30 percent apart, in a list whose purpose is comparing them.
 - [ ] R06 (med) The new 'Loading your holdings...' branch replaces the onboarding copy for a user with zero holdings and a non-empty watchlist - every automatic tick runs a quote pass, so the instructions that matter most flicker away. And it misses its own target: recompute() runs synchronously in init before the first frame, so loading is false on the frames the branch was added for.
@@ -126,7 +126,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:11:01 UTC  finding R05: AutoFitNumber's floor is expressed in sp, so it scales with the user's font sett
 - 2026-09-08 16:11:02 UTC  finding R06: The new 'Loading your holdings...' branch replaces the onboarding copy for a use
 - 2026-09-08 16:11:02 UTC  finding R07: greenText/redText/accentText/scoreColor read isSystemInDarkTheme() rather than t
 - 2026-09-08 16:11:02 UTC  finding R08: The chart now paints two different greens eight dp apart: the legend dot takes t
@@ -138,4 +137,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 16:11:02 UTC  finding R14: RetryClock failure counts never decay, so one five-minute outage drives every sy
 - 2026-09-08 16:36:44 UTC  R01 fixed: reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version.
 - 2026-09-08 16:36:45 UTC  R02 fixed: removed the leftover weighted Spacer; the status text carries the weight and the title is measured at what it needs
+- 2026-09-08 16:36:46 UTC  R03 fixed: both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless
 
