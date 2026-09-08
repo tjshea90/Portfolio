@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 16:36:46 UTC",
+  "updated": "2026-09-08 16:36:47 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -456,8 +456,8 @@
       "id": "R04",
       "text": "KeyValue no longer loses the value; it loses the LABEL instead. Measured with a long value in a 359dp card: label 48.5dp at 1.5x, 14.5dp at 1.8x, 0dp at 2.0x - an unlabelled signed figure. And the value sets softWrap=false with no overflow, so it clips with no ellipsis. The failure threshold moved from 1.15x to 1.5x; it was not removed.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value."
     },
     {
       "id": "R05",
@@ -828,6 +828,7 @@
     "2026-09-08 16:11:02 UTC  finding R14: RetryClock failure counts never decay, so one five-minute outage drives every sy",
     "2026-09-08 16:36:44 UTC  R01 fixed: reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version.",
     "2026-09-08 16:36:45 UTC  R02 fixed: removed the leftover weighted Spacer; the status text carries the weight and the title is measured at what it needs",
-    "2026-09-08 16:36:46 UTC  R03 fixed: both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless"
+    "2026-09-08 16:36:46 UTC  R03 fixed: both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless",
+    "2026-09-08 16:36:47 UTC  R04 fixed: KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value."
   ]
 }
