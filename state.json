@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:53:31 UTC",
+  "updated": "2026-09-08 15:53:32 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -337,8 +337,8 @@
       "id": "U04",
       "text": "The bottom tab bar has a hard-coded 74dp height and its labels are unbounded sp. At font scale ~1.45 'Portfolio', 'Activity' and 'Settings' wrap to two lines against a 23dp label budget and paint outside the bar, pushing the icons. It is the one chrome element visible on every screen.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the tab bar uses heightIn(min = 74.dp) so it grows with the font, and every label is one line, centred, ellipsised"
     },
     {
       "id": "U05",
@@ -697,6 +697,7 @@
     "2026-09-08 15:28:19 UTC  T9 -> doing  sweep 2: UI half",
     "2026-09-08 15:53:29 UTC  U01 fixed: money figures now shrink to fit rather than truncate - a new AutoFitNumber steps the type down to a floor and only ellipsises below it, so a six-figure holding at 2x reads in full instead of as '$123,45...'",
     "2026-09-08 15:53:30 UTC  U02 fixed: same widget on the sub-figure, which had no overflow parameter at all and was clipping silently",
-    "2026-09-08 15:53:31 UTC  U03 fixed: KeyValue weights the LABEL, so the value is the unweighted child measured first at full constraints and can never be starved to zero; the label wraps to two lines then ellipsises. Verified by screenshot at 2x."
+    "2026-09-08 15:53:31 UTC  U03 fixed: KeyValue weights the LABEL, so the value is the unweighted child measured first at full constraints and can never be starved to zero; the label wraps to two lines then ellipsises. Verified by screenshot at 2x.",
+    "2026-09-08 15:53:32 UTC  U04 fixed: the tab bar uses heightIn(min = 74.dp) so it grows with the font, and every label is one line, centred, ellipsised"
   ]
 }
