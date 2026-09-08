@@ -204,8 +204,8 @@
       "id": "F16",
       "text": "RESEARCH: a fund Claude returns with a category but no why survives the import and then vanishes at the next rebuild - carryEtfExplanations requires why to be non-blank - contradicting the screen's own promise that funds Claude adds are kept.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "a fund Claude returned with a category but no paragraph now survives a rebuild"
     },
     {
       "id": "F17",
@@ -451,6 +451,7 @@
     "2026-09-08 08:05:40 UTC  F12 fixed: fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept",
     "2026-09-08 08:05:41 UTC  F13 fixed: a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json",
     "2026-09-08 08:05:41 UTC  F14 fixed: same guard - a null longName now falls through to shortName instead of becoming the string 'null'",
-    "2026-09-08 08:05:42 UTC  F15 fixed: the bundle carries etfDataAgeMinutes from the fund list's own clock"
+    "2026-09-08 08:05:42 UTC  F15 fixed: the bundle carries etfDataAgeMinutes from the fund list's own clock",
+    "2026-09-08 08:05:42 UTC  F16 fixed: a fund Claude returned with a category but no paragraph now survives a rebuild"
   ]
 }

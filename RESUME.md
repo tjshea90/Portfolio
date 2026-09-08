@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T8** (SWEEP 1: adversarial bug hunt across the whole app; fix everything found).
 
-## 5. Open findings — 5 still open, 16 fixed
+## 5. Open findings — 4 still open, 17 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -69,7 +69,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F13 (med) RESEARCH: the org.json NULL trap, in the one place the architecture notes warn about it. optString on a JSON null returns the literal string 'null' on Android. A Claude reply with "catalyst": null paints 'null' under the card; "shortVehicle": null becomes a red 'NULL' inverse-ETF chip; "symbol": null inserts a fabricated NULL row. The desktop org.json used in tests returns the fallback, so no existing test can catch it.  — a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json
 - [x] F14 (med) RESEARCH: the same NULL trap in EtfScreener.parse - a Yahoo row with a null longName yields the name 'null', and .ifBlank never fires because 'null' is not blank, so both fallbacks are skipped and the leverage filter runs its whole test against that string.  — same guard - a null longName now falls through to shortName instead of becoming the string 'null'
 - [x] F15 (low) RESEARCH: ResearchBridge's bundle computes dataAgeMinutes from set.generated only, so a user who has only opened the ETFs tab tells Claude the fund data is 0 minutes old when it may be six hours. etfGenerated is nowhere in the bundle.  — the bundle carries etfDataAgeMinutes from the fund list's own clock
-- [ ] F16 (low) RESEARCH: a fund Claude returns with a category but no why survives the import and then vanishes at the next rebuild - carryEtfExplanations requires why to be non-blank - contradicting the screen's own promise that funds Claude adds are kept.
+- [x] F16 (low) RESEARCH: a fund Claude returns with a category but no why survives the import and then vanishes at the next rebuild - carryEtfExplanations requires why to be non-blank - contradicting the screen's own promise that funds Claude adds are kept.  — a fund Claude returned with a category but no paragraph now survives a rebuild
 - [ ] F17 (low) RESEARCH: an imported reply with no notes blanks the previous notes; every other field in that copy merges rather than overwrites.
 - [ ] F18 (low) RESEARCH: the FOLLOWING chip's watched/held set is remembered on set.generated and set.explained, neither of which changes when the ETF list rebuilds - so on the ETFs tab the chip can lag until the stock pass runs.
 - [ ] F19 (low) RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as a failure and retries the identical request against the other Yahoo host, so each list's terminal page costs two requests instead of one.
@@ -84,7 +84,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 07:49:08 UTC  finding F19: RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as 
 - 2026-09-08 07:49:08 UTC  finding F20: RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as
 - 2026-09-08 08:05:34 UTC  F06 fixed: the gesture surface and its state are hoisted above the empty-state branch and the placeholder carries the same modifier, so a pinch continues across a window that has not been fetched yet
 - 2026-09-08 08:05:35 UTC  F07 fixed: chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)
@@ -96,4 +95,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 08:05:41 UTC  F13 fixed: a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json
 - 2026-09-08 08:05:41 UTC  F14 fixed: same guard - a null longName now falls through to shortName instead of becoming the string 'null'
 - 2026-09-08 08:05:42 UTC  F15 fixed: the bundle carries etfDataAgeMinutes from the fund list's own clock
+- 2026-09-08 08:05:42 UTC  F16 fixed: a fund Claude returned with a category but no paragraph now survives a rebuild
 
