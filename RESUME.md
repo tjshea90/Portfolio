@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:36:55 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:37:17 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,14 +27,14 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T10: SWEEP 3: re-scan until clean - verify no fix introduced a new bug
+- **In flight:** (nothing in flight)
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 10/12 done
+## 4. Task ledger — 11/13 done
 
 - [x] T0  Baseline: v7.3 tree builds and 443 tests green before any edit  — 443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
 - [x] T1  Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs  — gesture-based tab paging (not a pager - neighbours stay uncomposed so VisibleScope still describes one screen); pure swipeTarget decision + slide animation shared with the bar
@@ -46,10 +46,11 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T7  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok
 - [x] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found  — two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
 - [x] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found  — network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white.
-- [>] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug  — sweep 3: re-scan for regressions introduced by the ~50 fixes
+- [x] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug  — 14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales.
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
+- [ ] T12  SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters
 
-**Resume at T10** (SWEEP 3: re-scan until clean - verify no fix introduced a new bug).
+**Resume at T11** (Ship v7.4 (versionCode 61) + final checkpoint).
 
 ## 5. Open findings — 0 still open, 63 fixed
 
@@ -126,7 +127,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:36:46 UTC  R03 fixed: both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless
 - 2026-09-08 16:36:47 UTC  R04 fixed: KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value.
 - 2026-09-08 16:36:47 UTC  R05 fixed: the autosize floor is now dp-derived via Dp.toSp(), so it is a physical size that does not scale with the user's setting, and the step is a whole point so neighbouring cells stay on a short ladder
 - 2026-09-08 16:36:48 UTC  R06 fixed: reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user
@@ -138,4 +138,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 16:36:53 UTC  R12 fixed: the sparkline filter requires sparkAt to be set - proof the series was actually adopted - and loadChart's disk-restore path now adopts a restored 1D series, which also saves the request outright
 - 2026-09-08 16:36:54 UTC  R13 fixed: the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before.
 - 2026-09-08 16:36:55 UTC  R14 fixed: RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process
+- 2026-09-08 16:37:17 UTC  T10 -> done  14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales.
 

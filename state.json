@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 16:36:55 UTC",
+  "updated": "2026-09-08 16:37:17 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -10,7 +10,7 @@
     "next_name": "7.4"
   },
   "now": {
-    "step": "T10: SWEEP 3: re-scan until clean - verify no fix introduced a new bug",
+    "step": "",
     "next": ""
   },
   "tasks": [
@@ -77,12 +77,18 @@
     {
       "id": "T10",
       "title": "SWEEP 3: re-scan until clean - verify no fix introduced a new bug",
-      "status": "doing",
-      "note": "sweep 3: re-scan for regressions introduced by the ~50 fixes"
+      "status": "done",
+      "note": "14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales."
     },
     {
       "id": "T11",
       "title": "Ship v7.4 (versionCode 61) + final checkpoint",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T12",
+      "title": "SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters",
       "status": "todo",
       "note": ""
     }
@@ -839,6 +845,7 @@
     "2026-09-08 16:36:53 UTC  R11 fixed: Insider.listing/forSymbolResult report whether EDGAR ANSWERED, taken from the HTTP response rather than inferred from an empty list, and insiderAt is only stamped when it did",
     "2026-09-08 16:36:53 UTC  R12 fixed: the sparkline filter requires sparkAt to be set - proof the series was actually adopted - and loadChart's disk-restore path now adopts a restored 1D series, which also saves the request outright",
     "2026-09-08 16:36:54 UTC  R13 fixed: the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before.",
-    "2026-09-08 16:36:55 UTC  R14 fixed: RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process"
+    "2026-09-08 16:36:55 UTC  R14 fixed: RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process",
+    "2026-09-08 16:37:17 UTC  T10 -> done  14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales."
   ]
 }
