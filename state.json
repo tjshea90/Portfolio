@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 61,
   "request": "Feature 2 of 4: a percent/dollar toggle for profit-and-loss figures across the app. Do NOT ship until it is proven to work, be optimised, and to have broken nothing. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 02:30:26 UTC",
+  "updated": "2026-09-08 02:34:52 UTC",
   "version": {
     "code": 58,
     "name": "7.1",
@@ -10,7 +10,7 @@
     "next_name": "7.2"
   },
   "now": {
-    "step": "T4: Tests: rendered tests proving BOTH modes on every affected surface",
+    "step": "",
     "next": "T1 map every P/L render site",
     "files": []
   },
@@ -42,8 +42,8 @@
     {
       "id": "T4",
       "title": "Tests: rendered tests proving BOTH modes on every affected surface",
-      "status": "doing",
-      "note": "tests"
+      "status": "done",
+      "note": "PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)"
     },
     {
       "id": "T5",
@@ -193,6 +193,7 @@
     "2026-09-08 02:27:32 UTC  T2 -> done  PlMode enum, Keys.PL_MODE, UiState.plMode seeded in init, setPlMode/togglePlMode, plLead/plSub/plInline helpers",
     "2026-09-08 02:27:32 UTC  T3 -> doing  wiring the three surfaces",
     "2026-09-08 02:30:26 UTC  T3 -> done  summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode",
-    "2026-09-08 02:30:26 UTC  T4 -> doing  tests"
+    "2026-09-08 02:30:26 UTC  T4 -> doing  tests",
+    "2026-09-08 02:34:52 UTC  T4 -> done  PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)"
   ]
 }
