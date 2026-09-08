@@ -274,3 +274,4 @@ Tasks 9/12 done, findings 2/2 fixed
 2026-09-08 06:33:47 UTC  checkpoint 63  commit b7e6630  T4: Best ETFs UI + Claude bridge wired
 2026-09-08 06:33:56 UTC  checkpoint 63  commit 76e65b9  T4 done
 2026-09-08 06:33:56 UTC  checkpoint 63  commit 79825ba  T5 doing
+2026-09-08 06:43:45 UTC  checkpoint 63  commit e1e8c0e  T5 done

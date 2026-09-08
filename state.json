@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 06:43:44 UTC",
+  "updated": "2026-09-08 06:43:45 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -10,7 +10,7 @@
     "next_name": "7.4"
   },
   "now": {
-    "step": "",
+    "step": "T6: Tests for T1-T5: pure + rendered",
     "next": ""
   },
   "tasks": [
@@ -53,8 +53,8 @@
     {
       "id": "T6",
       "title": "Tests for T1-T5: pure + rendered",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "tests for T1-T5"
     },
     {
       "id": "T7",
@@ -260,6 +260,7 @@
     "2026-09-08 06:26:51 UTC  T4 -> doing  Best ETFs UI + Claude bridge",
     "2026-09-08 06:33:55 UTC  T4 -> done  fourth research tab with its own scroll state, timestamp, refresh target, blurb, sources and warnings; ETF facts grid on the card; prompt/bundle/parse/merge carry the etfs array and name the universe gaps so Claude adds the funds Yahoo's screens omit; funds Claude adds survive a rebuild",
     "2026-09-08 06:33:56 UTC  T5 -> doing  SPY comparison overlay",
-    "2026-09-08 06:43:44 UTC  T5 -> done  SPY overlay: percent mode with both lines rebased to the same moment (previous close intraday, the benchmark's value at the window start for longer ranges), zero line, segmented benchmark path across gaps, dual crosshair, legend, live edge on both tips, 'vs SPY' chip beside the range chips; shares loadChart's cache so it costs one fetch per range per TTL for the whole app"
+    "2026-09-08 06:43:44 UTC  T5 -> done  SPY overlay: percent mode with both lines rebased to the same moment (previous close intraday, the benchmark's value at the window start for longer ranges), zero line, segmented benchmark path across gaps, dual crosshair, legend, live edge on both tips, 'vs SPY' chip beside the range chips; shares loadChart's cache so it costs one fetch per range per TTL for the whole app",
+    "2026-09-08 06:43:45 UTC  T6 -> doing  tests for T1-T5"
   ]
 }
