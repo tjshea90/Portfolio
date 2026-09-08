@@ -67,6 +67,15 @@ object ResearchBridge {
       }
       ... one per stock in the worst list below
     ],
+    "etfs": [
+      {
+        "symbol": <string - ticker, uppercase>,
+        "why": <string - 2-4 sentences: what this fund actually holds, what it has returned over the long run, what it costs, and who it suits. Say plainly if it does not deserve a place on a best-ETF list>,
+        "category": <string - what kind of fund it is in a few words, e.g. "broad US equity index", "short-term Treasuries", "semiconductor sector">,
+        "conviction": <integer 1-10, 10 = strongest case as a long-term core holding>
+      }
+      ... one per fund in the ETF list below, PLUS any fund you add - see the ETF note above
+    ],
     "notes": <string - anything the app's numbers got wrong or missed, one short paragraph>
   }
 }"""
@@ -98,6 +107,11 @@ you.
   enough size and liquidity to be ownable.
 - **Worst** - companies the app's screen rates as failing: losing money with no forward turn,
   below both moving averages, deep into a 52-week decline, heavily shorted, small.
+- **ETFs** - funds the app ranked on long-run return (five- and three-year annualised NAV
+  returns weighted above anything recent), expense ratio, net assets, dollar volume, how long
+  the fund has existed, and its position against its own 50- and 200-day averages. Leveraged
+  and inverse funds are excluded outright. Distribution yield is shown but deliberately
+  scores nothing - a bond fund and a growth fund are not competing on that axis.
 
 Each row carries the app's own score out of 100 and the reason lines behind it, so you can
 see exactly what the app based its ranking on.
@@ -114,6 +128,28 @@ see exactly what the app based its ranking on.
    none exists, say so plainly rather than substituting a sector fund without saying it is one.
 4. If a stock genuinely belongs in one of these lists and the app missed it, ADD it - a new
    object with a symbol not in my data is fine and the app will pick it up.
+
+### The ETF list needs real research, not just explanation
+
+This is the one section where I need you to go and find things out, because the app's fund
+universe has a genuine hole in it. It is built from Yahoo Finance's own ETF, bond-ETF and
+commodity-ETF screens - about 850 funds - and those screens leave out several of the most
+widely held funds in the US market. Measured directly: VTI, SCHD, AGG, BND, TLT, IWM, VXUS and
+VYM are all absent from them, and there will be others.
+
+So for the ETF list:
+
+1. **Search the web** for what is currently regarded as the best ETFs to hold, and on what
+   grounds - long-run total return, expense ratio, fund size, tracking difference against the
+   index, liquidity and spread, tax efficiency, and how concentrated the fund has become.
+2. **Add the funds my app could not see.** A `symbol` in `etfs` that is not in my data is
+   fine and the app will pick it up, fetch its price and rank it in. If a major, obviously
+   better fund is missing from my list, that is the most useful thing you can hand back.
+3. **Say when the app's ranking is wrong.** A fund can top my score by having had one
+   extraordinary five-year stretch in a single sector. If a row is really a bet rather than a
+   holding, say so in its `why`, and put a low `conviction` on it.
+4. Give each fund a plain `category` so the list can be read as a set rather than as a
+   leaderboard - it is not useful to be told the ten best funds if they are all the same fund.
 
 Be candid. If a row on the "best" list does not deserve to be there, say that in its `why`.
 
@@ -172,6 +208,21 @@ $bundle
                         })
                     }
                     if (r.shortVehicle.isNotBlank()) put("appFoundInverseEtf", r.shortVehicle)
+                    r.etf?.let { e ->
+                        put("fund", JSONObject().apply {
+                            if (e.expenseRatio > 0) put("expenseRatioPct", e.expenseRatio)
+                            if (e.netAssets > 0) put("netAssetsUsd", e.netAssets)
+                            if (e.yieldPct != 0.0) put("yieldPct", round2(e.yieldPct))
+                            if (e.ytdReturnPct != 0.0) put("ytdReturnPct", round2(e.ytdReturnPct))
+                            if (e.oneYearPct != 0.0) put("oneYearPct", round2(e.oneYearPct))
+                            if (e.threeYearAnnualPct != 0.0)
+                                put("threeYearAnnualisedPct", round2(e.threeYearAnnualPct))
+                            if (e.fiveYearAnnualPct != 0.0)
+                                put("fiveYearAnnualisedPct", round2(e.fiveYearAnnualPct))
+                            if (e.dollarVolume > 0) put("avgDailyDollarVolume", e.dollarVolume)
+                            if (e.inceptionMs > 0) put("firstTraded", Fmt.day(e.inceptionMs))
+                        })
+                    }
                 })
             }
         }
@@ -188,6 +239,15 @@ $bundle
             put("trending", rows(set.trending))
             put("best", rows(set.best))
             put("worst", rows(set.worst))
+            put("etfs", rows(set.etfs))
+            put("etfUniverse", Research.ETF_SOURCES)
+            // SAID OUT LOUD, in the data as well as in the prose, because it is the single
+            // most useful correction the model can make and a reader skimming JSON should
+            // not have to infer it from an absence.
+            put(
+                "etfUniverseGaps",
+                JSONArray(listOf("VTI", "SCHD", "AGG", "BND", "TLT", "IWM", "VXUS", "VYM"))
+            )
         }
         return root.toString(2)
     }
@@ -212,6 +272,12 @@ own arithmetic; it cannot explain them and it cannot search the web.
   forward multiple, price above the 50- and 200-day averages, adequate size and liquidity.
 - "worst" - the app's screen rates these failing: losing money with no forward turn, below
   both moving averages, deep into a 52-week decline, heavily shorted, small.
+- "etfs" - funds ranked on five- and three-year annualised NAV returns (weighted above
+  anything recent), expense ratio, net assets, dollar volume, fund age and trend. Leveraged
+  and inverse funds are excluded. The universe is Yahoo's own ETF screens and it OMITS
+  several of the most widely held US funds - the symbols in "etfUniverseGaps" are examples.
+  Add any fund that belongs on a best-ETF list and is not there; give each one a short
+  "category" so the list reads as a set rather than a leaderboard.
 
 Each row carries the app's score out of 100 and the reason lines behind it.
 
@@ -239,10 +305,12 @@ $SHAPE
         val trending: List<ResearchRow> = emptyList(),
         val best: List<ResearchRow> = emptyList(),
         val worst: List<ResearchRow> = emptyList(),
+        val etfs: List<ResearchRow> = emptyList(),
         val notes: String = "",
         val error: String? = null
     ) {
-        val isEmpty: Boolean get() = trending.isEmpty() && best.isEmpty() && worst.isEmpty()
+        val isEmpty: Boolean
+            get() = trending.isEmpty() && best.isEmpty() && worst.isEmpty() && etfs.isEmpty()
     }
 
     /** True when this text carries a research payload at all - used to route an import. */
@@ -269,7 +337,8 @@ $SHAPE
             )
         // A reply that skipped the wrapper and returned the three arrays at the top level is
         // still a valid answer - accept it rather than making the user re-ask.
-        val bare = root.has("trending") || root.has("best") || root.has("worst")
+        val bare = root.has("trending") || root.has("best") || root.has("worst") ||
+            root.has("etfs")
         val res = root.optJSONObject("research") ?: (if (bare) root else null)
         if (res == null) return Parsed(
             error = "That file has JSON in it, but no \"research\" block. It may be the " +
@@ -280,6 +349,7 @@ $SHAPE
             trending = section(res, "trending"),
             best = section(res, "best"),
             worst = section(res, "worst"),
+            etfs = section(res, "etfs"),
             notes = ClaudeBridge.scrub(res.optString("notes"))
         )
         if (out.isEmpty) return Parsed(
@@ -298,7 +368,12 @@ $SHAPE
             val sym = o.optString("symbol").uppercase().trim()
             if (sym.isBlank() || sym.length > 6) continue
             val why = ClaudeBridge.scrub(o.optString("why"))
-            val catalyst = ClaudeBridge.scrub(o.optString("catalyst"))
+            // `category` is the ETF list's version of `catalyst` - the one line under the
+            // reasons that says what kind of thing this row IS. Read into the same field so
+            // one card layout serves all four sections.
+            val catalyst = ClaudeBridge.scrub(
+                o.optString("catalyst").ifBlank { o.optString("category") }
+            )
             val risk = ClaudeBridge.scrub(o.optString("risk"))
             val target = ClaudeBridge.scrub(o.optString("target"))
             val vehicle = o.optString("shortVehicle").uppercase().trim()

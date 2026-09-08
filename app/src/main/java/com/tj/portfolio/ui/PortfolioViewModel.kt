@@ -4041,11 +4041,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val set = runCatching {
                 com.tj.portfolio.data.ResearchSet.fromJson(JSONObject(raw))
             }.getOrNull() ?: return@launch
-            if (set.isEmpty) return@launch
+            // `isFullyEmpty`, not `isEmpty`: a cache holding only the ETF list - which is
+            // exactly what a user who has opened the ETFs tab and nothing else has - would
+            // otherwise be discarded on every launch and rebuilt from ten requests.
+            if (set.isFullyEmpty) return@launch
             withContext(Dispatchers.Main) {
                 // Merged, not assigned: a live build may have landed while this was parsing,
                 // and a cache read must never overwrite something newer.
-                if (_research.value.isEmpty) _research.value = set
+                if (_research.value.isFullyEmpty) _research.value = set
             }
         }
     }
@@ -4378,7 +4381,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         return s.copy(
             trending = cut(com.tj.portfolio.data.ResearchSet.SECTION_TRENDING),
             best = cut(com.tj.portfolio.data.ResearchSet.SECTION_BEST),
-            worst = cut(com.tj.portfolio.data.ResearchSet.SECTION_WORST)
+            worst = cut(com.tj.portfolio.data.ResearchSet.SECTION_WORST),
+            etfs = cut(com.tj.portfolio.data.ResearchSet.SECTION_ETF)
         )
     }
 
@@ -4396,7 +4400,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Write the offline prompt file - one fixed name, replaced, same as the other two. */
     fun writeResearchPrompt(onDone: (String) -> Unit) {
-        if (_research.value.isEmpty) {
+        if (_research.value.isFullyEmpty) {
             onDone("Load the research lists first - there is nothing to ask about yet.")
             return
         }
@@ -4427,7 +4431,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     "through the Claude app instead - both give the same answer."
             return
         }
-        if (_research.value.isEmpty) {
+        if (_research.value.isFullyEmpty) {
             _researchError.value = "Load the research lists first."
             return
         }
@@ -4493,6 +4497,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             trending = com.tj.portfolio.net.ResearchBridge.merge(cur.trending, parsed.trending),
             best = com.tj.portfolio.net.ResearchBridge.merge(cur.best, parsed.best),
             worst = com.tj.portfolio.net.ResearchBridge.merge(cur.worst, parsed.worst),
+            // RE-SORTED, unlike the other three. Claude is asked to ADD funds the app's
+            // screener universe cannot see - which is the whole point of researching this
+            // list online - and an added fund appended to the end of a ranked list would sit
+            // below forty rows it may well beat. `merge` puts additions last; the app's own
+            // score orders the rows it screened, and Claude's conviction (x10, set by the
+            // parser) orders the ones it did not.
+            etfs = com.tj.portfolio.net.ResearchBridge
+                .merge(cur.etfs, parsed.etfs)
+                .sortedByDescending { it.score },
             explained = System.currentTimeMillis(),
             explainedBy = via,
             notes = parsed.notes,
@@ -4503,14 +4516,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         cacheResearch(merged)
         parsed.worst.filter { it.shortVehicle.isNotBlank() }.forEach { vehicleDone.add(it.symbol) }
         _researchError.value = null
-        val added = (parsed.trending + parsed.best + parsed.worst)
-            .count { it.symbol !in (cur.trending + cur.best + cur.worst).map { r -> r.symbol } }
+        val known = (cur.trending + cur.best + cur.worst + cur.etfs).map { r -> r.symbol }.toSet()
+        val added = (parsed.trending + parsed.best + parsed.worst + parsed.etfs)
+            .map { it.symbol }.distinct().count { it !in known }
         // Anything Claude ADDED has no price yet - fetch those quotes so the new rows are
         // not the only ones on screen without a number beside them.
-        val newSymbols = (merged.trending + merged.best + merged.worst)
+        val newSymbols = (merged.trending + merged.best + merged.worst + merged.etfs)
             .filter { it.price <= 0.0 }.map { it.symbol }.distinct().take(20)
         if (newSymbols.isNotEmpty()) fillResearchPrices(newSymbols)
-        val n = parsed.trending.size + parsed.best.size + parsed.worst.size
+        val n = parsed.trending.size + parsed.best.size + parsed.worst.size + parsed.etfs.size
         return "Research updated - $n explained" + (if (added > 0) ", $added added" else "")
     }
 
