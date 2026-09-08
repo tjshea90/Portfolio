@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 17:06:34 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 17:06:35 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -52,7 +52,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T12** (SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters).
 
-## 5. Open findings — 5 still open, 66 fixed
+## 5. Open findings — 4 still open, 67 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -120,7 +120,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] S01 (high) DEADLOCK, introduced by my own settings-cache lock. restoreJson holds an exclusive SQLite transaction and calls set() inside it, which then wants settingsLock; meanwhile any other thread doing db.set (stampFeedAt, setChartRange, setPlMode) takes settingsLock first and blocks on the connection the restore is holding. Both threads wedge permanently and the next main-thread settings read ANRs the app. A restore is exactly when the auto loop is still ticking, so this needs no exotic timing.  — restoreJson writes settings rows through a lock-free writeSetting against its own transaction handle instead of calling set(); the cache is dropped wholesale afterwards. The lock-order inversion is gone.
 - [x] S02 (high) stampFeedAtIfFetched(feedDue || newsSymbols.isNotEmpty()) still lies and re-disables the refresh-on-open gate: newsSymbols is non-empty whenever a stock detail screen is open, so browsing stocks stamps _feedAt every tick without the market feeds having been fetched. Opening the Feed then sees age < interval, skips the refresh, and shows hours-old headlines captioned 'Updated 1 minute ago'.  — only feedDue stamps _feedAt - it governs the market-wide list and the refresh-on-open rule, and a per-symbol fetch is not that
 - [x] S03 (high) adoptAsSparkline on the disk-restore path adopts an arbitrarily STALE D1 series and stamps sparkAt, which is the same bug it was added to fix, from the other side. A cold start onto a stock whose remembered range is not 1D restores yesterday's intraday line into Quote.spark, and the portfolio row then draws it against TODAY's previous close for five minutes - wrong shape and possibly wrong colour.  — the disk-restore path adopts only a series that is still inside its TTL, so a stale one can no longer stamp sparkAt and suppress the real refresh
-- [ ] S04 (med) Routing the vs-SPY chip through benchmarkColor re-broke the contrast BenchmarkFill was created to fix: in the dark theme it resolves to #B4863B and the chip's white 13sp and 11sp text is 3.1:1 against it.
+- [x] S04 (med) Routing the vs-SPY chip through benchmarkColor re-broke the contrast BenchmarkFill was created to fix: in the dark theme it resolves to #B4863B and the chip's white 13sp and 11sp text is 3.1:1 against it.  — onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes
 - [ ] S05 (low) Insider.forSymbol is now a verbatim copy of forSymbolResult's body and both it and listFilings have zero callers - dead duplicated logic that can only drift.
 - [ ] S06 (low) insiderAt is stamped when the LISTING was answered even if every per-filing fetch then failed, so a partial failure caches an empty result for thirty minutes.
 - [ ] S07 (low) KeyValue's Layout does not guard against an unbounded maxWidth - unreachable today, since no call site is inside a horizontal scroller or under IntrinsicSize, but it would place the value about 16 million pixels off screen.
@@ -135,7 +135,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:37:18 UTC  T12 -> doing  sweep 4
 - 2026-09-08 16:52:21 UTC  finding S01: DEADLOCK, introduced by my own settings-cache lock. restoreJson holds an exclusi
 - 2026-09-08 16:52:21 UTC  finding S02: stampFeedAtIfFetched(feedDue || newsSymbols.isNotEmpty()) still lies and re-disa
 - 2026-09-08 16:52:21 UTC  finding S03: adoptAsSparkline on the disk-restore path adopts an arbitrarily STALE D1 series 
@@ -147,4 +146,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 17:06:33 UTC  S01 fixed: restoreJson writes settings rows through a lock-free writeSetting against its own transaction handle instead of calling set(); the cache is dropped wholesale afterwards. The lock-order inversion is gone.
 - 2026-09-08 17:06:34 UTC  S02 fixed: only feedDue stamps _feedAt - it governs the market-wide list and the refresh-on-open rule, and a per-symbol fetch is not that
 - 2026-09-08 17:06:34 UTC  S03 fixed: the disk-restore path adopts only a series that is still inside its TTL, so a stale one can no longer stamp sparkAt and suppress the real refresh
+- 2026-09-08 17:06:35 UTC  S04 fixed: onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes
 
