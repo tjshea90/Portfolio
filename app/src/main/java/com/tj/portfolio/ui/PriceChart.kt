@@ -1174,3 +1174,160 @@ internal fun zoomPair(
     val pressed = event.changes.filter { it.pressed }
     return if (pressed.size < 2) null else pressed[0].id to pressed[1].id
 }
+
+// ------------------------------------------------------- the comparison overlay
+
+/**
+ * THE BENCHMARK, and the one place its ticker is written down.
+ *
+ * SPY rather than ^GSPC: the index itself is not tradeable, its ticker needs escaping in a
+ * URL, and the app's chart cache is keyed by symbol - so using the fund means the overlay
+ * shares the exact cache, TTL, disk row and retry clock every other chart already uses,
+ * rather than needing a parallel path for one special case.
+ */
+const val BENCHMARK_SYMBOL = "SPY"
+
+/**
+ * A SECOND LINE, MEASURED THE SAME WAY AS THE FIRST (Round 63).
+ *
+ * "Did this stock beat the market?" is not a question a price chart can answer, because two
+ * prices in dollars share no axis - a $900 stock and a $600 fund drawn together are one line
+ * and one flat streak at the bottom. The only honest way to draw them together is to draw
+ * neither in dollars: both become PERCENTAGE CHANGE from the same moment, and the axis
+ * becomes a percentage.
+ *
+ * ---- WHAT "THE SAME MOMENT" MEANS, AND WHY IT IS NOT SIMPLY THE FIRST POINT
+ *
+ * Two cases, and getting the second one wrong is the whole trap:
+ *
+ *   * **Intraday** (1D, after-hours). Both series are measured from their own PREVIOUS
+ *     CLOSE, which is what [ChartSeries.from] already returns for these ranges and what the
+ *     readout and the range chips already print. So the stock's number here is exactly the
+ *     number shown above the chart - the overlay adds a line, it does not change one.
+ *   * **Everything longer.** The benchmark is rebased to ITS OWN VALUE AT THE START OF THE
+ *     STOCK'S WINDOW, not to the start of its own series. On a five-year chart of a company
+ *     that listed eighteen months ago, the stock's line covers eighteen months and SPY's
+ *     covers thirty years; drawn from its own first point SPY would show several hundred
+ *     percent against the stock's forty, and the chart would say the stock had been
+ *     annihilated by a benchmark it had never been measured against.
+ *
+ * Returns null - draw no overlay at all - whenever the answer would be a guess: too few
+ * points, no usable baseline, or a benchmark series that does not reach the window being
+ * drawn. A missing overlay is a small disappointment; a wrong one is a false claim about
+ * performance.
+ */
+internal fun comparePercents(primary: ChartSeries?, compare: ChartSeries?): DoubleArray? {
+    if (primary == null || compare == null) return null
+    if (primary.isEmpty || compare.isEmpty) return null
+    val pts = primary.points
+    val cs = compare.points
+
+    val base = if (primary.range == ChartRange.D1 || primary.range == ChartRange.OVERNIGHT) {
+        // Both lines measured from their own previous close - the same reference the readout
+        // and the chips use for an intraday window.
+        compare.from
+    } else {
+        // Rebased to where the benchmark stood when THIS window opened.
+        valueAtOrBefore(cs, pts.first().t) ?: cs.first().close
+    }
+    if (base <= 0.0 || !base.isFinite()) return null
+
+    val out = DoubleArray(pts.size)
+    var drawn = 0
+    for (i in pts.indices) {
+        val v = valueAtOrBefore(cs, pts[i].t)
+        if (v == null || v <= 0.0) {
+            // NaN, not zero. Zero is a real percentage - "the benchmark was flat here" - and
+            // painting it where there is simply no data invents a horizontal line.
+            out[i] = Double.NaN
+        } else {
+            out[i] = (v - base) / base * 100.0
+            if (out[i].isFinite()) drawn++ else out[i] = Double.NaN
+        }
+    }
+    // Two points is the minimum that can be a line rather than a dot.
+    return if (drawn >= 2) out else null
+}
+
+/**
+ * The last close at or before [t], or null when the series begins after it.
+ *
+ * A binary search: this is called once per point of the primary series, which on a five-day
+ * chart is ~900 lookups into a ~900-point benchmark. Linear would be ~400,000 comparisons
+ * every time the overlay is rebuilt, which happens on every quote tick while the market is
+ * open.
+ *
+ * AT OR BEFORE, never after: a benchmark value from the future of the point being drawn would
+ * put tomorrow's market move under today's price.
+ */
+internal fun valueAtOrBefore(points: List<ChartPoint>, t: Long): Double? {
+    if (points.isEmpty()) return null
+    if (t < points.first().t) return null
+    var lo = 0
+    var hi = points.size - 1
+    while (lo < hi) {
+        // Upper-biased midpoint: this searches for the LAST index whose t <= target, and the
+        // ordinary `(lo + hi) / 2` form loops forever on that variant when hi == lo + 1.
+        val mid = (lo + hi + 1) ushr 1
+        if (points[mid].t <= t) lo = mid else hi = mid - 1
+    }
+    return points[lo].close
+}
+
+/** What the stock itself did at each point, on the same percentage scale as the overlay. */
+internal fun primaryPercents(s: ChartSeries): DoubleArray? {
+    if (s.isEmpty) return null
+    val from = s.from
+    if (from <= 0.0 || !from.isFinite()) return null
+    val out = DoubleArray(s.points.size)
+    for (i in s.points.indices) {
+        val v = (s.points[i].close - from) / from * 100.0
+        out[i] = if (v.isFinite()) v else Double.NaN
+    }
+    return out
+}
+
+/**
+ * The two aligned percent series, held together because they are only ever meaningful
+ * together: [own] is the stock, [other] the benchmark, both measured from the same moment and
+ * both indexed by the STOCK's points, so index i is the same instant in either.
+ *
+ * [other] may contain NaN where the benchmark has no reading for one of the stock's points;
+ * [own] never does, because a point with no price is not plotted at all.
+ */
+internal class ComparePair(val own: DoubleArray, val other: DoubleArray) {
+
+    /**
+     * The y-axis range: the lowest and highest value across BOTH lines, and always including
+     * zero.
+     *
+     * Zero is included unconditionally because it is the reference the whole chart is about -
+     * an axis running from +4% to +9% would draw two lines with nothing on screen saying that
+     * both are up. A little wasted vertical space is the correct price for that.
+     */
+    fun bounds(): DoubleArray {
+        var lo = 0.0
+        var hi = 0.0
+        for (v in own) if (v.isFinite()) { if (v < lo) lo = v; if (v > hi) hi = v }
+        for (v in other) if (v.isFinite()) { if (v < lo) lo = v; if (v > hi) hi = v }
+        // A dead-flat pair would give a zero-height axis and divide by nothing.
+        if (hi - lo < 1e-9) { lo -= 1.0; hi += 1.0 }
+        return doubleArrayOf(lo, hi)
+    }
+
+    /** The last real value in a series, or null when it has none. Used for the readout. */
+    fun lastOf(a: DoubleArray): Double? {
+        for (i in a.indices.reversed()) if (a[i].isFinite()) return a[i]
+        return null
+    }
+}
+
+/** A filled dot for the legend, at text size. */
+@Composable
+private fun LegendDot(color: Color) {
+    Box(
+        Modifier
+            .size(8.dp)
+            .background(color, androidx.compose.foundation.shape.CircleShape)
+    )
+}
