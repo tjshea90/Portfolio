@@ -1427,7 +1427,13 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
 
     /** Market data the app can rebuild from the network; never worth a byte of a backup. */
     private fun isDerivedCache(k: String) =
-        k == Keys.RESEARCH_CACHE || k == Keys.INSIDER_CACHE || k == Keys.INSIDER_SKIP
+        k == Keys.RESEARCH_CACHE || k == Keys.INSIDER_CACHE || k == Keys.INSIDER_SKIP ||
+            // WHEN THE FEED WAS LAST PULLED is a fact about THIS device's last few minutes,
+            // not a preference. Carried in a backup it lets a device transfer import another
+            // phone's timestamp - so the header reads "Updated 3 minutes ago" over a feed this
+            // device has never fetched, and the refresh-on-open rule that reads it is
+            // suppressed until it ages out.
+            k == Keys.FEED_AT
 
     private fun appVersionName(): String = try {
         ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""

@@ -233,7 +233,6 @@ fun PriceChart(
         // compromise either - `#16C784` on white is 2.20:1, which is faint for a line as well
         // as illegible for text. The fill palette stays where it belongs: the sparkline's
         // gradient, the badge and chip backgrounds.
-        val up = shown.change >= 0
         val line = signColor(shown.change)
 
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
@@ -791,7 +790,13 @@ private fun ChartCanvas(
     modifier: Modifier,
     /** Both percent series when comparing; null draws the ordinary price chart. */
     cmp: ComparePair? = null,
-    benchmarkColor: Color = Benchmark
+    /**
+     * REQUIRED, not defaulted. It briefly defaulted to `Benchmark` - the raw fill - while the
+     * only caller passed the theme-aware `benchmarkColor`, which is a trap rather than a
+     * convenience: a second call site would silently get the wrong colour in one theme, and
+     * nothing would fail.
+     */
+    benchmarkColor: Color
 ) {
     val pts = s.points
     // ---- THE Y SCALE. Two different questions, so two different answers.

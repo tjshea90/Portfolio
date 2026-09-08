@@ -184,7 +184,8 @@ object Insider {
         val filings: List<InsiderFiling>,
         val answered: Boolean,
         /**
-         * How many filings the listing named, before any of them was fetched.
+         * How many filings remain to be fetched after the never-parseable set and the
+         * per-symbol cap have been applied - i.e. how many this pass was going to try.
          *
          * Zero with `answered` true is the real "this company filed nothing this month". A
          * non-zero count with no filings is a partial failure wearing the same shape, and the
