@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:25 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:26 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (SWEEP 1: adversarial bug hunt over the new code and the app).
 
-## 5. Open findings — 2 still open, 7 fixed
+## 5. Open findings — 1 still open, 8 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -57,7 +57,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F05 (high) Comparison overlay pastes SPY's live price onto a mid-window point once zoomed: tip-pairing tests drawn.lastIndex, not the series' true tip
 - [x] F06 (med) Chip figure, caption and point count still describe the unzoomed range while the readout describes the window - two figures on one screen that disagree
 - [x] F07 (med) Reset zoom chip appears on its own every ~5 min as windowBounds advances with the periodic refresh
-- [ ] F08 (low) Crosshair can land on a carried off-window point: readout updates but the dot and line are drawn off-canvas
+- [x] F08 (low) Crosshair can land on a carried off-window point: readout updates but the dot and line are drawn off-canvas
 - [ ] F09 (low) Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gutters
 
 ## 6. Version
@@ -69,7 +69,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 21:56:12 UTC  finding F05: Comparison overlay pastes SPY's live price onto a mid-window point once zoomed: 
 - 2026-09-08 21:56:12 UTC  finding F06: Chip figure, caption and point count still describe the unzoomed range while the
 - 2026-09-08 21:56:12 UTC  finding F07: Reset zoom chip appears on its own every ~5 min as windowBounds advances with th
 - 2026-09-08 21:56:12 UTC  finding F08: Crosshair can land on a carried off-window point: readout updates but the dot an
@@ -81,4 +80,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 22:15:23 UTC  F05 fixed
 - 2026-09-08 22:15:24 UTC  F06 fixed
 - 2026-09-08 22:15:25 UTC  F07 fixed
+- 2026-09-08 22:15:26 UTC  F08 fixed
 
