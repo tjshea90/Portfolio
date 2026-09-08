@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:44:44 UTC)
+# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:44:45 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -47,10 +47,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Adversarial review of the feature, then fix what it finds).
 
-## 5. Open findings — 1 still open, 1 fixed
+## 5. Open findings — 0 still open, 2 fixed
 
 - [x] I01 (med) BigLine's parameters are still named 'money' and 'pct', but they now receive plLead/plSub - so in percent mode the parameter called 'money' holds a percentage. Stale naming that contradicts the value is exactly how two of this project's bugs shipped.  — BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
-- [ ] I02 (low) The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. At a 2.0 font scale that wraps to three lines in the summary card for a sentence that only needs to say two things.
+- [x] I02 (low) The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. At a 2.0 font scale that wraps to three lines in the summary card for a sentence that only needs to say two things.  — hint shortened to '$ first - tap a line for %'
 
 ## 6. Version
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:25:51 UTC  T2 -> doing  model + persistence
 - 2026-09-08 02:27:32 UTC  T2 -> done  PlMode enum, Keys.PL_MODE, UiState.plMode seeded in init, setPlMode/togglePlMode, plLead/plSub/plInline helpers
 - 2026-09-08 02:27:32 UTC  T3 -> doing  wiring the three surfaces
 - 2026-09-08 02:30:26 UTC  T3 -> done  summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:37:23 UTC  finding I01: BigLine's parameters are still named 'money' and 'pct', but they now receive plL
 - 2026-09-08 02:37:23 UTC  finding I02: The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. A
 - 2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
+- 2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'
 
