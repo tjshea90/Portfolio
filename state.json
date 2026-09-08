@@ -274,8 +274,8 @@
       "id": "N06",
       "text": "The feed's per-headline loop rebuilds holdingNames() once PER HEADLINE and calls Relevance.matchHolding without a hoisted Subject or a pre-squashed haystack - roughly 4,000 Subject constructions and 4,000 squash calls per feed pass, every three minutes, ON THE MAIN THREAD. Relevance.Subject exists precisely to hoist this; the Feed path never adopted it.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the feed's market pass hoists holdingNames and Relevance.Subject out of the per-headline loop, pre-squashes each headline once, and runs on Dispatchers.Default instead of the main thread"
     },
     {
       "id": "N07",
@@ -687,6 +687,7 @@
     "2026-09-08 15:28:04 UTC  N02 fixed: the seven market feeds are gated on the same newsDue rule the per-symbol loop uses, and setNewsVisible(true) kicks a pass when what is held is already past its interval - so the tab is no less fresh, it just stops fetching for a screen nobody is on.",
     "2026-09-08 15:28:05 UTC  N03 fixed: newsVisible and newsSymbol are now two signals: the Feed tab asks for every followed symbol because that is the list it draws, a detail screen asks for its own one. Opening a stock went from ~480 requests an hour to ~20.",
     "2026-09-08 15:28:06 UTC  N04 fixed: refreshSparklines skips any symbol whose cached 1D chart is regular-session and inside its TTL - exactly the condition adoptAsSparkline requires - so the shared URL is never fetched twice in one window.",
-    "2026-09-08 15:28:07 UTC  N05 fixed: insiderAt records that an EDGAR pass COMPLETED rather than that it found something, on a 30-minute TTL matching Form 4's own legal lag; a failed pass still never stamps it"
+    "2026-09-08 15:28:07 UTC  N05 fixed: insiderAt records that an EDGAR pass COMPLETED rather than that it found something, on a 30-minute TTL matching Form 4's own legal lag; a failed pass still never stamps it",
+    "2026-09-08 15:28:07 UTC  N06 fixed: the feed's market pass hoists holdingNames and Relevance.Subject out of the per-headline loop, pre-squashes each headline once, and runs on Dispatchers.Default instead of the main thread"
   ]
 }
