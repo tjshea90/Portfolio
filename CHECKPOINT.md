@@ -576,9 +576,9 @@ portfolio/
   `ui/` the data class `Row` shadows nothing because layouts are called qualified by
   import order; if a new file uses both, alias the import.
 
-## 6. STATUS — FEATURE COMPLETE, v6.9 SHIPPED
+## 6. STATUS — FEATURE COMPLETE, v7.0 SHIPPED
 
-APK: `portfolio-v6.9.apk`, versionCode 56 / versionName 6.9.
+APK: `portfolio-v7.0.apk`, versionCode 57 / versionName 7.0.
 Version history: v1.0 (core app), v1.1 (watchlist/search/backup/offline bridge),
 v1.2 (gestures, editing, long-press), v1.3 (navigation-bar inset fix),
 v1.4 (update-safety hardening + daily auto-backup),
@@ -650,6 +650,98 @@ news - see Round 55 below),
 v6.7 (RESEARCH IN TABS, and the whole app's network traffic cut by about 80% - see Round 56),
 v6.8 (THE APP NOW ACTUALLY STOPS WHEN IT IS PUT DOWN, and immutable data is never fetched
 twice - see Round 57).
+
+### Round 59 (v7.0) — THE REQUEST STORMS NOBODY WAS COUNTING
+
+**What TJ asked for.** *"check the latest updated app you just sent me (v6.9). do a thorough
+check for ui and code optimizations, make sure it sleeps in the background when I'm not using
+it, and look for bugs and fix them."*
+
+Ten findings. The three that matter share one root cause, and it is a good one to remember:
+**every one of these fetches recorded when it last SUCCEEDED and nothing at all about when it
+last FAILED.** Nothing in the app was counting how often a failing request gets retried, so
+nothing noticed when the answer became "four times a minute, forever".
+
+#### A. Two of them were mine, from Round 58
+
+- `loadChart` stamped `chartFetchedAt` and **never read it**. A chart that cannot be had - a
+  delisted ticker, a 404, a range Yahoo refuses - leaves no entry in `_charts`, so the
+  freshness guard fell straight through and the detail screen asked again on every quote tick.
+  About 240 requests an hour, for one symbol, for a picture that is never going to arrive.
+  `loadFundamentals` uses `coreFetchedAt` in exactly the way this needed; the chart path was
+  modelled on it and then guarded on the wrong thing.
+- `refreshSparklines` was the same bug wearing a fix. Round 58 un-marked every failed symbol
+  so a transient failure would retry promptly instead of sitting out five minutes - which is
+  what put TJ's missing charts right - and in doing so turned a **permanently** dead ticker
+  into a fetch every fifteen seconds for the life of the session.
+
+The answer to both is not a longer TTL. A fetch that failed should be retried SOON in case the
+failure was passing, and progressively less often as the evidence mounts that it was not.
+That is a backoff, and the app already had one whose shape had been reasoned about, so
+`RetryClock` uses the same curve as `Http.unreachableBackoffMs` - 30s, 1m, 2m, 4m, held at 5m -
+rather than inventing a second answer to the same question. **A success clears the count**, so
+one good answer puts the next failure back to thirty seconds. A manual pull clears all of them,
+for the same reason it clears `Http`'s cooldowns.
+
+#### B. The last fetch that outlived the app going away
+
+Round 57 moved eleven on-demand paths onto `fgScope` and recorded the poll loop as cancelled.
+The LOOP is - `autoJob.cancel()` stops it - but the loop does not do the work. It calls
+`refresh()`, which launched a coroutine of its **own** into `viewModelScope`. So cancelling the
+loop left an in-flight quote pass running to completion or to its fifteen-second timeout, with
+the socket never disconnected: precisely what `Http`'s cancel-and-disconnect exists to prevent.
+It also stranded `loading = true` for the length of that request, and the guard at the top of
+`refresh()` returns early while it is set - so switching away and straight back got no refresh
+at all and showed stale prices.
+
+`refresh()` is on `fgScope` now. **The database write moved the other way**, onto
+`viewModelScope`, so a price already paid for still reaches disk if the user walks away a
+millisecond later. And it writes `merged` rather than `stamped` - the pre-merge snapshot does
+not carry a sparkline that landed while the fetch was in flight, and writing it after would put
+a series-less row over a good one for the next cold start to paint blank.
+
+**Every network path in the app is now either on `fgScope` or on an explicitly cancelled named
+job, except the four that must complete: the two Claude requests, the model list, and the
+screenshot import.** That is the whole contract, and it is checkable in one grep.
+
+#### C. `ACCESS_NETWORK_STATE` had been declared since v1.0 and never read
+
+Meanwhile a refresh with no signal fired the whole pass anyway: radio woken, every socket
+failed, and three failures to one host armed a cooldown escalating towards five minutes. So a
+lift or a tunnel cost battery going in and a stale screen for minutes coming out.
+`util/Connectivity` answers it locally now, and the automatic tick asks **once** and gates both
+the quote pass and the feed pass on the same answer. A manual pull always tries, because the
+user may know something the connectivity manager does not.
+
+Worth recording HOW that file ended up shaped the way it is: the first version had a doc comment
+promising it was "deliberately optimistic" sitting directly above a branch that returned false
+whenever it could not read the manager. A comment disagreeing with its own code is how two of
+this project's bugs shipped. Rewriting the decision as a pure truth table made the disagreement
+obvious in seconds, and every row of that table is now asserted.
+
+#### D. The clipping trap, twice more
+
+The v1.6 rule is "never put text in a fixed-width column, because Compose's default overflow is
+Clip and there is nothing on screen to hint at it". Two places had drifted back:
+`AdviceScreen` numbered its suggested actions in a fixed 22dp column (silently cut off from
+"10." upward, sooner at a large font scale) and `FeedScreen` drew the WSB rank in a fixed 34dp
+one ("#50" clips at 2.0). Both are `widthIn(min = ...)` now.
+
+#### E. The upgrade TJ's phone actually performs
+
+`DbTest` walks a real v1 database up to current, which is the broader guarantee. This round
+added `UpgradeV6ToV7Test`, which is narrower and more useful for one reason: **v6 is the version
+sitting on the phone**. It builds the v6 schema as v6.8 shipped it, fills it with the kind of
+rows a real install holds - including the cash rows whose NULL symbol is the org.json trap -
+opens it with today's `Db`, and asserts that nothing is lost, that `chart_cache` works after an
+UPGRADE rather than only after a fresh `onCreate`, that reopening is idempotent, and that a
+database from a newer app version opens instead of throwing.
+
+#### F. Tests: 358 -> 371
+
+`RetryBackoffTest` (10) restates the backoff rule and asserts the property neither original
+had - a fetch that keeps failing is asked for less and less often, and one success resets it -
+plus the full connectivity truth table. `UpgradeV6ToV7Test` (3) is above.
 
 ### Round 58 (v6.9) — THE CHARTS: A RANGE YOU CAN CHOOSE, AND ONE THAT STAYS ON SCREEN
 
