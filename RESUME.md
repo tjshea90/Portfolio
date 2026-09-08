@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 21:37:22 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 21:37:23 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T5: REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -41,7 +41,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T2  Continuous pinch zoom: a real time window scaled smoothly, with the range ladder behind it as the data source  — continuous window zoom + pan, axis-scaled canvas, reset chip
 - [x] T3  Full-screen chart: tap any chart to open it, sensor rotation, back to close  — FullScreenChart dialog + sensor orientation + manifest configChanges
 - [x] T4  Tests for T1-T3: pure + rendered + measured  — ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7
-- [ ] T5  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke
+- [>] T5  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — full regression suite
 - [ ] T6  SWEEP 1: adversarial bug hunt over the new code and the app
 - [ ] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic
 - [ ] T8  Ship v7.5 (versionCode 62) + final checkpoint
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 20:03:55 UTC  T13 -> done  verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases.
 - 2026-09-08 20:04:33 UTC  T11 -> doing  final cleanups + ship v7.4
 - 2026-09-08 20:15:12 UTC  T11 -> done  v7.4 shipped: versionCode 61, signed with the archived key (cert SHA-256 2e8c3847... unchanged, so it installs in place over 7.3), 569/569 tests green, lint vital clean, checkinit ok
 - 2026-09-08 20:24:41 UTC  round 64 started
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 21:13:55 UTC  T3 -> done  FullScreenChart dialog + sensor orientation + manifest configChanges
 - 2026-09-08 21:13:56 UTC  T4 -> doing  tests for T1-T3
 - 2026-09-08 21:37:22 UTC  T4 -> done  ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7
+- 2026-09-08 21:37:23 UTC  T5 -> doing  full regression suite
 
