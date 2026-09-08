@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 16:36:54 UTC",
+  "updated": "2026-09-08 16:36:55 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -526,8 +526,8 @@
       "id": "R14",
       "text": "RetryClock failure counts never decay, so one five-minute outage drives every symbol to the five-minute tier for the rest of the process - and the next single dropped symbol starts at that tier instead of at thirty seconds.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process"
     }
   ],
   "log": [
@@ -838,6 +838,7 @@
     "2026-09-08 16:36:52 UTC  R10 fixed: newsVisible is assigned BEFORE the refresh it gates is kicked (viewModelScope is Main.immediate, so the body runs in place), and both transition edges are captured before the flag moves so the grace window still measures leaving",
     "2026-09-08 16:36:53 UTC  R11 fixed: Insider.listing/forSymbolResult report whether EDGAR ANSWERED, taken from the HTTP response rather than inferred from an empty list, and insiderAt is only stamped when it did",
     "2026-09-08 16:36:53 UTC  R12 fixed: the sparkline filter requires sparkAt to be set - proof the series was actually adopted - and loadChart's disk-restore path now adopts a restored 1D series, which also saves the request outright",
-    "2026-09-08 16:36:54 UTC  R13 fixed: the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before."
+    "2026-09-08 16:36:54 UTC  R13 fixed: the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before.",
+    "2026-09-08 16:36:55 UTC  R14 fixed: RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process"
   ]
 }
