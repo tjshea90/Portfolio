@@ -190,8 +190,8 @@
       "id": "F14",
       "text": "RESEARCH: the same NULL trap in EtfScreener.parse - a Yahoo row with a null longName yields the name 'null', and .ifBlank never fires because 'null' is not blank, so both fallbacks are skipped and the leverage filter runs its whole test against that string.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "same guard - a null longName now falls through to shortName instead of becoming the string 'null'"
     },
     {
       "id": "F15",
@@ -449,6 +449,7 @@
     "2026-09-08 08:05:37 UTC  F10 fixed: ComparePair.pairedIndex() - the last index at which BOTH lines have a reading - now feeds the spread and the resting benchmark figure, and the spread normalises negative zero",
     "2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit",
     "2026-09-08 08:05:40 UTC  F12 fixed: fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept",
-    "2026-09-08 08:05:41 UTC  F13 fixed: a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json"
+    "2026-09-08 08:05:41 UTC  F13 fixed: a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json",
+    "2026-09-08 08:05:41 UTC  F14 fixed: same guard - a null longName now falls through to shortName instead of becoming the string 'null'"
   ]
 }
