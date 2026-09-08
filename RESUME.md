@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:36:50 UTC)
+# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:36:51 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T6: Adversarial review of the feature, then fix what it finds
 - **Next action:** T1 map every P/L render site
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -42,7 +42,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T3  UI: make the figures tappable to switch, and label so it is never ambiguous which is shown  — summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode
 - [x] T4  Tests: rendered tests proving BOTH modes on every affected surface  — PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)
 - [x] T5  REGRESSION: full suite + prove rows, summary, watchlist and detail are otherwise unchanged  — 405/405 green, lint clean, checkinit ok
-- [ ] T6  Adversarial review of the feature, then fix what it finds
+- [>] T6  Adversarial review of the feature, then fix what it finds  — adversarial review
 - [ ] T7  Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint
 
 **Resume at T6** (Adversarial review of the feature, then fix what it finds).
@@ -60,7 +60,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:13:22 UTC  T7 -> done  v7.1 APK + checkpoint 60 delivered
 - 2026-09-08 02:24:35 UTC  round 61 started
 - 2026-09-08 02:25:50 UTC  T0 -> done  390/390 green on the v7.1 tree
 - 2026-09-08 02:25:51 UTC  T1 -> done  affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch.
@@ -72,4 +71,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:34:52 UTC  T4 -> done  PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)
 - 2026-09-08 02:34:52 UTC  T5 -> doing  full regression
 - 2026-09-08 02:36:50 UTC  T5 -> done  405/405 green, lint clean, checkinit ok
+- 2026-09-08 02:36:51 UTC  T6 -> doing  adversarial review
 
