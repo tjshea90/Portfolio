@@ -34,18 +34,18 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 3/8 done
+## 4. Task ledger — 4/8 done
 
 - [x] T0  Baseline: v7.0 tree builds and 371 tests green before any edit  — baseline green before the feature
 - [x] T1  Design the scrub gesture so it cannot break vertical scrolling of the list it sits in  — detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
 - [x] T2  Implement: crosshair, nearest-point lookup, readout that does not shift the layout  — crosshair + dot, readout at fixed height, index-based scrub state
-- [ ] T3  Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm
+- [x] T3  Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm  — mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 - [ ] T4  Test: rendered gesture tests + pure-function tests for the lookup
 - [ ] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged
 - [ ] T6  Adversarial review of the feature, then fix what it finds
 - [ ] T7  Ship v7.1 (versionCode 58) + checkpoint
 
-**Resume at T3** (Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm).
+**Resume at T4** (Test: rendered gesture tests + pure-function tests for the lookup).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -60,7 +60,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:15:08 UTC  G06 fixed: AdviceScreen action numbers use widthIn(min) instead of a fixed width
 - 2026-09-08 01:15:09 UTC  G07 fixed: FeedScreen trending rank uses widthIn(min) instead of a fixed width
 - 2026-09-08 01:17:12 UTC  T5 -> done  G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache
 - 2026-09-08 01:17:13 UTC  T6 -> doing  verification
@@ -72,4 +71,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:49:33 UTC  T0 -> done  baseline green before the feature
 - 2026-09-08 01:49:36 UTC  T1 -> done  detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
 - 2026-09-08 01:49:37 UTC  T2 -> done  crosshair + dot, readout at fixed height, index-based scrub state
+- 2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 

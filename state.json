@@ -36,8 +36,8 @@
     {
       "id": "T3",
       "title": "Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup"
     },
     {
       "id": "T4",
@@ -172,6 +172,7 @@
     "2026-09-08 01:46:47 UTC  round 60 started",
     "2026-09-08 01:49:33 UTC  T0 -> done  baseline green before the feature",
     "2026-09-08 01:49:36 UTC  T1 -> done  detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll",
-    "2026-09-08 01:49:37 UTC  T2 -> done  crosshair + dot, readout at fixed height, index-based scrub state"
+    "2026-09-08 01:49:37 UTC  T2 -> done  crosshair + dot, readout at fixed height, index-based scrub state",
+    "2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup"
   ]
 }
