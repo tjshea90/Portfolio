@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:43:45 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:53:58 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,9 +51,9 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Tests for T1-T5: pure + rendered).
 
-## 5. Open findings — 0 still open, 0 fixed
+## 5. Open findings — 0 still open, 1 fixed
 
-(none recorded yet)
+- [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 
 ## 6. Version
 
@@ -64,8 +64,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 06:04:57 UTC  T0 -> done  443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
-- 2026-09-08 06:05:05 UTC  T1 -> doing  swipe-to-change-tabs
 - 2026-09-08 06:09:10 UTC  T1 -> done  gesture-based tab paging (not a pager - neighbours stay uncomposed so VisibleScope still describes one screen); pure swipeTarget decision + slide animation shared with the bar
 - 2026-09-08 06:09:11 UTC  T2 -> doing  pinch-zoom charts
 - 2026-09-08 06:15:35 UTC  T2 -> done  pinch zoom walks ChartRange.ZOOM_LADDER (All->5Y->1Y->6M->1M->5D->1D/5-minute); one pointer loop shared with scrubbing, per-rung 1.55x accumulator, 380ms settle so a multi-rung spread fetches only the rung it lands on; chip row auto-scrolls to the selection
@@ -76,4 +74,6 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 06:33:56 UTC  T5 -> doing  SPY comparison overlay
 - 2026-09-08 06:43:44 UTC  T5 -> done  SPY overlay: percent mode with both lines rebased to the same moment (previous close intraday, the benchmark's value at the window start for longer ranges), zero line, segmented benchmark path across gaps, dual crosshair, legend, live edge on both tips, 'vs SPY' chip beside the range chips; shares loadChart's cache so it costs one fetch per range per TTL for the whole app
 - 2026-09-08 06:43:45 UTC  T6 -> doing  tests for T1-T5
+- 2026-09-08 06:53:58 UTC  finding J01: isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ul
+- 2026-09-08 06:53:58 UTC  J01 fixed: the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 
