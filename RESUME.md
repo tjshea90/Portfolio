@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:36:53 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:36:54 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T10** (SWEEP 3: re-scan until clean - verify no fix introduced a new bug).
 
-## 5. Open findings — 2 still open, 61 fixed
+## 5. Open findings — 1 still open, 62 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -114,7 +114,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] R10 (high) And even when it does fire, the pass it triggers is gated off: setNewsVisible calls refreshFeed BEFORE assigning newsVisible = visible, and viewModelScope is Main.immediate, so feedDue is computed while the flag is still false. The pass that exists to fill the tab fetches nothing and then stamps _feedAt twice.  — newsVisible is assigned BEFORE the refresh it gates is kicked (viewModelScope is Main.immediate, so the body runs in place), and both transition edges are captured before the flag moves so the grace window still measures leaving
 - [x] R11 (med) insiderAt is stamped on FAILED EDGAR passes. Insider.listFilings returns an empty list on any non-OK response - 403, 429, timeout, offline - which is indistinguishable from 'this company filed nothing', and the stamp is taken before the empty check. A stock opened while SEC is refusing now shows no filings for thirty minutes across every re-open, where before it retried at once.  — Insider.listing/forSymbolResult report whether EDGAR ANSWERED, taken from the HTTP response rather than inferred from an empty list, and insiderAt is only stamped when it did
 - [x] R12 (med) The sparkline filter can suppress a sparkline that was never adopted. Two paths publish a D1 chart without ever writing Quote.spark - the fetch path when no quote exists yet, and the DISK RESTORE path, which never calls adoptAsSparkline at all - so a cold start into a detail screen leaves that row's sparkline stale for up to five minutes.  — the sparkline filter requires sparkAt to be set - proof the series was actually adopted - and loadChart's disk-restore path now adopts a restored 1D series, which also saves the request outright
-- [ ] R13 (med) The settings cache can be poisoned by a read racing a write: get() queries on a miss and stores what it read afterwards, so a read that starts before a concurrent set() commits and finishes after it leaves the cache holding the old value permanently. Also invalidateSettings() runs before endTransaction() in restoreJson's finally, so a reader in that gap can cache a value that is about to roll back.
+- [x] R13 (med) The settings cache can be poisoned by a read racing a write: get() queries on a miss and stores what it read afterwards, so a read that starts before a concurrent set() commits and finishes after it leaves the cache holding the old value permanently. Also invalidateSettings() runs before endTransaction() in restoreJson's finally, so a reader in that gap can cache a value that is about to roll back.  — the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before.
 - [ ] R14 (low) RetryClock failure counts never decay, so one five-minute outage drives every symbol to the five-minute tier for the rest of the process - and the next single dropped symbol starts at that tier instead of at thirty seconds.
 
 ## 6. Version
@@ -126,7 +126,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:36:44 UTC  R01 fixed: reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version.
 - 2026-09-08 16:36:45 UTC  R02 fixed: removed the leftover weighted Spacer; the status text carries the weight and the title is measured at what it needs
 - 2026-09-08 16:36:46 UTC  R03 fixed: both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless
 - 2026-09-08 16:36:47 UTC  R04 fixed: KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value.
@@ -138,4 +137,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 16:36:52 UTC  R10 fixed: newsVisible is assigned BEFORE the refresh it gates is kicked (viewModelScope is Main.immediate, so the body runs in place), and both transition edges are captured before the flag moves so the grace window still measures leaving
 - 2026-09-08 16:36:53 UTC  R11 fixed: Insider.listing/forSymbolResult report whether EDGAR ANSWERED, taken from the HTTP response rather than inferred from an empty list, and insiderAt is only stamped when it did
 - 2026-09-08 16:36:53 UTC  R12 fixed: the sparkline filter requires sparkAt to be set - proof the series was actually adopted - and loadChart's disk-restore path now adopts a restored 1D series, which also saves the request outright
+- 2026-09-08 16:36:54 UTC  R13 fixed: the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before.
 
