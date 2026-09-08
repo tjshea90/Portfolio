@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 62,
   "request": "Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 04:32:04 UTC",
+  "updated": "2026-09-08 04:32:05 UTC",
   "version": {
     "code": 59,
     "name": "7.2",
@@ -24,8 +24,8 @@
     {
       "id": "T1",
       "title": "Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free"
     },
     {
       "id": "T2",
@@ -212,6 +212,7 @@
     "2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2",
     "2026-09-08 04:27:06 UTC  round 62 started",
     "2026-09-08 04:27:34 UTC  T0 -> doing  baseline build + suite",
-    "2026-09-08 04:32:04 UTC  T0 -> done  416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)"
+    "2026-09-08 04:32:04 UTC  T0 -> done  416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)",
+    "2026-09-08 04:32:05 UTC  T1 -> done  chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free"
   ]
 }
