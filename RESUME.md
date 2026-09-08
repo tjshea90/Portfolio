@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:04:57 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:05:05 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T1: Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -37,7 +37,7 @@ commit, so `git log --oneline` is the history of this round and
 ## 4. Task ledger — 1/12 done
 
 - [x] T0  Baseline: v7.3 tree builds and 443 tests green before any edit  — 443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
-- [ ] T1  Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs
+- [>] T1  Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs  — swipe-to-change-tabs
 - [ ] T2  Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m
 - [ ] T3  Best ETFs data: ETF screener feed + scorer + cached section + periodic refresh
 - [ ] T4  Best ETFs UI: fourth research tab + Claude-app bridge export/import
@@ -64,7 +64,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 04:45:19 UTC  finding J01: A chip figure comes from whatever series is cached for that range, and a cached 
 - 2026-09-08 04:45:19 UTC  finding J02: A truncated series - a stock that listed 18 months ago has no 5Y line - would pu
 - 2026-09-08 04:47:49 UTC  J01 fixed: a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh
 - 2026-09-08 04:47:50 UTC  J02 fixed: a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
@@ -76,4 +75,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 05:57:17 UTC  round 63 started
 - 2026-09-08 05:57:24 UTC  T0 -> doing  baseline build+test
 - 2026-09-08 06:04:57 UTC  T0 -> done  443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
+- 2026-09-08 06:05:05 UTC  T1 -> doing  swipe-to-change-tabs
 
