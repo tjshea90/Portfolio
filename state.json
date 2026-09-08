@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "round": 61,
-  "request": "Feature 2 of 4: a percent/dollar toggle for profit-and-loss figures across the app. Do NOT ship until it is proven to work, be optimised, and to have broken nothing. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 02:49:04 UTC",
+  "round": 62,
+  "request": "Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.",
+  "updated": "2026-09-08 04:27:34 UTC",
   "version": {
     "code": 59,
     "name": "7.2",
@@ -10,76 +10,67 @@
     "next_name": "7.3"
   },
   "now": {
-    "step": "",
-    "next": "Features 1 and 2 of 4 are shipped (scrubbing v7.1, percent/dollar toggle v7.2). Remaining, one per round: per-range performance chips, then the SPY comparison overlay. Start with ./ck start 62.",
+    "step": "T0: Baseline: v7.2 tree builds and 411 tests green before any edit",
+    "next": "Round 62 open: per-range performance chips. Work the ladder T0->T8.",
     "files": []
   },
   "tasks": [
     {
       "id": "T0",
-      "title": "Baseline: v7.1 tree, 390 tests green before any edit",
-      "status": "done",
-      "note": "390/390 green on the v7.1 tree"
+      "title": "Baseline: v7.2 tree builds and 411 tests green before any edit",
+      "status": "doing",
+      "note": "baseline build + suite"
     },
     {
       "id": "T1",
-      "title": "Map every place a P/L figure is rendered, so the toggle is complete rather than partial",
-      "status": "done",
-      "note": "affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch."
+      "title": "Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T2",
-      "title": "Model + persistence: a PlMode setting that survives a restart, in the backup, no DB migration",
-      "status": "done",
-      "note": "PlMode enum, Keys.PL_MODE, UiState.plMode seeded in init, setPlMode/togglePlMode, plLead/plSub/plInline helpers"
+      "title": "Pure model: a total function for what each chip shows",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T3",
-      "title": "UI: make the figures tappable to switch, and label so it is never ambiguous which is shown",
-      "status": "done",
-      "note": "summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode"
+      "title": "RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T4",
-      "title": "Tests: rendered tests proving BOTH modes on every affected surface",
-      "status": "done",
-      "note": "PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)"
+      "title": "Wire DetailScreen: per-range live edge, loading state, no extra fetches",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T5",
-      "title": "REGRESSION: full suite + prove rows, summary, watchlist and detail are otherwise unchanged",
-      "status": "done",
-      "note": "405/405 green, lint clean, checkinit ok"
+      "title": "Tests: pure + rendered, incl. chip equals readout and no-new-request proof",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T6",
-      "title": "Adversarial review of the feature, then fix what it finds",
-      "status": "done",
-      "note": "2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it"
+      "title": "REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T7",
-      "title": "Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint",
-      "status": "doing",
-      "note": "shipping v7.2"
-    }
-  ],
-  "findings": [
-    {
-      "id": "I01",
-      "text": "BigLine's parameters are still named 'money' and 'pct', but they now receive plLead/plSub - so in percent mode the parameter called 'money' holds a percentage. Stale naming that contradicts the value is exactly how two of this project's bugs shipped.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit"
+      "title": "Adversarial review of the feature, then fix what it finds",
+      "status": "todo",
+      "note": ""
     },
     {
-      "id": "I02",
-      "text": "The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. At a 2.0 font scale that wraps to three lines in the summary card for a sentence that only needs to say two things.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "hint shortened to '$ first - tap a line for %'"
+      "id": "T8",
+      "title": "Only if all clean: ship v7.3 (versionCode 60) + checkpoint",
+      "status": "todo",
+      "note": ""
     }
   ],
+  "findings": [],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -218,6 +209,8 @@
     "2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit",
     "2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'",
     "2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it",
-    "2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2"
+    "2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2",
+    "2026-09-08 04:27:06 UTC  round 62 started",
+    "2026-09-08 04:27:34 UTC  T0 -> doing  baseline build + suite"
   ]
 }

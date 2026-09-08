@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:49:04 UTC)
+# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:27:34 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -23,34 +23,34 @@ at once or kill one mid-flight; always background the build with
 
 ## 2. The request this round is answering
 
-> Feature 2 of 4: a percent/dollar toggle for profit-and-loss figures across the app. Do NOT ship until it is proven to work, be optimised, and to have broken nothing. Checkpoint frequently - usage may run out.
+> Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
-- **Next action:** Features 1 and 2 of 4 are shipped (scrubbing v7.1, percent/dollar toggle v7.2). Remaining, one per round: per-range performance chips, then the SPY comparison overlay. Start with ./ck start 62.
+- **In flight:** T0: Baseline: v7.2 tree builds and 411 tests green before any edit
+- **Next action:** Round 62 open: per-range performance chips. Work the ladder T0->T8.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 7/8 done
+## 4. Task ledger — 0/9 done
 
-- [x] T0  Baseline: v7.1 tree, 390 tests green before any edit  — 390/390 green on the v7.1 tree
-- [x] T1  Map every place a P/L figure is rendered, so the toggle is complete rather than partial  — affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch.
-- [x] T2  Model + persistence: a PlMode setting that survives a restart, in the backup, no DB migration  — PlMode enum, Keys.PL_MODE, UiState.plMode seeded in init, setPlMode/togglePlMode, plLead/plSub/plInline helpers
-- [x] T3  UI: make the figures tappable to switch, and label so it is never ambiguous which is shown  — summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode
-- [x] T4  Tests: rendered tests proving BOTH modes on every affected surface  — PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)
-- [x] T5  REGRESSION: full suite + prove rows, summary, watchlist and detail are otherwise unchanged  — 405/405 green, lint clean, checkinit ok
-- [x] T6  Adversarial review of the feature, then fix what it finds  — 2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it
-- [>] T7  Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint  — shipping v7.2
+- [>] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  — baseline build + suite
+- [ ] T1  Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests
+- [ ] T2  Pure model: a total function for what each chip shows
+- [ ] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription
+- [ ] T4  Wire DetailScreen: per-range live edge, loading state, no extra fetches
+- [ ] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof
+- [ ] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged
+- [ ] T7  Adversarial review of the feature, then fix what it finds
+- [ ] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint
 
-**Resume at T7** (Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint).
+**Resume at T0** (Baseline: v7.2 tree builds and 411 tests green before any edit).
 
-## 5. Open findings — 0 still open, 2 fixed
+## 5. Open findings — 0 still open, 0 fixed
 
-- [x] I01 (med) BigLine's parameters are still named 'money' and 'pct', but they now receive plLead/plSub - so in percent mode the parameter called 'money' holds a percentage. Stale naming that contradicts the value is exactly how two of this project's bugs shipped.  — BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
-- [x] I02 (low) The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. At a 2.0 font scale that wraps to three lines in the summary card for a sentence that only needs to say two things.  — hint shortened to '$ first - tap a line for %'
+(none recorded yet)
 
 ## 6. Version
 
@@ -61,8 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:30:26 UTC  T3 -> done  summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode
-- 2026-09-08 02:30:26 UTC  T4 -> doing  tests
 - 2026-09-08 02:34:52 UTC  T4 -> done  PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)
 - 2026-09-08 02:34:52 UTC  T5 -> doing  full regression
 - 2026-09-08 02:36:50 UTC  T5 -> done  405/405 green, lint clean, checkinit ok
@@ -73,4 +71,6 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'
 - 2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it
 - 2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2
+- 2026-09-08 04:27:06 UTC  round 62 started
+- 2026-09-08 04:27:34 UTC  T0 -> doing  baseline build + suite
 
