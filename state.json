@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 07:23:19 UTC",
+  "updated": "2026-09-08 07:37:51 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -320,6 +320,7 @@
     "2026-09-08 07:15:28 UTC  F03 fixed: the pinch now measures a NAMED pair of pointer ids chosen when the gesture begins; if either finger leaves, the pair is re-chosen and that frame yields no reading, so a third finger costs one frame instead of an arbitrary jump",
     "2026-09-08 07:15:28 UTC  F04 fixed: showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage",
     "2026-09-08 07:18:00 UTC  finding F05: The F01 fix reintroduced a worse bug: keying the build effect on the shared busy",
-    "2026-09-08 07:23:19 UTC  F05 fixed: both auto-builds now sit behind RetryClock (30s/1m/2m/4m/5m per section), so an empty pass backs off instead of re-firing the moment busy clears; force still ignores it. RetryClock promoted to top-level internal and RetryBackoffTest now exercises the real class instead of a copy of its rule."
+    "2026-09-08 07:23:19 UTC  F05 fixed: both auto-builds now sit behind RetryClock (30s/1m/2m/4m/5m per section), so an empty pass backs off instead of re-firing the moment busy clears; force still ignores it. RetryClock promoted to top-level internal and RetryBackoffTest now exercises the real class instead of a copy of its rule.",
+    "2026-09-08 07:37:51 UTC  sweep: dashed zero line + 'pts vs SPY' spread on the legend; EtfFactsGrid + chip auto-scroll now covered by rendered tests"
   ]
 }

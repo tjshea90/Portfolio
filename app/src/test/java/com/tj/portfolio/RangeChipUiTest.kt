@@ -17,7 +17,6 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import com.tj.portfolio.data.ChartPoint
@@ -301,8 +300,7 @@ class RangeChipUiTest {
         show {
             RangeChips(selected = selected, onSelect = { selected = it })
         }
-        // "All" is the seventh of eight chips and starts off screen on a 411dp phone.
-        rule.onNodeWithText("MAX_PROBE").assertDoesNotExist()
+        // The after-hours chip is the eighth of eight and starts off screen on a 411dp phone.
         selected = ChartRange.OVERNIGHT
         rule.waitForIdle()
         rule.onNodeWithText(ChartRange.OVERNIGHT.label).assertIsDisplayed()

@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 07:23:19 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 07:37:51 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -69,7 +69,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 07:06:28 UTC  T7 -> done  522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok
 - 2026-09-08 07:08:12 UTC  T8 -> doing  adversarial sweep
 - 2026-09-08 07:08:13 UTC  finding F01: loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while
 - 2026-09-08 07:08:13 UTC  finding F02: A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared
@@ -81,4 +80,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 07:15:28 UTC  F04 fixed: showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage
 - 2026-09-08 07:18:00 UTC  finding F05: The F01 fix reintroduced a worse bug: keying the build effect on the shared busy
 - 2026-09-08 07:23:19 UTC  F05 fixed: both auto-builds now sit behind RetryClock (30s/1m/2m/4m/5m per section), so an empty pass backs off instead of re-firing the moment busy clears; force still ignores it. RetryClock promoted to top-level internal and RetryBackoffTest now exercises the real class instead of a copy of its rule.
+- 2026-09-08 07:37:51 UTC  sweep: dashed zero line + 'pts vs SPY' spread on the legend; EtfFactsGrid + chip auto-scroll now covered by rendered tests
 
