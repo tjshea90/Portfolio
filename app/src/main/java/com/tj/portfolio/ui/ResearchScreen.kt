@@ -166,7 +166,16 @@ fun ResearchScreen(
     //
     // Both calls are cheap when there is nothing to do: each returns immediately if its own
     // cache is inside its own TTL, so switching between tabs costs nothing at all.
-    LaunchedEffect(section) {
+    // KEYED ON `busy` AS WELL AS ON THE SECTION, and that is not decoration.
+    //
+    // Both passes share one busy flag - they are two builds of the same screen and only one
+    // may run at a time - so a request made while the other is in flight is DROPPED, not
+    // queued. Opening the ETFs tab a second after the stock pass started therefore did
+    // nothing at all, and nothing ever came back to it: the tab sat empty until the user
+    // switched away and returned, or pulled down. Re-evaluating when the flag clears is the
+    // retry. It cannot loop: both calls return immediately when their own cache is inside
+    // its own TTL, and immediately again while anything is building.
+    LaunchedEffect(section, busy) {
         if (section == Section.ETFS) vm.loadEtfs() else vm.loadResearch()
     }
 

@@ -4276,7 +4276,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (cur >= total) return
         _researchShown.value = _researchShown.value +
             (section to (cur + com.tj.portfolio.data.ResearchSet.PAGE).coerceAtMost(total))
-        enrichVisible()
+        // ONLY WHERE THERE IS A PER-ROW LOOKUP TO PAY FOR. `enrichPass` walks Best and Worst
+        // and nothing else - a fund's expense ratio and its returns arrived with the screener
+        // row, so an ETF page has no second stage at all. Calling it anyway flipped the busy
+        // indicator and ran an analyst sweep over two unrelated lists every time ten more
+        // funds were revealed.
+        if (section == com.tj.portfolio.data.ResearchSet.SECTION_BEST ||
+            section == com.tj.portfolio.data.ResearchSet.SECTION_WORST
+        ) {
+            enrichVisible()
+        }
     }
 
     fun resetResearchPaging() {

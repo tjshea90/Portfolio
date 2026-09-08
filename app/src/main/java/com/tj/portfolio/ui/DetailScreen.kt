@@ -536,9 +536,13 @@ fun DetailScreen(
                     chartPerf = chartPerf,
                     chartLoadingRanges = chartLoadingRanges,
                     onChartRange = { r ->
-                        // A TAP IS NOT A ZOOM. It never sets `zoomSettling`, so a chip still
-                        // fetches immediately - the settle window exists only to swallow the
-                        // rungs a pinch passes through.
+                        // A TAP IS NOT A ZOOM, and it CLEARS the settle window rather than
+                        // merely not setting it. A pinch leaves `zoomSettling` true until its
+                        // own deferred fetch runs; a chip tapped inside that window would
+                        // otherwise inherit the 380ms pause and feel unresponsive for no
+                        // reason. Tapping a range is an explicit choice of destination - there
+                        // are no intermediate rungs to swallow.
+                        zoomSettling = false
                         chartRange = r
                         vm.setChartRange(r)
                     },
