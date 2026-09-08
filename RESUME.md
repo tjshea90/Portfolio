@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:36:50 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:36:51 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T10** (SWEEP 3: re-scan until clean - verify no fix introduced a new bug).
 
-## 5. Open findings — 6 still open, 57 fixed
+## 5. Open findings — 5 still open, 58 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -110,7 +110,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] R06 (med) The new 'Loading your holdings...' branch replaces the onboarding copy for a user with zero holdings and a non-empty watchlist - every automatic tick runs a quote pass, so the instructions that matter most flicker away. And it misses its own target: recompute() runs synchronously in init before the first frame, so loading is false on the frames the branch was added for.  — reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user
 - [x] R07 (med) greenText/redText/accentText/scoreColor read isSystemInDarkTheme() rather than the scheme actually in force, while PortfolioTheme takes a dark override. Production is unaffected, but seven UI tests pass dark = true and now render light-theme text colours on dark surfaces - so any dark-mode assertion is measuring the wrong pair.  — PortfolioTheme publishes LocalDarkTheme and every theme-aware colour reads that instead of isSystemInDarkTheme(), so the seven tests that render the dark scheme now get dark-scheme text
 - [x] R08 (med) The chart now paints two different greens eight dp apart: the legend dot takes the LINE colour (#16C784) and the spread text beside it takes the TEXT colour (#0A8055). Same for the benchmark - the vs-SPY toggle is #7E5A22 while the line, its dot and both readouts stay #B4863B.  — one palette per feature: the chart line, its legend dot, the readout and the chips all take signColor, and benchmarkColor covers the line, the dot, the readouts and the toggle. The sparkline moved with them - a hairline at 2.20:1 on white was faint as a line too.
-- [ ] R09 (high) The Feed tab's new refresh-on-open never fires: stampFeedAt runs on EVERY pass including the gated no-op ones, so _feedAt is always younger than one interval. Worse, it also makes the 'Updated Xs ago' header read 'just now' over headlines last actually fetched hours ago.
+- [x] R09 (high) The Feed tab's new refresh-on-open never fires: stampFeedAt runs on EVERY pass including the gated no-op ones, so _feedAt is always younger than one interval. Worse, it also makes the 'Updated Xs ago' header read 'just now' over headlines last actually fetched hours ago.  — stampFeedAtIfFetched - a gated pass that fetched nothing no longer claims to have refreshed, which also stops the header reading 'just now' over hours-old headlines
 - [ ] R10 (high) And even when it does fire, the pass it triggers is gated off: setNewsVisible calls refreshFeed BEFORE assigning newsVisible = visible, and viewModelScope is Main.immediate, so feedDue is computed while the flag is still false. The pass that exists to fill the tab fetches nothing and then stamps _feedAt twice.
 - [ ] R11 (med) insiderAt is stamped on FAILED EDGAR passes. Insider.listFilings returns an empty list on any non-OK response - 403, 429, timeout, offline - which is indistinguishable from 'this company filed nothing', and the stamp is taken before the empty check. A stock opened while SEC is refusing now shows no filings for thirty minutes across every re-open, where before it retried at once.
 - [ ] R12 (med) The sparkline filter can suppress a sparkline that was never adopted. Two paths publish a D1 chart without ever writing Quote.spark - the fetch path when no quote exists yet, and the DISK RESTORE path, which never calls adoptAsSparkline at all - so a cold start into a detail screen leaves that row's sparkline stale for up to five minutes.
@@ -126,7 +126,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:11:02 UTC  finding R11: insiderAt is stamped on FAILED EDGAR passes. Insider.listFilings returns an empt
 - 2026-09-08 16:11:02 UTC  finding R12: The sparkline filter can suppress a sparkline that was never adopted. Two paths 
 - 2026-09-08 16:11:02 UTC  finding R13: The settings cache can be poisoned by a read racing a write: get() queries on a 
 - 2026-09-08 16:11:02 UTC  finding R14: RetryClock failure counts never decay, so one five-minute outage drives every sy
@@ -138,4 +137,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 16:36:48 UTC  R06 fixed: reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user
 - 2026-09-08 16:36:49 UTC  R07 fixed: PortfolioTheme publishes LocalDarkTheme and every theme-aware colour reads that instead of isSystemInDarkTheme(), so the seven tests that render the dark scheme now get dark-scheme text
 - 2026-09-08 16:36:50 UTC  R08 fixed: one palette per feature: the chart line, its legend dot, the readout and the chips all take signColor, and benchmarkColor covers the line, the dot, the readouts and the toggle. The sparkline moved with them - a hairline at 2.20:1 on white was faint as a line too.
+- 2026-09-08 16:36:51 UTC  R09 fixed: stampFeedAtIfFetched - a gated pass that fetched nothing no longer claims to have refreshed, which also stops the header reading 'just now' over hours-old headlines
 
