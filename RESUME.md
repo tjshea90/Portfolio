@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:17:12 UTC)
+# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:17:13 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T6: Verify: full suite, checkinit, lint, second-pass review of every fix
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -42,7 +42,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate  — efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left
 - [x] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory  — bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
 - [x] T5  Fix every finding without introducing new ones  — G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache
-- [ ] T6  Verify: full suite, checkinit, lint, second-pass review of every fix
+- [>] T6  Verify: full suite, checkinit, lint, second-pass review of every fix  — verification
 - [ ] T7  Ship v7.0 (versionCode 57) + checkpoint delivered
 
 **Resume at T6** (Verify: full suite, checkinit, lint, second-pass review of every fix).
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:05:42 UTC  T3 -> doing  code + efficiency
 - 2026-09-08 01:06:15 UTC  T3 -> done  efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left
 - 2026-09-08 01:06:15 UTC  T4 -> done  bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
 - 2026-09-08 01:06:16 UTC  T5 -> doing  fixing G01-G07
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:15:08 UTC  G06 fixed: AdviceScreen action numbers use widthIn(min) instead of a fixed width
 - 2026-09-08 01:15:09 UTC  G07 fixed: FeedScreen trending rank uses widthIn(min) instead of a fixed width
 - 2026-09-08 01:17:12 UTC  T5 -> done  G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache
+- 2026-09-08 01:17:13 UTC  T6 -> doing  verification
 
