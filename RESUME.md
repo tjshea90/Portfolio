@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T2: Model + persistence: a PlMode setting that survives a restart, in the backup, no DB migration
 - **Next action:** T1 map every P/L render site
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -38,7 +38,7 @@ commit, so `git log --oneline` is the history of this round and
 
 - [x] T0  Baseline: v7.1 tree, 390 tests green before any edit  — 390/390 green on the v7.1 tree
 - [x] T1  Map every place a P/L figure is rendered, so the toggle is complete rather than partial  — affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch.
-- [ ] T2  Model + persistence: a PlMode setting that survives a restart, in the backup, no DB migration
+- [>] T2  Model + persistence: a PlMode setting that survives a restart, in the backup, no DB migration  — model + persistence
 - [ ] T3  UI: make the figures tappable to switch, and label so it is never ambiguous which is shown
 - [ ] T4  Tests: rendered tests proving BOTH modes on every affected surface
 - [ ] T5  REGRESSION: full suite + prove rows, summary, watchlist and detail are otherwise unchanged
@@ -60,7 +60,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:01:30 UTC  T5 -> done  389/389 green, lint clean, checkinit ok - no regressions
 - 2026-09-08 02:01:30 UTC  T6 -> doing  adversarial review of the scrub feature
 - 2026-09-08 02:01:30 UTC  finding H01: BOTH the scrub state and the pointer handler are keyed on 'shown', which withLiv
 - 2026-09-08 02:01:30 UTC  finding H02: ChartReadout calls spansMoreThanADay(s) on every frame of a drag, and that forma
@@ -72,4 +71,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:24:35 UTC  round 61 started
 - 2026-09-08 02:25:50 UTC  T0 -> done  390/390 green on the v7.1 tree
 - 2026-09-08 02:25:51 UTC  T1 -> done  affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch.
+- 2026-09-08 02:25:51 UTC  T2 -> doing  model + persistence
 
