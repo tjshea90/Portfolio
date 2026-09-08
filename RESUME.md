@@ -47,10 +47,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Adversarial review of the feature, then fix what it finds).
 
-## 5. Open findings — 1 still open, 1 fixed
+## 5. Open findings — 0 still open, 2 fixed
 
 - [x] H01 (high) BOTH the scrub state and the pointer handler are keyed on 'shown', which withLiveEdge rebuilds on EVERY quote tick while the market is open. So mid-gesture, every 15 seconds: remember(shown) hands back a fresh state (crosshair vanishes) and pointerInput(shown) cancels and restarts the handler (the drag is aborted outright). Scrubbing would break every 15s during exactly the hours TJ uses it.  — scrub state is remember{} with an explicit LaunchedEffect(symbol,range) reset; pointerInput(Unit) with rememberUpdatedState so a quote tick cannot cancel an in-flight drag. Regression test verified by reverting the fix.
-- [ ] H02 (low) ChartReadout calls spansMoreThanADay(s) on every frame of a drag, and that formats two ISO dates through SimpleDateFormat. 120-240 date formats a second on the main thread to answer a question whose answer cannot change during a gesture.
+- [x] H02 (low) ChartReadout calls spansMoreThanADay(s) on every frame of a drag, and that formats two ISO dates through SimpleDateFormat. 120-240 date formats a second on the main thread to answer a question whose answer cannot change during a gesture.  — spansMoreThanADay hoisted into remember(s), off the per-frame path
 
 ## 6. Version
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:49:33 UTC  T0 -> done  baseline green before the feature
 - 2026-09-08 01:49:36 UTC  T1 -> done  detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
 - 2026-09-08 01:49:37 UTC  T2 -> done  crosshair + dot, readout at fixed height, index-based scrub state
 - 2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:01:30 UTC  finding H01: BOTH the scrub state and the pointer handler are keyed on 'shown', which withLiv
 - 2026-09-08 02:01:30 UTC  finding H02: ChartReadout calls spansMoreThanADay(s) on every frame of a drag, and that forma
 - 2026-09-08 02:08:32 UTC  H01 fixed: scrub state is remember{} with an explicit LaunchedEffect(symbol,range) reset; pointerInput(Unit) with rememberUpdatedState so a quote tick cannot cancel an in-flight drag. Regression test verified by reverting the fix.
+- 2026-09-08 02:08:32 UTC  H02 fixed: spansMoreThanADay hoisted into remember(s), off the per-frame path
 
