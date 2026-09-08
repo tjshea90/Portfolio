@@ -69,6 +69,42 @@ enum class ChartRange(
         val DEFAULT = D1
         fun byName(s: String?): ChartRange =
             entries.firstOrNull { it.name.equals(s, true) } ?: DEFAULT
+
+        /**
+         * THE ZOOM LADDER (Round 63) - widest window first, narrowest last.
+         *
+         * TJ's request, verbatim: *"I can pinch gesture out on a stock chart and it will zoom
+         * in gradually all the way down to 5 minute time graph, or I can pinch gesture in to
+         * zoom back out, all the way to the stock's all time chart."* This list IS that
+         * sentence: index 0 is the all-time chart and the last entry is [D1], whose candles
+         * are five minutes - so a spread walks down it and a pinch walks back up.
+         *
+         * [OVERNIGHT] IS DELIBERATELY NOT ON IT. It is not a wider or narrower view of the
+         * same thing; it is the same five days with the regular sessions cut OUT of the
+         * middle. Sliding into it from 5D would silently change what is being drawn rather
+         * than how much of it, and sliding out of it again could not know where to land. It
+         * stays a chip you choose on purpose.
+         */
+        val ZOOM_LADDER: List<ChartRange> = listOf(MAX, Y5, Y1, M6, M1, D5, D1)
+
+        /**
+         * One rung in or out, or null when there is nowhere to go.
+         *
+         * [steps] is positive to zoom IN (a shorter window, finer candles) and negative to
+         * zoom out. A range that is not on the ladder - only [OVERNIGHT] - returns null
+         * rather than guessing, so a pinch there does nothing at all instead of jumping
+         * somewhere unrelated.
+         *
+         * Total: the result is clamped to the ends of the ladder, so holding a spread at the
+         * bottom simply stays on the five-minute chart.
+         */
+        fun zoomed(from: ChartRange, steps: Int): ChartRange? {
+            if (steps == 0) return null
+            val i = ZOOM_LADDER.indexOf(from)
+            if (i < 0) return null
+            val j = (i + steps).coerceIn(0, ZOOM_LADDER.lastIndex)
+            return if (j == i) null else ZOOM_LADDER[j]
+        }
     }
 }
 

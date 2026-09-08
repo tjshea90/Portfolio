@@ -1,7 +1,8 @@
 package com.tj.portfolio.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -23,8 +24,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -34,6 +38,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -85,7 +93,17 @@ fun PriceChart(
      * it has closed. Getting this wrong does not crash anything - it silently paints one
      * session's price onto another's line - which is why it is a decision and not a guess.
      */
-    liveEdge: Boolean = false
+    liveEdge: Boolean = false,
+    /**
+     * PINCH TO ZOOM (Round 63). Called with +1 for each rung the user has spread the chart IN
+     * by, and -1 for each rung pinched OUT - never with 0, and never for a gesture that has
+     * not crossed a full rung. The chart itself does not know what a range IS, so the caller
+     * decides where a rung lands ([ChartRange.zoomed]) and what it costs to get there.
+     *
+     * Null - the default - leaves the pinch handler out of the tree entirely, which is what
+     * the places that draw a chart without a range selector want.
+     */
+    onZoom: ((Int) -> Unit)? = null
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val shown = remember(series, livePrice, liveEdge) {
@@ -147,6 +165,15 @@ fun PriceChart(
         // Read INSIDE the gesture handler so the handler itself never has to restart - see
         // the note on `pointerInput(Unit)` below.
         val liveSeries = rememberUpdatedState(shown)
+        // Same treatment for the zoom callback: it is a fresh lambda on every recomposition
+        // of the screen above, and keying the handler on it would abort a pinch in progress
+        // four times a minute during market hours.
+        val liveZoom = rememberUpdatedState(onZoom)
+
+        // True from the moment a second finger lands until the last one lifts. Drives the
+        // range badge below - the chips are off the top of a scrolling screen while you are
+        // pinching, so without it there is nothing on screen saying where the zoom has got to.
+        var zooming by remember { mutableStateOf(false) }
 
         // ---- the readout: what the line did over this window, or what it did at your finger
         //
@@ -178,24 +205,26 @@ fun PriceChart(
                 // tick - so keying on it aborted an in-progress drag every fifteen seconds
                 // during market hours. The series is read through `rememberUpdatedState`
                 // instead, which keeps the handler alive while still seeing current data.
+                //
+                // ---- AND THE PINCH (Round 63).
+                //
+                // ONE HANDLER FOR BOTH, not two `pointerInput` modifiers. Two independent
+                // detectors on the same node both see every event, so a two-finger pinch
+                // would ALSO be read as a one-finger drag by the scrub detector and the
+                // crosshair would chase a finger that is zooming. Deciding once, from the
+                // pointer count, is the only way the two can agree.
                 .pointerInput(Unit) {
-                    fun at(x: Float) {
-                        val pts = liveSeries.value.points
-                        if (pts.size < 2) return
-                        val w = size.width.toFloat()
-                        if (w <= 0f) return
-                        scrub.intValue = nearestIndex(pts, x / w)
-                    }
-                    detectHorizontalDragGestures(
-                        onDragStart = { at(it.x) },
-                        onDragEnd = { scrub.intValue = NO_SCRUB },
-                        onDragCancel = { scrub.intValue = NO_SCRUB },
-                        onHorizontalDrag = { change, _ ->
-                            // Consumed so the parent cannot also act on a gesture this has
-                            // already claimed.
-                            change.consume()
-                            at(change.position.x)
-                        }
+                    chartGestures(
+                        pointAt = { x ->
+                            val pts = liveSeries.value.points
+                            val w = size.width.toFloat()
+                            if (pts.size >= 2 && w > 0f) {
+                                scrub.intValue = nearestIndex(pts, x / w)
+                            }
+                        },
+                        clearPoint = { scrub.intValue = NO_SCRUB },
+                        onZoomStep = liveZoom.value,
+                        onZoomActive = { active -> zooming = active }
                     )
                 }
         ) {
@@ -217,6 +246,30 @@ fun PriceChart(
                 color = muted,
                 modifier = Modifier.align(Alignment.BottomEnd)
             )
+
+            // ---- WHERE THE ZOOM HAS GOT TO.
+            //
+            // Shown only while two fingers are down. The range chips already say which window
+            // is selected, but they sit above the chart on a screen that scrolls, so during a
+            // pinch they are often not on screen at all - and a zoom that changes the picture
+            // with nothing naming the new window is the exact complaint the range selector was
+            // built to answer in the first place.
+            if (zooming) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 6.dp)
+                        .background(Accent, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        range.label,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            }
         }
 
         Spacer(Modifier.height(3.dp))
@@ -727,3 +780,140 @@ internal fun axisLabel(ms: Long, range: ChartRange, withDate: Boolean): String =
 /** True when the series' two ends fall on different calendar days. */
 internal fun spansMoreThanADay(s: ChartSeries): Boolean =
     s.startMs > 0L && s.endMs > 0L && Fmt.iso(s.startMs) != Fmt.iso(s.endMs)
+
+// ------------------------------------------------------------------ the gestures
+
+/**
+ * How much the fingers have to spread before the chart drops one rung.
+ *
+ * 1.55 is chosen from the geometry rather than by taste: on a phone the comfortable range of
+ * a two-finger spread is roughly 60dp to 280dp apart, a factor of about 4.6, and 1.55^3 is
+ * 3.7 - so one full, unhurried spread crosses three rungs and a deliberate one crosses four.
+ * That is what "zoom in gradually" has to mean on a seven-rung ladder: the whole ladder in
+ * two gestures, not one, and not seven.
+ *
+ * Smaller than this and the chart flickers through three ranges before the fingers have
+ * really moved; larger and the far ends of the ladder cannot be reached with human hands.
+ */
+private const val ZOOM_STEP = 1.55f
+
+/**
+ * ONE POINTER LOOP FOR SCRUBBING AND ZOOMING.
+ *
+ * The two gestures share a surface, so they have to share a decision. The rule is simply the
+ * number of fingers down: one scrubs, two or more zoom, and once a gesture has become a zoom
+ * it stays one until every finger is lifted - a pinch that ends with one finger still on the
+ * glass must not turn into a scrub as the other leaves.
+ *
+ * WHAT IS CONSUMED, AND WHEN. Nothing at all until the gesture has been identified:
+ *
+ *   * a scrub consumes only after the horizontal touch slop is passed, so a vertical swipe
+ *     starting on the chart still scrolls the page it sits in - the chart is 170dp of a
+ *     scrolling screen and making that a dead zone would be worse than the feature is good;
+ *   * a zoom consumes from the second finger down, immediately, because there is no such
+ *     thing as an accidental two-finger drag and the list underneath must not scroll while
+ *     the chart is being pinched.
+ *
+ * TOTAL BY CONSTRUCTION. This runs in a gesture handler, where an exception is a crash on a
+ * screen the user is touching: a degenerate series, a zero width and a non-finite zoom factor
+ * are all handled by doing nothing rather than by throwing.
+ */
+internal suspend fun PointerInputScope.chartGestures(
+    pointAt: (Float) -> Unit,
+    clearPoint: () -> Unit,
+    onZoomStep: ((Int) -> Unit)?,
+    onZoomActive: (Boolean) -> Unit
+) {
+    val slop = viewConfiguration.touchSlop
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
+        var mode = GestureMode.UNDECIDED
+        var dx = 0f
+        var zoomAccum = 1f
+        try {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Main)
+                val pressed = event.changes.count { it.pressed }
+                if (pressed == 0) break
+
+                if (pressed > 1 && onZoomStep != null) {
+                    if (mode != GestureMode.ZOOM) {
+                        mode = GestureMode.ZOOM
+                        // A crosshair left behind by the finger that started as a scrub would
+                        // sit frozen on the line for the whole pinch.
+                        clearPoint()
+                        zoomAccum = 1f
+                        onZoomActive(true)
+                    }
+                    event.changes.forEach { if (it.pressed) it.consume() }
+                    val z = zoomFactor(event)
+                    if (z > 0f && z.isFinite()) zoomAccum *= z
+                    if (!zoomAccum.isFinite() || zoomAccum <= 0f) zoomAccum = 1f
+                    // A LOOP, NOT AN `if`. A fast spread can cross two rungs between two
+                    // frames, and swallowing the second one makes the zoom feel like it is
+                    // lagging the fingers. The accumulator keeps the remainder either way, so
+                    // the ladder is walked at exactly the rate the hands move.
+                    var steps = 0
+                    while (zoomAccum >= ZOOM_STEP) { steps++; zoomAccum /= ZOOM_STEP }
+                    while (zoomAccum <= 1f / ZOOM_STEP) { steps--; zoomAccum *= ZOOM_STEP }
+                    if (steps != 0) onZoomStep(steps)
+                    continue
+                }
+
+                if (mode == GestureMode.ZOOM) {
+                    // Down to one finger, but this is still the tail of a pinch. Keep
+                    // consuming so the list below does not suddenly start scrolling.
+                    event.changes.forEach { if (it.pressed) it.consume() }
+                    continue
+                }
+
+                val change = event.changes.firstOrNull { it.pressed } ?: break
+                if (change.isConsumed && mode == GestureMode.UNDECIDED) {
+                    // Somebody inside claimed it first. Leave it alone.
+                    break
+                }
+                dx += change.positionChange().x
+                if (mode == GestureMode.UNDECIDED && kotlin.math.abs(dx) > slop) {
+                    mode = GestureMode.SCRUB
+                }
+                if (mode == GestureMode.SCRUB) {
+                    change.consume()
+                    pointAt(change.position.x)
+                }
+            }
+        } finally {
+            // In a `finally` because this loop can be cancelled - the composable leaving the
+            // screen mid-drag - and a crosshair or a zoom badge stranded on by a cancellation
+            // never comes off.
+            clearPoint()
+            if (mode == GestureMode.ZOOM) onZoomActive(false)
+        }
+    }
+}
+
+private enum class GestureMode { UNDECIDED, SCRUB, ZOOM }
+
+/**
+ * How much wider the fingers got between the previous frame and this one.
+ *
+ * Compose ships `PointerEvent.calculateZoom()`, which averages the distance of every pointer
+ * from the centroid. That is the right thing for a canvas being scaled by three fingers and
+ * the wrong thing here: this chart only ever needs the answer for a two-finger pinch, and the
+ * centroid form returns 1.0 - "no zoom" - for the very common case where one thumb stays put
+ * and only the index finger moves, because the centroid moves with it.
+ *
+ * Measuring the two pointers against EACH OTHER has no such blind spot. Returns 1f whenever
+ * the answer would not be meaningful: fewer than two pointers, a previous separation too
+ * small to divide by, or a non-finite result.
+ */
+internal fun zoomFactor(event: androidx.compose.ui.input.pointer.PointerEvent): Float {
+    val ps = event.changes.filter { it.pressed }
+    if (ps.size < 2) return 1f
+    val a = ps[0]
+    val b = ps[1]
+    val now = (a.position - b.position).getDistance()
+    val was = (a.previousPosition - b.previousPosition).getDistance()
+    if (was < 1f || now < 1f) return 1f
+    val f = now / was
+    return if (f.isFinite() && f > 0f) f else 1f
+}
