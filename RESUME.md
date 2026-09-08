@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:21 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:22 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,12 +48,12 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (SWEEP 1: adversarial bug hunt over the new code and the app).
 
-## 5. Open findings — 6 still open, 3 fixed
+## 5. Open findings — 5 still open, 4 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
 - [x] F03 (high) Window is never re-anchored when a new range's series arrives; lookback is measured from a stale coarse-candle timestamp, so a spread near the right edge of a 5Y chart can land on a blank chart
-- [ ] F04 (high) Readout, percent change and y-axis labels are computed from the two carried points OUTSIDE the window - a 7-day picture reports a 9-day change
+- [x] F04 (high) Readout, percent change and y-axis labels are computed from the two carried points OUTSIDE the window - a 7-day picture reports a 9-day change
 - [ ] F05 (high) Comparison overlay pastes SPY's live price onto a mid-window point once zoomed: tip-pairing tests drawn.lastIndex, not the series' true tip
 - [ ] F06 (med) Chip figure, caption and point count still describe the unzoomed range while the readout describes the window - two figures on one screen that disagree
 - [ ] F07 (med) Reset zoom chip appears on its own every ~5 min as windowBounds advances with the periodic refresh
@@ -69,7 +69,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 21:56:12 UTC  finding F01: Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED s
 - 2026-09-08 21:56:12 UTC  finding F02: Pinching the After-hours chart blanks it permanently: windowBounds excludes OVER
 - 2026-09-08 21:56:12 UTC  finding F03: Window is never re-anchored when a new range's series arrives; lookback is measu
 - 2026-09-08 21:56:12 UTC  finding F04: Readout, percent change and y-axis labels are computed from the two carried poin
@@ -81,4 +80,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 22:15:19 UTC  F01 fixed
 - 2026-09-08 22:15:20 UTC  F02 fixed
 - 2026-09-08 22:15:21 UTC  F03 fixed
+- 2026-09-08 22:15:22 UTC  F04 fixed
 

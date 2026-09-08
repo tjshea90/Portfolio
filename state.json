@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 22:15:21 UTC",
+  "updated": "2026-09-08 22:15:22 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -95,7 +95,7 @@
       "id": "F04",
       "text": "Readout, percent change and y-axis labels are computed from the two carried points OUTSIDE the window - a 7-day picture reports a 9-day change",
       "sev": "high",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     },
     {
@@ -490,6 +490,7 @@
     "2026-09-08 21:56:12 UTC  finding F09: Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gut",
     "2026-09-08 22:15:19 UTC  F01 fixed",
     "2026-09-08 22:15:20 UTC  F02 fixed",
-    "2026-09-08 22:15:21 UTC  F03 fixed"
+    "2026-09-08 22:15:21 UTC  F03 fixed",
+    "2026-09-08 22:15:22 UTC  F04 fixed"
   ]
 }
