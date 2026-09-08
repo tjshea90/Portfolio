@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:51:25 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 05:57:24 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -23,35 +23,37 @@ at once or kill one mid-flight; always background the build with
 
 ## 2. The request this round is answering
 
-> Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.
+> Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
-- **Next action:** Feature 3 of 4 shipped (per-range performance chips, v7.3). One approved feature left: the SPY comparison overlay - a second series fetched, aligned to the first's timestamps and drawn against it. Start with ./ck start 63.
+- **In flight:** T0: Baseline: v7.3 tree builds and 443 tests green before any edit
+- **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 9/9 done
+## 4. Task ledger — 0/12 done
 
-- [x] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  — 416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
-- [x] T1  Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests  — chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
-- [x] T2  Pure model: a total function for what each chip shows  — rangePct + rangeFigure: total, no allocation, negative zero normalised
-- [x] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription  — two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
-- [x] T4  Wire DetailScreen: per-range live edge, loading state, no extra fetches  — DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
-- [x] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof  — RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
-- [x] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged  — 440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
-- [x] T7  Adversarial review of the feature, then fix what it finds  — 2 findings (age, truncation), both fixed and both covered by tests
-- [x] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint  — v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean
+- [>] T0  Baseline: v7.3 tree builds and 443 tests green before any edit  — baseline build+test
+- [ ] T1  Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs
+- [ ] T2  Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m
+- [ ] T3  Best ETFs data: ETF screener feed + scorer + cached section + periodic refresh
+- [ ] T4  Best ETFs UI: fourth research tab + Claude-app bridge export/import
+- [ ] T5  SPY comparison overlay: second series aligned to the first and drawn against it
+- [ ] T6  Tests for T1-T5: pure + rendered
+- [ ] T7  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke
+- [ ] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found
+- [ ] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found
+- [ ] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug
+- [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 
-**All tasks are done.** Verify, ship the APK, and checkpoint.
+**Resume at T0** (Baseline: v7.3 tree builds and 443 tests green before any edit).
 
-## 5. Open findings — 0 still open, 2 fixed
+## 5. Open findings — 0 still open, 0 fixed
 
-- [x] J01 (med) A chip figure comes from whatever series is cached for that range, and a cached row can be days old - so a chip could label a month-old figure '1M' with nothing saying when it was measured. The chart has dates and a caption; a chip has neither.  — a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh
-- [x] J02 (med) A truncated series - a stock that listed 18 months ago has no 5Y line - would put a figure under a '5Y' label that is really 18 months. The chart says so in words; the chip cannot, so it must not make the claim.  — a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
+(none recorded yet)
 
 ## 6. Version
 
@@ -62,9 +64,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 04:34:27 UTC  T5 -> doing  tests
-- 2026-09-08 04:43:56 UTC  T5 -> done  RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
-- 2026-09-08 04:43:56 UTC  T6 -> done  440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
 - 2026-09-08 04:43:57 UTC  T7 -> doing  adversarial review
 - 2026-09-08 04:45:19 UTC  finding J01: A chip figure comes from whatever series is cached for that range, and a cached 
 - 2026-09-08 04:45:19 UTC  finding J02: A truncated series - a stock that listed 18 months ago has no 5Y line - would pu
@@ -74,4 +73,7 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:48:06 UTC  T8 -> doing  shipping v7.3
 - 2026-09-08 04:51:10 UTC  T8 -> done  v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean
 - 2026-09-08 04:51:25 UTC  T5 -> done  RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
+- 2026-09-08 05:56:26 UTC  round 63 started
+- 2026-09-08 05:57:17 UTC  round 63 started
+- 2026-09-08 05:57:24 UTC  T0 -> doing  baseline build+test
 

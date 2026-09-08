@@ -241,3 +241,24 @@ app/src/test/java/com/tj/portfolio/BackgroundTest.kt
 2026-09-08 04:51:11 UTC  checkpoint 62  commit 4a784cd  T8 done
 2026-09-08 04:51:11 UTC  checkpoint 62  no-change  round 62 complete: per-range performance chips shipped as v7.3
 2026-09-08 04:51:25 UTC  checkpoint 62  commit 90cd23b  T5 done
+
+## Round 62 ledger (closed 2026-09-08 05:57:17 UTC)
+
+Request: Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute, (3) Best ETFs research tab with periodic online research + cache + Claude-bridge export, (4) the last approved feature: SPY comparison overlay. Then a thorough optimization + bug sweep until confident the app is clean.
+
+Tasks 9/12 done, findings 2/2 fixed
+
+- [x] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  - 416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
+- [x] T1  Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests  - chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
+- [x] T2  Pure model: a total function for what each chip shows  - rangePct + rangeFigure: total, no allocation, negative zero normalised
+- [x] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription  - two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
+- [x] T4  Wire DetailScreen: per-range live edge, loading state, no extra fetches  - DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
+- [x] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof  - RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
+- [x] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged  - 440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
+- [x] T7  Adversarial review of the feature, then fix what it finds  - 2 findings (age, truncation), both fixed and both covered by tests
+- [x] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint  - v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean
+- [ ] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found
+- [ ] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug
+- [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
+- [x] J01 (med) A chip figure comes from whatever series is cached for that range, and a cached row can be days old - so a chip could label a month-old figure '1M' with nothing saying when it was measured. The chart has dates and a caption; a chip has neither.  - a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh
+- [x] J02 (med) A truncated series - a stock that listed 18 months ago has no 5Y line - would put a figure under a '5Y' label that is really 18 months. The chart says so in words; the chip cannot, so it must not make the claim.  - a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot

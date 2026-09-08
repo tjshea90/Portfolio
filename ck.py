@@ -235,12 +235,48 @@ def archive(s, note):
 # ---------------------------------------------------------------- commands
 
 def cmd_start(a):
+    """Begin a round.
+
+    A round's ledger describes THAT round. Carrying the previous round's finished
+    tasks into the next one was a real trap: `./ck status` on a fresh container
+    showed twelve ticked boxes from work that had already shipped, and the honest
+    answer to "where did this stop" was buried under them. So starting a round
+    files the old ledger into PROGRESS.md (nothing is lost - it is also in git and
+    in every tarball) and resets `tasks`, `findings` and `now` to empty.
+
+    Re-running `start` with the round number already in state.json is a no-op on
+    the ledger, so a resumed session cannot wipe its own work by repeating the
+    command it read in RESUME.md.
+    """
     s = load()
-    s["round"] = int(a[0])
-    s["request"] = a[1] if len(a) > 1 else s.get("request", "")
-    s["log"].append(f"{now_utc()}  round {s['round']} started")
+    n = int(a[0])
+    same_round = (s.get("round") == n and (s.get("tasks") or s.get("findings")))
+    if s.get("round") and s["round"] != n and (s.get("tasks") or s.get("findings")):
+        done = sum(1 for t in s["tasks"] if t["status"] == "done")
+        fixed = sum(1 for f in s["findings"] if f["status"] == "fixed")
+        with PROGRESS.open("a") as fh:
+            fh.write(f"\n## Round {s['round']} ledger (closed {now_utc()})\n\n")
+            fh.write(f"Request: {s.get('request','')}\n\n")
+            fh.write(f"Tasks {done}/{len(s['tasks'])} done, "
+                     f"findings {fixed}/{len(s['findings'])} fixed\n\n")
+            for t in s["tasks"]:
+                fh.write(f"- [{STATUS_MARK[t['status']]}] {t['id']}  {t['title']}"
+                         + (f"  - {t['note']}" if t.get("note") else "") + "\n")
+            for f in s["findings"]:
+                mark = "x" if f["status"] == "fixed" else " "
+                fh.write(f"- [{mark}] {f['id']} ({f.get('sev','med')}) {f['text']}"
+                         + (f"  - {f['note']}" if f.get("note") else "") + "\n")
+        s["tasks"] = []
+        s["findings"] = []
+        s["now"] = {"step": "", "next": ""}
+    s["round"] = n
+    if len(a) > 1:
+        s["request"] = a[1]
+    s["log"].append(f"{now_utc()}  round {s['round']} started"
+                    + ("  (ledger kept - same round)" if same_round else ""))
     save_state(s); write_resume(s)
-    print(f"round {s['round']} started")
+    print(f"round {s['round']} started"
+          + (" (ledger reset)" if not same_round else " (ledger kept)"))
 
 
 def cmd_add(a):

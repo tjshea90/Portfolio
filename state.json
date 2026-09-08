@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "round": 62,
-  "request": "Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 04:51:25 UTC",
+  "round": 63,
+  "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
+  "updated": "2026-09-08 05:57:24 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -10,82 +10,84 @@
     "next_name": "7.4"
   },
   "now": {
-    "step": "",
-    "next": "Feature 3 of 4 shipped (per-range performance chips, v7.3). One approved feature left: the SPY comparison overlay - a second series fetched, aligned to the first's timestamps and drawn against it. Start with ./ck start 63.",
-    "files": []
+    "step": "T0: Baseline: v7.3 tree builds and 443 tests green before any edit",
+    "next": ""
   },
   "tasks": [
     {
       "id": "T0",
-      "title": "Baseline: v7.2 tree builds and 411 tests green before any edit",
-      "status": "done",
-      "note": "416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)"
+      "title": "Baseline: v7.3 tree builds and 443 tests green before any edit",
+      "status": "doing",
+      "note": "baseline build+test"
     },
     {
       "id": "T1",
-      "title": "Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests",
-      "status": "done",
-      "note": "chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free"
+      "title": "Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T2",
-      "title": "Pure model: a total function for what each chip shows",
-      "status": "done",
-      "note": "rangePct + rangeFigure: total, no allocation, negative zero normalised"
+      "title": "Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T3",
-      "title": "RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription",
-      "status": "done",
-      "note": "two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height"
+      "title": "Best ETFs data: ETF screener feed + scorer + cached section + periodic refresh",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T4",
-      "title": "Wire DetailScreen: per-range live edge, loading state, no extra fetches",
-      "status": "done",
-      "note": "DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean"
+      "title": "Best ETFs UI: fourth research tab + Claude-app bridge export/import",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T5",
-      "title": "Tests: pure + rendered, incl. chip equals readout and no-new-request proof",
-      "status": "done",
-      "note": "RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)"
+      "title": "SPY comparison overlay: second series aligned to the first and drawn against it",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T6",
-      "title": "REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged",
-      "status": "done",
-      "note": "440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would"
+      "title": "Tests for T1-T5: pure + rendered",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T7",
-      "title": "Adversarial review of the feature, then fix what it finds",
-      "status": "done",
-      "note": "2 findings (age, truncation), both fixed and both covered by tests"
+      "title": "REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T8",
-      "title": "Only if all clean: ship v7.3 (versionCode 60) + checkpoint",
-      "status": "done",
-      "note": "v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean"
-    }
-  ],
-  "findings": [
-    {
-      "id": "J01",
-      "text": "A chip figure comes from whatever series is cached for that range, and a cached row can be days old - so a chip could label a month-old figure '1M' with nothing saying when it was measured. The chart has dates and a caption; a chip has neither.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh"
+      "title": "SWEEP 1: adversarial bug hunt across the whole app; fix everything found",
+      "status": "todo",
+      "note": ""
     },
     {
-      "id": "J02",
-      "text": "A truncated series - a stock that listed 18 months ago has no 5Y line - would put a figure under a '5Y' label that is really 18 months. The chart says so in words; the chip cannot, so it must not make the claim.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot"
+      "id": "T9",
+      "title": "SWEEP 2: UI, code and network-efficiency pass; fix everything found",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T10",
+      "title": "SWEEP 3: re-scan until clean - verify no fix introduced a new bug",
+      "status": "todo",
+      "note": ""
+    },
+    {
+      "id": "T11",
+      "title": "Ship v7.4 (versionCode 61) + final checkpoint",
+      "status": "todo",
+      "note": ""
     }
   ],
+  "findings": [],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -244,6 +246,9 @@
     "2026-09-08 04:48:05 UTC  T7 -> done  2 findings (age, truncation), both fixed and both covered by tests",
     "2026-09-08 04:48:06 UTC  T8 -> doing  shipping v7.3",
     "2026-09-08 04:51:10 UTC  T8 -> done  v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean",
-    "2026-09-08 04:51:25 UTC  T5 -> done  RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)"
+    "2026-09-08 04:51:25 UTC  T5 -> done  RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)",
+    "2026-09-08 05:56:26 UTC  round 63 started",
+    "2026-09-08 05:57:17 UTC  round 63 started",
+    "2026-09-08 05:57:24 UTC  T0 -> doing  baseline build+test"
   ]
 }
