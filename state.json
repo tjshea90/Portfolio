@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-08 00:49:43 UTC",
+  "updated": "2026-09-08 00:49:54 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -10,7 +10,7 @@
     "next_name": "6.9"
   },
   "now": {
-    "step": "T13: Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ",
+    "step": "",
     "next": "1) ./gradlew :app:testDebugUnitTest - expect ~351 tests. Untested edits since the last green run: ChartSeries.regularOnly (ChartModels + ChartFeed.parse + ChartJson + adoptAsSparkline guard) and its 5 new ChartTest cases; RowLayoutUiTest rewritten to useUnmergedTree (5 tests, previously failing for that reason); HoldingsTab itemsIndexed with an explicit key + hoisted topWeight; dp-based stroke widths in PriceChart and Widgets.Sparkline. 2) python3 checkinit.py. 3) ./gradlew :app:assembleRelease. 4) ./ck task T10 done; T11 done; T12 done; T13 doing; ./ck save; deliver the APK and the tarball with SendUserFile. versionCode 56 / 6.9 is already set and CHECKPOINT.md's Round 58 section is already written.",
     "files": [
       "app/src/main/java/com/tj/portfolio/data/ChartModels.kt",
@@ -105,8 +105,8 @@
     {
       "id": "T13",
       "title": "Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ",
-      "status": "doing",
-      "note": "shipping v6.9"
+      "status": "done",
+      "note": "v6.9 APK + checkpoint 58 delivered"
     }
   ],
   "findings": [
@@ -336,6 +336,7 @@
     "2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean",
     "2026-09-08 00:47:25 UTC  T11 -> done  every finding closed and re-verified by the suite",
     "2026-09-08 00:49:43 UTC  T12 -> done  358/358 tests, checkinit ok, lintVital 'No issues found', APK signed with the archived keystore (cert SHA-256 matches), versionCode 56 / 6.9 confirmed in the built APK",
-    "2026-09-08 00:49:43 UTC  T13 -> doing  shipping v6.9"
+    "2026-09-08 00:49:43 UTC  T13 -> doing  shipping v6.9",
+    "2026-09-08 00:49:54 UTC  T13 -> done  v6.9 APK + checkpoint 58 delivered"
   ]
 }
