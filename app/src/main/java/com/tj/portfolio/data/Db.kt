@@ -684,19 +684,51 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
 
     // ---------- settings ----------
 
+    /**
+     * A WRITE-THROUGH CACHE IN FRONT OF THE SETTINGS TABLE (Round 63 sweep).
+     *
+     * Settings are read from the UI thread constantly and written almost never - the table is
+     * a few dozen short rows, and this app asks it questions on a fifteen-second clock. Every
+     * `publish()` read the cash-override flag and its value; every tick read the refresh
+     * interval; every refresh read the Finnhub key. That is upwards of five hundred
+     * synchronous `rawQuery` calls an hour on the main thread to re-learn values that had not
+     * changed.
+     *
+     * WRITE-THROUGH, not write-behind: [set] updates the map and the table in the same call,
+     * so a reader immediately after a write sees the new value and a process death loses
+     * nothing. `null` in the map means "not present in the table", which is distinct from a
+     * stored empty string - [hasSetting] depends on telling those apart.
+     *
+     * The whole map is dropped by [invalidateSettings], which `restoreJson` calls: a restore
+     * rewrites rows in bulk and through paths that do not funnel through [set].
+     */
+    private val settingsCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Sentinel for "this key is genuinely absent", so absence is cached as well as presence. */
+    private val NO_SETTING = "\u0000<absent>"
+
+    fun invalidateSettings() = settingsCache.clear()
+
     fun get(key: String, def: String = ""): String {
+        settingsCache[key]?.let { return if (it === NO_SETTING || it == NO_SETTING) def else it }
         readableDatabase.rawQuery("SELECT v FROM settings WHERE k=?", arrayOf(key)).use { c ->
-            return if (c.moveToFirst()) c.getString(0) ?: def else def
+            val v = if (c.moveToFirst()) c.getString(0) else null
+            settingsCache[key] = v ?: NO_SETTING
+            return v ?: def
         }
     }
 
     fun set(key: String, value: String) {
         val cv = ContentValues().apply { put("k", key); put("v", value) }
         writableDatabase.insertWithOnConflict("settings", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+        settingsCache[key] = value
     }
 
     /** Is this key stored at all? Distinct from [get] returning "", which a stored blank does too. */
     fun hasSetting(key: String): Boolean {
+        // Answered from the cache when it knows, INCLUDING when what it knows is "absent" -
+        // that is the case this function exists to distinguish from a stored empty string.
+        settingsCache[key]?.let { return it != NO_SETTING }
         readableDatabase.rawQuery("SELECT 1 FROM settings WHERE k=? LIMIT 1", arrayOf(key)).use { c ->
             return c.moveToFirst()
         }
@@ -1191,6 +1223,11 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      * you want when moving to a new device. Merge keeps what is here and skips duplicates.
      */
     fun restoreJson(json: String, replace: Boolean): RestoreResult {
+        // A restore rewrites rows in bulk and inside a transaction that can roll back, so
+        // whatever the settings cache thinks it knows afterwards is not to be trusted.
+        // Dropped on the way IN as well as out, because a partial restore that throws still
+        // leaves the table changed.
+        invalidateSettings()
         val root = try {
             JSONObject(json)
         } catch (e: Exception) {
@@ -1307,8 +1344,10 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 "Warning: the file lists $expected transactions but ${n + skipped} were readable."
             else null
 
+            invalidateSettings()
             return RestoreResult(n, skipped, ovN, wN, sN, iN, replace, null, warning)
         } catch (e: Exception) {
+            invalidateSettings()
             return RestoreResult(error = "Restore failed: ${e.message}")
         } finally {
             db.endTransaction()

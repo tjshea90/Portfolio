@@ -128,12 +128,34 @@ object MarketData {
         // `loading = true` and makes every pull-to-refresh in that window a no-op. That is
         // strictly worse than the behaviour this round replaced, under precisely the
         // conditions that trigger it.
-        val missing = wanted.filter { it !in got }
+        // ---- THE FALLBACK'S OWN FAILURE MEMORY (Round 63 sweep).
+        //
+        // A symbol the batch endpoint never returns is permanently "missing" - a delisted
+        // ticker, a typo'd watchlist add, a foreign listing, anything Yahoo normalises past
+        // `normaliseTicker`. Without a memory the four-provider chain below therefore ran for
+        // it on EVERY tick, forever: two Yahoo requests, one Finnhub and one Stooq, 240 times
+        // an hour while the app is open. Roughly 900 requests an hour to three providers, for
+        // one ticker that cannot be answered.
+        //
+        // `batchFailures` did not catch it because it counts only a TOTAL batch failure - a
+        // batch that returns nineteen of twenty symbols is a success by that measure, and it
+        // is exactly the shape this produces. Every other repeated fetch in the app already
+        // sits behind a `RetryClock`; the quote fallback was the one that did not.
+        val missing = wanted.filter { it !in got && !fallbackRetry.blocked(it) }
         if (missing.isNotEmpty()) {
             val gate = kotlinx.coroutines.sync.Semaphore(FALLBACK_PARALLELISM)
             missing.map { sym ->
                 async {
-                    gate.withPermit { runCatching { quote(sym, finnhubKey) }.getOrNull() }
+                    gate.withPermit {
+                        val q = runCatching { quote(sym, finnhubKey) }.getOrNull()
+                        // Recorded either way. A symbol that answers clears its count, so a
+                        // passing outage costs one backed-off tick and no more; one that
+                        // keeps failing is asked at 30s, then a minute, two, four and finally
+                        // once every five minutes - still recovering on its own, at a
+                        // hundredth of the traffic.
+                        if (q != null) fallbackRetry.success(sym) else fallbackRetry.failure(sym)
+                        q
+                    }
                 }
             }.awaitAll().filterNotNull().forEach { got[it.symbol] = it }
         }
@@ -144,6 +166,18 @@ object MarketData {
     private enum class Batch { OK, INCONCLUSIVE, FAILED }
 
     private const val FALLBACK_PARALLELISM = 5
+
+    /**
+     * Failure backoff for the per-symbol fallback, keyed by symbol.
+     *
+     * Lives here rather than in the ViewModel because this is where the decision is made -
+     * `quotes()` is called from the poll, from the research price fill and from the search
+     * sheet, and a guard at one of those call sites would leave the others uncovered.
+     */
+    private val fallbackRetry = com.tj.portfolio.ui.RetryClock()
+
+    /** A pull-to-refresh means "try everything now", including symbols we had given up on. */
+    fun resetFallbackState() = fallbackRetry.clear()
 
     /** `BRK.B`, `BRK-B` and `brk b` are one ticker as far as matching a response goes. */
     private fun normaliseTicker(s: String): String =

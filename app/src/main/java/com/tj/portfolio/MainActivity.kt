@@ -330,8 +330,13 @@ fun App() {
     // the app's second-largest source of traffic, and it was running whether or not anyone
     // had ever opened the tab. This is the signal that lets it stop. See
     // PortfolioViewModel.refreshFeed.
+    // TWO SIGNALS, NOT ONE (Round 63 sweep). The Feed tab wants every followed symbol's
+    // headlines because that is the list it draws; a stock's detail screen wants exactly its
+    // own, and passing "a stock is open" as "a headline screen is visible" made opening one
+    // stock sweep the whole portfolio every three minutes for nothing. See
+    // `PortfolioViewModel.newsSymbol`.
     LaunchedEffect(tab, detailNow) {
-        vm.setNewsVisible(tab == TAB_FEED || detailNow != null)
+        vm.setNewsVisible(visible = tab == TAB_FEED, detailSymbol = detailNow)
     }
 
     Scaffold(

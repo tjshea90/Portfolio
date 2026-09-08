@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:10:41 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:01 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
-## 5. Open findings — 0 still open, 21 fixed
+## 5. Open findings — 27 still open, 22 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -74,6 +74,34 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F18 (low) RESEARCH: the FOLLOWING chip's watched/held set is remembered on set.generated and set.explained, neither of which changes when the ETF list rebuilds - so on the ETFs tab the chip can lag until the stock pass runs.  — the watched/held set is keyed on etfGenerated as well
 - [x] F19 (low) RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as a failure and retries the identical request against the other Yahoo host, so each list's terminal page costs two requests instead of one.  — a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host
 - [x] F20 (low) RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as a fraction, copying the stock screener's rule for a DIFFERENT field name. Measured live: on ETF rows yieldTTM and dividendYield are both percentages (SPY 0.98). The code is right and its comment is wrong, which is how a later 'fix' introduces a 100x error.  — comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other
+- [x] N01 (high) The per-symbol quote fallback has no failure memory - RetryClock guards charts, sparklines, holdings and research, but not quotes. A symbol the batch endpoint never returns (a delisted ticker, a typo'd watchlist add, a foreign listing) is permanently 'missing', so the four-provider chain runs every tick forever: ~720-960 requests an hour, for one bad symbol, split across Yahoo, Finnhub and Stooq.  — MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds.
+- [ ] N02 (high) News.market() - seven RSS feeds - is pulled unconditionally inside refreshFeed, which runs on a three-minute timer whether or not a headline screen is visible. ~140 requests an hour spent while sitting on Portfolio, Activity, Advice, Settings or a stock. The newsDue flag that would gate it already exists and is computed 55 lines below, guarding only the per-symbol loop.
+- [ ] N03 (high) Opening ONE stock sets newsVisible, which makes the three-minute feed pass sweep headlines for every held AND watched symbol - ~480 requests an hour, 23 of every 24 for a symbol not on screen. The open stock's own headlines do not even come from there; DetailScreen reads what loadNews(symbol) fetched.
+- [ ] N04 (med) The 1D chart and the row sparkline are the same Yahoo URL on the same five-minute TTL. Round 58 closed one direction (adoptAsSparkline) but refreshSparklines' due filter never consults _charts, so on the tick where both lapse together the same ~30KB body is fetched twice - about 12 duplicated requests an hour per open detail screen.
+- [ ] N05 (med) loadInsider's guard is 'we already hold filings for this symbol', which never becomes true for a symbol with no Form 4 in the 31-day window - the ordinary case. So every detail-screen open and every resume sends a fresh EDGAR listing request, and the daily-rolling datea parameter means the conditional-GET cache cannot answer it either.
+- [ ] N06 (med) The feed's per-headline loop rebuilds holdingNames() once PER HEADLINE and calls Relevance.matchHolding without a hoisted Subject or a pre-squashed haystack - roughly 4,000 Subject constructions and 4,000 squash calls per feed pass, every three minutes, ON THE MAIN THREAD. Relevance.Subject exists precisely to hoist this; the Feed path never adopted it.
+- [ ] N07 (med) Ledger.totals re-scans the whole transaction list six times on every quote tick - cash, netDeposits, dividends, fees, realized - all pure functions of cachedTxns, which only changes in recompute(). 240 ticks an hour x six full passes, on the main thread, always producing the same five numbers.
+- [ ] N08 (med) publish() runs two synchronous SQLite queries per quote tick (useCashOverride + cashOverrideValue), plus refreshSecs() once per tick and finnhubKey() once per refresh - ~480+ main-thread rawQuery calls an hour against the settings table.
+- [ ] N09 (low) chartFetchedAt and holdingsFetchedAt are written and never read anywhere - chartFetchedAt is documented as the bug RetryClock replaced, and the field survived the fix. Dead state that grows unbounded and misleads the next reader.
+- [ ] N10 (low) loadFundamentals and loadRatings stamp their TTL only on success, so a symbol whose quoteSummary is refused is re-requested on every detail open and every resume - and the analyst payload is the heaviest thing the app fetches.
+- [ ] N11 (low) fillResearchPrices fetches up to 20 quotes one symbol at a time through MarketData.quote, bypassing the batched endpoint that would do it in one request - and calls finnhubKey(), a SQLite read, inside each async.
+- [ ] U01 (high) StockRow's money cells are three weight(1f) columns, ~118dp each on a 411dp phone. A six-figure holding at font scale 1.5, or a five-figure one at 2.0, ellipsizes to '$123,45...' - which is still a well-formed dollar amount and reads at a glance as either $123 thousand or $123 hundred. Nothing else on the row carries the magnitude.
+- [ ] U02 (high) The sub-figure under each money cell has maxLines = 1 and NO overflow parameter, so it defaults to Clip. In percent-first P/L mode that is the dollar figure: '+$12,345.67' becomes '+$12,345.' with no ellipsis and nothing saying anything was removed. The two Texts directly above it both pass Ellipsis; this one was missed.
+- [ ] U03 (high) KeyValue lays out label then value as two UNWEIGHTED children of a Row. Compose measures them in order, so a label long enough to wrap takes the full width and the value is measured at maxWidth = 0 and disappears entirely. Neither Text sets maxLines. Worst case is the portfolio summary card - 'Gain on stocks you still own' plus its figure has 13dp of headroom at scale 1.0, so it breaks at 1.15x, the first slider step above default.
+- [ ] U04 (med) The bottom tab bar has a hard-coded 74dp height and its labels are unbounded sp. At font scale ~1.45 'Portfolio', 'Activity' and 'Settings' wrap to two lines against a 23dp label budget and paint outside the bar, pushing the icons. It is the one chrome element visible on every screen.
+- [ ] U05 (med) Green #16C784 on the light theme's white background is 2.20:1 - WCAG AA for 15sp bold needs 4.5:1. Red is 3.69:1. In dark they are 8.6:1 and 5.1:1, so the palette was tuned there and never re-checked against light. Worst instance: 'you own this' in green at 10sp on white. This is a contrast problem, not a colour-only-meaning one - the app is disciplined about always printing a sign.
+- [ ] U06 (med) The Research header Row measures four unweighted children in sequence, so at large font scales the Rebuild button - measured last - is squeezed under 48dp from ~1.75x and to zero width at 2.0x. It is the only non-gesture way to rebuild the list being viewed.
+- [ ] U07 (med) The portfolio summary's BigLine and PlainLine starve the same way: the weighted Spacer sits BETWEEN the label and the numbers, so it protects neither. BigLine breaks at ~1.3x and what vanishes is the sub-figure; PlainLine breaks at ~1.6x and what vanishes is the value.
+- [ ] U08 (med) The Research card's score is a bare integer in a coloured circle. Nothing on the card, and nothing in any section blurb, says it is a score or what the scale is - the blurbs describe the inputs but never the output. The only mention is 300dp below, past ten cards.
+- [ ] U09 (med) The Research tab row is a fixed SecondaryTabRow: four tabs across 411dp is 102dp each, and 'Trending (20)' at 14sp needs ~104dp at scale 1.3, so it wraps into a fixed 48dp tab height and clips. DetailScreen's equivalent is scrollable and does not have this.
+- [ ] U10 (med) Three counts on the Research screen can disagree: the tab label prints rows.size, the list renders rows.take(n).distinctBy { symbol } - which can remove rows - and the footer says 'that is all rows.size this pass found'. The code's own comment says an imported Claude answer can name a ticker twice, so this is reachable.
+- [ ] U11 (med) 'Portfolio weight' divides by totals.marketValue - stocks only - while the Portfolio screen's own headline is total equity and shows cash separately. The weights therefore sum to 100% of a number that is explicitly not 'what you have', and nothing says which.
+- [ ] U12 (med) On first launch, before dataMissing or recoverable has resolved, the Portfolio screen renders the full 'No holdings yet - import Ally screenshots' copy under a 2dp progress bar. The file's own comment calls that the worst possible answer for the data-loss case; the loading case reaches it through a different door.
+- [ ] U13 (low) Accent #2E6BE6 on the dark surfaceVariant is 3.40:1 at 13sp on the News chip - the most-tapped control on the portfolio list - and white on the new Benchmark amber is 3.29:1 in both themes.
+- [ ] U14 (low) The Portfolio header's Sort button is measured last among unweighted children and is squeezed to ~37dp at font scale 2.0, under the app's own documented 48dp rule.
+- [ ] U15 (low) ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its hyphen - the identical trap FeedScreen documents and fixes with widthIn(min = 34.dp). It survives at 2.0x today, but it is the same latent bug in the same codebase.
+- [ ] U16 (low) FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit annualised return at 2.0x ellipsizes to '+123...', which is not a number.
+- [ ] U17 (low) A Research headline with a blank URL still renders a minTapTarget()-sized clickable(enabled = false) block that looks identical to a tappable one.
 
 ## 6. Version
 
@@ -84,16 +112,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit
-- 2026-09-08 08:05:40 UTC  F12 fixed: fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept
-- 2026-09-08 08:05:41 UTC  F13 fixed: a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json
-- 2026-09-08 08:05:41 UTC  F14 fixed: same guard - a null longName now falls through to shortName instead of becoming the string 'null'
-- 2026-09-08 08:05:42 UTC  F15 fixed: the bundle carries etfDataAgeMinutes from the fund list's own clock
-- 2026-09-08 08:05:42 UTC  F16 fixed: a fund Claude returned with a category but no paragraph now survives a rebuild
-- 2026-09-08 08:05:43 UTC  F17 fixed: notes merges with ifBlank rather than overwriting
-- 2026-09-08 08:05:43 UTC  F18 fixed: the watched/held set is keyed on etfGenerated as well
-- 2026-09-08 08:05:44 UTC  F19 fixed: a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host
-- 2026-09-08 08:05:45 UTC  F20 fixed: comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other
-- 2026-09-08 08:10:22 UTC  T8 -> done  two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
-- 2026-09-08 08:10:41 UTC  T9 -> doing  sweep 2: UI, code and network efficiency
+- 2026-09-08 15:08:51 UTC  finding U07: The portfolio summary's BigLine and PlainLine starve the same way: the weighted 
+- 2026-09-08 15:08:51 UTC  finding U08: The Research card's score is a bare integer in a coloured circle. Nothing on the
+- 2026-09-08 15:08:51 UTC  finding U09: The Research tab row is a fixed SecondaryTabRow: four tabs across 411dp is 102dp
+- 2026-09-08 15:08:51 UTC  finding U10: Three counts on the Research screen can disagree: the tab label prints rows.size
+- 2026-09-08 15:08:51 UTC  finding U11: 'Portfolio weight' divides by totals.marketValue - stocks only - while the Portf
+- 2026-09-08 15:08:51 UTC  finding U12: On first launch, before dataMissing or recoverable has resolved, the Portfolio s
+- 2026-09-08 15:08:51 UTC  finding U13: Accent #2E6BE6 on the dark surfaceVariant is 3.40:1 at 13sp on the News chip - t
+- 2026-09-08 15:08:51 UTC  finding U14: The Portfolio header's Sort button is measured last among unweighted children an
+- 2026-09-08 15:08:51 UTC  finding U15: ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its h
+- 2026-09-08 15:08:51 UTC  finding U16: FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit an
+- 2026-09-08 15:08:51 UTC  finding U17: A Research headline with a blank URL still renders a minTapTarget()-sized clicka
+- 2026-09-08 15:28:01 UTC  N01 fixed: MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds.
 

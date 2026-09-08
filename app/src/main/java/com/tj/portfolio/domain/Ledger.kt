@@ -358,12 +358,46 @@ object Ledger {
     fun fees(txns: List<Txn>): Double =
         txns.sumOf { it.fees } + txns.filter { it.type == TxnType.FEE }.sumOf { abs(it.amount) }
 
+    /**
+     * THE FOUR NUMBERS THAT DEPEND ONLY ON THE LEDGER (Round 63 sweep).
+     *
+     * `cash`, `netDeposits`, `dividends` and `fees` are pure functions of the transaction
+     * list and nothing else - no price, no clock. [totals] ran all four on every call, and
+     * [totals] is called on every quote tick: four full scans of the whole table (two of them
+     * allocating a filtered copy first), 240 times an hour, on the main thread, always
+     * producing the same four numbers until a transaction is added.
+     *
+     * Computing them once where the ledger actually changes and passing them in is the whole
+     * fix. The ViewModel already has exactly that boundary - `recompute()` replays the ledger,
+     * `reprice()` only re-values it - so this is simply the ledger half moving to the ledger
+     * side of it.
+     */
+    data class LedgerSums(
+        val cash: Double,
+        val netDeposits: Double,
+        val dividends: Double,
+        val fees: Double
+    )
+
+    fun sums(txns: List<Txn>): LedgerSums = LedgerSums(
+        cash = cash(txns),
+        netDeposits = netDeposits(txns),
+        dividends = dividends(txns),
+        fees = fees(txns)
+    )
+
     fun totals(
         txns: List<Txn>,
         positions: List<Position>,
         quotes: Map<String, Quote>,
-        cashOverride: Double? = null
+        cashOverride: Double? = null,
+        /**
+         * The ledger-only figures, when the caller already holds them. Null recomputes them,
+         * which keeps every existing call site and every test working unchanged.
+         */
+        sums: LedgerSums? = null
     ): PortfolioTotals {
+        val led = sums ?: sums(txns)
         val open = positions.filter { it.shares > 1e-9 }
         var mv = 0.0; var cb = 0.0; var day = 0.0; var dayBase = 0.0
         var brokerDay = 0.0; var brokerBase = 0.0; var freshCount = 0
@@ -383,11 +417,11 @@ object Ledger {
                 if (p.sharesToday > 1e-9) freshCount++
             }
         }
-        val cash = cashOverride ?: cash(txns)
+        val cash = cashOverride ?: led.cash
         val realized = positions.sumOf { it.realized }
         val unrealized = mv - cb
         val equity = mv + cash
-        val net = netDeposits(txns)
+        val net = led.netDeposits
         val totalGain = equity - net
         return PortfolioTotals(
             marketValue = mv,
@@ -402,8 +436,8 @@ object Ledger {
             totalGainPct = if (net > 1e-9) totalGain / net * 100.0 else 0.0,
             dayGain = day,
             dayGainPct = if (dayBase > 1e-9) day / dayBase * 100.0 else 0.0,
-            dividends = dividends(txns),
-            fees = fees(txns),
+            dividends = led.dividends,
+            fees = led.fees,
             brokerDayGain = brokerDay,
             brokerDayGainPct = if (brokerBase > 1e-9) brokerDay / brokerBase * 100.0 else 0.0,
             boughtTodayCount = freshCount

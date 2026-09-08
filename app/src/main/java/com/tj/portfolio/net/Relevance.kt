@@ -254,11 +254,36 @@ object Relevance {
      */
     fun matchHolding(title: String, owned: Set<String>, names: Map<String, String>): String? {
         if (title.isBlank() || owned.isEmpty()) return null
+        return matchHolding(title, owned.map { Subject.of(it, names[it].orEmpty()) })
+    }
+
+    /**
+     * The same question, asked with the work already hoisted (Round 63 sweep).
+     *
+     * WHY THE OVERLOAD EXISTS. The convenience form above rebuilds a [Subject] - a regex
+     * split, a filter, a join, an uppercase - for EVERY symbol on EVERY headline, and
+     * re-squashes the headline once per symbol on top of that. In the Feed's market pass that
+     * is ~250 headlines x ~24 followed symbols: about 6,000 Subject constructions and 6,000
+     * squash calls every three minutes, on the main thread, all of them producing answers
+     * that could not have changed between headlines.
+     *
+     * [Subject] was introduced in Round 57 for exactly this reason and `Research.build`
+     * adopted it; the Feed never did. Callers with more than one headline to test should
+     * build the subject list once and pass the squashed headline in - which is what
+     * [squashed] is for.
+     */
+    fun matchHolding(
+        title: String,
+        subjects: List<Subject>,
+        squashedTitle: String? = null
+    ): String? {
+        if (title.isBlank() || subjects.isEmpty()) return null
+        val hay = squashedTitle ?: squashed(title, "")
         var hit: String? = null
-        for (sym in owned) {
-            if (matches(title, "", sym, names[sym].orEmpty())) {
-                if (hit != null && hit != sym) return null   // ambiguous - claim neither
-                hit = sym
+        for (s in subjects) {
+            if (matches(s, title, "", hay)) {
+                if (hit != null && hit != s.symbol) return null   // ambiguous - claim neither
+                hit = s.symbol
             }
         }
         return hit

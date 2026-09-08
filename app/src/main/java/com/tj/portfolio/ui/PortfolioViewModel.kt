@@ -361,6 +361,15 @@ private const val SPARK_REFRESH_MS = 5 * 60 * 1000L
 private const val NEWS_VISIBLE_GRACE_MS = 5 * 60 * 1000L
 
 /**
+ * How long a completed per-symbol EDGAR pass stands for.
+ *
+ * Thirty minutes, matching `INSIDER_REFRESH_SECS` - and for the same reason it was chosen:
+ * Form 4 is legally up to two business days behind, so asking more often cannot return
+ * anything that did not already exist.
+ */
+private const val INSIDER_SYMBOL_TTL_MS = 30 * 60 * 1000L
+
+/**
  * How long headlines already pulled count as fresh enough for an advice request.
  *
  * Generous on purpose: the model is being asked what it makes of a portfolio, and a headline
@@ -798,6 +807,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Positions from the last ledger replay. */
     private var cachedPositions: List<Position> = emptyList()
 
+    /**
+     * The four ledger-only figures - cash, net deposits, dividends, fees - computed where the
+     * ledger changes rather than on every quote tick (Round 63 sweep).
+     *
+     * They are pure functions of [cachedTxns], and `Ledger.totals` was recomputing all four
+     * on every `publish()`: four full scans of the whole transaction table, 240 times an hour,
+     * on the main thread, always producing the same four numbers. `recompute()` is where the
+     * ledger actually changes, and `reprice()` - which is what the tick calls - only re-values
+     * it, so this is the natural home for them.
+     */
+    private var cachedSums: Ledger.LedgerSums = Ledger.sums(emptyList())
+
     /** Local midnight of the day the ledger was last replayed. */
     private var ledgerDay: Long = 0L
 
@@ -832,6 +853,27 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** The last moment a headline screen was on show, so leaving one does not strand a pass. */
     @Volatile private var newsVisibleAt: Long = System.currentTimeMillis()
+
+    /**
+     * The ONE stock whose detail screen is open, or null (Round 63 sweep).
+     *
+     * ---- WHY THIS IS A SEPARATE SIGNAL FROM [newsVisible]
+     *
+     * It used to be the same one: the UI reported `newsVisible = (Feed tab || a stock open)`.
+     * The consequence was that opening a single stock made the three-minute feed pass sweep
+     * headlines for every held AND watched symbol - about 480 requests an hour on a
+     * 24-symbol portfolio, twenty-three of every twenty-four for a symbol not on screen.
+     *
+     * And it bought nothing, which is the part that makes it a bug rather than a trade-off:
+     * the open stock's own headlines do not come from that loop at all. `DetailScreen` reads
+     * what `loadNews(symbol)` fetched for it directly, on its own TTL, when the screen
+     * opened. The sweep was pure overhead attached to the wrong signal.
+     *
+     * So the two questions are now asked separately: the Feed tab wants EVERY symbol's
+     * headlines, because that is the list it draws; a detail screen wants ITS symbol's, and
+     * the feed pass keeps that one warm for free while it is open.
+     */
+    @Volatile private var newsSymbol: String? = null
 
     /**
      * Set when the transactions table is empty but the app has recorded holding rows before.
@@ -1029,7 +1071,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // Same reasoning again: on disk since Round 58, so dropping them frees the heap and
         // costs one SQLite read when the tab is reopened.
         _holdings.value = emptyMap()
-        holdingsFetchedAt.clear()
         _feed.value = emptyList()
         _trending.value = emptyList()
         storyKeys.clear()
@@ -1182,7 +1223,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * ROUND 59. Two of the app's fetches recorded when they last SUCCEEDED and nothing at
      * all about when they last FAILED, and both turned into request storms as a result:
      *
-     *  - `loadChart` stamped `chartFetchedAt` and then never read it. A chart that cannot be
+     *  - `loadChart` stamped a "last fetched" field and then never read it. A chart that
+     *    cannot be
      *    had - a delisted ticker, a 404, a range the provider refuses - left no entry in
      *    `_charts`, so the freshness guard fell straight through and the detail screen asked
      *    again on EVERY quote tick. Roughly 240 requests an hour for a picture that is never
@@ -1192,6 +1234,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      *    fix un-marked every symbol whose series failed so a TRANSIENT failure would retry on
      *    the next tick instead of sitting out five minutes - which is what put TJ's missing
      *    charts right - but it made a PERMANENT failure retry every fifteen seconds forever.
+     *
+     * (Round 63 removed that write-only field, and the holdings one beside it, once this
+     * clock had made both of them dead: a value written on every fetch and read by nobody is
+     * state that grows without bound and tells the next reader something untrue.)
      *
      * Both need the same thing and it is not "a longer TTL": a fetch that failed should be
      * retried SOON in case the failure was a passing one, and then progressively less often
@@ -1212,6 +1258,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private val holdingsRetry = RetryClock()
 
     /**
+     * When a per-symbol EDGAR pass last COMPLETED, keyed by symbol (Round 63 sweep).
+     *
+     * Records the pass, not its result: a company that filed nothing this month is an answer,
+     * and the previous guard - "do we hold filings for it" - could never be satisfied by one.
+     */
+    private val insiderAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /**
      * Failure backoff for the two Research builds, keyed by section (Round 63).
      *
      * THE PROBLEM IT SOLVES. Both builds are triggered by a `LaunchedEffect` that has to
@@ -1228,7 +1282,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private val researchRetry = RetryClock()
 
-    private val chartFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+    /**
+     * Failure backoff for the two per-symbol fundamentals fetches, keyed "$symbol|core" and
+     * "$symbol|ratings" (Round 63 sweep). See the note in `loadFundamentals`.
+     */
+    private val fundRetry = RetryClock()
 
     /**
      * Symbols whose cached chart rows have already been read off disk this session.
@@ -1249,7 +1307,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     val holdingsLoading: StateFlow<Set<String>> = _holdingsLoading.asStateFlow()
 
     /** When each symbol's holdings were last pulled from the NETWORK - see [coreFetchedAt]. */
-    private val holdingsFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     init {
         com.tj.portfolio.util.MemoryTrim.register(trimListener)
@@ -1370,7 +1427,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun clearChartCache() {
         _charts.value = emptyMap()
         chartDiskRead.clear()
-        chartFetchedAt.clear()
         // The failure backoff goes with them, or a chart that had been backing off would sit
         // out its window after the user explicitly asked for a clean slate.
         chartRetry.clear()
@@ -1523,6 +1579,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val session = sessionInstant()
         cachedPositions = Ledger.positions(txns, overrides, costMethod(), session)
         cachedTxns = txns
+        cachedSums = Ledger.sums(txns)
         cachedTxnsDesc = txns.sortedWith(
             compareByDescending<Txn> { it.date }.thenByDescending { it.id }
         )
@@ -1620,7 +1677,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             rows = sorted,
             positions = positions,
             txns = cachedTxnsDesc,
-            totals = Ledger.totals(cachedTxns, positions, quotes, cashOverrideOrNull())
+            totals = Ledger.totals(
+                cachedTxns, positions, quotes, cashOverrideOrNull(), cachedSums
+            )
         )
     }
 
@@ -1649,10 +1708,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             chartRetry.clear()
             sparkRetry.clear()
             holdingsRetry.clear()
+            fundRetry.clear()
             // Same reasoning as the cooldowns: a deliberate pull is exactly when the batched
             // quote endpoint should be tried again, and an invisible "we gave up on that
             // three hours ago" flag would make the gesture quietly do less than it appears to.
             MarketData.resetBatchState()
+            // And the per-symbol fallback's own backoff, for the same reason: a ticker the
+            // app has been quietly skipping is precisely what a deliberate pull is for.
+            MarketData.resetFallbackState()
         }
         // ---------------------------------------------------------------------------------
         // ROUND 59: `fgScope`, NOT `viewModelScope`. This was the last on-demand network path
@@ -1851,8 +1914,26 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // Without this, Round 58's fix for TJ's missing charts (un-mark a failed symbol so it
         // retries promptly) turned a PERMANENTLY dead ticker into a fetch every fifteen
         // seconds for the life of the session.
+        // ---- AND SKIP WHAT THE 1D CHART IS ALREADY HOLDING (Round 63 sweep).
+        //
+        // The 1D chart and the row sparkline are the SAME Yahoo URL on the SAME five-minute
+        // clock. Round 58 closed one direction of that - `adoptAsSparkline` feeds a fetched
+        // 1D series straight into the quote and stamps `sparkAt` as this pass would have -
+        // but this filter never looked the other way. So on the tick where both TTLs lapse
+        // together, with a detail screen open, the identical ~30 KB body was pulled twice:
+        // about a dozen duplicated requests an hour, for nothing.
+        //
+        // The conditions are the ones `adoptAsSparkline` itself insists on - a regular-session
+        // series inside its TTL - so this skips only what that function would have adopted
+        // anyway. Anything else still fetches normally.
+        val chartsNow = _charts.value
+        fun heldByChart(sym: String): Boolean {
+            val c = chartsNow[chartKey(sym, ChartRange.D1)] ?: return false
+            return c.regularOnly && !c.isEmpty && !c.stale(now)
+        }
         val due = symbols.filter {
-            now - (sparkAt[it] ?: 0L) > SPARK_REFRESH_MS && !sparkRetry.blocked(it, now)
+            now - (sparkAt[it] ?: 0L) > SPARK_REFRESH_MS &&
+                !sparkRetry.blocked(it, now) && !heldByChart(it)
         }
         if (due.isEmpty()) return
         // Marked BEFORE the fetch, not after. Marking on completion lets the next tick - 15
@@ -2033,7 +2114,23 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      *
      * Cheap and idempotent, because it is called from composition on every navigation change.
      */
-    fun setNewsVisible(visible: Boolean) {
+    fun setNewsVisible(visible: Boolean, detailSymbol: String? = null) {
+        newsSymbol = detailSymbol?.uppercase()
+        // ---- ARRIVING ON THE FEED TAB REFRESHES IT (Round 63 sweep).
+        //
+        // The other half of gating the seven market-wide feeds on visibility. With the timer
+        // no longer pulling them for a screen nobody is looking at, the tab has to fetch when
+        // it is OPENED, or its list would be as old as the last time it happened to be open
+        // rather than at most one interval old. Which would be a worse app in exchange for
+        // saving requests, and that trade is never the right one here.
+        //
+        // Guarded three ways so this cannot become its own request generator: only on the
+        // transition INTO visible, only when what is held is already past the interval it
+        // would have been refreshed on anyway, and `refreshFeed` has its own re-entry guard.
+        if (visible && !newsVisible) {
+            val age = System.currentTimeMillis() - _feedAt.value
+            if (age > MarketClock.feedIntervalSecs() * 1000L) refreshFeed(includeInsider = false)
+        }
         // STAMPED WHEN IT STOPS BEING VISIBLE, not when it starts. Stamping on the way IN
         // makes the grace window measure how long ago the user ARRIVED, so someone who reads
         // the Feed for ten minutes and then switches tabs has no grace at all - the window
@@ -2910,7 +3007,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun loadInsider(symbol: String, force: Boolean = false) {
         // Same trap loadNews had: an empty cached entry is a FAILED fetch, not an answer.
         // containsKey() treated one unreachable-EDGAR moment as final for the session.
-        if (!force && _insider.value[symbol]?.isNotEmpty() == true) return
+        //
+        // ---- AND ITS MIRROR IMAGE, FOUND IN ROUND 63'S SWEEP.
+        //
+        // Guarding on "we hold filings for this symbol" is right for a symbol that HAS
+        // filings and wrong for the ordinary one that does not. Most companies file no Form 4
+        // in a given month, so `_insider[symbol]` stayed empty for them forever and the guard
+        // never fired: every detail-screen open and every resume sent a fresh EDGAR listing
+        // request for a company whose answer had already been fetched and was "nothing". The
+        // conditional-GET cache could not absorb it either, because the `datea` parameter
+        // rolls over daily and makes each day's URL a new one.
+        //
+        // `insiderAt` records that the pass COMPLETED, which is the thing the guard actually
+        // wanted to know - the same shape `deepNewsAt` already uses for headlines. A failed
+        // or cancelled pass never stamps it, so an unreachable EDGAR still retries at once.
+        if (!force) {
+            if (_insider.value[symbol]?.isNotEmpty() == true) return
+            val since = System.currentTimeMillis() - (insiderAt[symbol] ?: 0L)
+            if (since < INSIDER_SYMBOL_TTL_MS) return
+        }
         // Two concurrent loads for the same symbol (open the screen, pull to refresh) used
         // to fetch EDGAR twice and race each other into the map.
         fgScope.launch {
@@ -2936,6 +3051,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         Insider.forSymbol(symbol, known, secGate, since, insiderSkip)
                     }.getOrDefault(emptyList())
                 }
+                // STAMPED HERE, BEFORE THE EMPTY CHECK. "EDGAR answered and this company
+                // filed nothing this month" is a real answer with a real cost, and it is the
+                // common case - recording only the non-empty ones is what made the guard
+                // above useless for most symbols.
+                insiderAt[symbol] = System.currentTimeMillis()
                 if (items.isEmpty()) return@launch
                 rememberInsiderDocs(items)
                 // De-duplicated by accession: EDGAR occasionally repeats an entry, and the
@@ -3180,7 +3300,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // A disk row inside its life is a complete answer; going to the
                         // network for it could only return the same register.
                         if (!force && !disk.stale()) {
-                            holdingsFetchedAt[sym] = disk.fetched
                             return@launch
                         }
                     }
@@ -3189,7 +3308,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val fresh = withContext(Dispatchers.IO) {
                     runCatching { com.tj.portfolio.net.HoldingsFeed.holdings(sym) }.getOrNull()
                 }
-                holdingsFetchedAt[sym] = System.currentTimeMillis()
                 if (fresh != null) holdingsRetry.success(sym) else holdingsRetry.failure(sym)
                 if (fresh != null) {
                     // WRITTEN EVEN WHEN EMPTY, and that is deliberate. "This symbol is an
@@ -3403,7 +3521,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val fresh = withContext(Dispatchers.IO) {
                     runCatching { com.tj.portfolio.net.ChartFeed.series(sym, range) }.getOrNull()
                 }
-                chartFetchedAt[key] = System.currentTimeMillis()
                 // Recorded either way, so a failure backs the next attempt off instead of
                 // letting the tick clock ask again in fifteen seconds.
                 if (fresh != null && !fresh.isEmpty) chartRetry.success(key)
@@ -3439,6 +3556,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (!force && since < com.tj.portfolio.net.FundamentalsFeed.CORE_TTL_MS &&
             _fundamentals.value[sym]?.values?.isNotEmpty() == true
         ) return
+        // A REFUSAL IS AN ANSWER TOO (Round 63 sweep). The TTL above is stamped only on
+        // SUCCESS, so a symbol whose `quoteSummary` cannot be had - an ETF, a delisted
+        // ticker, Yahoo 403ing - fell straight through it and was re-requested on every
+        // detail-screen open and every resume. Bounded by navigation rather than by a timer,
+        // which is why it never showed up as a storm, but it is the same gap `loadChart` had.
+        if (!force && fundRetry.blocked("$sym|core")) return
         if (_fundLoading.value.contains(sym)) return
 
         fgScope.launch {
@@ -3471,6 +3594,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val fresh = withContext(Dispatchers.IO) {
                     runCatching { com.tj.portfolio.net.FundamentalsFeed.core(sym) }.getOrNull()
                 }
+                if (fresh == null || fresh.isEmpty) fundRetry.failure("$sym|core")
+                else fundRetry.success("$sym|core")
                 if (fresh != null && !fresh.isEmpty) {
                     coreFetchedAt[sym] = System.currentTimeMillis()
                     mergeFundamentals(sym, fresh)
@@ -3501,6 +3626,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (!force && since < com.tj.portfolio.net.FundamentalsFeed.RATINGS_TTL_MS &&
             _fundamentals.value[sym]?.ratings?.isNotEmpty() == true
         ) return
+        // Same guard, and it matters more here: the analyst payload is the heaviest thing
+        // this app fetches, and a stock nobody covers returns nothing every single time.
+        if (!force && fundRetry.blocked("$sym|ratings")) return
         if (_ratingsLoading.value.contains(sym)) return
 
         fgScope.launch {
@@ -3525,7 +3653,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val fresh = withContext(Dispatchers.IO) {
                     runCatching { com.tj.portfolio.net.FundamentalsFeed.ratings(sym) }.getOrNull()
                 }
-                if (fresh != null && (fresh.ratings.isNotEmpty() || fresh.consensus != null)) {
+                val got = fresh != null && (fresh.ratings.isNotEmpty() || fresh.consensus != null)
+                if (got) fundRetry.success("$sym|ratings") else fundRetry.failure("$sym|ratings")
+                if (fresh != null && got) {
                     ratingsFetchedAt[sym] = System.currentTimeMillis()
                     mergeFundamentals(sym, fresh)
                     viewModelScope.launch(Dispatchers.IO) {
@@ -3810,6 +3940,26 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // their answers - and on a refresh that keeps failing, a fresh pair of
                 // orphans every cycle. As children they are cancelled with their parent,
                 // which is what makes the failure path cost the same as the happy one.
+                // ---- WHAT THIS PASS IS ALLOWED TO FETCH.
+                //
+                // Two questions, not one. `feedDue` is "is a headline screen being looked
+                // at" and governs the seven market-wide feeds; `newsSymbols` is "whose
+                // per-symbol headlines are worth a request right now" - everything when the
+                // Feed tab is up, and just the open stock otherwise.
+                //
+                // The grace window matters as much as the flags: a pass that STARTED while
+                // the Feed was on screen must finish its work even if the user navigates away
+                // mid-flight, or leaving the tab at the wrong moment leaves the list
+                // half-updated. A manual pull always does the full pass - a gesture the user
+                // made must never quietly do less than it used to.
+                val inGrace = System.currentTimeMillis() - newsVisibleAt < NEWS_VISIBLE_GRACE_MS
+                val feedDue = manual || newsVisible || inGrace
+                val openSymbol = newsSymbol
+                val newsSymbols = when {
+                    feedDue -> symbols
+                    openSymbol != null && openSymbol in symbols -> listOf(openSymbol)
+                    else -> emptyList()
+                }
                 val socialDue = System.currentTimeMillis() - socialAt > SOCIAL_REFRESH_MS
                 val socialJob = async(Dispatchers.IO) {
                     if (!socialDue) emptyList()
@@ -3818,8 +3968,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // Market-wide headlines, fetched alongside the per-symbol ones so they add
                 // nothing to the wait. Before this the "All" tab was only the user's own
                 // symbols, which made it "My stocks" plus the watchlist and nothing more.
+                //
+                // GATED, since Round 63's sweep. `newsDue` is computed above rather than
+                // fifty lines below precisely so this can share it. Seven RSS feeds were
+                // being pulled every three minutes whether or not a headline screen had ever
+                // been opened - roughly 140 requests an hour spent while sitting on
+                // Portfolio, Activity, Advice, Settings or a stock. Only `FeedScreen` ever
+                // renders a market-wide item.
+                //
+                // Nothing is lost by waiting: `setNewsVisible(true)` triggers a pass of its
+                // own, so opening the tab fills it at once rather than at the next tick.
                 val marketJob = async(Dispatchers.IO) {
-                    runCatching { News.market() }.getOrDefault(emptyList())
+                    if (!feedDue) emptyList()
+                    else runCatching { News.market() }.getOrDefault(emptyList())
                 }
                 // filings already on screen; kept if this pass skips or fails to refresh them
                 val existingFilings = _feed.value
@@ -3839,14 +4000,35 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // Same requests, same total time to finish - but the screen stops being empty
                 // almost immediately, which is the thing that was actually being complained
                 // about.
-                val marketFirst = marketJob.await().map { n ->
-                    val hit = matchHolding(n.title, owned, holdingNames(owned))
+                // ---- HOISTED, AND OFF THE MAIN THREAD (Round 63 sweep).
+                //
+                // `holdingNames(owned)` was being rebuilt once PER HEADLINE - its own KDoc
+                // says it should be read once per feed refresh - and `matchHolding` was
+                // deriving a fresh `Relevance.Subject` and re-squashing the headline once per
+                // symbol inside that. About 6,000 regex splits and 6,000 string rebuilds per
+                // pass, every three minutes, on the UI thread, all producing answers that
+                // cannot change between headlines.
+                //
+                // `Relevance.Subject` exists precisely to hoist this and `Research.build`
+                // already used it; the Feed never adopted it. Same answers, same order, the
+                // work done once.
+                val marketRaw = marketJob.await()
+                val marketFirst = withContext(Dispatchers.Default) {
+                    val names = holdingNames(owned)
+                    val subjects = owned.map {
+                        com.tj.portfolio.net.Relevance.Subject.of(it, names[it].orEmpty())
+                    }
+                    marketRaw.map { n ->
+                    val hit = com.tj.portfolio.net.Relevance.matchHolding(
+                        n.title, subjects, com.tj.portfolio.net.Relevance.squashed(n.title, "")
+                    )
                     com.tj.portfolio.data.FeedItem(
                         kind = com.tj.portfolio.data.FeedItem.MARKET,
                         symbol = hit ?: "",
                         title = n.title, url = n.url, source = n.source,
                         published = n.published, owned = hit != null
                     )
+                    }
                 }
                 // MERGED with what is already on screen, not assigned over it. Assigning
                 // here would blank the restored cache the instant a refresh started - the
@@ -3861,25 +4043,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     ArrayList<com.tj.portfolio.data.FeedItem>()
                 )
 
-                // ---- PER-SYMBOL HEADLINES, ONLY WHEN SOMEONE IS LOOKING AT HEADLINES.
+                // ---- PER-SYMBOL HEADLINES, FOR WHOEVER IS ACTUALLY BEING LOOKED AT.
                 //
-                // This loop is one request per followed symbol, every three minutes - about
-                // 480 an hour on a 24-symbol portfolio, and it was the app's second-largest
-                // source of traffic after the quote poll. It ran on the timer whether or not
-                // the Feed tab had ever been opened, which is exactly the waste the
-                // visible-scope mechanism removed from quotes in v4.5 and never got applied
-                // to news.
-                //
-                // The grace window matters as much as the flag: a pass that STARTED while the
-                // Feed was on screen must finish its work even if the user navigates away
-                // mid-flight, or leaving the tab at the wrong moment leaves the list
-                // half-updated. A manual pull always does the full pass - a gesture the user
-                // made must never quietly do less than it used to.
-                val newsDue = manual || newsVisible ||
-                    System.currentTimeMillis() - newsVisibleAt < NEWS_VISIBLE_GRACE_MS
-                if (newsDue) withContext(Dispatchers.IO) {
+                // One request per symbol in `newsSymbols`, every three minutes. On the Feed
+                // tab that is everything followed - about 480 an hour on a 24-symbol
+                // portfolio, which is what the tab draws and so what it is worth. With only a
+                // stock open it is ONE, because that is the only symbol whose headlines
+                // anything on screen will show. See [newsSymbol] for why those used to be the
+                // same number.
+                if (newsSymbols.isNotEmpty()) withContext(Dispatchers.IO) {
                     val gate = Semaphore(MAX_PARALLEL_REQUESTS)
-                    symbols.map { sym ->
+                    newsSymbols.map { sym ->
                         async {
                             gate.withPermit {
                                 val name = _quotes.value[sym]?.name ?: ""
@@ -4666,15 +4840,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Quotes for rows Claude introduced, so every row on screen carries a live price. */
     private fun fillResearchPrices(symbols: List<String>) {
         fgScope.launch {
+            // ONE BATCHED REQUEST, not one per symbol (Round 63 sweep). `MarketData.quotes`
+            // takes the whole list and asks Yahoo once - the same endpoint the price poll has
+            // used since Round 56, complete with its per-symbol fallback for anything the
+            // batch cannot answer. This path was still doing it the old way: up to twenty
+            // symbols x four providers, and a SQLite read for the Finnhub key inside every
+            // one of them.
+            val key = finnhubKey()
             val fetched = withContext(Dispatchers.IO) {
-                val gate = Semaphore(4)
-                symbols.map { s ->
-                    async {
-                        gate.withPermit {
-                            s to runCatching { MarketData.quote(s, finnhubKey()) }.getOrNull()
-                        }
-                    }
-                }.awaitAll().mapNotNull { (s, q) -> if (q == null) null else s to q }.toMap()
+                runCatching { MarketData.quotes(symbols, key) }.getOrDefault(emptyList())
+                    .associateBy { it.symbol }
             }
             if (fetched.isEmpty()) return@launch
             fun fill(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
@@ -4687,15 +4862,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
             val s = _research.value
-            cacheResearch(
-                // `etfs` INCLUDED. Claude is explicitly asked to add funds the app's screener
+            // `etfs` INCLUDED. Claude is explicitly asked to add funds the app's screener
             // universe cannot see, and those rows arrive with no price - so leaving them out
-            // here spent a real quote request per added fund and discarded the answer, then
+            // spent a real quote request per added fund and discarded the answer, then
             // re-spent it on the next import because the row still had no price.
-            s.copy(
-                trending = fill(s.trending), best = fill(s.best), worst = fill(s.worst),
-                etfs = fill(s.etfs)
-            )
+            cacheResearch(
+                s.copy(
+                    trending = fill(s.trending), best = fill(s.best), worst = fill(s.worst),
+                    etfs = fill(s.etfs)
+                )
             )
         }
     }
