@@ -27,7 +27,99 @@ val Accent = Color(0xFF2E6BE6)
  */
 val Benchmark = Color(0xFFB4863B)
 
-fun signColor(v: Double): Color = if (v >= 0) Green else Red
+/**
+ * The same amber, dark enough to carry white text on it (Round 63 sweep).
+ *
+ * `#B4863B` is right as a LINE on a chart - it reads clearly against both themes and claims
+ * nothing, which is why it was chosen. White on it is 3.27:1, which is not enough for the
+ * 13sp and 11sp of the "vs SPY" toggle. `#7E5A22` takes that to 6.23:1 and is unmistakably
+ * the same colour family, so the toggle and the line it turns on still read as one thing.
+ */
+val BenchmarkFill = Color(0xFF7E5A22)
+
+/**
+ * [Accent] as TEXT, brightened for the dark theme (Round 63 sweep).
+ *
+ * `#2E6BE6` on the light surfaceVariant is 4.41:1 - a hair under AA and acceptable at the
+ * sizes it is used - but on the DARK surfaceVariant it is 3.39:1, and the place that hurts is
+ * the "News" chip on every holding row, which is the most-tapped control on the portfolio
+ * list. `#5B92F0` takes the dark case to 5.30:1; the light case keeps the brand colour, where
+ * the brighter blue would go the wrong way (2.82:1).
+ */
+val AccentTextDark = Color(0xFF5B92F0)
+
+/** Accent as TEXT: the brand blue on light, a brighter one on dark. */
+val accentText: Color
+    @Composable get() = if (isSystemInDarkTheme()) AccentTextDark else Accent
+
+/**
+ * The Research card's score colour, by tier and direction - and legible in both themes.
+ *
+ * The three tiers were a single set of literals, tuned against the dark theme like the rest of
+ * the palette. On white the middling amber measured 2.46:1, which is worse than the green this
+ * sweep started from and it was carrying the actual number. Each tier now has a light-theme
+ * value and a dark-theme one; every combination is above 4.5:1 against its own background.
+ *
+ * [bullish] is what the SECTION means, not what the number says: a 90 on the Worst list is a
+ * strong finding about a bad company, so painting it green because the score is high would be
+ * exactly wrong.
+ */
+@Composable
+fun scoreColor(score: Int, bullish: Boolean): Color {
+    val dark = isSystemInDarkTheme()
+    return when {
+        score >= 70 -> if (bullish) greenText else redText
+        score >= 50 ->
+            if (bullish) (if (dark) Color(0xFF3D9A5B) else Color(0xFF2F7A46))
+            else (if (dark) Color(0xFFD0554A) else Color(0xFFB8483E))
+        else -> if (dark) Color(0xFFD79A2B) else Color(0xFF8A6410)
+    }
+}
+
+/**
+ * ---- THE SAME GREEN IS NOT LEGIBLE ON BOTH BACKGROUNDS (Round 63 sweep).
+ *
+ * [Green] and [Red] were sampled from TJ's reference screenshots and they are right for what
+ * they were sampled as: FILLS. A chart line, a sparkline, a gradient, a chip - large shapes
+ * where the eye reads the colour, not the edges.
+ *
+ * Measured as TEXT they are a different story. On the light theme's white surface, `#16C784`
+ * against `#FFFFFF` is a contrast ratio of **2.20:1**, where WCAG AA asks 4.5:1 for text at
+ * these sizes; `#EA4B5D` is 3.71:1. In the dark theme the same two are 8.07:1 and 4.79:1 - so
+ * the palette was tuned there and never re-checked against light. The worst case in the app
+ * was "you own this" in green at 10sp on white, which is the smallest type there is.
+ *
+ * So the fill colours are untouched, and TEXT gets a darker pair in the light theme only:
+ * `#0A8055` is 4.96:1 and `#C62B3C` is 5.51:1, both still plainly the same green and the same
+ * red. In the dark theme these resolve to the originals, because there they already pass.
+ *
+ * NOTE THIS IS ABOUT CONTRAST, NOT ABOUT MEANING. The app never uses colour as the only
+ * carrier of a sign - `Fmt.usdSigned` and `Fmt.pctSigned` always print a leading + or -, the
+ * feed writes "Bullish" and "up 3 places" in words, and the ETF fact cells deliberately refuse
+ * to colour an unsigned figure. That discipline is why this was only ever a legibility fault.
+ */
+val GreenTextLight = Color(0xFF0A8055)
+val RedTextLight = Color(0xFFC62B3C)
+
+/** Green as TEXT: darker on a light background, the brand colour on a dark one. */
+val greenText: Color
+    @Composable get() = if (isSystemInDarkTheme()) Green else GreenTextLight
+
+/** Red as TEXT, on the same rule. */
+val redText: Color
+    @Composable get() = if (isSystemInDarkTheme()) Red else RedTextLight
+
+/**
+ * The colour for a signed FIGURE - which is text, so it follows the rule above.
+ *
+ * `@Composable` because the answer depends on the theme. Every one of its call sites is
+ * already inside composition; nothing outside the UI ever asked this question.
+ */
+@Composable
+fun signColor(v: Double): Color = if (v >= 0) greenText else redText
+
+/** The same decision for a drawn shape, where the brand colours are correct as they stand. */
+fun signFill(v: Double): Color = if (v >= 0) Green else Red
 
 private val LightColors = lightColorScheme(
     primary = Accent,

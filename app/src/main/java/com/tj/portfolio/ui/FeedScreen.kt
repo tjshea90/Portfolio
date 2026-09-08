@@ -337,7 +337,7 @@ private fun FeedRow(f: FeedItem, onClick: () -> Unit) {
                 Text(
                     "you own this",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Green
+                    color = greenText
                 )
             }
             Spacer(Modifier.weight(1f))
@@ -417,8 +417,8 @@ private fun TrendingRow(t: Trending, owned: Boolean, onClick: () -> Unit) {
                     t.sentiment,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (t.sentiment.equals("Bullish", true)) Green
-                    else if (t.sentiment.equals("Bearish", true)) Red
+                    color = if (t.sentiment.equals("Bullish", true)) greenText
+                    else if (t.sentiment.equals("Bearish", true)) redText
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -427,7 +427,7 @@ private fun TrendingRow(t: Trending, owned: Boolean, onClick: () -> Unit) {
                     if (t.rankDelta > 0) "up ${t.rankDelta} places"
                     else "down ${-t.rankDelta} places",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (t.rankDelta > 0) Green else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (t.rankDelta > 0) greenText else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

@@ -31,7 +31,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -483,20 +489,51 @@ fun StatCard(
     }
 }
 
-/** label / value row used throughout the stat cards. */
+/**
+ * The label / value row used throughout the stat cards.
+ *
+ * ---- THE VALUE IS MEASURED FIRST, AND THAT IS THE WHOLE POINT (Round 63 sweep).
+ *
+ * This used to be two UNWEIGHTED children of a `Row` with `SpaceBetween`. Compose measures
+ * unweighted children in order, handing each one whatever width is left - and `SpaceBetween`
+ * is an arrangement, not a measurement policy, so it reserves nothing for the second child.
+ * A label long enough to wrap therefore took the whole row and **the value was measured at
+ * zero width and vanished entirely**. Neither `Text` set `maxLines`, so nothing stopped the
+ * label from wrapping.
+ *
+ * It was not a large-font-only fault either. "Gain on stocks you still own" plus its figure
+ * had about 13dp of headroom at the DEFAULT font scale inside the portfolio summary card, so
+ * the first step up the accessibility slider made a dollar amount disappear off a screen
+ * whose entire job is showing dollar amounts.
+ *
+ * Now the value is the unweighted child - measured first, at full constraints, never wrapped -
+ * and the label takes the remainder, wrapping to at most two lines and then ellipsising. A
+ * squeezed label is legible; a missing number is not.
+ */
 @Composable
 fun KeyValue(label: String, value: String, valueColor: Color? = null, bold: Boolean = false) {
     Row(
         Modifier.fillMaxWidth().padding(vertical = 3.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(Modifier.width(10.dp))
         Text(
             value,
             style = MaterialTheme.typography.bodyLarge,
             color = valueColor ?: MaterialTheme.colorScheme.onSurface,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
+            // NEVER WRAPPED. A dollar amount broken across two lines is harder to read wrong
+            // than a truncated one, but it still reflows the whole card.
+            softWrap = false,
+            textAlign = TextAlign.End
         )
     }
 }
@@ -531,3 +568,57 @@ fun plSub(mode: PlMode, money: Double, pct: Double): String =
 /** Both on one line, as the stock page shows them: "lead  (sub)". */
 fun plInline(mode: PlMode, money: Double, pct: Double): String =
     plLead(mode, money, pct) + "  (" + plSub(mode, money, pct) + ")"
+
+
+/**
+ * A NUMBER THAT SHRINKS RATHER THAN TRUNCATES (Round 63 sweep).
+ *
+ * ---- WHY THIS EXISTS
+ *
+ * A truncated money figure is still a well-formed money figure, and that is what makes it
+ * dangerous. The holding rows lay their four figures out as three `weight(1f)` columns - about
+ * 118dp each on a 411dp phone - and at a large font scale a six-figure holding rendered as
+ * "$123,45…", which reads at a glance as either $123 thousand or $123 hundred. Nothing else on
+ * the row carries the magnitude, so there is nothing to check it against. One of the same
+ * cells was worse still: it had `maxLines = 1` and no `overflow`, so it defaulted to Clip and
+ * shortened the number with no ellipsis and no cue at all that anything had been removed.
+ *
+ * ---- WHAT IT DOES INSTEAD
+ *
+ * `autoSize` steps the type down until the whole value fits, to a floor below which it stops.
+ * A slightly smaller number is completely readable; a shortened one is a different number. The
+ * floor is what keeps this honest - if even the smallest size will not fit, it ellipsises, and
+ * an ellipsis at least says "there is more".
+ *
+ * The row's other text is untouched: labels may shorten freely, because a label is recoverable
+ * from context and a figure is not.
+ */
+@Composable
+fun AutoFitNumber(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.bodyLarge,
+    fontWeight: FontWeight = FontWeight.Bold,
+    minSp: Int = 11,
+    textAlign: TextAlign? = null
+) {
+    val max = style.fontSize.takeIf { it != TextUnit.Unspecified } ?: 15.sp
+    BasicText(
+        text = text,
+        modifier = modifier,
+        style = style.merge(
+            TextStyle(color = color, fontWeight = fontWeight, textAlign = textAlign ?: TextAlign.Start)
+        ),
+        maxLines = 1,
+        softWrap = false,
+        overflow = TextOverflow.Ellipsis,
+        autoSize = TextAutoSize.StepBased(
+            minFontSize = minSp.sp,
+            // Never LARGER than the style asks for - this is a fallback for tight rows, not a
+            // licence to grow into whatever space happens to be free.
+            maxFontSize = max,
+            stepSize = 0.5.sp
+        )
+    )
+}

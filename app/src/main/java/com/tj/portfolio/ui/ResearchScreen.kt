@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -27,7 +28,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.SecondaryTabRow
+import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +42,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -186,7 +190,14 @@ fun ResearchScreen(
     val watched = remember(set.generated, set.etfGenerated, set.explained) {
         vm.watchedSymbols() + vm.heldSymbols()
     }
-    val rows = section.rowsIn(set)
+    // ---- DE-DUPLICATED ONCE, HERE, SO EVERY COUNT ON THE SCREEN AGREES.
+    //
+    // It used to happen inside `items(...)`, which meant the tab badge, the "Load N more
+    // (M left)" button and the "that is all N this pass found" footer were all counting rows
+    // that the list would then drop. The keyed `LazyColumn` below is the reason the
+    // de-duplication has to exist at all - handed one key twice it throws, and the bad set is
+    // written straight to the cache, so the tab would keep crashing on every launch.
+    val rows = remember(set, section) { section.rowsIn(set).distinctBy { it.symbol } }
     val visibleCount = shown[section.key] ?: ResearchSet.PAGE
 
     Column(Modifier.fillMaxSize()) {
@@ -196,7 +207,24 @@ fun ResearchScreen(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 10.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Research", style = MaterialTheme.typography.titleLarge)
+            // ---- THE BUTTON IS MEASURED FIRST (Round 63 sweep).
+            //
+            // Four unweighted children in a `Row` are measured in order against the remaining
+            // width, so the Rebuild button - last in the list - got whatever the title, the
+            // spinner and the status line left it. At a large font scale that fell under the
+            // 48dp minimum, and at 2x it reached zero: the button rendered but could not be
+            // tapped. It is the only way to rebuild the list being viewed other than a
+            // pull-down, so losing it is losing the screen's main control.
+            //
+            // Both texts are weighted now, so the button takes its 52dp first and the words
+            // shrink around it.
+            Text(
+                "Research",
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
             Spacer(Modifier.weight(1f))
             if (busy.isNotEmpty()) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -218,7 +246,10 @@ fun ResearchScreen(
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(2f, fill = false)
             )
             // WHICHEVER LIST IS ON SCREEN. The ETF pass and the stock pass are ten and
             // eighteen requests on six-hour and thirty-minute clocks; a refresh button that
@@ -235,12 +266,22 @@ fun ResearchScreen(
         }
 
         // ------------------------------------------------------ pinned tab row
-        SecondaryTabRow(
+        // SCROLLABLE SINCE ROUND 63'S SWEEP. A fixed row divides 411dp across FOUR tabs -
+        // 102dp each - and "Trending (20)" at 14sp needs more than that from about 1.3x, so it
+        // wrapped into Material's fixed 48dp tab height and clipped. The detail screen's tab
+        // row is scrollable for the same reason; this one was fixed when it had three tabs and
+        // stayed fixed when the fourth arrived.
+        SecondaryScrollableTabRow(
             selectedTabIndex = section.ordinal,
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = MaterialTheme.colorScheme.background,
+            edgePadding = 0.dp
         ) {
             Section.entries.forEach { s ->
-                val count = s.rowsIn(set).size
+                // THE SAME COUNT THE LIST WILL DRAW. The tab printed `rows.size` while the
+                // list rendered `rows.distinctBy { symbol }` - and the code's own comment
+                // says an imported Claude answer can name a ticker twice - so the tab could
+                // say "Best (20)" over nineteen cards, with a footer insisting on twenty.
+                val count = s.rowsIn(set).distinctBy { it.symbol }.size
                 Tab(
                     selected = section == s,
                     onClick = { section = s; vm.setResearchTab(s.ordinal) },
@@ -261,7 +302,7 @@ fun ResearchScreen(
         // An error belongs at the top, not buried under twenty cards.
         error?.let {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
-                Text(it, color = Red, style = MaterialTheme.typography.bodyMedium)
+                Text(it, color = redText, style = MaterialTheme.typography.bodyMedium)
                 TextButton(onClick = { vm.dismissResearchError() }) { Text("Dismiss") }
             }
         }
@@ -344,7 +385,7 @@ fun ResearchScreen(
                     // de-duplicates; this is here so no future path into the list can
                     // reintroduce the crash.
                     items(
-                        rows.take(visibleCount).distinctBy { it.symbol },
+                        rows.take(visibleCount),
                         key = { "${section.key}_${it.symbol}" }
                     ) { r ->
                         ResearchCard(r, section.bullish, r.symbol in watched, onOpen, onOpenUrl)
@@ -511,18 +552,37 @@ private fun ResearchCard(
 ) {
     // Colour is by score AND direction: a 90 on the Worst list is a strong finding about a
     // bad company, so painting it green because the number is high would be exactly wrong.
-    val c = when {
-        r.score >= 70 -> if (bullish) Green else Red
-        r.score >= 50 -> if (bullish) Color(0xFF3D9A5B) else Color(0xFFD0554A)
-        else -> Color(0xFFD79A2B)
-    }
+    // See `scoreColor`: this colour is printed as the score itself, on a 16%-alpha tint that
+    // is nearly the card's own background - so it is read against white in the light theme,
+    // where the old literals measured as low as 2.46:1.
+    val c = scoreColor(r.score, bullish)
     Box(Modifier.padding(horizontal = 16.dp, vertical = 5.dp)) {
         StatCard(modifier = Modifier.clickable { onOpen(r.symbol) }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier.size(42.dp).background(c.copy(alpha = 0.16f), CircleShape),
-                    contentAlignment = Alignment.Center
+                // ---- THE ONE NUMBER ON THIS SCREEN THAT WAS NEVER NAMED (Round 63 sweep).
+                //
+                // A bare integer in a coloured circle, with nothing on the card and nothing in
+                // any section blurb saying it was a score or what the scale was - the blurbs
+                // describe the INPUTS and never the output. The only mention lived three
+                // hundred dp below, past ten cards. One word above the number closes it, and
+                // the semantics say the whole thing out loud for a screen reader.
+                Column(
+                    Modifier
+                        .size(46.dp)
+                        .background(c.copy(alpha = 0.16f), CircleShape)
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = "Score ${r.score} out of 100"
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
                 ) {
+                    Text(
+                        "SCORE",
+                        color = c,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 7.sp,
+                        maxLines = 1
+                    )
                     Text("${r.score}", color = c, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 Spacer(Modifier.width(10.dp))
@@ -547,7 +607,7 @@ private fun ResearchCard(
                         Text(Fmt.price(r.price), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         if (r.changePct != 0.0) Text(
                             Fmt.pctSigned(r.changePct),
-                            color = if (r.changePct >= 0) Green else Red,
+                            color = signColor(r.changePct),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -572,7 +632,10 @@ private fun ResearchCard(
                         Text(
                             "-",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.width(12.dp)
+                            // `widthIn`, not `width` - the same correction FeedScreen already
+                            // documents. A FIXED dp width for a glyph measured in sp clips it
+                            // as soon as the font scale outgrows the box.
+                            modifier = Modifier.widthIn(min = 12.dp)
                         )
                         Text(line, style = MaterialTheme.typography.bodyMedium)
                     }
@@ -631,10 +694,16 @@ private fun ResearchCard(
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .minTapTarget()
-                        .clickable(enabled = r.headlineUrl.isNotBlank()) {
-                            onOpenUrl(r.headlineUrl, r.headline)
-                        }
+                        // A HEADLINE WITH NO LINK IS NOT A CONTROL. `clickable(enabled=false)`
+                        // still leaves a 48dp block that looks exactly like a tappable one and
+                        // reports itself to a screen reader as one; omitting the modifier
+                        // entirely is what the detail screen already does.
+                        .then(
+                            if (r.headlineUrl.isBlank()) Modifier
+                            else Modifier.minTapTarget().clickable {
+                                onOpenUrl(r.headlineUrl, r.headline)
+                            }
+                        )
                 ) {
                     Text(
                         r.headline,
@@ -727,19 +796,22 @@ private fun androidx.compose.foundation.layout.RowScope.FactCell(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )
-        Text(
+        // SHRINKS RATHER THAN TRUNCATES, like the holding rows. These are three cells across
+        // a card, about 110dp each, and a three-digit annualised return ellipsised to "+123..."
+        // is not a number at all - which on a list whose whole purpose is comparing returns
+        // would be the one figure nobody could compare.
+        AutoFitNumber(
             value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            // Coloured only where the sign means something. A 0.03% expense ratio painted
-            // green would read as a gain.
+            // The TEXT palette, not the fill one - these are 14sp figures on a card, and
+            // #16C784 on white is 2.20:1. See the note on `signColor`.
             color = when {
                 !signed || value == DASH -> MaterialTheme.colorScheme.onSurface
-                value.startsWith("-") -> Red
-                else -> Green
+                value.startsWith("-") -> redText
+                else -> greenText
             },
-            maxLines = 1,
-            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+            fontWeight = FontWeight.SemiBold,
+            minSp = 10
         )
     }
 }

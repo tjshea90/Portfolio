@@ -247,7 +247,9 @@ fun PriceChart(
         // ITS OWN COMPOSABLE so that scrubbing recomposes only this line. Read `scrub` here
         // in `PriceChart` instead and every drag event would recompose the whole chart -
         // canvas, axis labels and caption included - to change one string.
-        ChartReadout(shown, range, line, muted, scrub, cmp, compareLabel)
+        // THE READOUT IS TEXT, so it takes the text-legible green/red rather than the line's
+        // fill colour - see the note on `signColor`. The line itself keeps the brand colour.
+        ChartReadout(shown, range, signColor(shown.change), muted, scrub, cmp, compareLabel)
 
         Spacer(Modifier.height(8.dp))
 

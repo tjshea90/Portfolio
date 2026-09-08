@@ -63,8 +63,20 @@ fun PortfolioScreen(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 12.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("My Portfolio", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.weight(1f))
+            // WEIGHTED, so the three buttons are measured first at their full 52dp.
+            //
+            // `Row` measures unweighted children in order against whatever width is left, and
+            // a weighted `Spacer` after the title does not protect what follows it - so at a
+            // large font scale "My Portfolio" ate the row and the LAST button, Sort, was
+            // squeezed to about 37dp, under this app's own documented 48dp minimum. A title
+            // that ellipsises is a small loss; a control too small to hit is a real one.
+            Text(
+                "My Portfolio",
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
             BigIconButton(Icons.Filled.Search, "Search symbols") { onSearch() }
             BigIconButton(Icons.Filled.Refresh, "Refresh prices") { vm.refresh(manual = true) }
             Box {
@@ -131,6 +143,25 @@ fun PortfolioScreen(
                     // the shape of an uninstall and reinstall. Offering it beats showing
                     // "No holdings yet" over a backup they have no reason to know is there.
                     else if (recoverable) FoundBackupCard(vm, restoring) { restoring = it }
+                    // ---- AND A THIRD CASE, FOUND IN ROUND 63'S SWEEP: NOT YET KNOWN.
+                    //
+                    // On the first frames of a launch the ledger has not been read and
+                    // neither `dataMissing` nor `recoverable` has resolved, so both fall
+                    // through to the friendly copy - which is the exact message the comment
+                    // above calls the worst possible answer for someone whose data has
+                    // vanished. It reached it through a different door: a 2dp progress bar
+                    // is not a loading state anyone reads. "Loading" and "there is nothing"
+                    // are different claims and the screen has to make the right one.
+                    else if (state.loading) Column(
+                        Modifier.fillMaxWidth().padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            "Loading your holdings...",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     else Column(
                         Modifier.fillMaxWidth().padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -301,7 +332,7 @@ internal fun SummaryHeader(
 
         if (error != null) {
             Spacer(Modifier.height(8.dp))
-            Text(error, color = Red, style = MaterialTheme.typography.bodyMedium)
+            Text(error, color = redText, style = MaterialTheme.typography.bodyMedium)
         }
         if (lastRefresh > 0) {
             Text(
@@ -352,19 +383,36 @@ private fun BigLine(
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // ---- THE LABEL YIELDS, THE NUMBERS DO NOT (Round 63 sweep).
+        //
+        // The weighted `Spacer` used to sit BETWEEN the label and the figures, which protects
+        // neither: `Row` measures every unweighted child in order against whatever width is
+        // left, so a label that grew with the font scale ate the row and `sub` - the
+        // percentage in dollar mode, the DOLLARS in percent mode - was measured at zero width
+        // and disappeared. It broke at about 1.3x, which is one step up the slider.
+        //
+        // Weighting the LABEL instead reverses the measurement order: both figures are
+        // measured first at full constraints, and the label takes what is left and ellipsises.
         Text(
             label,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
-        Spacer(Modifier.weight(1f))
-        Text(lead, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = color)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            lead, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = color,
+            softWrap = false
+        )
         Spacer(Modifier.width(10.dp))
         Text(
             sub,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
-            color = color
+            color = color,
+            softWrap = false
         )
     }
     // The reconciliation line. Only rendered when the two figures actually differ, so on an
@@ -386,17 +434,22 @@ private fun PlainLine(label: String, value: String) {
         Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Same reversal as `BigLine` above, and for the same reason: the value is the point.
         Text(
             label,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.width(10.dp))
         Text(
             value,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurface,
+            softWrap = false
         )
     }
 }

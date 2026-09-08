@@ -142,7 +142,7 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
                 )
                 if (error != null) {
                     Spacer(Modifier.height(10.dp))
-                    Text(error!!, color = Red, style = MaterialTheme.typography.bodyMedium)
+                    Text(error!!, color = redText, style = MaterialTheme.typography.bodyMedium)
                 }
                 val a = advice
                 if (a != null) {

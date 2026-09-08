@@ -509,7 +509,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         if (feeAudit.hasGhostRows) {
             Spacer(Modifier.height(10.dp))
             StatCard {
-                Text("Transactions your totals cannot explain", fontWeight = FontWeight.Bold, color = Red)
+                Text("Transactions your totals cannot explain", fontWeight = FontWeight.Bold, color = redText)
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "${feeAudit.quantityless.size} buy/sell row" +
@@ -764,7 +764,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             )
         } else {
             StatCard {
-                Text("Last crash", fontWeight = FontWeight.Bold, color = Red)
+                Text("Last crash", fontWeight = FontWeight.Bold, color = redText)
                 Spacer(Modifier.height(4.dp))
                 Text(crashSummary, style = MaterialTheme.typography.bodySmall)
             }
@@ -798,7 +798,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         }
 
         SectionHeader("Danger zone")
-        TextButton(onClick = { confirmWipe = true }) { Text("Delete all transactions", color = Red) }
+        TextButton(onClick = { confirmWipe = true }) { Text("Delete all transactions", color = redText) }
 
         Spacer(Modifier.height(30.dp))
         Text(
@@ -886,7 +886,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                 Row {
                     TextButton(onClick = { pendingRestore = null }) { Text("Cancel") }
                     TextButton(onClick = { confirmReplace = text; pendingRestore = null }) {
-                        Text("Replace all", color = Red)
+                        Text("Replace all", color = redText)
                     }
                 }
             }

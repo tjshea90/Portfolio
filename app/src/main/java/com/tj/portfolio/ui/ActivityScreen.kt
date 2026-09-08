@@ -310,7 +310,7 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
         },
         text = {
             if (r.error != null) {
-                Text(r.error, color = Red)
+                Text(r.error, color = redText)
             } else {
                 Column {
                     if (!checked) {

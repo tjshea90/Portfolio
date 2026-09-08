@@ -905,7 +905,14 @@ private fun OverviewTab(
                         }
                         val weight = state.totals?.marketValue?.takeIf { it > 0 }
                             ?.let { row.value / it * 100.0 }
-                        if (weight != null) KeyValue("Portfolio weight", Fmt.pct(weight))
+                        // NAMES ITS DENOMINATOR. This divides by `marketValue`, which is
+                        // stocks only - while the Portfolio screen's own headline is total
+                        // equity and lists cash separately. So these weights sum to 100% of a
+                        // number that is explicitly not "everything you have", and "Portfolio
+                        // weight" said the opposite. Round 51 fixed exactly this class of
+                        // omission on the price block: a percentage with nothing saying what
+                        // it is a percentage OF.
+                        if (weight != null) KeyValue("Share of your stocks", Fmt.pct(weight))
                         Text(
                             "Gain figures cover the shares you still own. Profit from shares " +
                                 "already sold is the realized figure below.",
@@ -928,7 +935,7 @@ private fun OverviewTab(
                     }
                     Row {
                         TextButton(onClick = onWatchToggle) { Text("Also watch") }
-                        TextButton(onClick = onDeletePosition) { Text("Delete position", color = Red) }
+                        TextButton(onClick = onDeletePosition) { Text("Delete position", color = redText) }
                     }
                 } else {
                     Text(
@@ -946,7 +953,7 @@ private fun OverviewTab(
                     Row {
                         TextButton(onClick = onAddTxn) { Text("Record a buy") }
                         if (tracked) TextButton(onClick = onRemoveWatch) {
-                            Text("Remove from watchlist", color = Red)
+                            Text("Remove from watchlist", color = redText)
                         } else TextButton(onClick = onAddWatch) { Text("Add to watchlist") }
                     }
                 }
@@ -1164,7 +1171,8 @@ private fun CompareToggle(on: Boolean, loading: Boolean, onClick: () -> Unit) {
         Modifier
             .minTapTarget()
             .background(
-                if (on) Benchmark else MaterialTheme.colorScheme.surfaceVariant,
+                // The darker amber, because this chip carries WHITE text - see BenchmarkFill.
+                if (on) BenchmarkFill else MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(10.dp)
             )
             .clickable(onClick = onClick)

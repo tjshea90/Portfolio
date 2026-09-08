@@ -176,7 +176,9 @@ fun StockRowItem(
                         "News",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = Accent
+                        // The text-legible accent - the brand blue on light, brighter on dark,
+                        // where it was 3.39:1 on this chip's own background. See `accentText`.
+                        color = accentText
                     )
                 }
             }
@@ -239,21 +241,27 @@ private fun MoneyCell(
             overflow = TextOverflow.Ellipsis
         )
         Spacer(Modifier.height(2.dp))
-        Text(
+        // ---- THE FIGURES SHRINK, THEY DO NOT GET CUT (Round 63 sweep).
+        //
+        // These are three `weight(1f)` columns, about 118dp each on a 411dp phone. A
+        // six-figure holding at a large font scale used to render as "$123,45..." - still a
+        // well-formed dollar amount, and nothing else on the row says which order of magnitude
+        // is right. The `sub` line below was worse: `maxLines = 1` with no `overflow` defaults
+        // to Clip, so in percent-first mode a five-figure dollar P/L was shortened with no
+        // ellipsis and no cue at all. See [AutoFitNumber].
+        AutoFitNumber(
             value,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
             color = color,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold
         )
         if (sub != null) {
-            Text(
+            AutoFitNumber(
                 sub,
+                color = color,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold,
-                color = color,
-                maxLines = 1
+                minSp = 9
             )
         }
     }

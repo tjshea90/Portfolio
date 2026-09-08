@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,6 +55,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
@@ -470,7 +473,15 @@ private fun BigTabBar(selected: Int, onSelect: (Int) -> Unit) {
             Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .height(74.dp),
+                // ---- A MINIMUM, NOT A FIXED HEIGHT (Round 63 sweep).
+                //
+                // 74 is a dp constant and the label under each icon is in sp, which scales.
+                // At about 1.45x - the "largest" position on Android's font slider - the
+                // longer labels ("Portfolio", "Activity", "Settings") wrapped to two lines
+                // against a 23dp label budget and painted outside the bar, shoving the icons.
+                // `heightIn` lets the bar grow to fit its own contents while keeping the
+                // comfortable 74dp target at every ordinary scale.
+                .heightIn(min = 74.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -506,7 +517,15 @@ private fun BigTabBar(selected: Int, onSelect: (Int) -> Unit) {
                         t.label,
                         fontSize = 11.sp,
                         color = tint,
-                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                        // ONE LINE, ELLIPSISED. Six labels across a phone give each about
+                        // 68dp; at a large font scale "Portfolio" needs more than that and
+                        // would otherwise wrap into a second line the bar has no room for.
+                        // A shortened word under a distinct icon is still identifiable - a
+                        // label spilling over the bar's edge is not.
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Center
                     )
                 }
             }

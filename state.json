@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:28:19 UTC",
+  "updated": "2026-09-08 15:53:29 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -316,8 +316,8 @@
       "id": "U01",
       "text": "StockRow's money cells are three weight(1f) columns, ~118dp each on a 411dp phone. A six-figure holding at font scale 1.5, or a five-figure one at 2.0, ellipsizes to '$123,45...' - which is still a well-formed dollar amount and reads at a glance as either $123 thousand or $123 hundred. Nothing else on the row carries the magnitude.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "money figures now shrink to fit rather than truncate - a new AutoFitNumber steps the type down to a floor and only ellipsises below it, so a six-figure holding at 2x reads in full instead of as '$123,45...'"
     },
     {
       "id": "U02",
@@ -694,6 +694,7 @@
     "2026-09-08 15:28:09 UTC  N09 fixed: chartFetchedAt and holdingsFetchedAt deleted along with their writes; the KDoc that described the first as the bug RetryClock replaced now says it was removed",
     "2026-09-08 15:28:10 UTC  N10 fixed: a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh",
     "2026-09-08 15:28:11 UTC  N11 fixed: fillResearchPrices uses the batched MarketData.quotes and reads the Finnhub key once",
-    "2026-09-08 15:28:19 UTC  T9 -> doing  sweep 2: UI half"
+    "2026-09-08 15:28:19 UTC  T9 -> doing  sweep 2: UI half",
+    "2026-09-08 15:53:29 UTC  U01 fixed: money figures now shrink to fit rather than truncate - a new AutoFitNumber steps the type down to a floor and only ellipsises below it, so a six-figure holding at 2x reads in full instead of as '$123,45...'"
   ]
 }

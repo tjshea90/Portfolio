@@ -22,6 +22,8 @@ import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.ui.BENCHMARK_SYMBOL
 import com.tj.portfolio.ui.PortfolioTheme
 import com.tj.portfolio.ui.PriceChart
+import com.tj.portfolio.ui.EtfFactsGrid
+import com.tj.portfolio.ui.KeyValue
 import com.tj.portfolio.ui.RangeChips
 import java.io.File
 import org.junit.Rule
@@ -55,6 +57,23 @@ class ShotTest {
         baseline = 0.0, fetched = System.currentTimeMillis()
     )
 
+    private fun shootScaled(name: String, scale: Float, content: @Composable () -> Unit) {
+        rule.setContent {
+            val base = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.ui.platform.LocalDensity provides
+                    androidx.compose.ui.unit.Density(base.density, scale)
+            ) {
+                PortfolioTheme(dark = false) {
+                    Surface(color = MaterialTheme.colorScheme.background) {
+                        Box(Modifier.fillMaxWidth().testTag("shot").padding(12.dp)) { content() }
+                    }
+                }
+            }
+        }
+        capture(name)
+    }
+
     private fun shoot(name: String, dark: Boolean, content: @Composable () -> Unit) {
         rule.setContent {
             PortfolioTheme(dark = dark) {
@@ -63,6 +82,10 @@ class ShotTest {
                 }
             }
         }
+        capture(name)
+    }
+
+    private fun capture(name: String) {
         rule.waitForIdle()
         org.robolectric.shadows.ShadowLooper.idleMainLooper()
         val view = rule.activity.window.decorView
@@ -100,27 +123,30 @@ class ShotTest {
         }
     }
 
-    @Test fun compareDark() {
-        shoot("chart_compare_dark", true) {
-            Column {
-                RangeChips(ChartRange.M6, {}, perf = mapOf(ChartRange.M6 to 41.2))
-                PriceChart(stock, ChartRange.M6, loading = false, onZoom = {}, compare = bench)
-            }
+    // ---- the font-scale cases the sweep fixed, at the scale that used to break them.
+
+    @Test fun rowsBig() = shootScaled("rows_2x", 2.0f) {
+        Column {
+            KeyValue("Gain on stocks you still own", "+$1,234.56  (+12.34%)")
+            KeyValue("Market value  (45 x $230.115)", "$10,355.18")
+            KeyValue("Cash not invested", "$1,204.77")
         }
     }
 
-    @Test fun compareLosing() {
-        // The stock behind the market, so the sign colours and the zero line can be checked.
-        val falling = stock.copy(
-            points = (0 until 120).map {
-                ChartPoint(t0 + it * 86_400L, 200.0 - it * 0.4 + Math.sin(it / 6.0) * 5)
-            }
-        )
-        shoot("chart_compare_losing", false) {
-            Column {
-                RangeChips(ChartRange.M6, {}, perf = mapOf(ChartRange.M6 to -22.0))
-                PriceChart(falling, ChartRange.M6, loading = false, onZoom = {}, compare = bench)
-            }
+    @Test fun rowsMedium() = shootScaled("rows_1_3x", 1.3f) {
+        Column {
+            KeyValue("Gain on stocks you still own", "+$1,234.56  (+12.34%)")
+            KeyValue("Market value  (45 x $230.115)", "$10,355.18")
         }
+    }
+
+    @Test fun factsBig() = shootScaled("etf_facts_2x", 2.0f) {
+        EtfFactsGrid(
+            com.tj.portfolio.data.EtfFacts(
+                expenseRatio = 0.03, netAssets = 1.741139870E12, yieldPct = 1.04,
+                ytdReturnPct = 13.11, oneYearPct = 118.41, threeYearAnnualPct = 126.25,
+                fiveYearAnnualPct = 28.66
+            )
+        )
     }
 }

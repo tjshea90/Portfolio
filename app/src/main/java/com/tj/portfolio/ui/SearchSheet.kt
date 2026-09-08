@@ -154,13 +154,13 @@ fun SearchSheet(
                                 Modifier
                                     .background(Green.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
                                     .padding(horizontal = 8.dp, vertical = 5.dp)
-                            ) { Text("HELD", color = Green, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
+                            ) { Text("HELD", color = greenText, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
 
                             watched -> TextButton(onClick = { vm.removeWatch(hit.symbol); version++ }) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Filled.Check, null, Modifier.size(16.dp), tint = Green)
                                     Spacer(Modifier.width(4.dp))
-                                    Text("Remove", color = Red, fontSize = 13.sp)
+                                    Text("Remove", color = redText, fontSize = 13.sp)
                                 }
                             }
 

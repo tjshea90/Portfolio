@@ -159,7 +159,7 @@ private fun EditPositionDialog(
                         vm.setOverride(symbol, null, null)
                         vm.toast("$symbol back to calculated values")
                         onDone()
-                    }) { Text("Clear", color = Red) }
+                    }) { Text("Clear", color = redText) }
                 }
                 TextButton(onClick = onDone) { Text("Cancel") }
             }
