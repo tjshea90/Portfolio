@@ -463,8 +463,8 @@
       "id": "R05",
       "text": "AutoFitNumber's floor is expressed in sp, so it scales with the user's font setting - at 2.0x the 11sp floor is 22dp of type in a 118dp cell and the number ellipsises anyway, which is the exact case the widget was written for. It also renders the three cells of one row at sizes up to 30 percent apart, in a list whose purpose is comparing them.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the autosize floor is now dp-derived via Dp.toSp(), so it is a physical size that does not scale with the user's setting, and the step is a whole point so neighbouring cells stay on a short ladder"
     },
     {
       "id": "R06",
@@ -829,6 +829,7 @@
     "2026-09-08 16:36:44 UTC  R01 fixed: reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version.",
     "2026-09-08 16:36:45 UTC  R02 fixed: removed the leftover weighted Spacer; the status text carries the weight and the title is measured at what it needs",
     "2026-09-08 16:36:46 UTC  R03 fixed: both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless",
-    "2026-09-08 16:36:47 UTC  R04 fixed: KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value."
+    "2026-09-08 16:36:47 UTC  R04 fixed: KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value.",
+    "2026-09-08 16:36:47 UTC  R05 fixed: the autosize floor is now dp-derived via Dp.toSp(), so it is a physical size that does not scale with the user's setting, and the step is a whole point so neighbouring cells stay on a short ladder"
   ]
 }
