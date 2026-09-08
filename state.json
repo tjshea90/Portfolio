@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "round": 63,
-  "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 20:15:13 UTC",
+  "round": 64,
+  "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
+  "updated": "2026-09-08 20:26:04 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,594 +10,66 @@
     "next_code": 62
   },
   "now": {
-    "step": "(nothing in flight)",
-    "next": "Round 63 is complete and shipped as v7.4. Nothing is outstanding. A new round starts with ./ck start 64."
+    "step": "T0: Baseline: v7.4 tree builds and 569 tests green before any edit",
+    "next": ""
   },
   "tasks": [
     {
       "id": "T0",
-      "title": "Baseline: v7.3 tree builds and 443 tests green before any edit",
-      "status": "done",
-      "note": "443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)"
+      "title": "Baseline: v7.4 tree builds and 569 tests green before any edit",
+      "status": "doing",
+      "note": "baseline"
     },
     {
       "id": "T1",
-      "title": "Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs",
-      "status": "done",
-      "note": "gesture-based tab paging (not a pager - neighbours stay uncomposed so VisibleScope still describes one screen); pure swipeTarget decision + slide animation shared with the bar"
+      "title": "Row sparklines fill their space: measure what the row actually gives them and use it",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T2",
-      "title": "Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m",
-      "status": "done",
-      "note": "pinch zoom walks ChartRange.ZOOM_LADDER (All->5Y->1Y->6M->1M->5D->1D/5-minute); one pointer loop shared with scrubbing, per-rung 1.55x accumulator, 380ms settle so a multi-rung spread fetches only the rung it lands on; chip row auto-scrolls to the selection"
+      "title": "Continuous pinch zoom: a real time window scaled smoothly, with the range ladder behind it as the data source",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T3",
-      "title": "Best ETFs data: ETF screener feed + scorer + cached section + periodic refresh",
-      "status": "done",
-      "note": "EtfScreener (3 keyless Yahoo fund screens, 10 requests, ~850 funds - measured that top_performing_etfs duplicates top_etfs_us and dropped it), EtfRow/EtfFacts, EtfScore (returns weighted to 5y/3y, cost, size, liquidity, age, trend; leveraged+inverse excluded), Research.buildEtfs on its own 6h TTL, vm.loadEtfs/etfsStale with its own job"
+      "title": "Full-screen chart: tap any chart to open it, sensor rotation, back to close",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T4",
-      "title": "Best ETFs UI: fourth research tab + Claude-app bridge export/import",
-      "status": "done",
-      "note": "fourth research tab with its own scroll state, timestamp, refresh target, blurb, sources and warnings; ETF facts grid on the card; prompt/bundle/parse/merge carry the etfs array and name the universe gaps so Claude adds the funds Yahoo's screens omit; funds Claude adds survive a rebuild"
+      "title": "Tests for T1-T3: pure + rendered + measured",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T5",
-      "title": "SPY comparison overlay: second series aligned to the first and drawn against it",
-      "status": "done",
-      "note": "SPY overlay: percent mode with both lines rebased to the same moment (previous close intraday, the benchmark's value at the window start for longer ranges), zero line, segmented benchmark path across gaps, dual crosshair, legend, live edge on both tips, 'vs SPY' chip beside the range chips; shares loadChart's cache so it costs one fetch per range per TTL for the whole app"
+      "title": "REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T6",
-      "title": "Tests for T1-T5: pure + rendered",
-      "status": "done",
-      "note": "SwipeTabTest 15, ChartZoomTest 12, CompareChartTest 10, EtfTest 23, GestureUiTest 11 (real multi-touch), CompareChartUiTest 8 - 79 new"
+      "title": "SWEEP 1: adversarial bug hunt over the new code and the app",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T7",
-      "title": "REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke",
-      "status": "done",
-      "note": "522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok"
+      "title": "SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T8",
-      "title": "SWEEP 1: adversarial bug hunt across the whole app; fix everything found",
-      "status": "done",
-      "note": "two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested."
-    },
-    {
-      "id": "T9",
-      "title": "SWEEP 2: UI, code and network-efficiency pass; fix everything found",
-      "status": "done",
-      "note": "network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white."
-    },
-    {
-      "id": "T10",
-      "title": "SWEEP 3: re-scan until clean - verify no fix introduced a new bug",
-      "status": "done",
-      "note": "14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales."
-    },
-    {
-      "id": "T11",
-      "title": "Ship v7.4 (versionCode 61) + final checkpoint",
-      "status": "done",
-      "note": "v7.4 shipped: versionCode 61, signed with the archived key (cert SHA-256 2e8c3847... unchanged, so it installs in place over 7.3), 569/569 tests green, lint vital clean, checkinit ok"
-    },
-    {
-      "id": "T12",
-      "title": "SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters",
-      "status": "done",
-      "note": "8 findings (S01-S08) incl. a deadlock between the new settings lock and restoreJson's transaction"
-    },
-    {
-      "id": "T13",
-      "title": "SWEEP 5: final verification pass; ship only if it finds nothing above cosmetic",
-      "status": "done",
-      "note": "verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases."
+      "title": "Ship v7.5 (versionCode 62) + final checkpoint",
+      "status": "todo",
+      "note": ""
     }
   ],
-  "findings": [
-    {
-      "id": "J01",
-      "text": "isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways."
-    },
-    {
-      "id": "F01",
-      "text": "loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL"
-    },
-    {
-      "id": "F02",
-      "text": "A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared inside the settle branch, so it is still true when the tap's LaunchedEffect runs. Contradicts the documented 'a tap is not a zoom' rule.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "tapping a range chip clears zoomSettling rather than merely not setting it - an explicit destination has no intermediate rungs to swallow"
-    },
-    {
-      "id": "F03",
-      "text": "zoomFactor reads event.changes[0] and [1] positionally. A third finger landing, or one of two lifting, reshuffles that list and produces an impossible one-frame separation ratio - which the accumulator then spends as several real zoom rungs.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the pinch now measures a NAMED pair of pointer ids chosen when the gesture begins; if either finger leaves, the pair is re-chosen and that frame yields no reading, so a third finger costs one frame instead of an arbitrary jump"
-    },
-    {
-      "id": "F04",
-      "text": "showMoreResearch on the ETF section calls enrichVisible, which only has work for BEST and WORST - so revealing ten more funds starts an analyst pass and flips the busy indicator for nothing.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage"
-    },
-    {
-      "id": "F05",
-      "text": "The F01 fix reintroduced a worse bug: keying the build effect on the shared busy flag means a FAILED pass re-triggers itself the instant busy clears. An empty result leaves the set stale, so loadResearch/loadEtfs launch again immediately - an unbounded retry loop of 18 (or 10) requests against providers that are almost certainly rate-limiting, which is exactly what the backoff machinery elsewhere in the app exists to prevent.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "both auto-builds now sit behind RetryClock (30s/1m/2m/4m/5m per section), so an empty pass backs off instead of re-firing the moment busy clears; force still ignores it. RetryClock promoted to top-level internal and RetryBackoffTest now exercises the real class instead of a copy of its rule."
-    },
-    {
-      "id": "F06",
-      "text": "CHART: PriceChart returns from the Column BEFORE the gesture surface whenever the series is null or empty. Pinching to a range that has never been fetched therefore destroys the gesture node mid-pinch: the zoom stops after exactly one rung, the badge vanishes, and the remaining fingers fall through to the list underneath. 'Zoom all the way down to 5 minute' is impossible in one gesture on any stock opened for the first time.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "the gesture surface and its state are hoisted above the empty-state branch and the placeholder carries the same modifier, so a pinch continues across a window that has not been fetched yet"
-    },
-    {
-      "id": "F07",
-      "text": "CHART: onZoomStep = liveZoom.value is read ONCE inside pointerInput(Unit), so rememberUpdatedState is defeated and the captured lambda is whatever onZoom was on first composition. Opening a fund and tapping through to one of its holdings reuses the node, so the stale lambda writes zoomSettling into a dead MutableState - the 380ms settle never applies and a four-rung spread fires four chart fetches (eight with the overlay on), which is the exact traffic the feature was built to avoid.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)"
-    },
-    {
-      "id": "F08",
-      "text": "CHART: the benchmark's live edge is discarded whenever its last candle is later than the stock's - comparePercents looks every value up by the STOCK's timestamps, so valueAtOrBefore returns SPY's second-to-last point and the live price written into its tip is never read. The two ends being compared are then up to five minutes apart, which is precisely what compareLivePrice exists to prevent.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge"
-    },
-    {
-      "id": "F09",
-      "text": "CHART: in price mode the y-axis corner labels print the series high and low, but the axis is widened to include the dotted previous-close baseline. On a gap-down day - previous close 110, session 98-104 - the top of the axis is 110 while the label pinned to it reads 104.00. Comparison mode uses the real bounds for the same two labels, so the two modes give the same corners different meanings.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "priceBounds() is now the single source for both the canvas scale and the corner labels, so the number printed at the top of the axis is by construction the value drawn there"
-    },
-    {
-      "id": "F10",
-      "text": "CHART: the 'pts vs SPY' spread and the resting SPY readout take the benchmark's LAST FINITE value, which can be an earlier index than the stock's last point when the benchmark's tail is NaN. The printed out-performance is then a difference between two different moments.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "ComparePair.pairedIndex() - the last index at which BOTH lines have a reading - now feeds the spread and the resting benchmark figure, and the spread normalises negative zero"
-    },
-    {
-      "id": "F11",
-      "text": "RESEARCH: every stock rebuild destroys the ETF list. carryExplanations returns the freshly built set, which Research.build never populates with etfs/etfGenerated/etfWarnings - so the 30-minute stock pass wipes the 6-hour fund pass, in memory and on disk. Ten Yahoo requests are then re-spent to rebuild it, repeatedly, which is exactly what TJ's 'keep the current list in cache until each update' rule forbids. notes is lost the same way while explained/explainedBy survive, so the screen claims an explanation whose text is gone.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit"
-    },
-    {
-      "id": "F12",
-      "text": "RESEARCH: fillResearchPrices writes the fetched quotes back into trending/best/worst but not into etfs. A fund Claude adds - which the prompt explicitly asks for - costs a real quote request whose answer is discarded, renders with no price forever, and re-spends the same request on every later import.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept"
-    },
-    {
-      "id": "F13",
-      "text": "RESEARCH: the org.json NULL trap, in the one place the architecture notes warn about it. optString on a JSON null returns the literal string 'null' on Android. A Claude reply with \"catalyst\": null paints 'null' under the card; \"shortVehicle\": null becomes a red 'NULL' inverse-ETF chip; \"symbol\": null inserts a fabricated NULL row. The desktop org.json used in tests returns the fallback, so no existing test can catch it.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json"
-    },
-    {
-      "id": "F14",
-      "text": "RESEARCH: the same NULL trap in EtfScreener.parse - a Yahoo row with a null longName yields the name 'null', and .ifBlank never fires because 'null' is not blank, so both fallbacks are skipped and the leverage filter runs its whole test against that string.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "same guard - a null longName now falls through to shortName instead of becoming the string 'null'"
-    },
-    {
-      "id": "F15",
-      "text": "RESEARCH: ResearchBridge's bundle computes dataAgeMinutes from set.generated only, so a user who has only opened the ETFs tab tells Claude the fund data is 0 minutes old when it may be six hours. etfGenerated is nowhere in the bundle.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "the bundle carries etfDataAgeMinutes from the fund list's own clock"
-    },
-    {
-      "id": "F16",
-      "text": "RESEARCH: a fund Claude returns with a category but no why survives the import and then vanishes at the next rebuild - carryEtfExplanations requires why to be non-blank - contradicting the screen's own promise that funds Claude adds are kept.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "a fund Claude returned with a category but no paragraph now survives a rebuild"
-    },
-    {
-      "id": "F17",
-      "text": "RESEARCH: an imported reply with no notes blanks the previous notes; every other field in that copy merges rather than overwrites.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "notes merges with ifBlank rather than overwriting"
-    },
-    {
-      "id": "F18",
-      "text": "RESEARCH: the FOLLOWING chip's watched/held set is remembered on set.generated and set.explained, neither of which changes when the ETF list rebuilds - so on the ETFs tab the chip can lag until the stock pass runs.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "the watched/held set is keyed on etfGenerated as well"
-    },
-    {
-      "id": "F19",
-      "text": "RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as a failure and retries the identical request against the other Yahoo host, so each list's terminal page costs two requests instead of one.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host"
-    },
-    {
-      "id": "F20",
-      "text": "RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as a fraction, copying the stock screener's rule for a DIFFERENT field name. Measured live: on ETF rows yieldTTM and dividendYield are both percentages (SPY 0.98). The code is right and its comment is wrong, which is how a later 'fix' introduces a 100x error.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other"
-    },
-    {
-      "id": "N01",
-      "text": "The per-symbol quote fallback has no failure memory - RetryClock guards charts, sparklines, holdings and research, but not quotes. A symbol the batch endpoint never returns (a delisted ticker, a typo'd watchlist add, a foreign listing) is permanently 'missing', so the four-provider chain runs every tick forever: ~720-960 requests an hour, for one bad symbol, split across Yahoo, Finnhub and Stooq.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds."
-    },
-    {
-      "id": "N02",
-      "text": "News.market() - seven RSS feeds - is pulled unconditionally inside refreshFeed, which runs on a three-minute timer whether or not a headline screen is visible. ~140 requests an hour spent while sitting on Portfolio, Activity, Advice, Settings or a stock. The newsDue flag that would gate it already exists and is computed 55 lines below, guarding only the per-symbol loop.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "the seven market feeds are gated on the same newsDue rule the per-symbol loop uses, and setNewsVisible(true) kicks a pass when what is held is already past its interval - so the tab is no less fresh, it just stops fetching for a screen nobody is on."
-    },
-    {
-      "id": "N03",
-      "text": "Opening ONE stock sets newsVisible, which makes the three-minute feed pass sweep headlines for every held AND watched symbol - ~480 requests an hour, 23 of every 24 for a symbol not on screen. The open stock's own headlines do not even come from there; DetailScreen reads what loadNews(symbol) fetched.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "newsVisible and newsSymbol are now two signals: the Feed tab asks for every followed symbol because that is the list it draws, a detail screen asks for its own one. Opening a stock went from ~480 requests an hour to ~20."
-    },
-    {
-      "id": "N04",
-      "text": "The 1D chart and the row sparkline are the same Yahoo URL on the same five-minute TTL. Round 58 closed one direction (adoptAsSparkline) but refreshSparklines' due filter never consults _charts, so on the tick where both lapse together the same ~30KB body is fetched twice - about 12 duplicated requests an hour per open detail screen.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "refreshSparklines skips any symbol whose cached 1D chart is regular-session and inside its TTL - exactly the condition adoptAsSparkline requires - so the shared URL is never fetched twice in one window."
-    },
-    {
-      "id": "N05",
-      "text": "loadInsider's guard is 'we already hold filings for this symbol', which never becomes true for a symbol with no Form 4 in the 31-day window - the ordinary case. So every detail-screen open and every resume sends a fresh EDGAR listing request, and the daily-rolling datea parameter means the conditional-GET cache cannot answer it either.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "insiderAt records that an EDGAR pass COMPLETED rather than that it found something, on a 30-minute TTL matching Form 4's own legal lag; a failed pass still never stamps it"
-    },
-    {
-      "id": "N06",
-      "text": "The feed's per-headline loop rebuilds holdingNames() once PER HEADLINE and calls Relevance.matchHolding without a hoisted Subject or a pre-squashed haystack - roughly 4,000 Subject constructions and 4,000 squash calls per feed pass, every three minutes, ON THE MAIN THREAD. Relevance.Subject exists precisely to hoist this; the Feed path never adopted it.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the feed's market pass hoists holdingNames and Relevance.Subject out of the per-headline loop, pre-squashes each headline once, and runs on Dispatchers.Default instead of the main thread"
-    },
-    {
-      "id": "N07",
-      "text": "Ledger.totals re-scans the whole transaction list six times on every quote tick - cash, netDeposits, dividends, fees, realized - all pure functions of cachedTxns, which only changes in recompute(). 240 ticks an hour x six full passes, on the main thread, always producing the same five numbers.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "Ledger.sums computes the four ledger-only figures once in recompute(); totals takes them as an optional parameter so every existing call site and test is unchanged"
-    },
-    {
-      "id": "N08",
-      "text": "publish() runs two synchronous SQLite queries per quote tick (useCashOverride + cashOverrideValue), plus refreshSecs() once per tick and finnhubKey() once per refresh - ~480+ main-thread rawQuery calls an hour against the settings table.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "Db keeps a write-through settings cache, with absence cached as its own sentinel so hasSetting still tells a missing key from a stored blank; restoreJson invalidates it on entry and on both exits"
-    },
-    {
-      "id": "N09",
-      "text": "chartFetchedAt and holdingsFetchedAt are written and never read anywhere - chartFetchedAt is documented as the bug RetryClock replaced, and the field survived the fix. Dead state that grows unbounded and misleads the next reader.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "chartFetchedAt and holdingsFetchedAt deleted along with their writes; the KDoc that described the first as the bug RetryClock replaced now says it was removed"
-    },
-    {
-      "id": "N10",
-      "text": "loadFundamentals and loadRatings stamp their TTL only on success, so a symbol whose quoteSummary is refused is re-requested on every detail open and every resume - and the analyst payload is the heaviest thing the app fetches.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh"
-    },
-    {
-      "id": "N11",
-      "text": "fillResearchPrices fetches up to 20 quotes one symbol at a time through MarketData.quote, bypassing the batched endpoint that would do it in one request - and calls finnhubKey(), a SQLite read, inside each async.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "fillResearchPrices uses the batched MarketData.quotes and reads the Finnhub key once"
-    },
-    {
-      "id": "U01",
-      "text": "StockRow's money cells are three weight(1f) columns, ~118dp each on a 411dp phone. A six-figure holding at font scale 1.5, or a five-figure one at 2.0, ellipsizes to '$123,45...' - which is still a well-formed dollar amount and reads at a glance as either $123 thousand or $123 hundred. Nothing else on the row carries the magnitude.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "money figures now shrink to fit rather than truncate - a new AutoFitNumber steps the type down to a floor and only ellipsises below it, so a six-figure holding at 2x reads in full instead of as '$123,45...'"
-    },
-    {
-      "id": "U02",
-      "text": "The sub-figure under each money cell has maxLines = 1 and NO overflow parameter, so it defaults to Clip. In percent-first P/L mode that is the dollar figure: '+$12,345.67' becomes '+$12,345.' with no ellipsis and nothing saying anything was removed. The two Texts directly above it both pass Ellipsis; this one was missed.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "same widget on the sub-figure, which had no overflow parameter at all and was clipping silently"
-    },
-    {
-      "id": "U03",
-      "text": "KeyValue lays out label then value as two UNWEIGHTED children of a Row. Compose measures them in order, so a label long enough to wrap takes the full width and the value is measured at maxWidth = 0 and disappears entirely. Neither Text sets maxLines. Worst case is the portfolio summary card - 'Gain on stocks you still own' plus its figure has 13dp of headroom at scale 1.0, so it breaks at 1.15x, the first slider step above default.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "KeyValue weights the LABEL, so the value is the unweighted child measured first at full constraints and can never be starved to zero; the label wraps to two lines then ellipsises. Verified by screenshot at 2x."
-    },
-    {
-      "id": "U04",
-      "text": "The bottom tab bar has a hard-coded 74dp height and its labels are unbounded sp. At font scale ~1.45 'Portfolio', 'Activity' and 'Settings' wrap to two lines against a 23dp label budget and paint outside the bar, pushing the icons. It is the one chrome element visible on every screen.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the tab bar uses heightIn(min = 74.dp) so it grows with the font, and every label is one line, centred, ellipsised"
-    },
-    {
-      "id": "U05",
-      "text": "Green #16C784 on the light theme's white background is 2.20:1 - WCAG AA for 15sp bold needs 4.5:1. Red is 3.69:1. In dark they are 8.6:1 and 5.1:1, so the palette was tuned there and never re-checked against light. Worst instance: 'you own this' in green at 10sp on white. This is a contrast problem, not a colour-only-meaning one - the app is disciplined about always printing a sign.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "text and fill palettes separated: Green/Red are untouched as fills, and signColor - which every signed figure uses - is now theme-aware, resolving to #0A8055 (4.96:1) and #C62B3C (5.51:1) on light and to the brand colours on dark. Standalone green/red TEXT sites routed the same way."
-    },
-    {
-      "id": "U06",
-      "text": "The Research header Row measures four unweighted children in sequence, so at large font scales the Rebuild button - measured last - is squeezed under 48dp from ~1.75x and to zero width at 2.0x. It is the only non-gesture way to rebuild the list being viewed.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the Research header's texts are weighted, so the Rebuild button is measured first and keeps its 52dp at every font scale"
-    },
-    {
-      "id": "U07",
-      "text": "The portfolio summary's BigLine and PlainLine starve the same way: the weighted Spacer sits BETWEEN the label and the numbers, so it protects neither. BigLine breaks at ~1.3x and what vanishes is the sub-figure; PlainLine breaks at ~1.6x and what vanishes is the value.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first"
-    },
-    {
-      "id": "U08",
-      "text": "The Research card's score is a bare integer in a coloured circle. Nothing on the card, and nothing in any section blurb, says it is a score or what the scale is - the blurbs describe the inputs but never the output. The only mention is 300dp below, past ten cards.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'"
-    },
-    {
-      "id": "U09",
-      "text": "The Research tab row is a fixed SecondaryTabRow: four tabs across 411dp is 102dp each, and 'Trending (20)' at 14sp needs ~104dp at scale 1.3, so it wraps into a fixed 48dp tab height and clips. DetailScreen's equivalent is scrollable and does not have this.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the Research tab row is now SecondaryScrollableTabRow, like the detail screen's"
-    },
-    {
-      "id": "U10",
-      "text": "Three counts on the Research screen can disagree: the tab label prints rows.size, the list renders rows.take(n).distinctBy { symbol } - which can remove rows - and the footer says 'that is all rows.size this pass found'. The code's own comment says an imported Claude answer can name a ticker twice, so this is reachable.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw"
-    },
-    {
-      "id": "U11",
-      "text": "'Portfolio weight' divides by totals.marketValue - stocks only - while the Portfolio screen's own headline is total equity and shows cash separately. The weights therefore sum to 100% of a number that is explicitly not 'what you have', and nothing says which.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "renamed to 'Share of your stocks' - the denominator is market value, not total equity"
-    },
-    {
-      "id": "U12",
-      "text": "On first launch, before dataMissing or recoverable has resolved, the Portfolio screen renders the full 'No holdings yet - import Ally screenshots' copy under a 2dp progress bar. The file's own comment calls that the worst possible answer for the data-loss case; the loading case reaches it through a different door.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "a third branch: while the ledger is still loading the screen says so instead of showing the 'No holdings yet' copy"
-    },
-    {
-      "id": "U13",
-      "text": "Accent #2E6BE6 on the dark surfaceVariant is 3.40:1 at 13sp on the News chip - the most-tapped control on the portfolio list - and white on the new Benchmark amber is 3.29:1 in both themes.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "BenchmarkFill (#7E5A22, 6.23:1 under white) for the vs-SPY chip, and accentText (#5B92F0 on dark, 5.30:1) for the News chip; the score card's three tiers are now theme-aware too - the middling amber was 2.46:1 on white while carrying the number itself"
-    },
-    {
-      "id": "U14",
-      "text": "The Portfolio header's Sort button is measured last among unweighted children and is squeezed to ~37dp at font scale 2.0, under the app's own documented 48dp rule.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "the Portfolio title is weighted so all three header buttons keep 52dp"
-    },
-    {
-      "id": "U15",
-      "text": "ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its hyphen - the identical trap FeedScreen documents and fixes with widthIn(min = 34.dp). It survives at 2.0x today, but it is the same latent bug in the same codebase.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "widthIn(min) rather than a fixed width for the reason bullet"
-    },
-    {
-      "id": "U16",
-      "text": "FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit annualised return at 2.0x ellipsizes to '+123...', which is not a number.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "FactCell values use AutoFitNumber, so a three-digit annualised return renders in full at 2x - verified by screenshot"
-    },
-    {
-      "id": "U17",
-      "text": "A Research headline with a blank URL still renders a minTapTarget()-sized clickable(enabled = false) block that looks identical to a tappable one.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control"
-    },
-    {
-      "id": "R01",
-      "text": "CRITICAL, and it would have shipped: changing the tab bar's height(74.dp) to heightIn(min = 74.dp) removed the maxHeight that each tab's Column.weight(1f).fillMaxSize() was being bounded by. Scaffold measures a bottomBar with loose constraints, so every child filled the SCREEN and the bar sized to its tallest child. Measured in a real Scaffold: bar 891dp, content 0dp. The app would render nothing at all, at any font scale.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version."
-    },
-    {
-      "id": "R02",
-      "text": "The Research header's title is ellipsised at the DEFAULT font scale. Weighting the title left the old weighted Spacer in place, so three weighted children split the space 1:1:2 and the title's share is 84dp against a 93.5dp natural width - 'Researc...' beside 140dp of blank.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "removed the leftover weighted Spacer; the status text carries the weight and the title is measured at what it needs"
-    },
-    {
-      "id": "R03",
-      "text": "The new SCORE cap-label clips the score it labels from about 1.1x: both Texts inherit bodyLarge's 21sp lineHeight, so the Column needs 42sp of line box inside a fixed 46dp circle and Arrangement.Center gives the label its full box first. At 1.3x - Android's ordinary largest step - a third of the digits are cut.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless"
-    },
-    {
-      "id": "R04",
-      "text": "KeyValue no longer loses the value; it loses the LABEL instead. Measured with a long value in a 359dp card: label 48.5dp at 1.5x, 14.5dp at 1.8x, 0dp at 2.0x - an unlabelled signed figure. And the value sets softWrap=false with no overflow, so it clips with no ellipsis. The failure threshold moved from 1.15x to 1.5x; it was not removed.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value."
-    },
-    {
-      "id": "R05",
-      "text": "AutoFitNumber's floor is expressed in sp, so it scales with the user's font setting - at 2.0x the 11sp floor is 22dp of type in a 118dp cell and the number ellipsises anyway, which is the exact case the widget was written for. It also renders the three cells of one row at sizes up to 30 percent apart, in a list whose purpose is comparing them.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "the autosize floor is now dp-derived via Dp.toSp(), so it is a physical size that does not scale with the user's setting, and the step is a whole point so neighbouring cells stay on a short ladder"
-    },
-    {
-      "id": "R06",
-      "text": "The new 'Loading your holdings...' branch replaces the onboarding copy for a user with zero holdings and a non-empty watchlist - every automatic tick runs a quote pass, so the instructions that matter most flicker away. And it misses its own target: recompute() runs synchronously in init before the first frame, so loading is false on the frames the branch was added for.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user"
-    },
-    {
-      "id": "R07",
-      "text": "greenText/redText/accentText/scoreColor read isSystemInDarkTheme() rather than the scheme actually in force, while PortfolioTheme takes a dark override. Production is unaffected, but seven UI tests pass dark = true and now render light-theme text colours on dark surfaces - so any dark-mode assertion is measuring the wrong pair.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "PortfolioTheme publishes LocalDarkTheme and every theme-aware colour reads that instead of isSystemInDarkTheme(), so the seven tests that render the dark scheme now get dark-scheme text"
-    },
-    {
-      "id": "R08",
-      "text": "The chart now paints two different greens eight dp apart: the legend dot takes the LINE colour (#16C784) and the spread text beside it takes the TEXT colour (#0A8055). Same for the benchmark - the vs-SPY toggle is #7E5A22 while the line, its dot and both readouts stay #B4863B.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "one palette per feature: the chart line, its legend dot, the readout and the chips all take signColor, and benchmarkColor covers the line, the dot, the readouts and the toggle. The sparkline moved with them - a hairline at 2.20:1 on white was faint as a line too."
-    },
-    {
-      "id": "R09",
-      "text": "The Feed tab's new refresh-on-open never fires: stampFeedAt runs on EVERY pass including the gated no-op ones, so _feedAt is always younger than one interval. Worse, it also makes the 'Updated Xs ago' header read 'just now' over headlines last actually fetched hours ago.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "stampFeedAtIfFetched - a gated pass that fetched nothing no longer claims to have refreshed, which also stops the header reading 'just now' over hours-old headlines"
-    },
-    {
-      "id": "R10",
-      "text": "And even when it does fire, the pass it triggers is gated off: setNewsVisible calls refreshFeed BEFORE assigning newsVisible = visible, and viewModelScope is Main.immediate, so feedDue is computed while the flag is still false. The pass that exists to fill the tab fetches nothing and then stamps _feedAt twice.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "newsVisible is assigned BEFORE the refresh it gates is kicked (viewModelScope is Main.immediate, so the body runs in place), and both transition edges are captured before the flag moves so the grace window still measures leaving"
-    },
-    {
-      "id": "R11",
-      "text": "insiderAt is stamped on FAILED EDGAR passes. Insider.listFilings returns an empty list on any non-OK response - 403, 429, timeout, offline - which is indistinguishable from 'this company filed nothing', and the stamp is taken before the empty check. A stock opened while SEC is refusing now shows no filings for thirty minutes across every re-open, where before it retried at once.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "Insider.listing/forSymbolResult report whether EDGAR ANSWERED, taken from the HTTP response rather than inferred from an empty list, and insiderAt is only stamped when it did"
-    },
-    {
-      "id": "R12",
-      "text": "The sparkline filter can suppress a sparkline that was never adopted. Two paths publish a D1 chart without ever writing Quote.spark - the fetch path when no quote exists yet, and the DISK RESTORE path, which never calls adoptAsSparkline at all - so a cold start into a detail screen leaves that row's sparkline stale for up to five minutes.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the sparkline filter requires sparkAt to be set - proof the series was actually adopted - and loadChart's disk-restore path now adopts a restored 1D series, which also saves the request outright"
-    },
-    {
-      "id": "R13",
-      "text": "The settings cache can be poisoned by a read racing a write: get() queries on a miss and stores what it read afterwards, so a read that starts before a concurrent set() commits and finishes after it leaves the cache holding the old value permanently. Also invalidateSettings() runs before endTransaction() in restoreJson's finally, so a reader in that gap can cache a value that is about to roll back.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before."
-    },
-    {
-      "id": "R14",
-      "text": "RetryClock failure counts never decay, so one five-minute outage drives every symbol to the five-minute tier for the rest of the process - and the next single dropped symbol starts at that tier instead of at thirty seconds.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process"
-    },
-    {
-      "id": "S01",
-      "text": "DEADLOCK, introduced by my own settings-cache lock. restoreJson holds an exclusive SQLite transaction and calls set() inside it, which then wants settingsLock; meanwhile any other thread doing db.set (stampFeedAt, setChartRange, setPlMode) takes settingsLock first and blocks on the connection the restore is holding. Both threads wedge permanently and the next main-thread settings read ANRs the app. A restore is exactly when the auto loop is still ticking, so this needs no exotic timing.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "restoreJson writes settings rows through a lock-free writeSetting against its own transaction handle instead of calling set(); the cache is dropped wholesale afterwards. The lock-order inversion is gone."
-    },
-    {
-      "id": "S02",
-      "text": "stampFeedAtIfFetched(feedDue || newsSymbols.isNotEmpty()) still lies and re-disables the refresh-on-open gate: newsSymbols is non-empty whenever a stock detail screen is open, so browsing stocks stamps _feedAt every tick without the market feeds having been fetched. Opening the Feed then sees age < interval, skips the refresh, and shows hours-old headlines captioned 'Updated 1 minute ago'.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "only feedDue stamps _feedAt - it governs the market-wide list and the refresh-on-open rule, and a per-symbol fetch is not that"
-    },
-    {
-      "id": "S03",
-      "text": "adoptAsSparkline on the disk-restore path adopts an arbitrarily STALE D1 series and stamps sparkAt, which is the same bug it was added to fix, from the other side. A cold start onto a stock whose remembered range is not 1D restores yesterday's intraday line into Quote.spark, and the portfolio row then draws it against TODAY's previous close for five minutes - wrong shape and possibly wrong colour.",
-      "sev": "high",
-      "status": "fixed",
-      "note": "the disk-restore path adopts only a series that is still inside its TTL, so a stale one can no longer stamp sparkAt and suppress the real refresh"
-    },
-    {
-      "id": "S04",
-      "text": "Routing the vs-SPY chip through benchmarkColor re-broke the contrast BenchmarkFill was created to fix: in the dark theme it resolves to #B4863B and the chip's white 13sp and 11sp text is 3.1:1 against it.",
-      "sev": "med",
-      "status": "fixed",
-      "note": "onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes"
-    },
-    {
-      "id": "S05",
-      "text": "Insider.forSymbol is now a verbatim copy of forSymbolResult's body and both it and listFilings have zero callers - dead duplicated logic that can only drift.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "forSymbol delegates to forSymbolResult instead of duplicating its body"
-    },
-    {
-      "id": "S06",
-      "text": "insiderAt is stamped when the LISTING was answered even if every per-filing fetch then failed, so a partial failure caches an empty result for thirty minutes.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "SymbolResult carries how many filings the listing named, so a listing that was answered but whose fetches all failed is no longer cached as 'this company filed nothing'"
-    },
-    {
-      "id": "S07",
-      "text": "KeyValue's Layout does not guard against an unbounded maxWidth - unreachable today, since no call site is inside a horizontal scroller or under IntrinsicSize, but it would place the value about 16 million pixels off screen.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "KeyValue falls back to its children's intrinsic width when maxWidth is unbounded"
-    },
-    {
-      "id": "S08",
-      "text": "RetryClock's new ten-minute forgetting rule has no test, in the file whose whole purpose is testing that rule.",
-      "sev": "low",
-      "status": "fixed",
-      "note": "two tests for the forgetting rule: a key untouched for ten minutes starts again at 30s, and one still failing steadily keeps its streak"
-    }
-  ],
+  "findings": [],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -930,6 +402,8 @@
     "2026-09-08 17:06:58 UTC  T13 -> doing  sweep 5",
     "2026-09-08 20:03:55 UTC  T13 -> done  verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases.",
     "2026-09-08 20:04:33 UTC  T11 -> doing  final cleanups + ship v7.4",
-    "2026-09-08 20:15:12 UTC  T11 -> done  v7.4 shipped: versionCode 61, signed with the archived key (cert SHA-256 2e8c3847... unchanged, so it installs in place over 7.3), 569/569 tests green, lint vital clean, checkinit ok"
+    "2026-09-08 20:15:12 UTC  T11 -> done  v7.4 shipped: versionCode 61, signed with the archived key (cert SHA-256 2e8c3847... unchanged, so it installs in place over 7.3), 569/569 tests green, lint vital clean, checkinit ok",
+    "2026-09-08 20:24:41 UTC  round 64 started",
+    "2026-09-08 20:26:04 UTC  T0 -> doing  baseline"
   ]
 }
