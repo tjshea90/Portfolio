@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:42 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:54:05 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T10: SWEEP 3: re-scan until clean - verify no fix introduced a new bug
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T7  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok
 - [x] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found  — two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
 - [x] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found  — network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white.
-- [ ] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug
+- [>] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug  — sweep 3: re-scan for regressions introduced by the ~50 fixes
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 
 **Resume at T10** (SWEEP 3: re-scan until clean - verify no fix introduced a new bug).
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:53:34 UTC  U07 fixed: BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first
 - 2026-09-08 15:53:34 UTC  U08 fixed: the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'
 - 2026-09-08 15:53:35 UTC  U09 fixed: the Research tab row is now SecondaryScrollableTabRow, like the detail screen's
 - 2026-09-08 15:53:36 UTC  U10 fixed: the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:53:40 UTC  U16 fixed: FactCell values use AutoFitNumber, so a three-digit annualised return renders in full at 2x - verified by screenshot
 - 2026-09-08 15:53:41 UTC  U17 fixed: a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control
 - 2026-09-08 15:53:42 UTC  T9 -> done  network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white.
+- 2026-09-08 15:54:05 UTC  T10 -> doing  sweep 3: re-scan for regressions introduced by the ~50 fixes
 

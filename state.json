@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:53:42 UTC",
+  "updated": "2026-09-08 15:54:05 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -10,7 +10,7 @@
     "next_name": "7.4"
   },
   "now": {
-    "step": "",
+    "step": "T10: SWEEP 3: re-scan until clean - verify no fix introduced a new bug",
     "next": ""
   },
   "tasks": [
@@ -77,8 +77,8 @@
     {
       "id": "T10",
       "title": "SWEEP 3: re-scan until clean - verify no fix introduced a new bug",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "sweep 3: re-scan for regressions introduced by the ~50 fixes"
     },
     {
       "id": "T11",
@@ -712,6 +712,7 @@
     "2026-09-08 15:53:39 UTC  U15 fixed: widthIn(min) rather than a fixed width for the reason bullet",
     "2026-09-08 15:53:40 UTC  U16 fixed: FactCell values use AutoFitNumber, so a three-digit annualised return renders in full at 2x - verified by screenshot",
     "2026-09-08 15:53:41 UTC  U17 fixed: a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control",
-    "2026-09-08 15:53:42 UTC  T9 -> done  network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white."
+    "2026-09-08 15:53:42 UTC  T9 -> done  network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white.",
+    "2026-09-08 15:54:05 UTC  T10 -> doing  sweep 3: re-scan for regressions introduced by the ~50 fixes"
   ]
 }
