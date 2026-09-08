@@ -27,8 +27,8 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T7: Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint
-- **Next action:** T1 map every P/L render site
+- **In flight:** (nothing in flight)
+- **Next action:** Features 1 and 2 of 4 are shipped (scrubbing v7.1, percent/dollar toggle v7.2). Remaining, one per round: per-range performance chips, then the SPY comparison overlay. Start with ./ck start 62.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
@@ -54,8 +54,8 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 6. Version
 
-- Shipped: v7.1 (versionCode 58)
-- This round ships: v7.2 (versionCode 59)
+- Shipped: v7.2 (versionCode 59)
+- This round ships: v7.3 (versionCode 60)
 - Bump `app/build.gradle.kts` before the final APK. Android refuses an install
   whose versionCode is not higher than what is on the phone.
 

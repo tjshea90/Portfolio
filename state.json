@@ -4,14 +4,14 @@
   "request": "Feature 2 of 4: a percent/dollar toggle for profit-and-loss figures across the app. Do NOT ship until it is proven to work, be optimised, and to have broken nothing. Checkpoint frequently - usage may run out.",
   "updated": "2026-09-08 02:49:04 UTC",
   "version": {
-    "code": 58,
-    "name": "7.1",
-    "next_code": 59,
-    "next_name": "7.2"
+    "code": 59,
+    "name": "7.2",
+    "next_code": 60,
+    "next_name": "7.3"
   },
   "now": {
-    "step": "T7: Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint",
-    "next": "T1 map every P/L render site",
+    "step": "",
+    "next": "Features 1 and 2 of 4 are shipped (scrubbing v7.1, percent/dollar toggle v7.2). Remaining, one per round: per-range performance chips, then the SPY comparison overlay. Start with ./ck start 62.",
     "files": []
   },
   "tasks": [
