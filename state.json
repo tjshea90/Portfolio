@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 59,
   "request": "Check the shipped v6.9: thorough sweep for UI and code optimizations, verify the app truly sleeps in the background when not in use, and find and fix bugs.",
-  "updated": "2026-09-08 01:01:02 UTC",
+  "updated": "2026-09-08 01:02:17 UTC",
   "version": {
     "code": 56,
     "name": "6.9",
@@ -10,7 +10,7 @@
     "next_name": "7.0"
   },
   "now": {
-    "step": "T0: baseline build on the shipped v6.9 tree",
+    "step": "",
     "next": "Then T1, the background audit",
     "files": []
   },
@@ -18,8 +18,8 @@
     {
       "id": "T0",
       "title": "Baseline on the shipped tree: release build + 358 tests green before any edit",
-      "status": "doing",
-      "note": ""
+      "status": "done",
+      "note": "release APK + 358/358 green on the shipped tree"
     },
     {
       "id": "T1",
@@ -64,7 +64,15 @@
       "note": ""
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "id": "G01",
+      "text": "refresh() launches its network pass into viewModelScope, which OUTLIVES backgrounding. autoJob.cancel() stops the LOOP but not a refresh already in flight, so the batched quote request keeps transferring after the user leaves and its socket is never disconnected - the exact class of work Round 57 moved to fgScope. It also strands loading=true for up to 15s, during which the resume refresh returns early at its own guard and the user comes back to stale prices.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    }
+  ],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -139,6 +147,8 @@
     "2026-09-08 00:49:43 UTC  T13 -> doing  shipping v6.9",
     "2026-09-08 00:49:54 UTC  T13 -> done  v6.9 APK + checkpoint 58 delivered",
     "2026-09-08 01:00:59 UTC  round 59 started",
-    "2026-09-08 01:01:02 UTC  round 59 ledger created; baseline build running"
+    "2026-09-08 01:01:02 UTC  round 59 ledger created; baseline build running",
+    "2026-09-08 01:01:55 UTC  finding G01: refresh() launches its network pass into viewModelScope, which OUTLIVES backgrou",
+    "2026-09-08 01:02:17 UTC  T0 -> done  release APK + 358/358 green on the shipped tree"
   ]
 }
