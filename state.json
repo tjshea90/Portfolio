@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:53:35 UTC",
+  "updated": "2026-09-08 15:53:36 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -379,8 +379,8 @@
       "id": "U10",
       "text": "Three counts on the Research screen can disagree: the tab label prints rows.size, the list renders rows.take(n).distinctBy { symbol } - which can remove rows - and the footer says 'that is all rows.size this pass found'. The code's own comment says an imported Claude answer can name a ticker twice, so this is reachable.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw"
     },
     {
       "id": "U11",
@@ -703,6 +703,7 @@
     "2026-09-08 15:53:33 UTC  U06 fixed: the Research header's texts are weighted, so the Rebuild button is measured first and keeps its 52dp at every font scale",
     "2026-09-08 15:53:34 UTC  U07 fixed: BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first",
     "2026-09-08 15:53:34 UTC  U08 fixed: the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'",
-    "2026-09-08 15:53:35 UTC  U09 fixed: the Research tab row is now SecondaryScrollableTabRow, like the detail screen's"
+    "2026-09-08 15:53:35 UTC  U09 fixed: the Research tab row is now SecondaryScrollableTabRow, like the detail screen's",
+    "2026-09-08 15:53:36 UTC  U10 fixed: the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw"
   ]
 }
