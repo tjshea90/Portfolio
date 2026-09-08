@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:51:11 UTC)
+# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:51:25 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -41,7 +41,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T2  Pure model: a total function for what each chip shows  — rangePct + rangeFigure: total, no allocation, negative zero normalised
 - [x] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription  — two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
 - [x] T4  Wire DetailScreen: per-range live edge, loading state, no extra fetches  — DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
-- [x] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof  — RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
+- [x] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof  — RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
 - [x] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged  — 440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
 - [x] T7  Adversarial review of the feature, then fix what it finds  — 2 findings (age, truncation), both fixed and both covered by tests
 - [x] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint  — v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean
@@ -62,7 +62,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 04:34:27 UTC  T4 -> done  DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
 - 2026-09-08 04:34:27 UTC  T5 -> doing  tests
 - 2026-09-08 04:43:56 UTC  T5 -> done  RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
 - 2026-09-08 04:43:56 UTC  T6 -> done  440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
@@ -74,4 +73,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:48:05 UTC  T7 -> done  2 findings (age, truncation), both fixed and both covered by tests
 - 2026-09-08 04:48:06 UTC  T8 -> doing  shipping v7.3
 - 2026-09-08 04:51:10 UTC  T8 -> done  v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean
+- 2026-09-08 04:51:25 UTC  T5 -> done  RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
 

@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 62,
   "request": "Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 04:51:11 UTC",
+  "updated": "2026-09-08 04:51:25 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -49,7 +49,7 @@
       "id": "T5",
       "title": "Tests: pure + rendered, incl. chip equals readout and no-new-request proof",
       "status": "done",
-      "note": "RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)"
+      "note": "RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)"
     },
     {
       "id": "T6",
@@ -243,6 +243,7 @@
     "2026-09-08 04:47:50 UTC  J02 fixed: a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot",
     "2026-09-08 04:48:05 UTC  T7 -> done  2 findings (age, truncation), both fixed and both covered by tests",
     "2026-09-08 04:48:06 UTC  T8 -> doing  shipping v7.3",
-    "2026-09-08 04:51:10 UTC  T8 -> done  v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean"
+    "2026-09-08 04:51:10 UTC  T8 -> done  v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean",
+    "2026-09-08 04:51:25 UTC  T5 -> done  RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)"
   ]
 }
