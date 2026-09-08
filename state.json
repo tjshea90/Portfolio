@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 62,
   "request": "Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 04:43:56 UTC",
+  "updated": "2026-09-08 04:43:57 UTC",
   "version": {
     "code": 59,
     "name": "7.2",
@@ -10,7 +10,7 @@
     "next_name": "7.3"
   },
   "now": {
-    "step": "",
+    "step": "T7: Adversarial review of the feature, then fix what it finds",
     "next": "Round 62 open: per-range performance chips. Work the ladder T0->T8.",
     "files": []
   },
@@ -60,8 +60,8 @@
     {
       "id": "T7",
       "title": "Adversarial review of the feature, then fix what it finds",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "adversarial review"
     },
     {
       "id": "T8",
@@ -220,6 +220,7 @@
     "2026-09-08 04:34:27 UTC  T4 -> done  DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean",
     "2026-09-08 04:34:27 UTC  T5 -> doing  tests",
     "2026-09-08 04:43:56 UTC  T5 -> done  RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)",
-    "2026-09-08 04:43:56 UTC  T6 -> done  440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would"
+    "2026-09-08 04:43:56 UTC  T6 -> done  440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would",
+    "2026-09-08 04:43:57 UTC  T7 -> doing  adversarial review"
   ]
 }
