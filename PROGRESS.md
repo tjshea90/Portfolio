@@ -262,3 +262,4 @@ Tasks 9/12 done, findings 2/2 fixed
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 - [x] J01 (med) A chip figure comes from whatever series is cached for that range, and a cached row can be days old - so a chip could label a month-old figure '1M' with nothing saying when it was measured. The chart has dates and a caption; a chip has neither.  - a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh
 - [x] J02 (med) A truncated series - a stock that listed 18 months ago has no 5Y line - would put a figure under a '5Y' label that is really 18 months. The chart says so in words; the chip cannot, so it must not make the claim.  - a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
+2026-09-08 05:57:25 UTC  checkpoint 63  commit a8f5808  T0 doing
