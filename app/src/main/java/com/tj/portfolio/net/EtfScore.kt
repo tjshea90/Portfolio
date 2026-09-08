@@ -75,20 +75,61 @@ object EtfScore {
      * comparable to anything else on it.
      */
     internal fun isLeveragedOrInverse(name: String, symbol: String): Boolean {
-        val n = " " + name.lowercase().replace('-', ' ') + " "
-        val marks = listOf(
-            " 2x ", " 3x ", " 1.5x ", " -1x ", " -2x ", " -3x ",
-            " ultra ", " ultrashort ", " ultrapro ", " inverse ", " bear ", " short ",
-            " leveraged ", " daily bull ", " daily bear ", "2x shares", "3x shares",
-            " double ", " triple "
-        )
-        if (marks.any { n.contains(it) }) return true
-        // "Bull"/"Long" on their own are ordinary words; paired with a daily reset they are
-        // not. The x-multiple above catches nearly all of these already.
-        if (n.contains(" daily ") && (n.contains(" bull ") || n.contains(" bear "))) return true
-        // A handful of issuers put the multiple only in the ticker.
+        val n = " " + name.lowercase()
+            .replace('-', ' ').replace('/', ' ').replace(",", " ") + " "
         val s = symbol.uppercase()
-        return s.endsWith("3X") || s.endsWith("2X")
+
+        // ---- 1. AN EXPLICIT MULTIPLE. Unambiguous wherever it appears, and it catches the
+        // great majority of these funds on its own: "Bull 3X Shares", "UltraPro", "2x Short",
+        // "T-Rex 2X Long", "-1x".
+        val multiples = listOf(
+            " 2x ", " 3x ", " 4x ", " 1.5x ", " 1x ", " -1x ", " -2x ", " -3x ",
+            "2x shares", "3x shares", " ultrapro ", " leveraged ", " double ", " triple "
+        )
+        if (multiples.any { n.contains(it) }) return true
+        if (s.endsWith("3X") || s.endsWith("2X")) return true
+
+        // ---- 2. WORDS THAT ONLY EVER MEAN INVERSE.
+        if (n.contains(" inverse ") || n.contains(" bear ")) return true
+        if (n.contains(" daily ") && n.contains(" bull ")) return true
+
+        // ---- 3. "SHORT", WHICH IS THE HARD ONE.
+        //
+        // "ProShares Short QQQ" is an inverse fund. "iShares Short Treasury Bond ETF" is a
+        // perfectly ordinary bond fund, and so are "PIMCO Enhanced Short Maturity",
+        // "Vanguard Short-Term Bond" and "iShares Ultra Short-Term Bond" - which contains
+        // BOTH of the words this function used to exclude on. Getting this wrong is not
+        // cosmetic: short-duration bond funds are among the most widely held ETFs there are,
+        // and dropping every one of them would leave the list unable to contain the safe half
+        // of a portfolio.
+        //
+        // The distinguisher is what the word is short OF. An inverse fund is short an INDEX
+        // or a STOCK ("Short QQQ", "Short 20+ Year Treasury"); a bond fund is short in
+        // DURATION, and the word that follows says so. So the test is the next word, and
+        // anything not in that list is treated as inverse - the safe direction, since a fund
+        // wrongly excluded costs one row and a 3x fund wrongly included takes the top of the
+        // list.
+        val duration = setOf(
+            "term", "terms", "duration", "maturity", "maturities",
+            "treasury", "treasuries", "bond", "bonds", "government", "govt",
+            "corporate", "credit", "municipal", "muni", "income", "aggregate",
+            "tips", "securities", "debt", "yield"
+        )
+        val words = n.trim().split(Regex("\\s+"))
+        var sawShort = false
+        var everyShortIsDuration = true
+        for (i in words.indices) {
+            val w = words[i]
+            if (w != "short" && w != "ultrashort") continue
+            sawShort = true
+            val next = words.getOrNull(i + 1)
+            if (next == null || next !in duration) everyShortIsDuration = false
+        }
+        if (sawShort) return !everyShortIsDuration
+
+        // ---- 4. "ULTRA" ON ITS OWN is ProShares' 2x prefix ("Ultra QQQ", "Ultra S&P500").
+        // Reached only when the short-duration test above did not already clear the name.
+        return n.contains(" ultra ")
     }
 
     /**
