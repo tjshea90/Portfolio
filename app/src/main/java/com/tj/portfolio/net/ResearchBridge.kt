@@ -233,6 +233,18 @@ $bundle
             put("asOf", Fmt.day(System.currentTimeMillis()))
             put("dataAgeMinutes", if (set.generated > 0)
                 (System.currentTimeMillis() - set.generated) / 60000L else 0L)
+            // THE FUND LIST HAS ITS OWN CLOCK AND MUST DECLARE IT. Someone who has only
+            // opened the ETFs tab has `generated == 0`, so the line above was telling Claude
+            // the data was zero minutes old over a fund list that can be six hours old - and
+            // the whole reason the ETF section asks for web research is that its numbers may
+            // have moved since the app last screened them.
+            if (set.etfs.isNotEmpty()) {
+                put(
+                    "etfDataAgeMinutes",
+                    if (set.etfGenerated > 0)
+                        (System.currentTimeMillis() - set.etfGenerated) / 60000L else -1L
+                )
+            }
             put("sources", set.sources.ifBlank { Research.SOURCES })
             if (set.warnings.isNotEmpty()) put("feedProblems", JSONArray(set.warnings))
             if (holdings.isNotEmpty()) put("iAlreadyHold", JSONArray(holdings))

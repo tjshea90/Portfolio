@@ -4288,8 +4288,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Keep [old]'s `why` text for any symbol that survived into [fresh]. */
-    private fun carryExplanations(
+    /**
+     * Keep [old]'s `why` text for any symbol that survived into [fresh], AND keep the whole
+     * fund list, which [fresh] never contains.
+     *
+     * `internal` rather than private: this is the rule that stopped the thirty-minute stock
+     * rebuild from wiping the six-hour fund list, and a rule that severe is worth a test that
+     * calls it directly rather than one that stands up a ViewModel to reach it.
+     */
+    internal fun carryExplanations(
         old: com.tj.portfolio.data.ResearchSet,
         fresh: com.tj.portfolio.data.ResearchSet
     ): com.tj.portfolio.data.ResearchSet {
@@ -4390,20 +4397,29 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (set.isEmpty) return
         enrichJob = fgScope.launch {
             _researchBusy.value = BUSY_DETAIL
+            // Whether this pass fetched anything at all. The `finally` below re-serialises
+            // the WHOLE ResearchSet - a few hundred rows - and writes it to SQLite, and this
+            // function is now called whenever the Research screen re-evaluates its build
+            // effect. Without this flag a pass with nothing to do still paid for that.
+            var did = false
             try {
                 // Loop until a pass finds nothing left to do. "Load more" pressed WHILE this
                 // is running would otherwise be swallowed by the guard above and the new ten
                 // rows would sit there with no analyst data until something else happened to
                 // trigger a pass - which on a screen the user is already looking at is never.
                 var passes = 0
-                while (enrichPass() && passes++ < 6) { /* another window opened up */ }
+                while (enrichPass() && passes++ < 6) { did = true }
             } finally {
                 // PERSISTED IN THE `finally`, not after the loop. The pass may have paid for
                 // up to twenty Nasdaq consensus lookups and twenty Yahoo searches; leaving
                 // the app mid-enrich cancels the coroutine, and with the write after the loop
                 // none of that reached disk. It survived in memory only until the process was
                 // killed, and then the requests had to be spent all over again.
-                cacheResearch(_research.value)
+                //
+                // ONLY WHEN THERE WAS SOMETHING TO PERSIST. A cancelled pass still counts -
+                // `did` is set as soon as a window is enriched, before the loop can be cut -
+                // but a pass that found nothing to do writes nothing.
+                if (did) cacheResearch(_research.value)
                 if (_researchBusy.value == BUSY_DETAIL) _researchBusy.value = ""
             }
         }

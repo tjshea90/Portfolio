@@ -179,7 +179,13 @@ fun ResearchScreen(
         if (section == Section.ETFS) vm.loadEtfs() else vm.loadResearch()
     }
 
-    val watched = remember(set.generated, set.explained) { vm.watchedSymbols() + vm.heldSymbols() }
+    // KEYED ON ALL THREE CLOCKS. `etfGenerated` was missing, so on the ETFs tab the
+    // watched/held set - two SQLite reads, which is why it is remembered at all - was only
+    // recomputed when the STOCK pass ran, and a fund just added to the watchlist could show no
+    // FOLLOWING chip until then.
+    val watched = remember(set.generated, set.etfGenerated, set.explained) {
+        vm.watchedSymbols() + vm.heldSymbols()
+    }
     val rows = section.rowsIn(set)
     val visibleCount = shown[section.key] ?: ResearchSet.PAGE
 
