@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:28:09 UTC",
+  "updated": "2026-09-08 15:28:10 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -302,8 +302,8 @@
       "id": "N10",
       "text": "loadFundamentals and loadRatings stamp their TTL only on success, so a symbol whose quoteSummary is refused is re-requested on every detail open and every resume - and the analyst payload is the heaviest thing the app fetches.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh"
     },
     {
       "id": "N11",
@@ -691,6 +691,7 @@
     "2026-09-08 15:28:07 UTC  N06 fixed: the feed's market pass hoists holdingNames and Relevance.Subject out of the per-headline loop, pre-squashes each headline once, and runs on Dispatchers.Default instead of the main thread",
     "2026-09-08 15:28:08 UTC  N07 fixed: Ledger.sums computes the four ledger-only figures once in recompute(); totals takes them as an optional parameter so every existing call site and test is unchanged",
     "2026-09-08 15:28:09 UTC  N08 fixed: Db keeps a write-through settings cache, with absence cached as its own sentinel so hasSetting still tells a missing key from a stored blank; restoreJson invalidates it on entry and on both exits",
-    "2026-09-08 15:28:09 UTC  N09 fixed: chartFetchedAt and holdingsFetchedAt deleted along with their writes; the KDoc that described the first as the bug RetryClock replaced now says it was removed"
+    "2026-09-08 15:28:09 UTC  N09 fixed: chartFetchedAt and holdingsFetchedAt deleted along with their writes; the KDoc that described the first as the bug RetryClock replaced now says it was removed",
+    "2026-09-08 15:28:10 UTC  N10 fixed: a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh"
   ]
 }

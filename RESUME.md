@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:09 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:10 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
-## 5. Open findings — 19 still open, 30 fixed
+## 5. Open findings — 18 still open, 31 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -83,7 +83,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] N07 (med) Ledger.totals re-scans the whole transaction list six times on every quote tick - cash, netDeposits, dividends, fees, realized - all pure functions of cachedTxns, which only changes in recompute(). 240 ticks an hour x six full passes, on the main thread, always producing the same five numbers.  — Ledger.sums computes the four ledger-only figures once in recompute(); totals takes them as an optional parameter so every existing call site and test is unchanged
 - [x] N08 (med) publish() runs two synchronous SQLite queries per quote tick (useCashOverride + cashOverrideValue), plus refreshSecs() once per tick and finnhubKey() once per refresh - ~480+ main-thread rawQuery calls an hour against the settings table.  — Db keeps a write-through settings cache, with absence cached as its own sentinel so hasSetting still tells a missing key from a stored blank; restoreJson invalidates it on entry and on both exits
 - [x] N09 (low) chartFetchedAt and holdingsFetchedAt are written and never read anywhere - chartFetchedAt is documented as the bug RetryClock replaced, and the field survived the fix. Dead state that grows unbounded and misleads the next reader.  — chartFetchedAt and holdingsFetchedAt deleted along with their writes; the KDoc that described the first as the bug RetryClock replaced now says it was removed
-- [ ] N10 (low) loadFundamentals and loadRatings stamp their TTL only on success, so a symbol whose quoteSummary is refused is re-requested on every detail open and every resume - and the analyst payload is the heaviest thing the app fetches.
+- [x] N10 (low) loadFundamentals and loadRatings stamp their TTL only on success, so a symbol whose quoteSummary is refused is re-requested on every detail open and every resume - and the analyst payload is the heaviest thing the app fetches.  — a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh
 - [ ] N11 (low) fillResearchPrices fetches up to 20 quotes one symbol at a time through MarketData.quote, bypassing the batched endpoint that would do it in one request - and calls finnhubKey(), a SQLite read, inside each async.
 - [ ] U01 (high) StockRow's money cells are three weight(1f) columns, ~118dp each on a 411dp phone. A six-figure holding at font scale 1.5, or a five-figure one at 2.0, ellipsizes to '$123,45...' - which is still a well-formed dollar amount and reads at a glance as either $123 thousand or $123 hundred. Nothing else on the row carries the magnitude.
 - [ ] U02 (high) The sub-figure under each money cell has maxLines = 1 and NO overflow parameter, so it defaults to Clip. In percent-first P/L mode that is the dollar figure: '+$12,345.67' becomes '+$12,345.' with no ellipsis and nothing saying anything was removed. The two Texts directly above it both pass Ellipsis; this one was missed.
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:08:51 UTC  finding U15: ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its h
 - 2026-09-08 15:08:51 UTC  finding U16: FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit an
 - 2026-09-08 15:08:51 UTC  finding U17: A Research headline with a blank URL still renders a minTapTarget()-sized clicka
 - 2026-09-08 15:28:01 UTC  N01 fixed: MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds.
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:28:08 UTC  N07 fixed: Ledger.sums computes the four ledger-only figures once in recompute(); totals takes them as an optional parameter so every existing call site and test is unchanged
 - 2026-09-08 15:28:09 UTC  N08 fixed: Db keeps a write-through settings cache, with absence cached as its own sentinel so hasSetting still tells a missing key from a stored blank; restoreJson invalidates it on entry and on both exits
 - 2026-09-08 15:28:09 UTC  N09 fixed: chartFetchedAt and holdingsFetchedAt deleted along with their writes; the KDoc that described the first as the bug RetryClock replaced now says it was removed
+- 2026-09-08 15:28:10 UTC  N10 fixed: a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh
 
