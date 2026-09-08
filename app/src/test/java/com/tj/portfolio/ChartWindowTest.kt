@@ -4,6 +4,8 @@ import com.tj.portfolio.data.ChartPoint
 import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.ChartWindow
+import com.tj.portfolio.data.approxSpanMs
+import com.tj.portfolio.data.candleMs
 import com.tj.portfolio.ui.clipToWindow
 import com.tj.portfolio.ui.nearestIndex
 import com.tj.portfolio.ui.spanLabel
@@ -435,6 +437,52 @@ class ChartWindowTest {
     @Test fun `the crosshair is total on degenerate input`() {
         assertEquals(0, nearestIndex(emptyList(), 0.5f, base))
         assertEquals(0, nearestIndex(listOf(ChartPoint(1L, 2.0)), 9f, base))
+    }
+
+
+    // --------------------------------------------- one candle of lag, not the wall clock
+
+    @Test fun `a candle's own length is what the newest point can be behind by`() {
+        assertEquals(5L * 60_000L, ChartRange.D1.candleMs)
+        assertEquals(30L * 60_000L, ChartRange.D5.candleMs)
+        assertEquals(DAY, ChartRange.M6.candleMs)
+        assertEquals(7L * DAY, ChartRange.Y5.candleMs)
+        assertEquals(31L * DAY, ChartRange.MAX.candleMs)
+    }
+
+    @Test fun `the five-minute chart survives a weekend`() {
+        // THE REGRESSION THIS PROVES FIXED. Measuring the lookback from the wall clock instead
+        // of from the newest candle looked tidier and broke the 1D chart every weekend: at
+        // noon on a Saturday the newest point is Friday afternoon, so the lookback was fifty
+        // hours and the first pinch swapped five-minute candles for thirty-minute ones - on
+        // the one view whose entire purpose is five-minute detail.
+        val sessionMs = 6L * 3_600_000L + 30L * 60_000L      // 09:30 to 16:00
+        val lookback = sessionMs + ChartRange.D1.candleMs     // newest candle plus its own lag
+        assertEquals(
+            "a whole 1D session must still be drawn from the 1D series",
+            ChartRange.D1, ChartRange.rangeForLookback(lookback, ChartRange.D1)
+        )
+    }
+
+    @Test fun `a window at the right edge of a monthly chart reaches the finer series`() {
+        // The other half of the same fix: a monthly candle is stamped at the month's OPEN, so
+        // a lookback measured from the last point alone came out up to a month short and asked
+        // for a series that does not cover the window.
+        val lookback = 2L * 3_600_000L + ChartRange.MAX.candleMs
+        val r = ChartRange.rangeForLookback(lookback, ChartRange.MAX)
+        assertTrue("it stayed on the monthly candles", r != ChartRange.MAX)
+        assertTrue(
+            "$r cannot reach back far enough to cover the window plus the monthly lag",
+            r.approxSpanMs >= lookback
+        )
+        // AND IT KEEPS GOING. Once that series is loaded the newest candle is a day old
+        // rather than a month, so the next pinch reaches the intraday rungs - which is how a
+        // zoom walks down from an all-time chart to five-minute candles a gesture at a time.
+        val thenLookback = 2L * 3_600_000L + r.candleMs
+        assertTrue(
+            "the next step could not reach the intraday rungs",
+            ChartRange.rangeForLookback(thenLookback, r).approxSpanMs <= 7L * DAY
+        )
     }
 
     // -------------------------------------------------------------- the zoom badge

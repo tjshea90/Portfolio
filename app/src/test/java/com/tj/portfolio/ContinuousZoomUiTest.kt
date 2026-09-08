@@ -36,6 +36,10 @@ import com.tj.portfolio.ui.EXPAND_TEST_TAG
 import com.tj.portfolio.ui.PortfolioTheme
 import com.tj.portfolio.ui.PriceChart
 import com.tj.portfolio.ui.RESET_ZOOM_TAG
+import com.tj.portfolio.ui.clipToWindow
+import com.tj.portfolio.ui.priceBounds
+import com.tj.portfolio.ui.windowBounds
+import com.tj.portfolio.util.Fmt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -82,6 +86,18 @@ class ContinuousZoomUiTest {
     private val bounds: ChartWindow
         get() = series().let { ChartWindow(it.startMs, it.endMs) }
 
+    /**
+     * The bounds `windowBounds` really produces before the all-time series has been fetched:
+     * forty years of reach, so a pinch-out can ask for a range nobody has downloaded yet.
+     *
+     * WORTH A SEPARATE HARNESS. The first version of these tests passed the SERIES' OWN extent
+     * as the bounds, which is the one shape the app never actually uses - and three real
+     * defects hid in the difference, including a two-finger drag on an unzoomed chart panning
+     * into decades of pre-history.
+     */
+    private val optimisticBounds: ChartWindow
+        get() = windowBounds(series(), listOf(series()))!!
+
     /** Every window the chart reported, in order. */
     private val reported = ArrayList<ChartWindow>()
 
@@ -90,14 +106,17 @@ class ContinuousZoomUiTest {
 
     /** The chart under test, holding the window the gesture gives it. */
     @Composable
-    private fun ZoomableChart(expand: (() -> Unit)? = null) {
+    private fun ZoomableChart(
+        expand: (() -> Unit)? = null,
+        chartBounds: ChartWindow = bounds
+    ) {
         var w by remember { mutableStateOf<ChartWindow?>(null) }
         PriceChart(
             series = series(),
             range = ChartRange.M6,
             loading = false,
             window = w,
-            windowBounds = bounds,
+            windowBounds = chartBounds,
             onWindow = { next -> w = next; reported.add(next) },
             onResetWindow = { w = null; resets++ },
             onExpand = expand
@@ -311,6 +330,95 @@ class ContinuousZoomUiTest {
     @Test fun `a chart with nowhere to expand to shows no button`() {
         show { ZoomableChart() }
         rule.onNodeWithTag(EXPAND_TEST_TAG).assertDoesNotExist()
+    }
+
+
+    // ------------------------------------- against the bounds the app really produces
+
+    @Test fun `a two-finger drag on an unzoomed chart moves nothing`() {
+        // THE REGRESSION THIS PROVES FIXED. Once the bounds became optimistic - forty years,
+        // so a pinch-out can reach a series that has not been fetched - the pan's own "is the
+        // whole series on screen" guard stopped firing, because the window was no longer as
+        // wide as the bounds. A two-finger drag on an ordinary chart, which used to do
+        // nothing at all, dragged the window back into decades of pre-history and left the
+        // line blank until a wider fetch landed.
+        show { ZoomableChart(chartBounds = optimisticBounds) }
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
+            down(0, Offset(center.x - 60f, center.y))
+            down(1, Offset(center.x + 60f, center.y))
+            repeat(4) { i ->
+                val dx = -40f * (i + 1)
+                updatePointerTo(0, Offset(center.x - 60f + dx, center.y))
+                updatePointerTo(1, Offset(center.x + 60f + dx, center.y))
+                move()
+            }
+            up(0); up(1)
+        }
+        rule.waitForIdle()
+        assertTrue(
+            "a pan on an unzoomed chart moved the window to $reported",
+            reported.isEmpty()
+        )
+    }
+
+    @Test fun `an unzoomed chart shows no reset chip even when the bounds reach further`() {
+        // The bounds are how far a pinch MAY go, not what the user is looking at. Measured
+        // against them, every window counted as zoomed - so a chart pinched all the way back
+        // out kept a "Reset zoom" chip it could never get rid of.
+        show { ZoomableChart(chartBounds = optimisticBounds) }
+        rule.onNodeWithTag(RESET_ZOOM_TAG).assertDoesNotExist()
+        // Pinch in and straight back out again by the same amount.
+        spread(steps = 6, perStep = 1.3f)
+        spread(steps = 12, perStep = 1f / 1.3f, from = 300f)
+        rule.waitForIdle()
+        assertTrue(
+            "pinching back out did not restore the whole series: ${reported.last().spanMs} " +
+                "of ${bounds.spanMs}",
+            reported.last().spanMs >= bounds.spanMs
+        )
+    }
+
+    // ------------------------------------------------ the axis says what is on screen
+
+    @Test fun `the y-axis labels name prices the line actually reaches`() {
+        // THE REGRESSION THIS PROVES FIXED. The corner labels were switched to the strictly
+        // clipped series while the canvas went on scaling to the padded one, so on every
+        // zoomed chart the axis was stretched by a candle the user could not see and the top
+        // label named a price the line never reaches.
+        show { ZoomableChart(chartBounds = optimisticBounds) }
+        spread(steps = 10, perStep = 1.25f)
+        val w = reported.last()
+        val inside = clipToWindow(series(), w, pad = false)!!
+        val b = priceBounds(inside)
+        val shown = texts()
+        assertTrue(
+            "the top label does not name the high of what is on screen " +
+                "(${Fmt.price(b[1])}):\n" + shown.joinToString("\n"),
+            shown.contains(Fmt.price(b[1]))
+        )
+        assertTrue(
+            "the bottom label does not name the low of what is on screen " +
+                "(${Fmt.price(b[0])}):\n" + shown.joinToString("\n"),
+            shown.contains(Fmt.price(b[0]))
+        )
+    }
+
+    @Test fun `a zoomed chart names the window rather than the range`() {
+        // The range chip above the chart still shows the whole range's figure, so a readout
+        // saying "over 6m" beside a three-week picture is two figures on one screen
+        // disagreeing about the same window.
+        show { ZoomableChart(chartBounds = optimisticBounds) }
+        spread(steps = 10, perStep = 1.25f)
+        val shown = texts()
+        assertTrue(
+            "the readout still claims to cover the whole range:\n" + shown.joinToString("\n"),
+            shown.none { it == "over 6m" }
+        )
+        assertTrue(
+            "nothing on the chart names the window that is actually drawn:\n" +
+                shown.joinToString("\n"),
+            shown.any { it.startsWith("over ") }
+        )
     }
 
     private fun texts(): List<String> =

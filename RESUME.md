@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:38:28 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:46:27 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -43,7 +43,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T4  Tests for T1-T3: pure + rendered + measured  — ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7
 - [x] T5  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 632/632 green, lint vital clean, checkinit ok
 - [x] T6  SWEEP 1: adversarial bug hunt over the new code and the app  — 9 findings, all fixed, 640 tests green
-- [>] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic  — sweep 2: verify sweep 1's fixes + T1/T3 + app-wide
+- [>] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic  — sweep 2 closed; sweep 3 next
 - [ ] T8  Ship v7.5 (versionCode 62) + final checkpoint
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
@@ -78,7 +78,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 22:38:19 UTC  finding G08: ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds in
 - 2026-09-08 22:38:19 UTC  finding G09: Re-anchoring the window did not re-evaluate which range should draw it
 - 2026-09-08 22:38:19 UTC  G01 fixed
 - 2026-09-08 22:38:20 UTC  G02 fixed
@@ -90,4 +89,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 22:38:26 UTC  G08 fixed
 - 2026-09-08 22:38:27 UTC  G09 fixed
 - 2026-09-08 22:38:28 UTC  sweep 2: 9 findings on sweep 1's own fixes, all closed
+- 2026-09-08 22:46:27 UTC  T7 -> doing  sweep 2 closed; sweep 3 next
 
