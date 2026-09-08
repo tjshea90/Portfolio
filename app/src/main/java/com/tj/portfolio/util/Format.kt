@@ -93,6 +93,18 @@ object Fmt {
         }
     }
 
+    /**
+     * A dollar amount at the scale funds are quoted at: "$4.21B", "$860.00M", "$412.00".
+     *
+     * [compact] with a dollar sign, split out rather than written at each call site because
+     * the ETF card prints five of these and one of them missing its sign reads as a share
+     * count. Round 63.
+     */
+    fun compactMoney(v: Double): String = "$" + compact(v)
+
+    /** One decimal place. For quantities where two is false precision - a fund's age. */
+    fun oneDp(v: Double): String = String.format(Locale.US, "%.1f", v)
+
     private val dayTl = date("MMM d, yyyy")
     private val shortTl = date("MMM d")
     private val timeTl = date("h:mm a")

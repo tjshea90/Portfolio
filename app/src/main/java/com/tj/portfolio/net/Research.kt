@@ -1,6 +1,7 @@
 package com.tj.portfolio.net
 
 import com.tj.portfolio.data.Consensus2
+import com.tj.portfolio.data.EtfRow
 import com.tj.portfolio.data.NewsItem
 import com.tj.portfolio.data.ResearchRow
 import com.tj.portfolio.data.ResearchSet
@@ -146,6 +147,147 @@ object Research {
             warnings = warnings
         )
     }
+
+    // ==================================================================== ETFs
+
+    /**
+     * HOW LONG A BUILT ETF LIST STAYS FRESH.
+     *
+     * Six hours, against thirty minutes for the stock lists, and the gap is the point. TJ:
+     * *"It should periodically update the best etfs list, but keep the current list in cache
+     * until each update so it doesn't load on every refresh."*
+     *
+     * Six because of what the ranking is made of. The heaviest inputs are five- and
+     * three-year annualised returns and an expense ratio; none of those can move between
+     * breakfast and lunch, and a fund ranking that reshuffled every half hour would be
+     * presenting noise as news. Two refreshes in a trading day is more than enough to pick up
+     * a real change, and a pull-to-refresh still forces one at any time.
+     */
+    const val ETF_TTL_MS = 6 * 60 * 60 * 1000L
+
+    /** How deep the ETF buffer goes; the screen still reveals [ResearchSet.PAGE] at a time. */
+    private const val ETF_BUFFER = 40
+
+    /**
+     * Funds below these are not opportunities, they are spreads - the same argument
+     * [MIN_MARKET_CAP] makes for stocks, at fund scale. $25m is where issuers start closing
+     * funds; $50k of daily turnover is where the bid-ask stops being a rounding error.
+     */
+    private const val MIN_FUND_ASSETS = 2.5e7
+    private const val MIN_FUND_DOLLAR_VOLUME = 5e4
+
+    /** Below this share of the six factors, a row is being ranked on absent data. */
+    private const val MIN_ETF_CONFIDENCE = 60
+
+    /**
+     * BUILD THE BEST-ETFS LIST.
+     *
+     * Ten requests, wide and shallow, exactly like [build]:
+     *
+     *   * `top_etfs_us` x 6 pages - Yahoo's whole US ETF list, 523 funds;
+     *   * `bond_etfs` x 3 pages - fixed income, which the list above barely covers;
+     *   * `commodity_etfs` x 1 page.
+     *
+     * Every row arrives with its expense ratio, its net assets, its three- and five-year
+     * annualised NAV returns, its YTD, its yield, its liquidity and its moving averages
+     * already attached, so there is no per-fund second stage at all. The equivalent
+     * per-symbol route is `quoteSummary` with the cookie-and-crumb handshake, once each -
+     * nine hundred requests for the same answer.
+     *
+     * ---- WHAT THIS UNIVERSE IS NOT, AND WHY THE SCREEN SAYS SO
+     *
+     * Measured in September 2026: `top_etfs_us` and `top_performing_etfs` return the SAME 523
+     * funds in different orders, so only one of them is fetched - taking both was two hundred
+     * requests a day for a duplicate. And that 523 is not every US ETF: several very widely
+     * held funds are simply not on Yahoo's lists. The app therefore ranks the universe it can
+     * actually see, states which lists that was, and the Claude prompt names the gap and asks
+     * for the funds it is missing by name. That is what TJ asked the online research to be
+     * for - it fills a hole the free feeds genuinely have, rather than re-describing rows the
+     * app already holds.
+     */
+    suspend fun buildEtfs(): ResearchSet = coroutineScope {
+        val warnings = ArrayList<String>()
+        val plan = listOf(
+            EtfScreener.Lists.TOP_ETFS to 6,
+            EtfScreener.Lists.BOND to 3,
+            EtfScreener.Lists.COMMODITY to 1
+        )
+        // ONE LIST AT A TIME. `fetchAll` is already sequential within a list, and three lists
+        // firing their first pages simultaneously at one host is the burst shape that earns a
+        // 429. This pass has a six-hour TTL - it does not need to be quick, it needs to land.
+        val universe = LinkedHashMap<String, EtfRow>()
+        for ((id, pages) in plan) {
+            val rows = runCatching { EtfScreener.fetchAll(id, pages) }.getOrDefault(emptyList())
+            if (rows.isEmpty()) {
+                warnings.add("${EtfScreener.label(id)} did not answer")
+                continue
+            }
+            for (r in rows) {
+                val existing = universe[r.symbol]
+                universe[r.symbol] = if (existing == null) r else existing.merge(r)
+            }
+        }
+
+        if (universe.isEmpty()) {
+            return@coroutineScope ResearchSet(
+                etfGenerated = 0L,
+                etfWarnings = warnings,
+                error = "Yahoo's fund screens did not answer. Pull down to try again - the " +
+                    "app backs off on its own for a few minutes after a burst."
+            )
+        }
+
+        val ranked = universe.values.asSequence()
+            .filter { it.price > 0.0 }
+            .filter { it.netAssets <= 0.0 || it.netAssets >= MIN_FUND_ASSETS }
+            .filter { it.dollarVolume <= 0.0 || it.dollarVolume >= MIN_FUND_DOLLAR_VOLUME }
+            // EXCLUDED, NOT PENALISED. A 3x fund's five-year annualised return is
+            // arithmetically enormous and says nothing about whether holding it was wise;
+            // left in, they would take the whole top of the list every time.
+            .filter { !EtfScore.isLeveragedOrInverse(it.name, it.symbol) }
+            .map { it to EtfScore.best(it) }
+            .filter { it.second.confidence >= MIN_ETF_CONFIDENCE }
+            .sortedByDescending { it.second.score }
+            .take(ETF_BUFFER)
+            .map { (row, sc) -> toEtfRow(row, sc) }
+            .toList()
+
+        if (ranked.isEmpty()) warnings.add("No fund carried enough published data to rank")
+
+        ResearchSet(
+            etfs = ranked,
+            etfGenerated = System.currentTimeMillis(),
+            etfWarnings = warnings
+        )
+    }
+
+    const val ETF_SOURCES =
+        "Yahoo Finance's own US ETF, bond-ETF and commodity-ETF screens - about 850 funds, " +
+            "each arriving with its expense ratio, net assets, three- and five-year " +
+            "annualised NAV returns, yield and average volume. Scores are computed on the " +
+            "phone from those numbers, weighted toward the long run. Leveraged and inverse " +
+            "funds are excluded. Yahoo's lists do not cover every US ETF, so anything Claude " +
+            "adds through web research is added to this list too."
+
+    private fun toEtfRow(r: EtfRow, sc: ResearchScore.Scored): ResearchRow = ResearchRow(
+        symbol = r.symbol,
+        name = r.name,
+        price = r.price,
+        changePct = r.changePct,
+        score = sc.score,
+        reasons = sc.reasons,
+        etf = com.tj.portfolio.data.EtfFacts(
+            expenseRatio = r.expenseRatio,
+            netAssets = r.netAssets,
+            yieldPct = r.yieldPct,
+            ytdReturnPct = r.ytdReturnPct,
+            oneYearPct = r.oneYearPct,
+            threeYearAnnualPct = r.threeYearAnnualPct,
+            fiveYearAnnualPct = r.fiveYearAnnualPct,
+            dollarVolume = r.dollarVolume,
+            inceptionMs = r.inceptionMs
+        )
+    )
 
     const val SOURCES =
         "Yahoo Finance predefined screeners and trending tickers; r/wallstreetbets mention " +

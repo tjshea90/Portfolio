@@ -147,7 +147,16 @@ data class ResearchRow(
     val shortVehicle: String = "",
     val shortVehicleNote: String = "",
     /** True when the user already holds or watches this symbol - shown as a chip. */
-    val followed: Boolean = false
+    val followed: Boolean = false,
+    /**
+     * The fund numbers, for rows in the ETF section (Round 63). Null for a stock.
+     *
+     * CARRIED ON THE SAME ROW TYPE rather than in a parallel model, so the ETF list gets the
+     * cache, the Claude bridge, the merge, the de-duplication and the card layout that the
+     * other three sections already have - and so a change to any of those cannot fix three
+     * lists and forget the fourth.
+     */
+    val etf: EtfFacts? = null
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("symbol", symbol)
@@ -178,6 +187,7 @@ data class ResearchRow(
         if (catalyst.isNotBlank()) put("catalyst", catalyst)
         if (shortVehicle.isNotBlank()) put("shortVehicle", shortVehicle)
         if (shortVehicleNote.isNotBlank()) put("shortVehicleNote", shortVehicleNote)
+        etf?.let { if (!it.isEmpty || it.dollarVolume > 0 || it.inceptionMs > 0) put("etf", it.toJson()) }
     }
 
     companion object {
@@ -215,7 +225,8 @@ data class ResearchRow(
                 ),
                 catalyst = o.optString("catalyst"),
                 shortVehicle = o.optString("shortVehicle"),
-                shortVehicleNote = o.optString("shortVehicleNote")
+                shortVehicleNote = o.optString("shortVehicleNote"),
+                etf = EtfFacts.fromJson(o.optJSONObject("etf"))
             )
         }
 
@@ -235,6 +246,21 @@ data class ResearchSet(
     val trending: List<ResearchRow> = emptyList(),
     val best: List<ResearchRow> = emptyList(),
     val worst: List<ResearchRow> = emptyList(),
+    /**
+     * BEST ETFS (Round 63) - ranked funds, and the one section with its own clock.
+     *
+     * TJ: *"It should periodically update the best etfs list, but keep the current list in
+     * cache until each update so it doesn't load on every refresh."* [etfGenerated] is that
+     * sentence: this list is built on its own long TTL and survives a rebuild of the other
+     * three, which run on the thirty-minute one. A fund ranking that changed every half hour
+     * would be noise - the inputs are five-year annualised returns and expense ratios, and
+     * neither moves before lunch.
+     */
+    val etfs: List<ResearchRow> = emptyList(),
+    /** When [etfs] was last built. Its own stamp, because it has its own refresh clock. */
+    val etfGenerated: Long = 0L,
+    /** Non-fatal problems from the ETF pass alone, kept apart from [warnings]. */
+    val etfWarnings: List<String> = emptyList(),
     val generated: Long = 0L,
     /** Where the numbers came from, shown under each section. */
     val sources: String = "",
@@ -246,17 +272,29 @@ data class ResearchSet(
     val notes: String = "",
     val error: String? = null
 ) {
+    /**
+     * True when the three MARKET sections are empty.
+     *
+     * DELIBERATELY DOES NOT COUNT [etfs]. Every existing caller means "is there anything for
+     * the 30-minute stock pass to carry forward / explain / rebuild", and folding the ETF
+     * list in would make a populated ETF tab suppress the stock rebuild that fills the other
+     * three. [isFullyEmpty] is the one for "is there anything on this screen at all".
+     */
     val isEmpty: Boolean get() = trending.isEmpty() && best.isEmpty() && worst.isEmpty()
+
+    val isFullyEmpty: Boolean get() = isEmpty && etfs.isEmpty()
 
     fun section(name: String): List<ResearchRow> = when (name) {
         SECTION_TRENDING -> trending
         SECTION_BEST -> best
+        SECTION_ETF -> etfs
         else -> worst
     }
 
     fun withSection(name: String, rows: List<ResearchRow>): ResearchSet = when (name) {
         SECTION_TRENDING -> copy(trending = rows)
         SECTION_BEST -> copy(best = rows)
+        SECTION_ETF -> copy(etfs = rows)
         else -> copy(worst = rows)
     }
 
@@ -272,13 +310,17 @@ data class ResearchSet(
         put("trending", JSONArray().also { a -> trending.forEach { a.put(it.toJson()) } })
         put("best", JSONArray().also { a -> best.forEach { a.put(it.toJson()) } })
         put("worst", JSONArray().also { a -> worst.forEach { a.put(it.toJson()) } })
+        put("etfs", JSONArray().also { a -> etfs.forEach { a.put(it.toJson()) } })
+        if (etfGenerated > 0) put("etfGenerated", etfGenerated)
+        if (etfWarnings.isNotEmpty()) put("etfWarnings", JSONArray(etfWarnings))
     }
 
     companion object {
         const val SECTION_TRENDING = "TRENDING"
         const val SECTION_BEST = "BEST"
         const val SECTION_WORST = "WORST"
-        val SECTIONS = listOf(SECTION_TRENDING, SECTION_BEST, SECTION_WORST)
+        const val SECTION_ETF = "ETF"
+        val SECTIONS = listOf(SECTION_TRENDING, SECTION_BEST, SECTION_WORST, SECTION_ETF)
 
         /** How many rows one page of a section shows. */
         const val PAGE = 10
@@ -299,10 +341,18 @@ data class ResearchSet(
                 for (i in 0 until a.length()) a.optString(i).takeIf { it.isNotBlank() }
                     ?.let { warn.add(it) }
             }
+            val etfWarn = ArrayList<String>()
+            o.optJSONArray("etfWarnings")?.let { a ->
+                for (i in 0 until a.length()) a.optString(i).takeIf { it.isNotBlank() }
+                    ?.let { etfWarn.add(it) }
+            }
             return ResearchSet(
                 trending = rows("trending"),
                 best = rows("best"),
                 worst = rows("worst"),
+                etfs = rows("etfs"),
+                etfGenerated = o.optLong("etfGenerated", 0L),
+                etfWarnings = etfWarn,
                 generated = o.optLong("generated", 0L),
                 sources = o.optString("sources"),
                 warnings = warn,

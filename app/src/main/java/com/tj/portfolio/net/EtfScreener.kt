@@ -34,16 +34,33 @@ import org.json.JSONObject
 object EtfScreener {
 
     object Lists {
-        /** Ranked roughly by size and standing. */
+        /** Yahoo's whole US ETF list - 523 funds in September 2026, six pages deep. */
         const val TOP_ETFS = "top_etfs_us"
 
-        /** Ranked roughly by what they have returned. */
-        const val TOP_PERFORMING = "top_performing_etfs"
+        /**
+         * Fixed income, which [TOP_ETFS] barely covers - 377 funds, and the reason the list
+         * is not all equity.
+         */
+        const val BOND = "bond_etfs"
+
+        /** Small (about 30) and entirely absent from the other two. */
+        const val COMMODITY = "commodity_etfs"
+
+        /**
+         * NOT FETCHED, and recorded here so nobody adds it back.
+         *
+         * Measured live in September 2026: `top_performing_etfs` returns exactly the same 523
+         * symbols as [TOP_ETFS], in a different order. Taking both was six extra requests per
+         * pass for rows the app already had - four times a day, indefinitely, for nothing.
+         * If this ever needs revisiting, the test is one page of each and a set intersection.
+         */
+        const val TOP_PERFORMING_UNUSED = "top_performing_etfs"
     }
 
     fun label(id: String): String = when (id) {
-        Lists.TOP_ETFS -> "Yahoo's top US ETFs"
-        Lists.TOP_PERFORMING -> "Yahoo's top-performing ETFs"
+        Lists.TOP_ETFS -> "Yahoo's US ETF screen"
+        Lists.BOND -> "Yahoo's bond-ETF screen"
+        Lists.COMMODITY -> "Yahoo's commodity-ETF screen"
         else -> id.replace('_', ' ')
     }
 
