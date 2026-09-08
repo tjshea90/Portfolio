@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 17:06:37 UTC",
+  "updated": "2026-09-08 17:06:38 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -581,8 +581,8 @@
       "id": "S07",
       "text": "KeyValue's Layout does not guard against an unbounded maxWidth - unreachable today, since no call site is inside a horizontal scroller or under IntrinsicSize, but it would place the value about 16 million pixels off screen.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "KeyValue falls back to its children's intrinsic width when maxWidth is unbounded"
     },
     {
       "id": "S08",
@@ -917,6 +917,7 @@
     "2026-09-08 17:06:34 UTC  S03 fixed: the disk-restore path adopts only a series that is still inside its TTL, so a stale one can no longer stamp sparkAt and suppress the real refresh",
     "2026-09-08 17:06:35 UTC  S04 fixed: onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes",
     "2026-09-08 17:06:36 UTC  S05 fixed: forSymbol delegates to forSymbolResult instead of duplicating its body",
-    "2026-09-08 17:06:37 UTC  S06 fixed: SymbolResult carries how many filings the listing named, so a listing that was answered but whose fetches all failed is no longer cached as 'this company filed nothing'"
+    "2026-09-08 17:06:37 UTC  S06 fixed: SymbolResult carries how many filings the listing named, so a listing that was answered but whose fetches all failed is no longer cached as 'this company filed nothing'",
+    "2026-09-08 17:06:38 UTC  S07 fixed: KeyValue falls back to its children's intrinsic width when maxWidth is unbounded"
   ]
 }

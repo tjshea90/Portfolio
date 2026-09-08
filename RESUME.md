@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 17:06:37 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 17:06:38 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -52,7 +52,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T12** (SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters).
 
-## 5. Open findings — 2 still open, 69 fixed
+## 5. Open findings — 1 still open, 70 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -123,7 +123,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] S04 (med) Routing the vs-SPY chip through benchmarkColor re-broke the contrast BenchmarkFill was created to fix: in the dark theme it resolves to #B4863B and the chip's white 13sp and 11sp text is 3.1:1 against it.  — onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes
 - [x] S05 (low) Insider.forSymbol is now a verbatim copy of forSymbolResult's body and both it and listFilings have zero callers - dead duplicated logic that can only drift.  — forSymbol delegates to forSymbolResult instead of duplicating its body
 - [x] S06 (low) insiderAt is stamped when the LISTING was answered even if every per-filing fetch then failed, so a partial failure caches an empty result for thirty minutes.  — SymbolResult carries how many filings the listing named, so a listing that was answered but whose fetches all failed is no longer cached as 'this company filed nothing'
-- [ ] S07 (low) KeyValue's Layout does not guard against an unbounded maxWidth - unreachable today, since no call site is inside a horizontal scroller or under IntrinsicSize, but it would place the value about 16 million pixels off screen.
+- [x] S07 (low) KeyValue's Layout does not guard against an unbounded maxWidth - unreachable today, since no call site is inside a horizontal scroller or under IntrinsicSize, but it would place the value about 16 million pixels off screen.  — KeyValue falls back to its children's intrinsic width when maxWidth is unbounded
 - [ ] S08 (low) RetryClock's new ten-minute forgetting rule has no test, in the file whose whole purpose is testing that rule.
 
 ## 6. Version
@@ -135,7 +135,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:52:21 UTC  finding S03: adoptAsSparkline on the disk-restore path adopts an arbitrarily STALE D1 series 
 - 2026-09-08 16:52:21 UTC  finding S04: Routing the vs-SPY chip through benchmarkColor re-broke the contrast BenchmarkFi
 - 2026-09-08 16:52:21 UTC  finding S05: Insider.forSymbol is now a verbatim copy of forSymbolResult's body and both it a
 - 2026-09-08 16:52:21 UTC  finding S06: insiderAt is stamped when the LISTING was answered even if every per-filing fetc
@@ -147,4 +146,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 17:06:35 UTC  S04 fixed: onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes
 - 2026-09-08 17:06:36 UTC  S05 fixed: forSymbol delegates to forSymbolResult instead of duplicating its body
 - 2026-09-08 17:06:37 UTC  S06 fixed: SymbolResult carries how many filings the listing named, so a listing that was answered but whose fetches all failed is no longer cached as 'this company filed nothing'
+- 2026-09-08 17:06:38 UTC  S07 fixed: KeyValue falls back to its children's intrinsic width when maxWidth is unbounded
 
