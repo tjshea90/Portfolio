@@ -129,6 +129,15 @@ fun PriceChart(
     windowBounds: ChartWindow? = null,
     onWindow: ((ChartWindow) -> Unit)? = null,
     /**
+     * Undo the zoom: go back to drawing the whole of the fetched series.
+     *
+     * SEPARATE FROM [onWindow] because "reset" is not a window at all - it is the ABSENCE of
+     * one, and the caller is the only thing that can express that. Passing `windowBounds` back
+     * through `onWindow` instead looked equivalent and was not: those bounds are how far a
+     * pinch may reach, which is deliberately wider than the data.
+     */
+    onResetWindow: (() -> Unit)? = null,
+    /**
      * The benchmark series to draw against this one, or null for the ordinary price chart.
      *
      * When this is present the chart switches to PERCENTAGE mode - both lines measured from
@@ -230,6 +239,11 @@ fun PriceChart(
     val liveOnWindow = rememberUpdatedState(onWindow)
     val liveWindow = rememberUpdatedState(window)
     val liveBounds = rememberUpdatedState(windowBounds)
+    // The fetched series' own extent, which is what "unzoomed" means to the person looking
+    // at it. See the pan guard and `zoomedIn`.
+    val liveSeriesWindow = rememberUpdatedState(
+        shown?.takeIf { it.points.size >= 2 }?.let { ChartWindow(it.startMs, it.endMs) }
+    )
     var zooming by remember { mutableStateOf(false) }
     var zoomSpan by remember { mutableStateOf(0L) }
 
@@ -315,10 +329,14 @@ fun PriceChart(
                     if (send == null || b == null) null
                     else { byFraction: Float ->
                         val cur = held.window ?: liveWindow.value ?: liveAxis.value
-                        // NOT WHILE THE WHOLE SERIES IS ON SCREEN. `panned` already refuses,
-                        // but reporting the unchanged window would still churn the caller's
-                        // state on every frame of a two-finger drag over an unzoomed chart.
-                        if (cur != null && cur.spanMs < b.spanMs) {
+                        // NOT WHILE THE WHOLE SERIES IS ON SCREEN, and measured against the
+                        // SERIES rather than against the bounds (Round 64 sweep). The bounds
+                        // are optimistic - up to forty years - so `panned`'s own guard stopped
+                        // firing, and a two-finger drag on an unzoomed chart, which used to do
+                        // nothing, dragged the window into decades of pre-history and blanked
+                        // the line until a wider fetch landed.
+                        val seriesSpan = liveSeriesWindow.value?.spanMs ?: b.spanMs
+                        if (cur != null && cur.spanMs < seriesSpan) {
                             val next = ChartWindow.panned(cur, byFraction, b)
                             held.window = next
                             send(next)
@@ -377,10 +395,18 @@ fun PriceChart(
         val drawn = drawnAll ?: shown
         val inside = insideAll ?: drawn
         val axis = axisWindow ?: ChartWindow(drawn.startMs, drawn.endMs)
-        // True when the window is genuinely narrower than everything the app holds - which is
-        // what the "Reset zoom" affordance is for. A window that merely equals the series is
-        // not a zoom and must not put a button on the chart.
-        val zoomedIn = window != null && !ChartWindow.isWhole(window, windowBounds)
+        // ---- WHAT COUNTS AS "ZOOMED", AND WHY IT IS NOT MEASURED AGAINST THE BOUNDS.
+        //
+        // `windowBounds` is how far a pinch may REACH, and since the sweep it is deliberately
+        // optimistic - up to forty years, so a pinch-out can ask for a series that has not
+        // been fetched yet. Measured against that, every window is "zoomed", including one
+        // the user has pinched all the way back out: the chart looked exactly as it started
+        // but had grown a "Reset zoom" chip that would not go away.
+        //
+        // What the user means by zoomed is "showing less than the whole line in front of me",
+        // so that is what is asked. `seriesWindow` is the fetched series' own extent.
+        val seriesWindow = remember(shown) { ChartWindow(shown.startMs, shown.endMs) }
+        val zoomedIn = window != null && !ChartWindow.isWhole(window, seriesWindow)
 
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
@@ -438,10 +464,18 @@ fun PriceChart(
                 .clipToBounds()
                 .then(gestures)
         ) {
+            // ---- THE Y-AXIS, COMPUTED ONCE AND USED BY BOTH THE CANVAS AND THE LABELS.
+            //
+            // FROM WHAT IS ON SCREEN (`inside`), not from the padded drawing list: read off
+            // the padded one, the figure pinned to the top corner could name a price the line
+            // never reaches, which is the fault the note below describes.
+            val yBounds = remember(cmpInside, inside) {
+                cmpInside?.bounds() ?: priceBounds(inside)
+            }
             ChartCanvas(
                 drawn, line, MaterialTheme.colorScheme.outline,
                 scrub, MaterialTheme.colorScheme.surface, Modifier.fillMaxSize(),
-                cmp, benchmarkColor, axis
+                cmp, benchmarkColor, axis, yBounds
             )
             // The y-axis, as two labels rather than a drawn scale: on a 170dp chart on a
             // phone the high and the low are the only two values anyone reads off it.
@@ -458,20 +492,20 @@ fun PriceChart(
             // that corner used to read $104.00, two-thirds of the way down the chart. A label
             // at the top of an axis has to be the top of that axis; the day's own high and
             // low are already legible from the line itself.
-            // FROM WHAT IS ON SCREEN. Read off `drawn` these labels included the carried
-            // points beyond each edge, so the figure pinned to the top corner could name a
-            // price the line never reaches - the exact fault the note above describes.
-            val bounds = remember(cmpInside, inside) {
-                cmpInside?.bounds() ?: priceBounds(inside)
-            }
+            // THE UNIT COMES FROM THE SAME OBJECT THE VALUE DID (Round 64 sweep). Choosing
+            // the value from `cmpInside` and the format from `cmp` looks equivalent and is
+            // not: `comparePercents` returns null on its own whenever fewer than two finite
+            // benchmark values fall inside the window, so a narrow zoom on a comparison chart
+            // could print the stock's PRICE IN DOLLARS with a percent sign after it.
+            val bounds = yBounds
             Text(
-                if (cmp != null) Fmt.pctSigned(bounds[1]) else Fmt.price(bounds[1]),
+                if (cmpInside != null) Fmt.pctSigned(bounds[1]) else Fmt.price(bounds[1]),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted,
                 modifier = Modifier.align(Alignment.TopEnd)
             )
             Text(
-                if (cmp != null) Fmt.pctSigned(bounds[0]) else Fmt.price(bounds[0]),
+                if (cmpInside != null) Fmt.pctSigned(bounds[0]) else Fmt.price(bounds[0]),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted,
                 modifier = Modifier.align(Alignment.BottomEnd)
@@ -520,7 +554,7 @@ fun PriceChart(
                 }
             }
 
-            if (!zooming && zoomedIn && onWindow != null && windowBounds != null) {
+            if (!zooming && zoomedIn && onResetWindow != null) {
                 // ---- THE WAY BACK OUT.
                 //
                 // A continuous zoom can leave the chart anywhere, and pinching all the way
@@ -535,7 +569,11 @@ fun PriceChart(
                             MaterialTheme.colorScheme.surfaceVariant,
                             RoundedCornerShape(8.dp)
                         )
-                        .clickable { onWindow(windowBounds) }
+                        // UNDO THE ZOOM, rather than "select everything the app could ever
+                        // fetch". Aimed at `windowBounds` this set a forty-year window on any
+                        // chart whose all-time series was not cached, which drew the loaded
+                        // line as a sliver at the right-hand edge until a MAX fetch landed.
+                        .clickable { onResetWindow?.invoke() }
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                         .testTag(RESET_ZOOM_TAG)
                 ) {
@@ -633,14 +671,23 @@ fun PriceChart(
                 // daily closes" explains why a three-day picture has three points in it.
                 if (zoomedIn) {
                     append(spanLabel(axis.spanMs))
-                    append(", ")
-                    append(range.caption.substringAfter(", ").ifBlank { range.caption })
+                    // The candle size, taken from the range's own caption where it names one.
+                    // "After-hours and overnight only" has no comma and no candle size in it,
+                    // so it is joined rather than spliced.
+                    if (range.caption.contains(", ")) {
+                        append(", ")
+                        append(range.caption.substringAfter(", "))
+                    } else {
+                        append(" of ")
+                        append(range.caption.replaceFirstChar { it.lowercase() })
+                    }
                 } else {
                     append(range.caption)
                 }
                 append("  -  ")
-                append(drawn.points.size)
-                append(if (drawn.points.size == 1) " point" else " points")
+                // THE POINTS ON SCREEN, which is `inside` and not the padded drawing list.
+                append(inside.points.size)
+                append(if (inside.points.size == 1) " point" else " points")
                 if (onZoom != null || onWindow != null) {
                     // DISCOVERABILITY, in four words. A gesture nothing on screen mentions is
                     // a gesture nobody finds, and this caption is already the line that says
@@ -1145,7 +1192,16 @@ private fun ChartCanvas(
      * With no zoom the caller passes the drawn series' own span, which is what the old code
      * computed here - so an unzoomed chart is pixel-for-pixel the one that shipped in v7.4.
      */
-    axis: ChartWindow
+    axis: ChartWindow,
+    /**
+     * The top and bottom of the y-axis, as [priceBounds] returns them.
+     *
+     * The CALLER owns this because on a zoomed chart the scale must come from the points
+     * inside the window while the line drawn against it carries one point beyond each edge.
+     * Those outside points are then drawn off the top or bottom and clipped, which is right:
+     * they exist to make the line reach the sides, not to move the axis.
+     */
+    yBounds: DoubleArray
 ) {
     val pts = s.points
     // ---- THE Y SCALE. Two different questions, so two different answers.
@@ -1156,9 +1212,16 @@ private fun ChartCanvas(
     // whole reference and an axis that excluded it would draw two lines with nothing to
     // measure them against.
     val base = if (cmp != null) null else s.baseline.takeIf { it > 0.0 }
-    // ONE FUNCTION FOR BOTH THE SCALE AND THE LABELS ([priceBounds]), so the number printed
-    // at the top of the axis is by construction the value drawn there.
-    val bounds = cmp?.bounds() ?: priceBounds(s)
+    // ONE ARRAY FOR BOTH THE SCALE AND THE LABELS, so the number printed at the top of the
+    // axis is by construction the value drawn there.
+    //
+    // PASSED IN NOW, NOT COMPUTED HERE (Round 64 sweep). The first pass at the zoom made the
+    // corner labels read the strictly-clipped series while this function went on scaling to
+    // the padded one - so on every zoomed chart the axis was stretched by a candle the user
+    // could not see and the label pinned to the top corner named a price the line never
+    // reached. That is the exact fault the labels' own note says was fixed; the only way the
+    // two cannot drift is for there to be one value.
+    val bounds = yBounds
     val lo = bounds[0]
     val hi = bounds[1]
     val span = (hi - lo).let { if (it < 1e-9) 1.0 else it }
@@ -2040,13 +2103,15 @@ internal fun windowBounds(drawn: ChartSeries?, all: Collection<ChartSeries>): Ch
     //
     // While it is what is drawn, it is the whole of what a zoom may cover.
     if (drawn != null && drawn.range == ChartRange.OVERNIGHT) {
-        if (drawn.points.size < 2) return null
+        // The same `hi <= lo` guard the main path applies: two points stamped at the same
+        // second would otherwise make a zero-width bound, which every clamp downstream would
+        // then have to defend against separately.
+        if (drawn.points.size < 2 || drawn.endMs <= drawn.startMs) return null
         return ChartWindow(drawn.startMs, drawn.endMs)
     }
 
     var lo = Long.MAX_VALUE
     var hi = Long.MIN_VALUE
-    var widest = 0L
     var haveMax = false
     for (s in all) {
         if (s.points.size < 2) continue
@@ -2056,8 +2121,6 @@ internal fun windowBounds(drawn: ChartSeries?, all: Collection<ChartSeries>): Ch
         if (s.startMs < lo) lo = s.startMs
         if (s.endMs > hi) hi = s.endMs
         if (s.range == ChartRange.MAX) haveMax = true
-        val cover = s.range.approxSpanMs
-        if (cover > widest) widest = cover
     }
     if (lo == Long.MAX_VALUE || hi <= lo) {
         val d = drawn ?: return null

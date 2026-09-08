@@ -51,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tj.portfolio.data.candleMs
 import com.tj.portfolio.data.MetricCatalog
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -420,13 +421,19 @@ fun DetailScreen(
         // range this provider serves ends at now, so a window panned into the past needs a
         // rung that reaches back to it however narrow it is. See the note on that function.
         //
-        // MEASURED FROM THE CLOCK, NOT FROM THE NEWEST CANDLE (Round 64 sweep). A coarse
-        // candle is stamped at its OPEN, so the last point of a five-year monthly series can
-        // be three weeks old - and a lookback measured from there came out three weeks short.
-        // Zooming into the right-hand edge of an all-time chart then asked for a 1D series
-        // covering today for a window sitting in a week the 1D series does not reach, and the
-        // chart went blank. The clock is the honest reference: every range ends at now.
-        val newest = maxOf(chartBounds?.endMs ?: 0L, System.currentTimeMillis())
+        // NEWEST CANDLE PLUS ONE CANDLE (Round 64 sweep). A candle is stamped at its OPEN,
+        // so the last point of a five-year weekly series can be six days behind today and a
+        // monthly one a month behind - and a lookback measured from there came out that much
+        // short, which is how zooming into the right-hand edge of an all-time chart asked for
+        // a series that does not cover the window and drew a blank chart.
+        //
+        // NOT `System.currentTimeMillis()`, which was the first attempt and is wrong outside
+        // market hours: at noon on a Saturday the 1D chart's newest point is Friday afternoon,
+        // so a clock-based lookback is fifty hours and the first pinch of the weekend would
+        // swap the five-minute chart for 30-minute candles - on the one view whose entire
+        // purpose is five-minute detail. One candle of lag is the real error, and it is what
+        // is corrected for.
+        val newest = (chartBounds?.endMs ?: w.endMs) + chartRange.candleMs
         val next = com.tj.portfolio.data.ChartRange.rangeForLookback(
             newest - w.startMs, chartRange
         )
@@ -456,12 +463,44 @@ fun DetailScreen(
     // it already was. And a window that now covers everything stops being a zoom at all - it
     // is set back to null, which is what the chart draws when nothing has been pinched, and
     // is what stops the "Reset zoom" chip appearing over an unzoomed chart.
-    LaunchedEffect(chartBounds) {
+    LaunchedEffect(chartBounds, chart) {
         val b = chartBounds ?: return@LaunchedEffect
         val w = chartWindow ?: return@LaunchedEffect
         val pinned = com.tj.portfolio.data.ChartWindow.atRightEdge(w, b)
         val next = com.tj.portfolio.data.ChartWindow.clamped(w, b, pinned)
-        chartWindow = if (com.tj.portfolio.data.ChartWindow.isWhole(next, b)) null else next
+            ?: return@LaunchedEffect
+
+        // ---- HAS IT STOPPED BEING A ZOOM?
+        //
+        // Measured against the SERIES ON SCREEN, not against `chartBounds`. The bounds are how
+        // far a pinch may reach and are deliberately optimistic - up to forty years, so that a
+        // pinch-out can ask for a series nobody has fetched yet. Judged against those, a window
+        // could never be "the whole chart" and the screen stayed permanently in its zoomed
+        // state: caption, span label and a "Reset zoom" chip over a chart that looked exactly
+        // as it started.
+        val series = com.tj.portfolio.data.ChartWindow.of(chart)
+        if (series != null &&
+            com.tj.portfolio.data.ChartWindow.isWhole(next, series) &&
+            next.spanMs <= (series.spanMs * 1.03).toLong()
+        ) {
+            chartWindow = null
+            return@LaunchedEffect
+        }
+        chartWindow = next
+
+        // AND IS THE RANGE UNDER IT STILL THE RIGHT ONE? Clamping can change the window by a
+        // lot - a forty-year request landing on a stock that listed in 2019 - and leaving the
+        // range where the un-clamped window put it would draw the new window from candles
+        // chosen for a different one.
+        val newest = b.endMs + chartRange.candleMs
+        val want = com.tj.portfolio.data.ChartRange.rangeForLookback(
+            newest - next.startMs, chartRange
+        )
+        if (want != chartRange) {
+            zoomSettling = true
+            chartRange = want
+            vm.setChartRange(want)
+        }
     }
 
     // The chart follows the range the user picked. `loadChart` reads its disk cache first
@@ -639,6 +678,7 @@ fun DetailScreen(
                     chartWindow = chartWindow,
                     chartBounds = chartBounds,
                     onChartWindow = onChartWindow,
+                    onResetChartWindow = { chartWindow = null },
                     onExpandChart = { chartExpanded = true },
                     compare = compareSeries,
                     compareLive = liveEdgePrice(benchmarkQuote, chartRange),
@@ -725,6 +765,7 @@ fun DetailScreen(
             window = chartWindow,
             windowBounds = chartBounds,
             onWindow = onChartWindow,
+            onResetWindow = { chartWindow = null },
             compare = if (compareOn && !isBenchmark) compareSeries else null,
             compareLabel = BENCHMARK_SYMBOL,
             compareLivePrice = liveEdgePrice(benchmarkQuote, chartRange),
@@ -816,6 +857,8 @@ private fun OverviewTab(
     /** How far a zoom may go, from every series the app holds for this symbol. */
     chartBounds: com.tj.portfolio.data.ChartWindow?,
     onChartWindow: (com.tj.portfolio.data.ChartWindow) -> Unit,
+    /** Undo the zoom: draw the whole of the fetched series again. */
+    onResetChartWindow: () -> Unit,
     /** Opens the chart full screen. See [FullScreenChart]. */
     onExpandChart: () -> Unit,
     /** The benchmark series for this range, or null when the overlay is off or unloaded. */
@@ -920,6 +963,7 @@ private fun OverviewTab(
                     window = chartWindow,
                     windowBounds = chartBounds,
                     onWindow = onChartWindow,
+                    onResetWindow = onResetChartWindow,
                     onExpand = onExpandChart,
                     compare = compare,
                     compareLabel = BENCHMARK_SYMBOL,

@@ -85,6 +85,9 @@ class ContinuousZoomUiTest {
     /** Every window the chart reported, in order. */
     private val reported = ArrayList<ChartWindow>()
 
+    /** How many times the reset affordance was used. */
+    private var resets = 0
+
     /** The chart under test, holding the window the gesture gives it. */
     @Composable
     private fun ZoomableChart(expand: (() -> Unit)? = null) {
@@ -96,6 +99,7 @@ class ContinuousZoomUiTest {
             window = w,
             windowBounds = bounds,
             onWindow = { next -> w = next; reported.add(next) },
+            onResetWindow = { w = null; resets++ },
             onExpand = expand
         )
     }
@@ -288,11 +292,10 @@ class ContinuousZoomUiTest {
         reported.clear()
         rule.onNodeWithTag(RESET_ZOOM_TAG).performClick()
         rule.waitForIdle()
-        assertTrue("reset reported nothing", reported.isNotEmpty())
-        assertTrue(
-            "reset did not restore the whole series: ${reported.last()}",
-            ChartWindow.isWhole(reported.last(), bounds)
-        )
+        // RESET IS THE ABSENCE OF A WINDOW, not a window covering everything: the bounds a
+        // pinch may reach are deliberately wider than the data, so "select the bounds" would
+        // put the chart somewhere the user has never seen.
+        assertEquals("reset did not fire", 1, resets)
         rule.onNodeWithTag(RESET_ZOOM_TAG).assertDoesNotExist()
     }
 

@@ -85,6 +85,7 @@ class FullScreenChartUiTest {
                             window = null,
                             windowBounds = ChartWindow(series().startMs, series().endMs),
                             onWindow = {},
+                            onResetWindow = {},
                             compare = null,
                             compareLabel = "SPY",
                             compareLivePrice = 0.0,

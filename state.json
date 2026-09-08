@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 22:15:37 UTC",
+  "updated": "2026-09-08 22:38:19 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -131,6 +131,69 @@
       "text": "Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gutters",
       "sev": "low",
       "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "G01",
+      "text": "y-axis label unit chosen from cmp but value from cmpInside: a zoomed comparison chart could print a dollar price with a percent sign",
+      "sev": "high",
+      "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "G02",
+      "text": "Canvas scaled to the padded series while the corner labels read the strict one: on every zoomed chart the top label named a price the line never reaches",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G03",
+      "text": "Wall-clock lookback coarsens the 1D chart every weekend: at noon Saturday the first pinch swapped 5-minute candles for 30-minute ones",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G04",
+      "text": "Optimistic 40-year bounds made isWhole never true (stuck Reset chip), made Reset select 40 years, and let a two-finger drag on an unzoomed chart pan into pre-history",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G05",
+      "text": "isWhole at 0.92 discarded genuine small zooms, which the re-anchor effect then silently reset",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G06",
+      "text": "Caption point count came from the padded drawing list",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G07",
+      "text": "Zoomed caption for the after-hours range read oddly (no comma to splice)",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G08",
+      "text": "ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds inside an effect",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G09",
+      "text": "Re-anchoring the window did not re-evaluate which range should draw it",
+      "sev": "med",
+      "status": "open",
       "note": ""
     }
   ],
@@ -499,6 +562,16 @@
     "2026-09-08 22:15:27 UTC  F09 fixed",
     "2026-09-08 22:15:28 UTC  sweep 1 fixes: F01-F09 all closed; 640 tests green",
     "2026-09-08 22:15:36 UTC  T6 -> done  9 findings, all fixed, 640 tests green",
-    "2026-09-08 22:15:37 UTC  T7 -> doing  sweep 2: verify sweep 1's fixes + T1/T3 + app-wide"
+    "2026-09-08 22:15:37 UTC  T7 -> doing  sweep 2: verify sweep 1's fixes + T1/T3 + app-wide",
+    "2026-09-08 22:38:19 UTC  finding G01: y-axis label unit chosen from cmp but value from cmpInside: a zoomed comparison ",
+    "2026-09-08 22:38:19 UTC  finding G02: Canvas scaled to the padded series while the corner labels read the strict one: ",
+    "2026-09-08 22:38:19 UTC  finding G03: Wall-clock lookback coarsens the 1D chart every weekend: at noon Saturday the fi",
+    "2026-09-08 22:38:19 UTC  finding G04: Optimistic 40-year bounds made isWhole never true (stuck Reset chip), made Reset",
+    "2026-09-08 22:38:19 UTC  finding G05: isWhole at 0.92 discarded genuine small zooms, which the re-anchor effect then s",
+    "2026-09-08 22:38:19 UTC  finding G06: Caption point count came from the padded drawing list",
+    "2026-09-08 22:38:19 UTC  finding G07: Zoomed caption for the after-hours range read oddly (no comma to splice)",
+    "2026-09-08 22:38:19 UTC  finding G08: ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds in",
+    "2026-09-08 22:38:19 UTC  finding G09: Re-anchoring the window did not re-evaluate which range should draw it",
+    "2026-09-08 22:38:19 UTC  G01 fixed"
   ]
 }

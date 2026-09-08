@@ -139,7 +139,7 @@ data class ChartWindow(val startMs: Long, val endMs: Long) {
         }
 
         /** How much of the data has to be on screen before a window counts as unzoomed. */
-        private const val WHOLE_FRACTION = 0.92
+        private const val WHOLE_FRACTION = 0.97
 
         /**
          * A window pulled back inside bounds that have MOVED UNDER IT (Round 64 sweep).
@@ -167,7 +167,12 @@ data class ChartWindow(val startMs: Long, val endMs: Long) {
                 val start = (bounds.endMs - span).coerceAtLeast(bounds.startMs)
                 return ChartWindow(start, bounds.endMs)
             }
-            var start = w.startMs.coerceIn(bounds.startMs, bounds.endMs - span)
+            // `coerceIn` THROWS when the range is empty, which it is whenever the bounds
+            // are degenerate - and this runs inside an effect, where that is a crash on a
+            // screen the user is looking at. Written as two clamps instead.
+            var start = w.startMs
+            val latest = bounds.endMs - span
+            if (start > latest) start = latest
             if (start < bounds.startMs) start = bounds.startMs
             return ChartWindow(start, start + span)
         }

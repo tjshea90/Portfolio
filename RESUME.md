@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:37 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:38:19 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 0 still open, 9 fixed
+## 5. Open findings — 8 still open, 10 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -59,6 +59,15 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F07 (med) Reset zoom chip appears on its own every ~5 min as windowBounds advances with the periodic refresh
 - [x] F08 (low) Crosshair can land on a carried off-window point: readout updates but the dot and line are drawn off-canvas
 - [x] F09 (low) Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gutters
+- [x] G01 (high) y-axis label unit chosen from cmp but value from cmpInside: a zoomed comparison chart could print a dollar price with a percent sign
+- [ ] G02 (high) Canvas scaled to the padded series while the corner labels read the strict one: on every zoomed chart the top label named a price the line never reaches
+- [ ] G03 (high) Wall-clock lookback coarsens the 1D chart every weekend: at noon Saturday the first pinch swapped 5-minute candles for 30-minute ones
+- [ ] G04 (high) Optimistic 40-year bounds made isWhole never true (stuck Reset chip), made Reset select 40 years, and let a two-finger drag on an unzoomed chart pan into pre-history
+- [ ] G05 (med) isWhole at 0.92 discarded genuine small zooms, which the re-anchor effect then silently reset
+- [ ] G06 (low) Caption point count came from the padded drawing list
+- [ ] G07 (low) Zoomed caption for the after-hours range read oddly (no comma to splice)
+- [ ] G08 (low) ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds inside an effect
+- [ ] G09 (med) Re-anchoring the window did not re-evaluate which range should draw it
 
 ## 6. Version
 
@@ -69,16 +78,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 22:15:19 UTC  F01 fixed
-- 2026-09-08 22:15:20 UTC  F02 fixed
-- 2026-09-08 22:15:21 UTC  F03 fixed
-- 2026-09-08 22:15:22 UTC  F04 fixed
-- 2026-09-08 22:15:23 UTC  F05 fixed
-- 2026-09-08 22:15:24 UTC  F06 fixed
-- 2026-09-08 22:15:25 UTC  F07 fixed
-- 2026-09-08 22:15:26 UTC  F08 fixed
-- 2026-09-08 22:15:27 UTC  F09 fixed
-- 2026-09-08 22:15:28 UTC  sweep 1 fixes: F01-F09 all closed; 640 tests green
 - 2026-09-08 22:15:36 UTC  T6 -> done  9 findings, all fixed, 640 tests green
 - 2026-09-08 22:15:37 UTC  T7 -> doing  sweep 2: verify sweep 1's fixes + T1/T3 + app-wide
+- 2026-09-08 22:38:19 UTC  finding G01: y-axis label unit chosen from cmp but value from cmpInside: a zoomed comparison 
+- 2026-09-08 22:38:19 UTC  finding G02: Canvas scaled to the padded series while the corner labels read the strict one: 
+- 2026-09-08 22:38:19 UTC  finding G03: Wall-clock lookback coarsens the 1D chart every weekend: at noon Saturday the fi
+- 2026-09-08 22:38:19 UTC  finding G04: Optimistic 40-year bounds made isWhole never true (stuck Reset chip), made Reset
+- 2026-09-08 22:38:19 UTC  finding G05: isWhole at 0.92 discarded genuine small zooms, which the re-anchor effect then s
+- 2026-09-08 22:38:19 UTC  finding G06: Caption point count came from the padded drawing list
+- 2026-09-08 22:38:19 UTC  finding G07: Zoomed caption for the after-hours range read oddly (no comma to splice)
+- 2026-09-08 22:38:19 UTC  finding G08: ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds in
+- 2026-09-08 22:38:19 UTC  finding G09: Re-anchoring the window did not re-evaluate which range should draw it
+- 2026-09-08 22:38:19 UTC  G01 fixed
 

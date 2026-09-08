@@ -178,6 +178,30 @@ enum class ChartRange(
  * work out how far out a pinch may reach before the all-time series has been fetched, and a
  * member extension can only be called from inside the companion's own scope.
  */
+/**
+ * How long one of this range's candles covers, in ms (Round 64 sweep).
+ *
+ * WHY IT IS NEEDED. A candle is stamped at its OPEN, so the last point of a five-year weekly
+ * series can be six days behind today and a monthly one a month behind. Anything that asks
+ * "how far back does this window reach from the newest data" therefore has to allow for one
+ * candle of lag, or it underestimates - which is how a zoom into the right-hand edge of an
+ * all-time chart ended up asking for a series that does not cover it.
+ *
+ * ONE CANDLE, NOT THE WALL CLOCK. Using `System.currentTimeMillis()` instead looks tidier and
+ * is wrong outside market hours: at noon on a Saturday the 1D chart's newest point is Friday
+ * afternoon, so a clock-based lookback is fifty hours and every pinch would swap the chart to
+ * a coarser range - on the one view whose whole purpose is five-minute detail.
+ */
+val ChartRange.candleMs: Long
+    get() = when (interval) {
+        "5m" -> 5L * 60_000L
+        "30m" -> 30L * 60_000L
+        "1d" -> 86_400_000L
+        "1wk" -> 7L * 86_400_000L
+        "1mo" -> 31L * 86_400_000L
+        else -> 86_400_000L
+    }
+
 val ChartRange.approxSpanMs: Long
     get() = when (this) {
         ChartRange.D1 -> 86_400_000L
