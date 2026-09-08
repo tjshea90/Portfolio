@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 05:57:24 UTC",
+  "updated": "2026-09-08 06:04:57 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -10,15 +10,15 @@
     "next_name": "7.4"
   },
   "now": {
-    "step": "T0: Baseline: v7.3 tree builds and 443 tests green before any edit",
+    "step": "",
     "next": ""
   },
   "tasks": [
     {
       "id": "T0",
       "title": "Baseline: v7.3 tree builds and 443 tests green before any edit",
-      "status": "doing",
-      "note": "baseline build+test"
+      "status": "done",
+      "note": "443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)"
     },
     {
       "id": "T1",
@@ -249,6 +249,7 @@
     "2026-09-08 04:51:25 UTC  T5 -> done  RangeChipTest (16 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)",
     "2026-09-08 05:56:26 UTC  round 63 started",
     "2026-09-08 05:57:17 UTC  round 63 started",
-    "2026-09-08 05:57:24 UTC  T0 -> doing  baseline build+test"
+    "2026-09-08 05:57:24 UTC  T0 -> doing  baseline build+test",
+    "2026-09-08 06:04:57 UTC  T0 -> done  443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)"
   ]
 }

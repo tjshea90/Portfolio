@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 05:57:24 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:04:57 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,16 +27,16 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T0: Baseline: v7.3 tree builds and 443 tests green before any edit
+- **In flight:** (nothing in flight)
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 0/12 done
+## 4. Task ledger — 1/12 done
 
-- [>] T0  Baseline: v7.3 tree builds and 443 tests green before any edit  — baseline build+test
+- [x] T0  Baseline: v7.3 tree builds and 443 tests green before any edit  — 443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
 - [ ] T1  Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs
 - [ ] T2  Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m
 - [ ] T3  Best ETFs data: ETF screener feed + scorer + cached section + periodic refresh
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 
-**Resume at T0** (Baseline: v7.3 tree builds and 443 tests green before any edit).
+**Resume at T1** (Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -64,7 +64,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 04:43:57 UTC  T7 -> doing  adversarial review
 - 2026-09-08 04:45:19 UTC  finding J01: A chip figure comes from whatever series is cached for that range, and a cached 
 - 2026-09-08 04:45:19 UTC  finding J02: A truncated series - a stock that listed 18 months ago has no 5Y line - would pu
 - 2026-09-08 04:47:49 UTC  J01 fixed: a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh
@@ -76,4 +75,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 05:56:26 UTC  round 63 started
 - 2026-09-08 05:57:17 UTC  round 63 started
 - 2026-09-08 05:57:24 UTC  T0 -> doing  baseline build+test
+- 2026-09-08 06:04:57 UTC  T0 -> done  443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
 
