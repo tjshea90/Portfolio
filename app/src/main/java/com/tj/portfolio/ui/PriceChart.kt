@@ -664,7 +664,11 @@ internal fun nearestIndex(points: List<ChartPoint>, xFraction: Float): Int {
  */
 internal fun withLiveEdge(s: ChartSeries?, livePrice: Double, liveEdge: Boolean): ChartSeries? {
     if (s == null || s.isEmpty) return s
-    if (!s.range.intraday || !liveEdge || livePrice <= 0.0) return s
+    // `!(livePrice > 0.0)` rather than `livePrice <= 0.0`, and the difference is NaN: every
+    // comparison against NaN is false, so the old form let a NaN price through and PAINTED
+    // it as the last point of the line. Round 62: the range chips do this same test to work
+    // out what a window did, and the two must not be able to disagree about a price.
+    if (!s.range.intraday || !liveEdge || !(livePrice > 0.0)) return s
     val last = s.points.last()
     if (last.close == livePrice) return s
     return s.copy(points = s.points.dropLast(1) + ChartPoint(last.t, livePrice))
