@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T7: Ship v7.0 (versionCode 57) + checkpoint delivered
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -43,7 +43,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory  — bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
 - [x] T5  Fix every finding without introducing new ones  — G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache
 - [x] T6  Verify: full suite, checkinit, lint, second-pass review of every fix  — 371/371 tests, checkinit ok, lintVital clean, APK signed with the archived keystore (fingerprint matches), versionCode 57 / 7.0 confirmed
-- [ ] T7  Ship v7.0 (versionCode 57) + checkpoint delivered
+- [>] T7  Ship v7.0 (versionCode 57) + checkpoint delivered  — shipping v7.0
 
 **Resume at T7** (Ship v7.0 (versionCode 57) + checkpoint delivered).
 
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:06:16 UTC  T5 -> doing  fixing G01-G07
 - 2026-09-08 01:15:06 UTC  G01 fixed: refresh() moved to fgScope so a backgrounded pass is cancelled and its socket disconnected; the quote cache write moved to viewModelScope so a fetched price is never lost
 - 2026-09-08 01:15:06 UTC  G02 fixed: util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries.
 - 2026-09-08 01:15:07 UTC  G03 fixed: chart fetches go through a RetryClock; a failure backs off 30s/1m/2m/4m/5m instead of retrying every 15s
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:17:13 UTC  T6 -> doing  verification
 - 2026-09-08 01:25:26 UTC  v7.0 final verification build running
 - 2026-09-08 01:27:41 UTC  T6 -> done  371/371 tests, checkinit ok, lintVital clean, APK signed with the archived keystore (fingerprint matches), versionCode 57 / 7.0 confirmed
+- 2026-09-08 01:27:41 UTC  T7 -> doing  shipping v7.0
 
