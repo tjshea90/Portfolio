@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 61,
   "request": "Feature 2 of 4: a percent/dollar toggle for profit-and-loss figures across the app. Do NOT ship until it is proven to work, be optimised, and to have broken nothing. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 02:25:50 UTC",
+  "updated": "2026-09-08 02:25:51 UTC",
   "version": {
     "code": 58,
     "name": "7.1",
@@ -24,8 +24,8 @@
     {
       "id": "T1",
       "title": "Map every place a P/L figure is rendered, so the toggle is complete rather than partial",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch."
     },
     {
       "id": "T2",
@@ -187,6 +187,7 @@
     "2026-09-08 02:13:12 UTC  T7 -> doing  shipping",
     "2026-09-08 02:13:22 UTC  T7 -> done  v7.1 APK + checkpoint 60 delivered",
     "2026-09-08 02:24:35 UTC  round 61 started",
-    "2026-09-08 02:25:50 UTC  T0 -> done  390/390 green on the v7.1 tree"
+    "2026-09-08 02:25:50 UTC  T0 -> done  390/390 green on the v7.1 tree",
+    "2026-09-08 02:25:51 UTC  T1 -> done  affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch."
   ]
 }
