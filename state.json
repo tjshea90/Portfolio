@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:53:29 UTC",
+  "updated": "2026-09-08 15:53:30 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -323,8 +323,8 @@
       "id": "U02",
       "text": "The sub-figure under each money cell has maxLines = 1 and NO overflow parameter, so it defaults to Clip. In percent-first P/L mode that is the dollar figure: '+$12,345.67' becomes '+$12,345.' with no ellipsis and nothing saying anything was removed. The two Texts directly above it both pass Ellipsis; this one was missed.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "same widget on the sub-figure, which had no overflow parameter at all and was clipping silently"
     },
     {
       "id": "U03",
@@ -695,6 +695,7 @@
     "2026-09-08 15:28:10 UTC  N10 fixed: a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh",
     "2026-09-08 15:28:11 UTC  N11 fixed: fillResearchPrices uses the batched MarketData.quotes and reads the Finnhub key once",
     "2026-09-08 15:28:19 UTC  T9 -> doing  sweep 2: UI half",
-    "2026-09-08 15:53:29 UTC  U01 fixed: money figures now shrink to fit rather than truncate - a new AutoFitNumber steps the type down to a floor and only ellipsises below it, so a six-figure holding at 2x reads in full instead of as '$123,45...'"
+    "2026-09-08 15:53:29 UTC  U01 fixed: money figures now shrink to fit rather than truncate - a new AutoFitNumber steps the type down to a floor and only ellipsises below it, so a six-figure holding at 2x reads in full instead of as '$123,45...'",
+    "2026-09-08 15:53:30 UTC  U02 fixed: same widget on the sub-figure, which had no overflow parameter at all and was clipping silently"
   ]
 }
