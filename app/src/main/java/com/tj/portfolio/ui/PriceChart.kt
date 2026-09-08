@@ -1373,6 +1373,20 @@ internal fun spansMoreThanADay(startMs: Long, endMs: Long): Boolean =
 private const val ZOOM_STEP = 1.55f
 
 /**
+ * How far the fingers must have spread before it counts as a zoom rather than as noise.
+ *
+ * 1.0015 - fifteen hundredths of a percent of separation, which at a comfortable 200px grip is
+ * a third of a pixel. Below that the reading is float rounding in the pointer positions, not a
+ * hand: two fingers sliding across the glass together produce a steady drizzle of factors just
+ * either side of 1, and applying them turned a pure pan into a slow creeping zoom.
+ *
+ * NOT A THRESHOLD THAT THROWS ANYTHING AWAY. The factor below it is kept and multiplied into
+ * the next frame's, so a spread slow enough to sit under the floor still arrives in full a few
+ * frames later. The floor delays; it does not filter.
+ */
+private const val ZOOM_DEAD_ZONE = 1.0015f
+
+/**
  * ONE POINTER LOOP FOR SCRUBBING AND ZOOMING.
  *
  * The two gestures share a surface, so they have to share a decision. The rule is simply the
@@ -1439,6 +1453,9 @@ internal suspend fun PointerInputScope.chartGestures(
         // Where the pinch was centred on the previous frame, for the pan. NaN means "no
         // reading yet" - the first frame of a pinch, or the frame after the pair changed.
         var centroid = Float.NaN
+        // Zoom the fingers have done but that has not yet cleared the noise floor. See the
+        // note at its use below.
+        var pendingZoom = 1f
         try {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Main)
@@ -1455,6 +1472,7 @@ internal suspend fun PointerInputScope.chartGestures(
                         // sit frozen on the line for the whole pinch.
                         clearPoint()
                         zoomAccum = 1f
+                        pendingZoom = 1f
                         pair = null
                         centroid = Float.NaN
                         onZoomActive(true)
@@ -1478,9 +1496,24 @@ internal suspend fun PointerInputScope.chartGestures(
                     if (onPinch != null) {
                         // ---- CONTINUOUS. Every frame's ratio is reported as it happens, so
                         // the window follows the fingers exactly rather than in rungs.
+                        //
+                        // EXCEPT FOR NOISE. Two fingers dragged across the glass together
+                        // never hold their separation to the pixel, so a pure pan arrives here
+                        // as a long run of factors like 1.00006 - and applied one by one they
+                        // creep the span while the user is only sliding the chart sideways.
+                        // The remainder is ACCUMULATED rather than discarded, so a genuinely
+                        // slow spread still zooms at exactly its own rate; it just waits until
+                        // it has moved further than the noise floor before it counts.
+                        pendingZoom *= z
+                        if (!pendingZoom.isFinite() || pendingZoom <= 0f) pendingZoom = 1f
                         val mid = centroidX(event)
                         if (width > 0f && mid.isFinite()) {
-                            onPinch(z, (mid / width).coerceIn(0f, 1f))
+                            if (pendingZoom > ZOOM_DEAD_ZONE ||
+                                pendingZoom < 1f / ZOOM_DEAD_ZONE
+                            ) {
+                                onPinch(pendingZoom, (mid / width).coerceIn(0f, 1f))
+                                pendingZoom = 1f
+                            }
                             // PAN AFTER ZOOM, and against the PREVIOUS centroid: the zoom has
                             // already moved the window under a fixed point, so what is left is
                             // how far that point itself travelled.
@@ -1494,6 +1527,7 @@ internal suspend fun PointerInputScope.chartGestures(
                         centroid = mid
                         continue
                     }
+
 
                     zoomAccum *= z
                     if (!zoomAccum.isFinite() || zoomAccum <= 0f) zoomAccum = 1f

@@ -1,0 +1,352 @@
+package com.tj.portfolio
+
+import com.tj.portfolio.data.ChartPoint
+import com.tj.portfolio.data.ChartRange
+import com.tj.portfolio.data.ChartSeries
+import com.tj.portfolio.data.ChartWindow
+import com.tj.portfolio.ui.clipToWindow
+import com.tj.portfolio.ui.nearestIndex
+import com.tj.portfolio.ui.spanLabel
+import com.tj.portfolio.ui.windowBounds
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * THE CONTINUOUS ZOOM, AS ARITHMETIC (Round 64).
+ *
+ * TJ: *"make the pinch to zoom smooth instead of chopping between intervals."*
+ *
+ * The whole feature rests on [ChartWindow] being total and exact: it runs inside a pointer
+ * handler, dozens of times a second, on numbers that come from fingers. An exception there is
+ * a crash on a screen the user is touching, and an off-by-one is a chart that does not line up
+ * with the hand that placed it. None of that can be seen by reading the code, and none of it
+ * needs a device to check - it is all pure functions over longs.
+ */
+class ChartWindowTest {
+
+    private val DAY = 86_400_000L
+    private val base = ChartWindow(1_000_000_000_000L, 1_000_000_000_000L + 365L * DAY)
+    private val bounds = ChartWindow(base.startMs - 3650L * DAY, base.endMs)
+
+    // ------------------------------------------------------------------ the model
+
+    @Test fun `a window reports where a moment falls across it`() {
+        assertEquals(0f, base.fractionOf(base.startMs), 1e-6f)
+        assertEquals(1f, base.fractionOf(base.endMs), 1e-6f)
+        assertEquals(0.5f, base.fractionOf(base.startMs + base.spanMs / 2), 1e-4f)
+    }
+
+    @Test fun `fractionOf and momentAt are inverses`() {
+        for (f in listOf(0f, 0.13f, 0.5f, 0.87f, 1f)) {
+            assertEquals(f, base.fractionOf(base.momentAt(f)), 1e-4f)
+        }
+    }
+
+    @Test fun `momentAt clamps rather than extrapolating`() {
+        assertEquals(base.startMs, base.momentAt(-3f))
+        assertEquals(base.endMs, base.momentAt(4f))
+    }
+
+    @Test fun `a degenerate window still has a positive span`() {
+        assertTrue(ChartWindow(5L, 5L).spanMs >= 1L)
+        assertTrue(ChartWindow(9L, 4L).spanMs >= 1L)
+    }
+
+    // ------------------------------------------------------------------- zooming
+
+    @Test fun `spreading the fingers shows less time`() {
+        val z = ChartWindow.zoomed(base, factor = 2f, focus = 0.5f, bounds = bounds)
+        assertEquals(
+            "a spread should halve the span",
+            (base.spanMs / 2).toDouble(), z.spanMs.toDouble(), 2.0
+        )
+    }
+
+    @Test fun `pinching in shows more time`() {
+        val z = ChartWindow.zoomed(base, factor = 0.5f, focus = 0.5f, bounds = bounds)
+        assertEquals(
+            "a pinch should double the span",
+            (base.spanMs * 2).toDouble(), z.spanMs.toDouble(), 2.0
+        )
+    }
+
+    @Test fun `the moment under the fingers stays put`() {
+        // The one property that makes a zoom feel attached to the hand.
+        for (focus in listOf(0.1f, 0.35f, 0.5f, 0.8f)) {
+            val anchor = base.momentAt(focus)
+            val z = ChartWindow.zoomed(base, 1.7f, focus, bounds)
+            assertEquals(
+                "the moment at focus=$focus moved",
+                anchor.toDouble(), z.momentAt(focus).toDouble(), (z.spanMs * 0.01)
+            )
+        }
+    }
+
+    @Test fun `many small zooms compose into one big one`() {
+        // THE POINT OF THE WHOLE ROUND. Sixteen frames of a steady spread must land where one
+        // large step would, or the gesture drifts away from the fingers as it goes.
+        var w = base
+        repeat(16) { w = ChartWindow.zoomed(w, 1.1f, 0.5f, bounds) }
+        val expected = base.spanMs / Math.pow(1.1, 16.0)
+        assertEquals(expected, w.spanMs.toDouble(), expected * 0.02)
+    }
+
+    @Test fun `every frame of a slow spread changes the window`() {
+        // "Smooth instead of chopping between intervals" means literally this: a gesture that
+        // moves a little must change the picture a little, every time, rather than nine times
+        // out of ten changing nothing and the tenth time jumping a whole range.
+        var w = base
+        var changes = 0
+        repeat(20) {
+            val next = ChartWindow.zoomed(w, 1.03f, 0.5f, bounds)
+            if (next.spanMs != w.spanMs) changes++
+            w = next
+        }
+        assertEquals("a 3%-per-frame spread should move the window every frame", 20, changes)
+    }
+
+    @Test fun `a zoom cannot go below the minimum span`() {
+        var w = base
+        repeat(200) { w = ChartWindow.zoomed(w, 2f, 0.5f, bounds) }
+        assertEquals(ChartWindow.MIN_SPAN_MS, w.spanMs)
+    }
+
+    @Test fun `a zoom cannot go wider than the data`() {
+        var w = base
+        repeat(200) { w = ChartWindow.zoomed(w, 0.5f, 0.5f, bounds) }
+        assertEquals(bounds.spanMs, w.spanMs)
+        assertEquals(bounds.startMs, w.startMs)
+        assertEquals(bounds.endMs, w.endMs)
+    }
+
+    @Test fun `a zoom at the right edge slides rather than clipping`() {
+        // Zooming out with the fingers at the very end of the series: the span asked for must
+        // be honoured, by moving the start back rather than by silently shortening it.
+        val atEnd = ChartWindow(base.endMs - 10L * DAY, base.endMs)
+        val z = ChartWindow.zoomed(atEnd, 0.25f, 1f, bounds)
+        assertEquals((40L * DAY).toDouble(), z.spanMs.toDouble(), (DAY / 10).toDouble())
+        assertEquals("the window ran past the newest data", bounds.endMs, z.endMs)
+    }
+
+    @Test fun `a nonsense factor is ignored rather than thrown`() {
+        assertEquals(base, ChartWindow.zoomed(base, Float.NaN, 0.5f, bounds))
+        assertEquals(base, ChartWindow.zoomed(base, 0f, 0.5f, bounds))
+        assertEquals(base, ChartWindow.zoomed(base, -2f, 0.5f, bounds))
+        assertEquals(base, ChartWindow.zoomed(base, Float.POSITIVE_INFINITY, 0.5f, bounds))
+    }
+
+    @Test fun `an out of range focus is clamped rather than thrown`() {
+        val a = ChartWindow.zoomed(base, 2f, -9f, bounds)
+        val b = ChartWindow.zoomed(base, 2f, 9f, bounds)
+        assertTrue(a.startMs >= bounds.startMs && a.endMs <= bounds.endMs)
+        assertTrue(b.startMs >= bounds.startMs && b.endMs <= bounds.endMs)
+    }
+
+    // -------------------------------------------------------------------- panning
+
+    @Test fun `a pan moves the window without resizing it`() {
+        val zoomed = ChartWindow.zoomed(base, 4f, 0.5f, bounds)
+        val moved = ChartWindow.panned(zoomed, 0.25f, bounds)
+        assertEquals("a pan changed the span", zoomed.spanMs, moved.spanMs)
+        assertEquals(
+            (zoomed.startMs + zoomed.spanMs / 4).toDouble(), moved.startMs.toDouble(),
+            zoomed.spanMs * 0.01
+        )
+    }
+
+    @Test fun `a pan stops at both ends of the data`() {
+        val zoomed = ChartWindow.zoomed(base, 4f, 0.5f, bounds)
+        var w = zoomed
+        repeat(50) { w = ChartWindow.panned(w, 0.5f, bounds) }
+        assertEquals("panning forward ran past the newest data", bounds.endMs, w.endMs)
+        repeat(500) { w = ChartWindow.panned(w, -0.5f, bounds) }
+        assertEquals("panning back ran past the oldest data", bounds.startMs, w.startMs)
+        assertEquals("the span changed while panning", zoomed.spanMs, w.spanMs)
+    }
+
+    @Test fun `panning an unzoomed chart does nothing`() {
+        val whole = ChartWindow(bounds.startMs, bounds.endMs)
+        assertEquals(whole, ChartWindow.panned(whole, 0.4f, bounds))
+    }
+
+    @Test fun `a nonsense pan is ignored`() {
+        assertEquals(base, ChartWindow.panned(base, Float.NaN, bounds))
+        assertEquals(base, ChartWindow.panned(base, 0f, bounds))
+    }
+
+    // --------------------------------------------------------------- is it zoomed
+
+    @Test fun `a window that covers everything is not a zoom`() {
+        assertTrue(ChartWindow.isWhole(ChartWindow(bounds.startMs, bounds.endMs), bounds))
+        assertTrue("null means nothing has been pinched", ChartWindow.isWhole(null, bounds))
+        assertTrue("no bounds means nothing to compare", ChartWindow.isWhole(base, null))
+    }
+
+    @Test fun `a window a fraction inside the data is not a zoom either`() {
+        val nearly = ChartWindow(bounds.startMs + 1000L, bounds.endMs - 1000L)
+        assertTrue(ChartWindow.isWhole(nearly, bounds))
+    }
+
+    @Test fun `a genuinely narrower window is a zoom`() {
+        assertTrue(!ChartWindow.isWhole(base, bounds))
+    }
+
+    // ------------------------------------------------------- which series to fetch
+
+    @Test fun `the range follows the window's lookback, not its span`() {
+        // THE TRAP THIS CLOSES. Every range the provider serves ENDS AT NOW, so a three-day
+        // window two years back cannot be drawn from the 5D series - it does not overlap it.
+        val twoYearsBack = 730L * DAY
+        val r = ChartRange.rangeForLookback(twoYearsBack, ChartRange.M1)
+        assertTrue(
+            "a window two years back was given a range that cannot reach it: $r",
+            r == ChartRange.Y5 || r == ChartRange.MAX
+        )
+    }
+
+    @Test fun `a window at the right edge picks a range by its own size`() {
+        assertEquals(ChartRange.D5, ChartRange.rangeForLookback(6L * DAY, null))
+        assertEquals(ChartRange.M1, ChartRange.rangeForLookback(20L * DAY, null))
+        assertEquals(ChartRange.Y1, ChartRange.rangeForLookback(300L * DAY, null))
+    }
+
+    @Test fun `the range sticks until the window has clearly left it`() {
+        // Hysteresis: without it a window sitting on a boundary flips between two ranges as
+        // the fingers wobble, and every flip is a chart fetch.
+        val m1 = ChartRange.M1.let { it }
+        val within = 20L * DAY
+        assertEquals(m1, ChartRange.rangeForLookback(within, m1))
+        // Far enough inside that a finer rung would show real detail.
+        assertTrue(ChartRange.rangeForLookback(2L * DAY, m1) != m1)
+        // Wider than it can draw.
+        assertTrue(ChartRange.rangeForLookback(200L * DAY, m1) != m1)
+    }
+
+    @Test fun `the after-hours view is never swapped out from under the user`() {
+        assertEquals(
+            ChartRange.OVERNIGHT,
+            ChartRange.rangeForLookback(400L * DAY, ChartRange.OVERNIGHT)
+        )
+    }
+
+    @Test fun `a negative lookback is treated as none`() {
+        assertNotNull(ChartRange.rangeForLookback(-5L, null))
+    }
+
+    // ----------------------------------------------------------------- the clipping
+
+    private fun series(n: Int, stepSec: Long, range: ChartRange = ChartRange.M6) = ChartSeries(
+        symbol = "T", range = range,
+        points = (0 until n).map { ChartPoint(1_700_000_000L + it * stepSec, 100.0 + it) },
+        baseline = 100.0, fetched = 1L
+    )
+
+    @Test fun `a window covering everything returns the same object`() {
+        val s = series(50, 86_400L)
+        val w = ChartWindow(s.startMs - 1000L, s.endMs + 1000L)
+        assertSame("the ordinary case must not allocate", s, clipToWindow(s, w))
+        assertSame(s, clipToWindow(s, null))
+    }
+
+    @Test fun `clipping keeps one point beyond each edge`() {
+        val s = series(50, 86_400L)
+        val w = ChartWindow(s.points[10].t * 1000L, s.points[20].t * 1000L)
+        val c = clipToWindow(s, w)!!
+        assertEquals("the line must reach the left edge", s.points[9].t, c.points.first().t)
+        assertEquals("the line must reach the right edge", s.points[21].t, c.points.last().t)
+    }
+
+    @Test fun `a window between two candles still yields a line`() {
+        val s = series(20, 7L * 86_400L)          // weekly candles
+        val mid = s.points[5].t * 1000L + 86_400_000L   // a day after one of them
+        val c = clipToWindow(s, ChartWindow(mid, mid + 3_600_000L))!!
+        assertTrue("two points is the least that can be a line", c.points.size >= 2)
+    }
+
+    @Test fun `clipping a null or tiny series is safe`() {
+        assertNull(clipToWindow(null, base))
+        val one = series(1, 300L)
+        assertSame(one, clipToWindow(one, base))
+    }
+
+    // ------------------------------------------------------------------ the bounds
+
+    @Test fun `bounds span every series the app holds`() {
+        val short = series(20, 300L, ChartRange.D1)
+        val long = ChartSeries(
+            symbol = "T", range = ChartRange.Y5,
+            points = (0 until 60).map { ChartPoint(1_500_000_000L + it * 2_592_000L, 50.0) },
+            baseline = 50.0, fetched = 1L
+        )
+        val b = windowBounds(short, listOf(short, long))!!
+        assertEquals(long.startMs, b.startMs)
+        assertEquals(short.endMs, b.endMs)
+    }
+
+    @Test fun `the after-hours series never widens the bounds`() {
+        val day = series(20, 300L, ChartRange.D1)
+        val overnight = ChartSeries(
+            symbol = "T", range = ChartRange.OVERNIGHT,
+            points = (0 until 20).map { ChartPoint(1_000_000_000L + it * 300L, 50.0) },
+            baseline = 50.0, fetched = 1L
+        )
+        val b = windowBounds(day, listOf(day, overnight))!!
+        assertEquals(
+            "the after-hours view is a filter, not a wider window", day.startMs, b.startMs
+        )
+    }
+
+    @Test fun `bounds fall back to the drawn series and then to nothing`() {
+        val s = series(20, 300L)
+        assertEquals(ChartWindow(s.startMs, s.endMs), windowBounds(s, emptyList()))
+        assertNull(windowBounds(null, emptyList()))
+    }
+
+    // ------------------------------------------------------- the crosshair and axis
+
+    @Test fun `the crosshair reads the axis, not the carried edge points`() {
+        // On a zoomed chart the drawn list reaches a candle past each edge. Placing the
+        // crosshair from the points' own extent would put it that far from the finger.
+        val s = series(50, 86_400L)
+        val w = ChartWindow(s.points[10].t * 1000L, s.points[20].t * 1000L)
+        val c = clipToWindow(s, w)!!
+        val i = nearestIndex(c.points, 0f, w)
+        assertEquals("the left edge of the window is point 10", s.points[10].t, c.points[i].t)
+        val j = nearestIndex(c.points, 1f, w)
+        assertEquals("the right edge of the window is point 20", s.points[20].t, c.points[j].t)
+    }
+
+    @Test fun `without an axis the crosshair behaves exactly as it did`() {
+        val s = series(50, 86_400L)
+        assertEquals(0, nearestIndex(s.points, 0f))
+        assertEquals(49, nearestIndex(s.points, 1f))
+        assertEquals(nearestIndex(s.points, 0.5f), nearestIndex(s.points, 0.5f, null))
+    }
+
+    @Test fun `the crosshair is total on degenerate input`() {
+        assertEquals(0, nearestIndex(emptyList(), 0.5f, base))
+        assertEquals(0, nearestIndex(listOf(ChartPoint(1L, 2.0)), 9f, base))
+    }
+
+    // -------------------------------------------------------------- the zoom badge
+
+    @Test fun `the badge names the span in words a reader can check`() {
+        assertEquals("30 min", spanLabel(30L * 60_000L))
+        assertEquals("4 hr", spanLabel(4L * 3_600_000L))
+        assertEquals("3 days", spanLabel(3L * DAY))
+        assertEquals("3 weeks", spanLabel(21L * DAY))
+        assertEquals("6 months", spanLabel(183L * DAY))
+        assertEquals("5.0 yr", spanLabel(1826L * DAY))
+        assertEquals("30 yr", spanLabel(10958L * DAY))
+    }
+
+    @Test fun `the badge never prints an empty or negative span`() {
+        for (ms in listOf(0L, 1L, -50L, Long.MAX_VALUE / 4)) {
+            assertTrue("spanLabel($ms) was blank", spanLabel(ms).isNotBlank())
+        }
+    }
+}

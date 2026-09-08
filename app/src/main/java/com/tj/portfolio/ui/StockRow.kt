@@ -103,20 +103,29 @@ fun StockRowItem(
                 //
                 // AND TALLER: 34dp -> 48dp. The row is not made taller by it - the avatar and
                 // two text lines already stand 46dp - so the height was free all along.
-                Column(Modifier.weight(1.4f)) {
+                Column(Modifier.weight(1.6f)) {
                     Text(
                         row.symbol,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Text(
-                        if (row.watchOnly) row.name.ifBlank { "Watching" }
+                    // ---- THE HOLDINGS LINE, WHICH NOW SHRINKS BEFORE IT CUTS.
+                    //
+                    // The chart beside it took real width in this round, and a big position
+                    // ("1,234.5678 shares - avg $1,234.56") is a third longer than TJ's own -
+                    // so at a fixed 14sp the widest lines would have started ellipsising where
+                    // they used to fit. The same auto-fit the money cells already use answers
+                    // it: the line steps down a point at a time, to a floor of 11dp of type,
+                    // and only cuts if it still does not fit at that size. A slightly smaller
+                    // holdings line is a far better trade than a hidden average cost.
+                    AutoFitNumber(
+                        text = if (row.watchOnly) row.name.ifBlank { "Watching" }
                         else "${Fmt.shares(row.shares)} shares - avg ${Fmt.price(row.avgCost)}",
-                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Normal,
+                        minSp = 11
                     )
                 }
 
