@@ -47,10 +47,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T5** (Fix every finding without introducing new ones).
 
-## 5. Open findings — 6 still open, 1 fixed
+## 5. Open findings — 5 still open, 2 fixed
 
 - [x] G01 (high) refresh() launches its network pass into viewModelScope, which OUTLIVES backgrounding. autoJob.cancel() stops the LOOP but not a refresh already in flight, so the batched quote request keeps transferring after the user leaves and its socket is never disconnected - the exact class of work Round 57 moved to fgScope. It also strands loading=true for up to 15s, during which the resume refresh returns early at its own guard and the user comes back to stale prices.  — refresh() moved to fgScope so a backgrounded pass is cancelled and its socket disconnected; the quote cache write moved to viewModelScope so a fetched price is never lost
-- [ ] G02 (med) ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever reads connectivity. Two costs: an install-time permission that buys nothing, and - more importantly - the app fires a full pass of requests while the phone has no network at all, waking the radio, failing every socket and escalating per-host cooldowns, when one cheap check could skip the pass entirely.
+- [x] G02 (med) ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever reads connectivity. Two costs: an install-time permission that buys nothing, and - more importantly - the app fires a full pass of requests while the phone has no network at all, waking the radio, failing every socket and escalating per-host cooldowns, when one cheap check could skip the pass entirely.  — util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries.
 - [ ] G03 (high) chartFetchedAt is written and NEVER read. A chart that cannot be fetched - a delisted ticker, a 404, a range Yahoo refuses - leaves no entry in _charts, so the guard falls through and the detail screen re-requests it on EVERY quote tick: ~240 requests an hour to Yahoo for a chart that will never arrive. loadFundamentals uses coreFetchedAt exactly this way; the chart path was modelled on it and then guarded on the wrong thing.
 - [ ] G04 (med) Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fund whose holdings fetch fails is re-requested on every screen open and every ON_START with no throttle at all.
 - [ ] G05 (high) REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the sparkAt mark for every symbol that failed, so a TRANSIENT failure retries on the next tick - which is what fixed TJ's missing charts - but a PERMANENT one (a delisted watchlist ticker, a symbol Yahoo has no series for) is now retried every 15 seconds forever instead of every 5 minutes. Two dead symbols is ~480 wasted requests an hour.
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:04:25 UTC  finding G04: Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fu
 - 2026-09-08 01:04:25 UTC  finding G05: REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the spa
 - 2026-09-08 01:04:48 UTC  T1 -> done  manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
 - 2026-09-08 01:04:48 UTC  T2 -> doing  UI sweep
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:06:15 UTC  T4 -> done  bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
 - 2026-09-08 01:06:16 UTC  T5 -> doing  fixing G01-G07
 - 2026-09-08 01:15:06 UTC  G01 fixed: refresh() moved to fgScope so a backgrounded pass is cancelled and its socket disconnected; the quote cache write moved to viewModelScope so a fetched price is never lost
+- 2026-09-08 01:15:06 UTC  G02 fixed: util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries.
 

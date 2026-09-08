@@ -76,8 +76,8 @@
       "id": "G02",
       "text": "ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever reads connectivity. Two costs: an install-time permission that buys nothing, and - more importantly - the app fires a full pass of requests while the phone has no network at all, waking the radio, failing every socket and escalating per-host cooldowns, when one cheap check could skip the pass entirely.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries."
     },
     {
       "id": "G03",
@@ -206,6 +206,7 @@
     "2026-09-08 01:06:15 UTC  T3 -> done  efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left",
     "2026-09-08 01:06:15 UTC  T4 -> done  bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept",
     "2026-09-08 01:06:16 UTC  T5 -> doing  fixing G01-G07",
-    "2026-09-08 01:15:06 UTC  G01 fixed: refresh() moved to fgScope so a backgrounded pass is cancelled and its socket disconnected; the quote cache write moved to viewModelScope so a fetched price is never lost"
+    "2026-09-08 01:15:06 UTC  G01 fixed: refresh() moved to fgScope so a backgrounded pass is cancelled and its socket disconnected; the quote cache write moved to viewModelScope so a fetched price is never lost",
+    "2026-09-08 01:15:06 UTC  G02 fixed: util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries."
   ]
 }
