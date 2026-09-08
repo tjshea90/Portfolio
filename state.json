@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 17:06:35 UTC",
+  "updated": "2026-09-08 17:06:36 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -567,8 +567,8 @@
       "id": "S05",
       "text": "Insider.forSymbol is now a verbatim copy of forSymbolResult's body and both it and listFilings have zero callers - dead duplicated logic that can only drift.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "forSymbol delegates to forSymbolResult instead of duplicating its body"
     },
     {
       "id": "S06",
@@ -915,6 +915,7 @@
     "2026-09-08 17:06:33 UTC  S01 fixed: restoreJson writes settings rows through a lock-free writeSetting against its own transaction handle instead of calling set(); the cache is dropped wholesale afterwards. The lock-order inversion is gone.",
     "2026-09-08 17:06:34 UTC  S02 fixed: only feedDue stamps _feedAt - it governs the market-wide list and the refresh-on-open rule, and a per-symbol fetch is not that",
     "2026-09-08 17:06:34 UTC  S03 fixed: the disk-restore path adopts only a series that is still inside its TTL, so a stale one can no longer stamp sparkAt and suppress the real refresh",
-    "2026-09-08 17:06:35 UTC  S04 fixed: onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes"
+    "2026-09-08 17:06:35 UTC  S04 fixed: onBenchmark - near-black on the bright amber (5.42:1), white on the dark one (6.23:1) - so the chip can match the line and still carry legible text in both themes",
+    "2026-09-08 17:06:36 UTC  S05 fixed: forSymbol delegates to forSymbolResult instead of duplicating its body"
   ]
 }
