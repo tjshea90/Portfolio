@@ -11,7 +11,7 @@
   },
   "now": {
     "step": "",
-    "next": "Then T1, the background audit",
+    "next": "Round 59 is COMPLETE and v7.0 is shipped. A new round starts with ./ck start 60 \"<the request>\". Remember to start watchdog.sh on a cold container.",
     "files": []
   },
   "tasks": [

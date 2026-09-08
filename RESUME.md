@@ -28,7 +28,7 @@ at once or kill one mid-flight; always background the build with
 ## 3. WHERE THE WORK STOPPED
 
 - **In flight:** (nothing in flight)
-- **Next action:** Then T1, the background audit
+- **Next action:** Round 59 is COMPLETE and v7.0 is shipped. A new round starts with ./ck start 60 "<the request>". Remember to start watchdog.sh on a cold container.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
