@@ -318,10 +318,52 @@ fun DetailScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
     }
 
+    // ---- PINCH TO ZOOM (Round 63).
+    //
+    // TJ: *"I can pinch gesture out on a stock chart and it will zoom in gradually all the
+    // way down to 5 minute time graph, or I can pinch gesture in to zoom back out, all the
+    // way to the stock's all time chart."*
+    //
+    // A zoom step is exactly a range change - the same state the chips write - so the two
+    // routes cannot disagree about what is on screen, and everything already built on
+    // `chartRange` (the per-window figures, the caption, the live edge rule, the disk cache)
+    // works unchanged.
+    //
+    // ONE THING HAD TO BE ADDED, AND IT IS THE WHOLE COST OF THIS FEATURE: a spread that
+    // crosses four rungs in half a second would otherwise start four chart fetches, three of
+    // them for windows the user was passing THROUGH and never looked at. `zoomSettling`
+    // marks the range change as gestural, and the loader below waits [CHART_SETTLE_MS] before
+    // going near the network - and because a `LaunchedEffect` keyed on the range is
+    // CANCELLED when the range changes again, every intermediate rung cancels its own
+    // pending fetch. Only the rung the fingers stop on ever sends anything.
+    //
+    // Windows already on disk are unaffected: `loadChart`'s cache read publishes every cached
+    // range for the symbol in one query, so zooming across ground already covered is instant
+    // and free either way.
+    var zoomSettling by remember(symbol) { mutableStateOf(false) }
+    val onChartZoom: (Int) -> Unit = remember(symbol) {
+        { steps ->
+            val next = com.tj.portfolio.data.ChartRange.zoomed(chartRange, steps)
+            if (next != null && next != chartRange) {
+                zoomSettling = true
+                chartRange = next
+                vm.setChartRange(next)
+            }
+        }
+    }
+
     // The chart follows the range the user picked. `loadChart` reads its disk cache first
     // and only reaches for the network when what it holds is past that range's TTL, so
     // flicking back and forth between 1D and 1Y costs nothing after the first look.
-    LaunchedEffect(symbol, chartRange) { vm.loadChart(symbol, chartRange) }
+    LaunchedEffect(symbol, chartRange) {
+        if (zoomSettling) {
+            kotlinx.coroutines.delay(CHART_SETTLE_MS)
+            // Cleared only once a fetch actually goes out for this rung, so a pinch that
+            // stops here leaves the screen back in its ordinary, immediate state.
+            zoomSettling = false
+        }
+        vm.loadChart(symbol, chartRange)
+    }
 
     // AND IT KEEPS ITSELF CURRENT WHILE YOU WATCH IT.
     //
@@ -335,8 +377,12 @@ fun DetailScreen(
     // times a minute - and `loadChart` answers all but one in twenty of those from memory
     // without starting a coroutine. The cadence that actually reaches the network is the
     // range's own TTL: five minutes on a five-minute candle, a day on a monthly one.
-    LaunchedEffect(state.lastRefresh, symbol, chartRange) {
-        vm.loadChart(symbol, chartRange)
+    LaunchedEffect(state.lastRefresh, symbol, chartRange, zoomSettling) {
+        // `zoomSettling` is in the key list so a quote tick landing mid-pinch cannot fire the
+        // very fetch the settle window exists to defer - the tick clock runs four times a
+        // minute and a pinch takes about a second, so without this the two would collide
+        // often enough to notice.
+        if (!zoomSettling) vm.loadChart(symbol, chartRange)
     }
 
     // REMEMBERED (Round 57). An unremembered lambda is a new object on every recomposition,
@@ -446,9 +492,13 @@ fun DetailScreen(
                     chartPerf = chartPerf,
                     chartLoadingRanges = chartLoadingRanges,
                     onChartRange = { r ->
+                        // A TAP IS NOT A ZOOM. It never sets `zoomSettling`, so a chip still
+                        // fetches immediately - the settle window exists only to swallow the
+                        // rungs a pinch passes through.
                         chartRange = r
                         vm.setChartRange(r)
                     },
+                    onChartZoom = onChartZoom,
                     onInfo = { infoKey = it },
                     onEditPosition = { pending = PendingAction(symbol, RowAction.EDIT_POSITION) },
                     onAddTxn = { addingTxn = true },
@@ -576,6 +626,8 @@ private fun OverviewTab(
     /** Ranges with a fetch in flight, so a blank chip can say which kind of blank it is. */
     chartLoadingRanges: Set<com.tj.portfolio.data.ChartRange>,
     onChartRange: (com.tj.portfolio.data.ChartRange) -> Unit,
+    /** One rung of pinch zoom: +1 zooms in, -1 zooms out. See `chartGestures`. */
+    onChartZoom: (Int) -> Unit,
     onInfo: (String) -> Unit,
     onEditPosition: () -> Unit,
     onAddTxn: () -> Unit,
@@ -650,7 +702,8 @@ private fun OverviewTab(
                     // The live tip belongs to whichever session the chart is drawing: the
                     // regular price on the 1D line while the market is open, the extended
                     // print on the after-hours line once it has closed. See withLiveEdge.
-                    liveEdge = liveEdgePrice(q, chartRange) > 0.0
+                    liveEdge = liveEdgePrice(q, chartRange) > 0.0,
+                    onZoom = onChartZoom
                 )
                 Spacer(Modifier.height(14.dp))
             }
@@ -1009,6 +1062,16 @@ private fun NewsTab(
         }
     }
 }
+
+/**
+ * How long a pinch has to settle before the chart it landed on is fetched.
+ *
+ * 380ms is a pause, not a delay: it is longer than the gap between two rungs of a continuous
+ * spread (which is one or two frames) and shorter than the time it takes to look at what
+ * appeared. A window already in the cache is drawn instantly regardless - this timer only
+ * gates the request.
+ */
+private const val CHART_SETTLE_MS = 380L
 
 /**
  * The price that belongs at the right-hand tip of an intraday chart, or 0 when none does.
