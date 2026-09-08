@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 22:15:19 UTC",
+  "updated": "2026-09-08 22:15:20 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -81,7 +81,7 @@
       "id": "F02",
       "text": "Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap",
       "sev": "high",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     },
     {
@@ -488,6 +488,7 @@
     "2026-09-08 21:56:12 UTC  finding F07: Reset zoom chip appears on its own every ~5 min as windowBounds advances with th",
     "2026-09-08 21:56:12 UTC  finding F08: Crosshair can land on a carried off-window point: readout updates but the dot an",
     "2026-09-08 21:56:12 UTC  finding F09: Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gut",
-    "2026-09-08 22:15:19 UTC  F01 fixed"
+    "2026-09-08 22:15:19 UTC  F01 fixed",
+    "2026-09-08 22:15:20 UTC  F02 fixed"
   ]
 }
