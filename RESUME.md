@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:08 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:09 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
-## 5. Open findings — 21 still open, 28 fixed
+## 5. Open findings — 20 still open, 29 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -81,7 +81,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] N05 (med) loadInsider's guard is 'we already hold filings for this symbol', which never becomes true for a symbol with no Form 4 in the 31-day window - the ordinary case. So every detail-screen open and every resume sends a fresh EDGAR listing request, and the daily-rolling datea parameter means the conditional-GET cache cannot answer it either.  — insiderAt records that an EDGAR pass COMPLETED rather than that it found something, on a 30-minute TTL matching Form 4's own legal lag; a failed pass still never stamps it
 - [x] N06 (med) The feed's per-headline loop rebuilds holdingNames() once PER HEADLINE and calls Relevance.matchHolding without a hoisted Subject or a pre-squashed haystack - roughly 4,000 Subject constructions and 4,000 squash calls per feed pass, every three minutes, ON THE MAIN THREAD. Relevance.Subject exists precisely to hoist this; the Feed path never adopted it.  — the feed's market pass hoists holdingNames and Relevance.Subject out of the per-headline loop, pre-squashes each headline once, and runs on Dispatchers.Default instead of the main thread
 - [x] N07 (med) Ledger.totals re-scans the whole transaction list six times on every quote tick - cash, netDeposits, dividends, fees, realized - all pure functions of cachedTxns, which only changes in recompute(). 240 ticks an hour x six full passes, on the main thread, always producing the same five numbers.  — Ledger.sums computes the four ledger-only figures once in recompute(); totals takes them as an optional parameter so every existing call site and test is unchanged
-- [ ] N08 (med) publish() runs two synchronous SQLite queries per quote tick (useCashOverride + cashOverrideValue), plus refreshSecs() once per tick and finnhubKey() once per refresh - ~480+ main-thread rawQuery calls an hour against the settings table.
+- [x] N08 (med) publish() runs two synchronous SQLite queries per quote tick (useCashOverride + cashOverrideValue), plus refreshSecs() once per tick and finnhubKey() once per refresh - ~480+ main-thread rawQuery calls an hour against the settings table.  — Db keeps a write-through settings cache, with absence cached as its own sentinel so hasSetting still tells a missing key from a stored blank; restoreJson invalidates it on entry and on both exits
 - [ ] N09 (low) chartFetchedAt and holdingsFetchedAt are written and never read anywhere - chartFetchedAt is documented as the bug RetryClock replaced, and the field survived the fix. Dead state that grows unbounded and misleads the next reader.
 - [ ] N10 (low) loadFundamentals and loadRatings stamp their TTL only on success, so a symbol whose quoteSummary is refused is re-requested on every detail open and every resume - and the analyst payload is the heaviest thing the app fetches.
 - [ ] N11 (low) fillResearchPrices fetches up to 20 quotes one symbol at a time through MarketData.quote, bypassing the batched endpoint that would do it in one request - and calls finnhubKey(), a SQLite read, inside each async.
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:08:51 UTC  finding U13: Accent #2E6BE6 on the dark surfaceVariant is 3.40:1 at 13sp on the News chip - t
 - 2026-09-08 15:08:51 UTC  finding U14: The Portfolio header's Sort button is measured last among unweighted children an
 - 2026-09-08 15:08:51 UTC  finding U15: ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its h
 - 2026-09-08 15:08:51 UTC  finding U16: FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit an
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:28:07 UTC  N05 fixed: insiderAt records that an EDGAR pass COMPLETED rather than that it found something, on a 30-minute TTL matching Form 4's own legal lag; a failed pass still never stamps it
 - 2026-09-08 15:28:07 UTC  N06 fixed: the feed's market pass hoists holdingNames and Relevance.Subject out of the per-headline loop, pre-squashes each headline once, and runs on Dispatchers.Default instead of the main thread
 - 2026-09-08 15:28:08 UTC  N07 fixed: Ledger.sums computes the four ledger-only figures once in recompute(); totals takes them as an optional parameter so every existing call site and test is unchanged
+- 2026-09-08 15:28:09 UTC  N08 fixed: Db keeps a write-through settings cache, with absence cached as its own sentinel so hasSetting still tells a missing key from a stored blank; restoreJson invalidates it on entry and on both exits
 
