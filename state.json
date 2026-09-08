@@ -10,7 +10,7 @@
     "next_name": "7.0"
   },
   "now": {
-    "step": "",
+    "step": "T3: CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate",
     "next": "Then T1, the background audit",
     "files": []
   },
@@ -36,8 +36,8 @@
     {
       "id": "T3",
       "title": "CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "code + efficiency"
     },
     {
       "id": "T4",
@@ -201,6 +201,7 @@
     "2026-09-08 01:04:48 UTC  T2 -> doing  UI sweep",
     "2026-09-08 01:05:23 UTC  finding G06: AdviceScreen numbers each suggested action in a FIXED 22dp-wide Text. Compose's ",
     "2026-09-08 01:05:23 UTC  finding G07: FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0",
-    "2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)"
+    "2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)",
+    "2026-09-08 01:05:42 UTC  T3 -> doing  code + efficiency"
   ]
 }

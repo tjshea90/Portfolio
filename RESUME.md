@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T3: CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -39,7 +39,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T0  Baseline on the shipped tree: release build + 358 tests green before any edit  — release APK + 358/358 green on the shipped tree
 - [x] T1  BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch  — manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
 - [x] T2  UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode  — static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)
-- [ ] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate
+- [>] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate  — code + efficiency
 - [ ] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory
 - [ ] T5  Fix every finding without introducing new ones
 - [ ] T6  Verify: full suite, checkinit, lint, second-pass review of every fix
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:01:55 UTC  finding G01: refresh() launches its network pass into viewModelScope, which OUTLIVES backgrou
 - 2026-09-08 01:02:17 UTC  T0 -> done  release APK + 358/358 green on the shipped tree
 - 2026-09-08 01:02:18 UTC  T1 -> doing  background audit
 - 2026-09-08 01:02:57 UTC  finding G02: ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever rea
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:05:23 UTC  finding G06: AdviceScreen numbers each suggested action in a FIXED 22dp-wide Text. Compose's 
 - 2026-09-08 01:05:23 UTC  finding G07: FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0
 - 2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)
+- 2026-09-08 01:05:42 UTC  T3 -> doing  code + efficiency
 
