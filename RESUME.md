@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 21:45:40 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 21:45:42 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T6: SWEEP 1: adversarial bug hunt over the new code and the app
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -42,7 +42,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T3  Full-screen chart: tap any chart to open it, sensor rotation, back to close  — FullScreenChart dialog + sensor orientation + manifest configChanges
 - [x] T4  Tests for T1-T3: pure + rendered + measured  — ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7
 - [x] T5  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 632/632 green, lint vital clean, checkinit ok
-- [ ] T6  SWEEP 1: adversarial bug hunt over the new code and the app
+- [>] T6  SWEEP 1: adversarial bug hunt over the new code and the app  — adversarial sweep 1
 - [ ] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic
 - [ ] T8  Ship v7.5 (versionCode 62) + final checkpoint
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 20:15:12 UTC  T11 -> done  v7.4 shipped: versionCode 61, signed with the archived key (cert SHA-256 2e8c3847... unchanged, so it installs in place over 7.3), 569/569 tests green, lint vital clean, checkinit ok
 - 2026-09-08 20:24:41 UTC  round 64 started
 - 2026-09-08 20:26:04 UTC  T0 -> doing  baseline
 - 2026-09-08 20:37:55 UTC  T0 -> done  v7.4 baseline green
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 21:37:22 UTC  T4 -> done  ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7
 - 2026-09-08 21:37:23 UTC  T5 -> doing  full regression suite
 - 2026-09-08 21:45:40 UTC  T5 -> done  632/632 green, lint vital clean, checkinit ok
+- 2026-09-08 21:45:42 UTC  T6 -> doing  adversarial sweep 1
 

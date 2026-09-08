@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 21:45:40 UTC",
+  "updated": "2026-09-08 21:45:42 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,7 +10,7 @@
     "next_code": 62
   },
   "now": {
-    "step": "",
+    "step": "T6: SWEEP 1: adversarial bug hunt over the new code and the app",
     "next": ""
   },
   "tasks": [
@@ -53,8 +53,8 @@
     {
       "id": "T6",
       "title": "SWEEP 1: adversarial bug hunt over the new code and the app",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "adversarial sweep 1"
     },
     {
       "id": "T7",
@@ -413,6 +413,7 @@
     "2026-09-08 21:13:56 UTC  T4 -> doing  tests for T1-T3",
     "2026-09-08 21:37:22 UTC  T4 -> done  ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7",
     "2026-09-08 21:37:23 UTC  T5 -> doing  full regression suite",
-    "2026-09-08 21:45:40 UTC  T5 -> done  632/632 green, lint vital clean, checkinit ok"
+    "2026-09-08 21:45:40 UTC  T5 -> done  632/632 green, lint vital clean, checkinit ok",
+    "2026-09-08 21:45:42 UTC  T6 -> doing  adversarial sweep 1"
   ]
 }
