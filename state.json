@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-08 00:47:25 UTC",
+  "updated": "2026-09-08 00:49:43 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -99,8 +99,8 @@
     {
       "id": "T12",
       "title": "Verification: unit tests, checkinit, lint, simulations, second-pass review",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "358/358 tests, checkinit ok, lintVital 'No issues found', APK signed with the archived keystore (cert SHA-256 matches), versionCode 56 / 6.9 confirmed in the built APK"
     },
     {
       "id": "T13",
@@ -334,6 +334,7 @@
     "2026-09-07 20:58:45 UTC  finding F22: An intraday chart left open keeps re-fetching itself after the session that prod",
     "2026-09-07 21:02:47 UTC  F22 fixed: intradayChartIsFinal stops the automatic refresh once the session that produced the line has ended, tested against the real MarketClock including the pre-market fallback case",
     "2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean",
-    "2026-09-08 00:47:25 UTC  T11 -> done  every finding closed and re-verified by the suite"
+    "2026-09-08 00:47:25 UTC  T11 -> done  every finding closed and re-verified by the suite",
+    "2026-09-08 00:49:43 UTC  T12 -> done  358/358 tests, checkinit ok, lintVital 'No issues found', APK signed with the archived keystore (cert SHA-256 matches), versionCode 56 / 6.9 confirmed in the built APK"
   ]
 }

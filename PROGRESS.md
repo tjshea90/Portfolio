@@ -154,3 +154,4 @@ app/src/test/java/com/tj/portfolio/BackgroundTest.kt
 2026-09-07 21:02:47 UTC  checkpoint 58  commit 01a83d3  fix F22
 2026-09-07 21:02:47 UTC  checkpoint 58  commit 021fad8  market-aware chart refresh gate
 2026-09-08 00:47:25 UTC  checkpoint 58  commit af54081  T10 done
+2026-09-08 00:47:25 UTC  checkpoint 58  commit 7b4dda0  T11 done

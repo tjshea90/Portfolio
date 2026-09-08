@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-08 00:47:25 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-08 00:49:43 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -35,7 +35,7 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 12/14 done
+## 4. Task ledger — 13/14 done
 
 - [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - [x] T1  Baseline: release build + 276-test suite green before any edit  — release APK + 276/276 tests green + checkinit ok
@@ -49,10 +49,10 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T9  Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible  — new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed
 - [x] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — 22 findings across 3 passes, all fixed; lint clean
 - [x] T11  Fix every finding from T10 without introducing new ones  — every finding closed and re-verified by the suite
-- [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
+- [x] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review  — 358/358 tests, checkinit ok, lintVital 'No issues found', APK signed with the archived keystore (cert SHA-256 matches), versionCode 56 / 6.9 confirmed in the built APK
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
 
-**Resume at T12** (Verification: unit tests, checkinit, lint, simulations, second-pass review).
+**Resume at T13** (Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ).
 
 ## 5. Open findings — 0 still open, 22 fixed
 
@@ -88,7 +88,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche
 - 2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http
 - 2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed
 - 2026-09-07 20:48:01 UTC  F19 fixed: D5 TTL raised to 30 minutes to match its 30-minute candle
@@ -100,4 +99,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 21:02:47 UTC  F22 fixed: intradayChartIsFinal stops the automatic refresh once the session that produced the line has ended, tested against the real MarketClock including the pre-market fallback case
 - 2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean
 - 2026-09-08 00:47:25 UTC  T11 -> done  every finding closed and re-verified by the suite
+- 2026-09-08 00:49:43 UTC  T12 -> done  358/358 tests, checkinit ok, lintVital 'No issues found', APK signed with the archived keystore (cert SHA-256 matches), versionCode 56 / 6.9 confirmed in the built APK
 
