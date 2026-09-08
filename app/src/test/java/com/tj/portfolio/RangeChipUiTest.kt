@@ -16,6 +16,8 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import com.tj.portfolio.data.ChartPoint
@@ -278,5 +280,63 @@ class RangeChipUiTest {
 
     private fun hasTextAny() = androidx.compose.ui.test.SemanticsMatcher("has text") {
         it.config.getOrNull(SemanticsProperties.Text)?.isNotEmpty() == true
+    }
+
+    // ------------------------------------------- the row follows a pinch (Round 63)
+
+    /**
+     * PINCH ZOOM CHANGES THE SELECTION WITHOUT TOUCHING THIS ROW.
+     *
+     * Eight chips do not fit across a phone, so the row scrolls - which was fine while the
+     * only way to change range was to tap a chip you could already see. A four-rung spread
+     * can now leave the highlighted chip well off the right-hand edge with the row still
+     * showing the window the user started from, which reads as the zoom not having worked.
+     *
+     * Asserted WITHOUT `performScrollTo`, which is the whole point: the chip has to be on
+     * screen because the row brought it there, not because the test dragged it into view.
+     */
+    @Test
+    fun `selecting a chip off the right-hand edge scrolls it into view`() {
+        var selected by mutableStateOf(ChartRange.MAX)
+        show {
+            RangeChips(selected = selected, onSelect = { selected = it })
+        }
+        // "All" is the seventh of eight chips and starts off screen on a 411dp phone.
+        rule.onNodeWithText("MAX_PROBE").assertDoesNotExist()
+        selected = ChartRange.OVERNIGHT
+        rule.waitForIdle()
+        rule.onNodeWithText(ChartRange.OVERNIGHT.label).assertIsDisplayed()
+    }
+
+    @Test
+    fun `selecting a chip back at the left-hand edge scrolls back`() {
+        var selected by mutableStateOf(ChartRange.OVERNIGHT)
+        show {
+            RangeChips(selected = selected, onSelect = { selected = it })
+        }
+        rule.waitForIdle()
+        selected = ChartRange.D1
+        rule.waitForIdle()
+        rule.onNodeWithText(ChartRange.D1.label).assertIsDisplayed()
+    }
+
+    @Test
+    fun `a chip already in view does not make the row jump`() {
+        // Re-centring something the user can already see would make the row twitch on every
+        // tap - a worse fault than the one the auto-scroll fixes.
+        var selected by mutableStateOf(ChartRange.D1)
+        show {
+            RangeChips(selected = selected, onSelect = { selected = it })
+        }
+        rule.waitForIdle()
+        val before = rule.onNodeWithText(ChartRange.D1.label).fetchSemanticsNode()
+            .positionInRoot.x
+        selected = ChartRange.D5
+        rule.waitForIdle()
+        val after = rule.onNodeWithText(ChartRange.D1.label).fetchSemanticsNode()
+            .positionInRoot.x
+        org.junit.Assert.assertEquals(
+            "the row scrolled for a chip that was already visible", before, after, 0.5f
+        )
     }
 }

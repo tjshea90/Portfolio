@@ -660,8 +660,11 @@ private fun ResearchCard(
  * read as a free fund, which is a claim; "-" reads as "the fund did not publish this", which
  * is the truth. Same rule the rest of this app follows for an absent price.
  */
+// `internal`, not private, so `EtfCardUiTest` can render the grid on its own and assert what
+// an absent figure prints. The alternative is standing up a whole ViewModel to reach it
+// through `ResearchScreen`, which tests the plumbing rather than the layout.
 @Composable
-private fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
+internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
     Spacer(Modifier.height(9.dp))
     Column(
         Modifier
