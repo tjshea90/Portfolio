@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:40 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:41 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
-## 5. Open findings — 1 still open, 48 fixed
+## 5. Open findings — 0 still open, 49 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -101,7 +101,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] U14 (low) The Portfolio header's Sort button is measured last among unweighted children and is squeezed to ~37dp at font scale 2.0, under the app's own documented 48dp rule.  — the Portfolio title is weighted so all three header buttons keep 52dp
 - [x] U15 (low) ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its hyphen - the identical trap FeedScreen documents and fixes with widthIn(min = 34.dp). It survives at 2.0x today, but it is the same latent bug in the same codebase.  — widthIn(min) rather than a fixed width for the reason bullet
 - [x] U16 (low) FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit annualised return at 2.0x ellipsizes to '+123...', which is not a number.  — FactCell values use AutoFitNumber, so a three-digit annualised return renders in full at 2x - verified by screenshot
-- [ ] U17 (low) A Research headline with a blank URL still renders a minTapTarget()-sized clickable(enabled = false) block that looks identical to a tappable one.
+- [x] U17 (low) A Research headline with a blank URL still renders a minTapTarget()-sized clickable(enabled = false) block that looks identical to a tappable one.  — a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control
 
 ## 6. Version
 
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:53:32 UTC  U05 fixed: text and fill palettes separated: Green/Red are untouched as fills, and signColor - which every signed figure uses - is now theme-aware, resolving to #0A8055 (4.96:1) and #C62B3C (5.51:1) on light and to the brand colours on dark. Standalone green/red TEXT sites routed the same way.
 - 2026-09-08 15:53:33 UTC  U06 fixed: the Research header's texts are weighted, so the Rebuild button is measured first and keeps its 52dp at every font scale
 - 2026-09-08 15:53:34 UTC  U07 fixed: BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first
 - 2026-09-08 15:53:34 UTC  U08 fixed: the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:53:39 UTC  U14 fixed: the Portfolio title is weighted so all three header buttons keep 52dp
 - 2026-09-08 15:53:39 UTC  U15 fixed: widthIn(min) rather than a fixed width for the reason bullet
 - 2026-09-08 15:53:40 UTC  U16 fixed: FactCell values use AutoFitNumber, so a three-digit annualised return renders in full at 2x - verified by screenshot
+- 2026-09-08 15:53:41 UTC  U17 fixed: a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control
 
