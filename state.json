@@ -10,7 +10,7 @@
     "next_name": "7.4"
   },
   "now": {
-    "step": "",
+    "step": "T7: REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke",
     "next": ""
   },
   "tasks": [
@@ -59,8 +59,8 @@
     {
       "id": "T7",
       "title": "REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "full regression"
     },
     {
       "id": "T8",
@@ -272,6 +272,7 @@
     "2026-09-08 06:43:45 UTC  T6 -> doing  tests for T1-T5",
     "2026-09-08 06:53:58 UTC  finding J01: isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ul",
     "2026-09-08 06:53:58 UTC  J01 fixed: the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.",
-    "2026-09-08 07:00:39 UTC  T6 -> done  SwipeTabTest 15, ChartZoomTest 12, CompareChartTest 10, EtfTest 23, GestureUiTest 11 (real multi-touch), CompareChartUiTest 8 - 79 new"
+    "2026-09-08 07:00:39 UTC  T6 -> done  SwipeTabTest 15, ChartZoomTest 12, CompareChartTest 10, EtfTest 23, GestureUiTest 11 (real multi-touch), CompareChartUiTest 8 - 79 new",
+    "2026-09-08 07:00:39 UTC  T7 -> doing  full regression"
   ]
 }
