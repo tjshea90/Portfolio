@@ -35,6 +35,9 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -130,7 +133,10 @@ fun Sparkline(
     }
     val first = if (baseline > 0.0) baseline else pts.first()
     val up = pts.last() >= first
-    val lineColor = color ?: if (up) Green else Red
+    // The text-legible pair, not the fill one: this is a hairline on a white row, where
+    // #16C784 measures 2.20:1 and reads as a smudge. The P/L figures beside it use the same
+    // values, so a row is one colour rather than two. See the note on `signColor`.
+    val lineColor = color ?: if (up) greenText else redText
     val min = minOf(pts.min(), if (baseline > 0) baseline else pts.min())
     val max = maxOf(pts.max(), if (baseline > 0) baseline else pts.max())
     val span = (max - min).let { if (it < 1e-9) 1.0 else it }
@@ -492,49 +498,79 @@ fun StatCard(
 /**
  * The label / value row used throughout the stat cards.
  *
- * ---- THE VALUE IS MEASURED FIRST, AND THAT IS THE WHOLE POINT (Round 63 sweep).
+ * ---- IT MEASURES, BECAUSE NEITHER HALF IS EXPENDABLE.
  *
- * This used to be two UNWEIGHTED children of a `Row` with `SpaceBetween`. Compose measures
- * unweighted children in order, handing each one whatever width is left - and `SpaceBetween`
- * is an arrangement, not a measurement policy, so it reserves nothing for the second child.
- * A label long enough to wrap therefore took the whole row and **the value was measured at
- * zero width and vanished entirely**. Neither `Text` set `maxLines`, so nothing stopped the
- * label from wrapping.
+ * This has now failed twice in opposite directions, which is what makes it worth a real
+ * layout rather than a third guess at weights:
  *
- * It was not a large-font-only fault either. "Gain on stocks you still own" plus its figure
- * had about 13dp of headroom at the DEFAULT font scale inside the portfolio summary card, so
- * the first step up the accessibility slider made a dollar amount disappear off a screen
- * whose entire job is showing dollar amounts.
+ *  1. **Originally** it was two UNWEIGHTED children of a `Row` with `SpaceBetween`. Compose
+ *     measures unweighted children in order against whatever width is left, and `SpaceBetween`
+ *     is an arrangement, not a measurement policy - so a label long enough to wrap took the
+ *     whole row and **the value was measured at zero width and vanished**. On the portfolio
+ *     summary card that bit at 1.15x, one step above the default font scale.
+ *  2. **Then the label was weighted**, which reversed the order and reversed the failure: at
+ *     2.0x, with a long value like "+$1,234,567.89  (+1234.56%)" in a 359dp card, the LABEL
+ *     was measured at zero and an unlabelled signed figure was left on the row.
  *
- * Now the value is the unweighted child - measured first, at full constraints, never wrapped -
- * and the label takes the remainder, wrapping to at most two lines and then ellipsising. A
- * squeezed label is legible; a missing number is not.
+ * There is no split of one line that holds both at 2.0x, because at 2.0x they genuinely do not
+ * fit on one line. So this measures: it gives the value what it needs, and if what remains for
+ * the label falls below [MIN_LABEL_DP] it **stacks them instead** - label above, value below,
+ * right-aligned - which is what every other app does when a row runs out of room. Both halves
+ * survive at every font scale, and the fallback only engages when the alternative was losing
+ * one of them.
  */
+private const val MIN_LABEL_DP = 72
+
 @Composable
 fun KeyValue(label: String, value: String, valueColor: Color? = null, bold: Boolean = false) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 3.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyLarge,
-            color = valueColor ?: MaterialTheme.colorScheme.onSurface,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
-            // NEVER WRAPPED. A dollar amount broken across two lines is harder to read wrong
-            // than a truncated one, but it still reflows the whole card.
-            softWrap = false,
-            textAlign = TextAlign.End
-        )
+    val gap = with(LocalDensity.current) { 10.dp.roundToPx() }
+    val minLabel = with(LocalDensity.current) { MIN_LABEL_DP.dp.roundToPx() }
+    Layout(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        content = {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            // The value shrinks before it is ever cut - it is a number, and a shortened number
+            // is a different number. See [AutoFitNumber].
+            AutoFitNumber(
+                value,
+                color = valueColor ?: MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold,
+                textAlign = TextAlign.End
+            )
+        }
+    ) { measurables, constraints ->
+        val width = constraints.maxWidth
+        val loose = Constraints(maxWidth = width)
+        val valuePlaceable = measurables[1].measure(loose)
+        val forLabel = width - valuePlaceable.width - gap
+
+        if (forLabel >= minLabel) {
+            // ---- one line: value at its natural width, label in the remainder.
+            val labelPlaceable = measurables[0].measure(Constraints(maxWidth = forLabel))
+            val h = maxOf(labelPlaceable.height, valuePlaceable.height)
+            layout(width, h) {
+                labelPlaceable.placeRelative(0, (h - labelPlaceable.height) / 2)
+                valuePlaceable.placeRelative(
+                    width - valuePlaceable.width, (h - valuePlaceable.height) / 2
+                )
+            }
+        } else {
+            // ---- two lines: neither half is dropped, and the value stays right-aligned so
+            // a column of them still reads down the card.
+            val labelPlaceable = measurables[0].measure(loose)
+            val h = labelPlaceable.height + valuePlaceable.height
+            layout(width, h) {
+                labelPlaceable.placeRelative(0, 0)
+                valuePlaceable.placeRelative(width - valuePlaceable.width, labelPlaceable.height)
+            }
+        }
     }
 }
 
@@ -600,10 +636,23 @@ fun AutoFitNumber(
     modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.bodyLarge,
     fontWeight: FontWeight = FontWeight.Bold,
+    /**
+     * The floor, in **dp** rather than sp - see below. 11 is about the smallest a figure can
+     * be and still be read at arm's length on a phone.
+     */
     minSp: Int = 11,
     textAlign: TextAlign? = null
 ) {
+    val density = LocalDensity.current
     val max = style.fontSize.takeIf { it != TextUnit.Unspecified } ?: 15.sp
+    // ---- THE FLOOR IS A PHYSICAL SIZE, NOT A SCALED ONE.
+    //
+    // Written as `minSp.sp` this scaled with the user's font setting, which defeats the whole
+    // widget: at 2.0x an "11sp" floor is 22dp of type in a 118dp cell, so the number stopped
+    // shrinking long before it fitted and ellipsised anyway - the exact case this was written
+    // for. `Dp.toSp()` divides by the font scale, so what comes out renders at a fixed
+    // physical size however the slider is set.
+    val floor = with(density) { minSp.dp.toSp() }
     BasicText(
         text = text,
         modifier = modifier,
@@ -614,11 +663,17 @@ fun AutoFitNumber(
         softWrap = false,
         overflow = TextOverflow.Ellipsis,
         autoSize = TextAutoSize.StepBased(
-            minFontSize = minSp.sp,
+            // Guarded, because at a small font scale the floor can exceed the ceiling and
+            // `StepBased` requires min <= max.
+            minFontSize = minOf(floor.value, max.value).sp,
             // Never LARGER than the style asks for - this is a fallback for tight rows, not a
             // licence to grow into whatever space happens to be free.
             maxFontSize = max,
-            stepSize = 0.5.sp
+            // A WHOLE POINT PER STEP, not a half. Neighbouring cells in one row size
+            // themselves independently, so a fine step means three comparable figures render
+            // at three visibly different sizes on the same line. A coarse one keeps them on a
+            // short ladder, which reads as deliberate rather than as a rendering fault.
+            stepSize = 1.sp
         )
     )
 }

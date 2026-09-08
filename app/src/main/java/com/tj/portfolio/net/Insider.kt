@@ -175,6 +175,44 @@ object Insider {
     }
 
     /** One symbol's filings. Split out so a single stock's screen can call it directly. */
+    /**
+     * One symbol's filings, and whether the listing request was answered at all.
+     *
+     * The second half of that is what lets a caller cache "nothing to report" - see [Listing].
+     */
+    data class SymbolResult(val filings: List<InsiderFiling>, val answered: Boolean)
+
+    suspend fun forSymbolResult(
+        symbol: String,
+        cached: Map<String, InsiderFiling>,
+        gate: Semaphore,
+        since: String,
+        skip: MutableSet<String> = HashSet()
+    ): SymbolResult = coroutineScope {
+        val listing = gate.withPermit { listing(symbol, since) }
+        val refs = listing.refs
+            .filter { it.accession !in skip }
+            .take(MAX_PER_SYMBOL)
+        if (refs.isEmpty()) {
+            return@coroutineScope SymbolResult(emptyList(), listing.answered)
+        }
+        SymbolResult(
+            filings = refs.map { ref ->
+                async {
+                    cached[ref.accession] ?: run {
+                        val parsed = gate.withPermit {
+                            runCatching { fetch(symbol, ref) }.getOrNull()
+                        }
+                        if (parsed is Unreadable) {
+                            synchronized(skip) { skip.add(ref.accession) }; null
+                        } else parsed as? InsiderFiling
+                    }
+                }
+            }.awaitAll().filterNotNull().sortedByDescending { it.filedAt },
+            answered = true
+        )
+    }
+
     suspend fun forSymbol(
         symbol: String,
         cached: Map<String, InsiderFiling>,
@@ -209,13 +247,27 @@ object Insider {
      * `datea` bounds the range server-side - verified live: NVDA over a year is 100 entries
      * and 109 KB, the same request with `datea` set to a month back is 6 entries and 8.6 KB.
      */
-    suspend fun listFilings(symbol: String, since: String): List<Ref> {
+    suspend fun listFilings(symbol: String, since: String): List<Ref> =
+        listing(symbol, since).refs
+
+    /**
+     * The listing, WITH whether EDGAR actually answered (sweep 3).
+     *
+     * [listFilings] returns an empty list for two situations that are not remotely the same:
+     * "this company filed no Form 4 this month" - the ordinary case, most companies, most
+     * months - and "EDGAR refused, timed out, or there is no network". A caller that wants to
+     * remember it has already asked cannot tell those apart from the list alone, and one that
+     * guesses will either re-ask forever or stop asking after a single 403.
+     */
+    data class Listing(val refs: List<Ref>, val answered: Boolean)
+
+    suspend fun listing(symbol: String, since: String): Listing {
         val url = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=" +
             MarketData.enc(symbol) + "&type=4&dateb=&datea=" + MarketData.enc(since) +
             "&owner=include&count=100&output=atom"
         val r = Http.get(url, headers(), 20000, conditionalKey = true)
-        if (!r.ok) return emptyList()
-        return parseListing(r.body)
+        if (!r.ok) return Listing(emptyList(), answered = false)
+        return Listing(parseListing(r.body), answered = true)
     }
 
     /**

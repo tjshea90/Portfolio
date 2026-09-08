@@ -1171,8 +1171,9 @@ private fun CompareToggle(on: Boolean, loading: Boolean, onClick: () -> Unit) {
         Modifier
             .minTapTarget()
             .background(
-                // The darker amber, because this chip carries WHITE text - see BenchmarkFill.
-                if (on) BenchmarkFill else MaterialTheme.colorScheme.surfaceVariant,
+                // The same amber the line is painted in, so the control and what it turns on
+                // are visibly one thing - see `benchmarkColor`.
+                if (on) benchmarkColor else MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(10.dp)
             )
             .clickable(onClick = onClick)

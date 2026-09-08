@@ -707,18 +707,38 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     /** Sentinel for "this key is genuinely absent", so absence is cached as well as presence. */
     private val NO_SETTING = "\u0000<absent>"
 
-    fun invalidateSettings() = settingsCache.clear()
+    /**
+     * ---- WHY A LOCK, AND WHY ONLY AROUND THE MISS PATH.
+     *
+     * A read that misses does two things: it queries the table, and it stores what it read.
+     * Between those, a write on another thread can commit - and the read then puts the
+     * PRE-WRITE value into the cache, permanently, where before the cache existed every read
+     * would have gone to the table and been right. Narrow window, unbounded consequence: the
+     * app writes settings from `Dispatchers.IO` (the chart range, the compare toggle, the P/L
+     * mode, `FEED_AT`) while the main thread reads the same keys on a fifteen-second tick.
+     *
+     * Serialising the miss path and the write path against each other closes it. The HIT path
+     * takes no lock at all, which is the case that actually runs hundreds of times an hour;
+     * `ConcurrentHashMap` makes that read safe on its own.
+     */
+    private val settingsLock = Any()
+
+    fun invalidateSettings() = synchronized(settingsLock) { settingsCache.clear() }
 
     fun get(key: String, def: String = ""): String {
-        settingsCache[key]?.let { return if (it === NO_SETTING || it == NO_SETTING) def else it }
-        readableDatabase.rawQuery("SELECT v FROM settings WHERE k=?", arrayOf(key)).use { c ->
-            val v = if (c.moveToFirst()) c.getString(0) else null
-            settingsCache[key] = v ?: NO_SETTING
-            return v ?: def
+        settingsCache[key]?.let { return if (it == NO_SETTING) def else it }
+        synchronized(settingsLock) {
+            // Re-checked inside the lock: another thread may have filled it while we waited.
+            settingsCache[key]?.let { return if (it == NO_SETTING) def else it }
+            readableDatabase.rawQuery("SELECT v FROM settings WHERE k=?", arrayOf(key)).use { c ->
+                val v = if (c.moveToFirst()) c.getString(0) else null
+                settingsCache[key] = v ?: NO_SETTING
+                return v ?: def
+            }
         }
     }
 
-    fun set(key: String, value: String) {
+    fun set(key: String, value: String) = synchronized(settingsLock) {
         val cv = ContentValues().apply { put("k", key); put("v", value) }
         writableDatabase.insertWithOnConflict("settings", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
         settingsCache[key] = value
@@ -729,6 +749,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // Answered from the cache when it knows, INCLUDING when what it knows is "absent" -
         // that is the case this function exists to distinguish from a stored empty string.
         settingsCache[key]?.let { return it != NO_SETTING }
+        // No lock on the miss here: this is called from Settings and from one-off checks, not
+        // from a hot path, and it writes nothing - so it cannot poison the cache.
         readableDatabase.rawQuery("SELECT 1 FROM settings WHERE k=? LIMIT 1", arrayOf(key)).use { c ->
             return c.moveToFirst()
         }
@@ -1344,13 +1366,18 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 "Warning: the file lists $expected transactions but ${n + skipped} were readable."
             else null
 
-            invalidateSettings()
             return RestoreResult(n, skipped, ovN, wN, sN, iN, replace, null, warning)
         } catch (e: Exception) {
-            invalidateSettings()
             return RestoreResult(error = "Restore failed: ${e.message}")
         } finally {
+            // ---- AFTER THE TRANSACTION CLOSES, NOT BEFORE IT.
+            //
+            // Dropped inside the try, a reader in the gap between the clear and
+            // `endTransaction()` could re-cache a value the rollback was about to undo - which
+            // is the one thing the invalidation exists to prevent. In the `finally` it runs on
+            // every exit, commit and rollback alike, and always after the table has settled.
             db.endTransaction()
+            invalidateSettings()
         }
     }
 

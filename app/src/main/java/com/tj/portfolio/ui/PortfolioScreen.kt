@@ -143,25 +143,22 @@ fun PortfolioScreen(
                     // the shape of an uninstall and reinstall. Offering it beats showing
                     // "No holdings yet" over a backup they have no reason to know is there.
                     else if (recoverable) FoundBackupCard(vm, restoring) { restoring = it }
-                    // ---- AND A THIRD CASE, FOUND IN ROUND 63'S SWEEP: NOT YET KNOWN.
+                    // ---- A "LOADING" BRANCH WAS TRIED HERE AND REMOVED AGAIN.
                     //
-                    // On the first frames of a launch the ledger has not been read and
-                    // neither `dataMissing` nor `recoverable` has resolved, so both fall
-                    // through to the friendly copy - which is the exact message the comment
-                    // above calls the worst possible answer for someone whose data has
-                    // vanished. It reached it through a different door: a 2dp progress bar
-                    // is not a loading state anyone reads. "Loading" and "there is nothing"
-                    // are different claims and the screen has to make the right one.
-                    else if (state.loading) Column(
-                        Modifier.fillMaxWidth().padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            "Loading your holdings...",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    // The idea was that on the first frames of a launch neither `dataMissing`
+                    // nor `recoverable` has resolved, so both fall through to the friendly
+                    // copy. Measured, that is not what happens: `loading` defaults to false
+                    // and `recompute()` runs synchronously in the ViewModel's `init`, before
+                    // the first frame, so this screen never renders in the state the branch
+                    // was written for.
+                    //
+                    // What it DID do was real and bad. `loading` is true during every quote
+                    // pass, and a user with no holdings but a non-empty watchlist runs one on
+                    // `init` and on every automatic tick - so the onboarding instructions,
+                    // which are exactly what that user needs, flickered away to a spinner
+                    // caption several times a minute. A fix that misses its case and breaks a
+                    // real one is a net loss; the 2dp progress bar at the top of the screen
+                    // already says a refresh is running.
                     else Column(
                         Modifier.fillMaxWidth().padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally

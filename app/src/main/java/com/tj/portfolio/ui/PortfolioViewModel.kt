@@ -536,6 +536,14 @@ internal class RetryClock {
     private val attemptedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val failures = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
+    /**
+     * How long since the last attempt before the count is forgotten entirely.
+     *
+     * Twice the maximum backoff. Anything that has sat untouched for ten minutes is being
+     * asked about again from scratch, not continuing a streak.
+     */
+    private val FORGET_MS = 600_000L
+
     /** 30s, 1m, 2m, 4m, then held at 5m. Matches `Http`'s unreachable backoff. */
     internal fun backoffMs(fails: Int): Long =
         minOf(30_000L shl (fails - 1).coerceIn(0, 4), 300_000L)
@@ -549,7 +557,21 @@ internal class RetryClock {
     fun blocked(key: String, now: Long = System.currentTimeMillis()): Boolean {
         val fails = failures[key] ?: return false
         if (fails <= 0) return false
-        return now - (attemptedAt[key] ?: 0L) < backoffMs(fails)
+        val last = attemptedAt[key] ?: 0L
+        // ---- COUNTS AGE OUT (sweep 3).
+        //
+        // Only a success or a manual pull used to clear them, so one five-minute outage drove
+        // every symbol to the top tier and left it there for the life of the process - and the
+        // next single dropped symbol, long after the network came back, started at a
+        // five-minute backoff instead of thirty seconds. The count is meant to describe
+        // CONSECUTIVE RECENT failures; something that has not been attempted for well past its
+        // own window is not that.
+        if (now - last > FORGET_MS) {
+            failures.remove(key)
+            attemptedAt.remove(key)
+            return false
+        }
+        return now - last < backoffMs(fails)
     }
 
     // `now` is a parameter with a default rather than a bare call to the clock, so the rule
@@ -1928,6 +1950,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // anyway. Anything else still fetches normally.
         val chartsNow = _charts.value
         fun heldByChart(sym: String): Boolean {
+            // `sparkAt` IS THE PROOF. Holding a fresh D1 chart is not the same as having
+            // adopted it: `adoptAsSparkline` returns early when no quote exists yet, and the
+            // DISK-RESTORE path in `loadChart` publishes a cached series without calling it at
+            // all. Skipping on the chart alone therefore left a cold start into a detail
+            // screen showing a stale sparkline for up to five minutes - a gap this filter's
+            // own comment claimed could not exist. The mark is only ever set where the series
+            // has actually been written into the quote, so requiring it makes the claim true.
+            if (sparkAt[sym] == null) return false
             val c = chartsNow[chartKey(sym, ChartRange.D1)] ?: return false
             return c.regularOnly && !c.isEmpty && !c.stale(now)
         }
@@ -2116,6 +2146,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun setNewsVisible(visible: Boolean, detailSymbol: String? = null) {
         newsSymbol = detailSymbol?.uppercase()
+        val arriving = visible && !newsVisible
+        // Both transitions are captured BEFORE the flag moves, because both are about the
+        // EDGE. `leaving` in particular: stamping on every call with `visible == false` would
+        // push the grace window forward continuously while the user sits on another tab, so
+        // the pass would believe it was always inside it and the gate would never close.
+        val leaving = !visible && newsVisible
         // ---- ARRIVING ON THE FEED TAB REFRESHES IT (Round 63 sweep).
         //
         // The other half of gating the seven market-wide feeds on visibility. With the timer
@@ -2124,10 +2160,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // rather than at most one interval old. Which would be a worse app in exchange for
         // saving requests, and that trade is never the right one here.
         //
+        // THE FLAG IS SET BEFORE THE CALL, and that ordering is load-bearing.
+        // `viewModelScope` is `Main.immediate` and this runs on the main thread, so
+        // `refreshFeed` executes its body IN PLACE up to its first suspension point - which is
+        // well after it computes `feedDue`. Called with `newsVisible` still false, the pass
+        // that exists to fill the tab computed "nobody is looking at headlines", fetched
+        // nothing, and stamped the timestamp that suppresses the next attempt.
+        newsVisible = visible
         // Guarded three ways so this cannot become its own request generator: only on the
         // transition INTO visible, only when what is held is already past the interval it
         // would have been refreshed on anyway, and `refreshFeed` has its own re-entry guard.
-        if (visible && !newsVisible) {
+        if (arriving) {
             val age = System.currentTimeMillis() - _feedAt.value
             if (age > MarketClock.feedIntervalSecs() * 1000L) refreshFeed(includeInsider = false)
         }
@@ -2137,8 +2180,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // has already expired at the exact moment it is needed, and a pass in flight abandons
         // its per-symbol loop half-done. Stamping on the way OUT measures what the window is
         // actually about: how long ago the user stopped looking.
-        if (!visible && newsVisible) newsVisibleAt = System.currentTimeMillis()
-        newsVisible = visible
+        if (leaving) newsVisibleAt = System.currentTimeMillis()
     }
 
     fun setVisibleScope(scope: VisibleScope) {
@@ -3046,16 +3088,24 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val since = Fmt.iso(
                     System.currentTimeMillis() - Insider.WINDOW_DAYS * 86_400_000L
                 )
-                val items = withContext(Dispatchers.IO) {
+                val result = withContext(Dispatchers.IO) {
                     runCatching {
-                        Insider.forSymbol(symbol, known, secGate, since, insiderSkip)
-                    }.getOrDefault(emptyList())
+                        Insider.forSymbolResult(symbol, known, secGate, since, insiderSkip)
+                    }.getOrNull()
                 }
-                // STAMPED HERE, BEFORE THE EMPTY CHECK. "EDGAR answered and this company
-                // filed nothing this month" is a real answer with a real cost, and it is the
-                // common case - recording only the non-empty ones is what made the guard
-                // above useless for most symbols.
-                insiderAt[symbol] = System.currentTimeMillis()
+                val items = result?.filings.orEmpty()
+                // ---- STAMPED ONLY WHEN EDGAR ACTUALLY ANSWERED.
+                //
+                // "EDGAR answered and this company filed nothing this month" is a real answer
+                // with a real cost, and it is the common case - which is why the old guard
+                // ("do we hold filings for this symbol") never fired for most symbols.
+                //
+                // But `listFilings` returned an empty list for a 403, a 429, a timeout and an
+                // offline device too, so stamping on emptiness alone cached a FAILURE for
+                // half an hour: a stock opened while the SEC was refusing showed no filings
+                // across every re-open until the TTL ran out. `answered` is the distinction,
+                // and it comes from the HTTP response rather than from the shape of the list.
+                if (result?.answered == true) insiderAt[symbol] = System.currentTimeMillis()
                 if (items.isEmpty()) return@launch
                 rememberInsiderDocs(items)
                 // De-duplicated by accession: EDGAR occasionally repeats an entry, and the
@@ -3510,6 +3560,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                             if (live == null || live.fetched < s.fetched) m[k] = s
                         }
                         _charts.value = m
+                        // ONE REQUEST, TWO CONSUMERS - on this path as well as the fetch one.
+                        // A restored 1D series is the same thing `refreshSparklines` would go
+                        // and fetch, so adopting it here saves that request outright, and it
+                        // is what lets that pass safely skip a symbol whose chart is fresh.
+                        // `adoptAsSparkline` checks its own preconditions and does nothing if
+                        // there is no quote to attach it to yet.
+                        m[chartKey(sym, ChartRange.D1)]?.let { adoptAsSparkline(sym, it) }
                     }
                 }
 
@@ -3805,6 +3862,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) { runCatching { db.set(Keys.FEED_AT, now.toString()) } }
     }
 
+    /**
+     * Stamp only if this pass actually went to the network (sweep 3).
+     *
+     * Once the feed pass could be GATED - fetching nothing for a screen nobody is on - an
+     * unconditional stamp made `_feedAt` a lie twice over. It made the header say "Updated
+     * just now" over headlines last really fetched hours ago, and it defeated the whole
+     * refresh-on-open rule that gating depends on: that rule fires when the held data is older
+     * than one interval, and a no-op pass every interval kept it permanently younger than one.
+     */
+    private fun stampFeedAtIfFetched(fetched: Boolean) {
+        if (fetched) stampFeedAt()
+    }
+
     private fun purgeOldNewsOnce() {
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { db.purgeOldNews() }
@@ -4036,7 +4106,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // the other end.
                 publishAndCache(marketFirst + existingFilings + _feed.value,
                     toCache = marketFirst)
-                stampFeedAt()
+                stampFeedAtIfFetched(feedDue)
 
                 val freshNews = HashMap<String, List<NewsItem>>()
                 val perSymbol = java.util.Collections.synchronizedList(
@@ -4110,7 +4180,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     newsItems + marketItems + existingFilings + _feed.value,
                     toCache = newsItems + marketItems
                 )
-                stampFeedAt()
+                stampFeedAtIfFetched(feedDue || newsSymbols.isNotEmpty())
 
                 // ---- stage 2: SEC filings, which are two business days behind by law and
                 // ride their own slow cadence, so they must never hold the headlines up

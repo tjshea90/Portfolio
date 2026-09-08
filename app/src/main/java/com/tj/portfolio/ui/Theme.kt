@@ -5,11 +5,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+
+/**
+ * WHICH SCHEME IS ACTUALLY IN FORCE (Round 63, sweep 3).
+ *
+ * The theme-aware text colours below first asked `isSystemInDarkTheme()`, which is where
+ * `PortfolioTheme` gets its DEFAULT from - but `PortfolioTheme` takes an override, and seven
+ * UI tests use it to render the dark scheme on a light-mode host. Those tests were getting
+ * light-theme text painted on dark surfaces, so any contrast assertion in them was measuring
+ * the wrong pair. Production was unaffected, which is exactly what makes it the kind of thing
+ * that stays wrong: the only place it shows is the place that checks.
+ *
+ * `PortfolioTheme` publishes the answer here and everything downstream reads it, so the colours
+ * can never disagree with the surfaces they sit on.
+ */
+val LocalDarkTheme = staticCompositionLocalOf { false }
 
 /** Sampled from the user's reference screenshots. */
 val Green = Color(0xFF16C784)
@@ -38,6 +55,18 @@ val Benchmark = Color(0xFFB4863B)
 val BenchmarkFill = Color(0xFF7E5A22)
 
 /**
+ * The benchmark colour to actually paint with, whichever theme is up.
+ *
+ * ONE COLOUR FOR THE WHOLE FEATURE. The first pass at this used the darker amber for the chip
+ * (which carries white text) and the lighter one for the line, its legend dot and both
+ * readouts - so with the overlay on, two visibly different ambers described the same thing on
+ * the same screen. The line does not need the bright value on white: at 1.4dp it reads better
+ * dark, and it then matches the control that switched it on.
+ */
+val benchmarkColor: Color
+    @Composable get() = if (LocalDarkTheme.current) Benchmark else BenchmarkFill
+
+/**
  * [Accent] as TEXT, brightened for the dark theme (Round 63 sweep).
  *
  * `#2E6BE6` on the light surfaceVariant is 4.41:1 - a hair under AA and acceptable at the
@@ -50,7 +79,7 @@ val AccentTextDark = Color(0xFF5B92F0)
 
 /** Accent as TEXT: the brand blue on light, a brighter one on dark. */
 val accentText: Color
-    @Composable get() = if (isSystemInDarkTheme()) AccentTextDark else Accent
+    @Composable get() = if (LocalDarkTheme.current) AccentTextDark else Accent
 
 /**
  * The Research card's score colour, by tier and direction - and legible in both themes.
@@ -66,7 +95,7 @@ val accentText: Color
  */
 @Composable
 fun scoreColor(score: Int, bullish: Boolean): Color {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     return when {
         score >= 70 -> if (bullish) greenText else redText
         score >= 50 ->
@@ -103,11 +132,11 @@ val RedTextLight = Color(0xFFC62B3C)
 
 /** Green as TEXT: darker on a light background, the brand colour on a dark one. */
 val greenText: Color
-    @Composable get() = if (isSystemInDarkTheme()) Green else GreenTextLight
+    @Composable get() = if (LocalDarkTheme.current) Green else GreenTextLight
 
 /** Red as TEXT, on the same rule. */
 val redText: Color
-    @Composable get() = if (isSystemInDarkTheme()) Red else RedTextLight
+    @Composable get() = if (LocalDarkTheme.current) Red else RedTextLight
 
 /**
  * The colour for a signed FIGURE - which is text, so it follows the rule above.
@@ -161,9 +190,13 @@ private val AppTypography = Typography(
 
 @Composable
 fun PortfolioTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (dark) DarkColors else LightColors,
-        typography = AppTypography,
-        content = content
-    )
+    // `LocalDarkTheme` carries the scheme ACTUALLY in force down the tree - see its own note.
+    // Reading `isSystemInDarkTheme()` again further down would ignore this parameter.
+    CompositionLocalProvider(LocalDarkTheme provides dark) {
+        MaterialTheme(
+            colorScheme = if (dark) DarkColors else LightColors,
+            typography = AppTypography,
+            content = content
+        )
+    }
 }

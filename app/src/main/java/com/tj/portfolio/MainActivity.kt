@@ -136,9 +136,9 @@ private const val TAB_ACTIVITY = 3
 private const val TAB_ADVICE = 4
 private const val TAB_SETTINGS = 5
 
-private data class TabDef(val index: Int, val label: String, val icon: ImageVector)
+internal data class TabDef(val index: Int, val label: String, val icon: ImageVector)
 
-private val TABS = listOf(
+internal val TABS = listOf(
     TabDef(TAB_PORTFOLIO, "Portfolio", Icons.Filled.Home),
     TabDef(TAB_WATCHLIST, "Watch", Icons.Filled.Star),
     TabDef(TAB_FEED, "Feed", Icons.Filled.Notifications),
@@ -465,23 +465,32 @@ fun App() {
  * `navigationBarsPadding()` sits below the background so the bar's surface still paints
  * behind the gesture pill / 3-button nav, while the tappable content is lifted clear of it.
  */
+// `internal`, not private, so `TabBarUiTest` can put it inside a real `Scaffold` and measure
+// it. That test exists because the alternative - reasoning about the height modifier - is
+// exactly what got this wrong once: see the note on `.height(74.dp)` below.
 @Composable
-private fun BigTabBar(selected: Int, onSelect: (Int) -> Unit) {
+internal fun BigTabBar(selected: Int, onSelect: (Int) -> Unit) {
     Column(Modifier.background(MaterialTheme.colorScheme.surface)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
         Row(
             Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                // ---- A MINIMUM, NOT A FIXED HEIGHT (Round 63 sweep).
+                // ---- A FIXED HEIGHT, AND IT HAS TO STAY ONE.
                 //
-                // 74 is a dp constant and the label under each icon is in sp, which scales.
-                // At about 1.45x - the "largest" position on Android's font slider - the
-                // longer labels ("Portfolio", "Activity", "Settings") wrapped to two lines
-                // against a 23dp label budget and painted outside the bar, shoving the icons.
-                // `heightIn` lets the bar grow to fit its own contents while keeping the
-                // comfortable 74dp target at every ordinary scale.
-                .heightIn(min = 74.dp),
+                // The sweep changed this to `heightIn(min = 74.dp)` so the bar could grow with
+                // the font scale, and that broke the app outright. Each tab's `Column` below
+                // carries `.weight(1f).fillMaxSize()`; `height` was what pinned their
+                // maxHeight to 74dp. `heightIn(min=)` sets only the MINIMUM and lets the
+                // maximum through - and `Scaffold` measures a `bottomBar` with loose
+                // constraints, i.e. maxHeight = the whole screen. So every child filled the
+                // screen, the Row sized to its tallest child, and the bar took everything:
+                // measured inside a real Scaffold, bar 891dp and content 0dp. No screen
+                // rendered at all, at any font scale.
+                //
+                // The real problem the change was aimed at is the LABEL, not the bar, and it
+                // is fixed where it belongs - one line, ellipsised, below.
+                .height(74.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {

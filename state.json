@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:54:05 UTC",
+  "updated": "2026-09-08 16:36:44 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -430,6 +430,104 @@
       "sev": "low",
       "status": "fixed",
       "note": "a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control"
+    },
+    {
+      "id": "R01",
+      "text": "CRITICAL, and it would have shipped: changing the tab bar's height(74.dp) to heightIn(min = 74.dp) removed the maxHeight that each tab's Column.weight(1f).fillMaxSize() was being bounded by. Scaffold measures a bottomBar with loose constraints, so every child filled the SCREEN and the bar sized to its tallest child. Measured in a real Scaffold: bar 891dp, content 0dp. The app would render nothing at all, at any font scale.",
+      "sev": "high",
+      "status": "fixed",
+      "note": "reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version."
+    },
+    {
+      "id": "R02",
+      "text": "The Research header's title is ellipsised at the DEFAULT font scale. Weighting the title left the old weighted Spacer in place, so three weighted children split the space 1:1:2 and the title's share is 84dp against a 93.5dp natural width - 'Researc...' beside 140dp of blank.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R03",
+      "text": "The new SCORE cap-label clips the score it labels from about 1.1x: both Texts inherit bodyLarge's 21sp lineHeight, so the Column needs 42sp of line box inside a fixed 46dp circle and Arrangement.Center gives the label its full box first. At 1.3x - Android's ordinary largest step - a third of the digits are cut.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R04",
+      "text": "KeyValue no longer loses the value; it loses the LABEL instead. Measured with a long value in a 359dp card: label 48.5dp at 1.5x, 14.5dp at 1.8x, 0dp at 2.0x - an unlabelled signed figure. And the value sets softWrap=false with no overflow, so it clips with no ellipsis. The failure threshold moved from 1.15x to 1.5x; it was not removed.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R05",
+      "text": "AutoFitNumber's floor is expressed in sp, so it scales with the user's font setting - at 2.0x the 11sp floor is 22dp of type in a 118dp cell and the number ellipsises anyway, which is the exact case the widget was written for. It also renders the three cells of one row at sizes up to 30 percent apart, in a list whose purpose is comparing them.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R06",
+      "text": "The new 'Loading your holdings...' branch replaces the onboarding copy for a user with zero holdings and a non-empty watchlist - every automatic tick runs a quote pass, so the instructions that matter most flicker away. And it misses its own target: recompute() runs synchronously in init before the first frame, so loading is false on the frames the branch was added for.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R07",
+      "text": "greenText/redText/accentText/scoreColor read isSystemInDarkTheme() rather than the scheme actually in force, while PortfolioTheme takes a dark override. Production is unaffected, but seven UI tests pass dark = true and now render light-theme text colours on dark surfaces - so any dark-mode assertion is measuring the wrong pair.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R08",
+      "text": "The chart now paints two different greens eight dp apart: the legend dot takes the LINE colour (#16C784) and the spread text beside it takes the TEXT colour (#0A8055). Same for the benchmark - the vs-SPY toggle is #7E5A22 while the line, its dot and both readouts stay #B4863B.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R09",
+      "text": "The Feed tab's new refresh-on-open never fires: stampFeedAt runs on EVERY pass including the gated no-op ones, so _feedAt is always younger than one interval. Worse, it also makes the 'Updated Xs ago' header read 'just now' over headlines last actually fetched hours ago.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R10",
+      "text": "And even when it does fire, the pass it triggers is gated off: setNewsVisible calls refreshFeed BEFORE assigning newsVisible = visible, and viewModelScope is Main.immediate, so feedDue is computed while the flag is still false. The pass that exists to fill the tab fetches nothing and then stamps _feedAt twice.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R11",
+      "text": "insiderAt is stamped on FAILED EDGAR passes. Insider.listFilings returns an empty list on any non-OK response - 403, 429, timeout, offline - which is indistinguishable from 'this company filed nothing', and the stamp is taken before the empty check. A stock opened while SEC is refusing now shows no filings for thirty minutes across every re-open, where before it retried at once.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R12",
+      "text": "The sparkline filter can suppress a sparkline that was never adopted. Two paths publish a D1 chart without ever writing Quote.spark - the fetch path when no quote exists yet, and the DISK RESTORE path, which never calls adoptAsSparkline at all - so a cold start into a detail screen leaves that row's sparkline stale for up to five minutes.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R13",
+      "text": "The settings cache can be poisoned by a read racing a write: get() queries on a miss and stores what it read afterwards, so a read that starts before a concurrent set() commits and finishes after it leaves the cache holding the old value permanently. Also invalidateSettings() runs before endTransaction() in restoreJson's finally, so a reader in that gap can cache a value that is about to roll back.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R14",
+      "text": "RetryClock failure counts never decay, so one five-minute outage drives every symbol to the five-minute tier for the rest of the process - and the next single dropped symbol starts at that tier instead of at thirty seconds.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -713,6 +811,21 @@
     "2026-09-08 15:53:40 UTC  U16 fixed: FactCell values use AutoFitNumber, so a three-digit annualised return renders in full at 2x - verified by screenshot",
     "2026-09-08 15:53:41 UTC  U17 fixed: a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control",
     "2026-09-08 15:53:42 UTC  T9 -> done  network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white.",
-    "2026-09-08 15:54:05 UTC  T10 -> doing  sweep 3: re-scan for regressions introduced by the ~50 fixes"
+    "2026-09-08 15:54:05 UTC  T10 -> doing  sweep 3: re-scan for regressions introduced by the ~50 fixes",
+    "2026-09-08 16:11:01 UTC  finding R01: CRITICAL, and it would have shipped: changing the tab bar's height(74.dp) to hei",
+    "2026-09-08 16:11:01 UTC  finding R02: The Research header's title is ellipsised at the DEFAULT font scale. Weighting t",
+    "2026-09-08 16:11:01 UTC  finding R03: The new SCORE cap-label clips the score it labels from about 1.1x: both Texts in",
+    "2026-09-08 16:11:01 UTC  finding R04: KeyValue no longer loses the value; it loses the LABEL instead. Measured with a ",
+    "2026-09-08 16:11:01 UTC  finding R05: AutoFitNumber's floor is expressed in sp, so it scales with the user's font sett",
+    "2026-09-08 16:11:02 UTC  finding R06: The new 'Loading your holdings...' branch replaces the onboarding copy for a use",
+    "2026-09-08 16:11:02 UTC  finding R07: greenText/redText/accentText/scoreColor read isSystemInDarkTheme() rather than t",
+    "2026-09-08 16:11:02 UTC  finding R08: The chart now paints two different greens eight dp apart: the legend dot takes t",
+    "2026-09-08 16:11:02 UTC  finding R09: The Feed tab's new refresh-on-open never fires: stampFeedAt runs on EVERY pass i",
+    "2026-09-08 16:11:02 UTC  finding R10: And even when it does fire, the pass it triggers is gated off: setNewsVisible ca",
+    "2026-09-08 16:11:02 UTC  finding R11: insiderAt is stamped on FAILED EDGAR passes. Insider.listFilings returns an empt",
+    "2026-09-08 16:11:02 UTC  finding R12: The sparkline filter can suppress a sparkline that was never adopted. Two paths ",
+    "2026-09-08 16:11:02 UTC  finding R13: The settings cache can be poisoned by a read racing a write: get() queries on a ",
+    "2026-09-08 16:11:02 UTC  finding R14: RetryClock failure counts never decay, so one five-minute outage drives every sy",
+    "2026-09-08 16:36:44 UTC  R01 fixed: reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version."
   ]
 }

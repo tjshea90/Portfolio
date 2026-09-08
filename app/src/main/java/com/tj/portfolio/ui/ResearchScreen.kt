@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -223,9 +224,17 @@ fun ResearchScreen(
                 style = MaterialTheme.typography.titleLarge,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
+                // NO WEIGHTED SPACER AFTER THIS. Leaving the old one in place made three
+                // weighted children split the row 1:1:2, which pinned the title to an 84dp
+                // share against a 93.5dp natural width - so "Research" rendered as
+                // "Researc..." at the DEFAULT font scale, beside 140dp of blank. Unused
+                // share is not redistributed once every child is weighted.
+                //
+                // The status text carries the weight instead: it is the only thing here that
+                // genuinely has to give, it already ellipsises, and both the title and the
+                // button are then measured at what they need.
+                modifier = Modifier.padding(end = 8.dp)
             )
-            Spacer(Modifier.weight(1f))
             if (busy.isNotEmpty()) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
@@ -249,7 +258,8 @@ fun ResearchScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                modifier = Modifier.weight(2f, fill = false)
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.weight(1f)
             )
             // WHICHEVER LIST IS ON SCREEN. The ETF pass and the stock pass are ten and
             // eighteen requests on six-hour and thirty-minute clocks; a refresh button that
@@ -566,6 +576,20 @@ private fun ResearchCard(
                 // describe the INPUTS and never the output. The only mention lived three
                 // hundred dp below, past ten cards. One word above the number closes it, and
                 // the semantics say the whole thing out loud for a screen reader.
+                // ---- THE NUMBER FIRST, THE WORD ONLY IF IT FITS.
+                //
+                // The first attempt at naming this score stacked a 7sp "SCORE" cap-label above
+                // the figure inside the same fixed circle - and both Texts inherited
+                // `bodyLarge`'s 21sp LINE HEIGHT, so the column wanted 42sp of line box in a
+                // 46dp circle and `Arrangement.Center` gave the label its full box first. From
+                // about 1.1x the digits were being clipped: the label was eating the number it
+                // was there to explain.
+                //
+                // Both line heights are now pinned to the text size, and the label is dropped
+                // entirely once the font scale makes it a threat. The `contentDescription`
+                // says the whole thing regardless, which is the part that a screen reader -
+                // and the accessibility case - actually needed.
+                val labelFits = LocalDensity.current.fontScale <= 1.15f
                 Column(
                     Modifier
                         .size(46.dp)
@@ -576,14 +600,25 @@ private fun ResearchCard(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        "SCORE",
+                    if (labelFits) {
+                        Text(
+                            "SCORE",
+                            color = c,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 7.sp,
+                            lineHeight = 8.sp,
+                            maxLines = 1
+                        )
+                    }
+                    AutoFitNumber(
+                        "${r.score}",
                         color = c,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontSize = 16.sp, lineHeight = 18.sp
+                        ),
                         fontWeight = FontWeight.Bold,
-                        fontSize = 7.sp,
-                        maxLines = 1
+                        minSp = 10
                     )
-                    Text("${r.score}", color = c, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {

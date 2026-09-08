@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:54:05 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:36:44 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T10** (SWEEP 3: re-scan until clean - verify no fix introduced a new bug).
 
-## 5. Open findings — 0 still open, 49 fixed
+## 5. Open findings — 13 still open, 50 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -102,6 +102,20 @@ commit, so `git log --oneline` is the history of this round and
 - [x] U15 (low) ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its hyphen - the identical trap FeedScreen documents and fixes with widthIn(min = 34.dp). It survives at 2.0x today, but it is the same latent bug in the same codebase.  — widthIn(min) rather than a fixed width for the reason bullet
 - [x] U16 (low) FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit annualised return at 2.0x ellipsizes to '+123...', which is not a number.  — FactCell values use AutoFitNumber, so a three-digit annualised return renders in full at 2x - verified by screenshot
 - [x] U17 (low) A Research headline with a blank URL still renders a minTapTarget()-sized clickable(enabled = false) block that looks identical to a tappable one.  — a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control
+- [x] R01 (high) CRITICAL, and it would have shipped: changing the tab bar's height(74.dp) to heightIn(min = 74.dp) removed the maxHeight that each tab's Column.weight(1f).fillMaxSize() was being bounded by. Scaffold measures a bottomBar with loose constraints, so every child filled the SCREEN and the bar sized to its tallest child. Measured in a real Scaffold: bar 891dp, content 0dp. The app would render nothing at all, at any font scale.  — reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version.
+- [ ] R02 (high) The Research header's title is ellipsised at the DEFAULT font scale. Weighting the title left the old weighted Spacer in place, so three weighted children split the space 1:1:2 and the title's share is 84dp against a 93.5dp natural width - 'Researc...' beside 140dp of blank.
+- [ ] R03 (high) The new SCORE cap-label clips the score it labels from about 1.1x: both Texts inherit bodyLarge's 21sp lineHeight, so the Column needs 42sp of line box inside a fixed 46dp circle and Arrangement.Center gives the label its full box first. At 1.3x - Android's ordinary largest step - a third of the digits are cut.
+- [ ] R04 (high) KeyValue no longer loses the value; it loses the LABEL instead. Measured with a long value in a 359dp card: label 48.5dp at 1.5x, 14.5dp at 1.8x, 0dp at 2.0x - an unlabelled signed figure. And the value sets softWrap=false with no overflow, so it clips with no ellipsis. The failure threshold moved from 1.15x to 1.5x; it was not removed.
+- [ ] R05 (high) AutoFitNumber's floor is expressed in sp, so it scales with the user's font setting - at 2.0x the 11sp floor is 22dp of type in a 118dp cell and the number ellipsises anyway, which is the exact case the widget was written for. It also renders the three cells of one row at sizes up to 30 percent apart, in a list whose purpose is comparing them.
+- [ ] R06 (med) The new 'Loading your holdings...' branch replaces the onboarding copy for a user with zero holdings and a non-empty watchlist - every automatic tick runs a quote pass, so the instructions that matter most flicker away. And it misses its own target: recompute() runs synchronously in init before the first frame, so loading is false on the frames the branch was added for.
+- [ ] R07 (med) greenText/redText/accentText/scoreColor read isSystemInDarkTheme() rather than the scheme actually in force, while PortfolioTheme takes a dark override. Production is unaffected, but seven UI tests pass dark = true and now render light-theme text colours on dark surfaces - so any dark-mode assertion is measuring the wrong pair.
+- [ ] R08 (med) The chart now paints two different greens eight dp apart: the legend dot takes the LINE colour (#16C784) and the spread text beside it takes the TEXT colour (#0A8055). Same for the benchmark - the vs-SPY toggle is #7E5A22 while the line, its dot and both readouts stay #B4863B.
+- [ ] R09 (high) The Feed tab's new refresh-on-open never fires: stampFeedAt runs on EVERY pass including the gated no-op ones, so _feedAt is always younger than one interval. Worse, it also makes the 'Updated Xs ago' header read 'just now' over headlines last actually fetched hours ago.
+- [ ] R10 (high) And even when it does fire, the pass it triggers is gated off: setNewsVisible calls refreshFeed BEFORE assigning newsVisible = visible, and viewModelScope is Main.immediate, so feedDue is computed while the flag is still false. The pass that exists to fill the tab fetches nothing and then stamps _feedAt twice.
+- [ ] R11 (med) insiderAt is stamped on FAILED EDGAR passes. Insider.listFilings returns an empty list on any non-OK response - 403, 429, timeout, offline - which is indistinguishable from 'this company filed nothing', and the stamp is taken before the empty check. A stock opened while SEC is refusing now shows no filings for thirty minutes across every re-open, where before it retried at once.
+- [ ] R12 (med) The sparkline filter can suppress a sparkline that was never adopted. Two paths publish a D1 chart without ever writing Quote.spark - the fetch path when no quote exists yet, and the DISK RESTORE path, which never calls adoptAsSparkline at all - so a cold start into a detail screen leaves that row's sparkline stale for up to five minutes.
+- [ ] R13 (med) The settings cache can be poisoned by a read racing a write: get() queries on a miss and stores what it read afterwards, so a read that starts before a concurrent set() commits and finishes after it leaves the cache holding the old value permanently. Also invalidateSettings() runs before endTransaction() in restoreJson's finally, so a reader in that gap can cache a value that is about to roll back.
+- [ ] R14 (low) RetryClock failure counts never decay, so one five-minute outage drives every symbol to the five-minute tier for the rest of the process - and the next single dropped symbol starts at that tier instead of at thirty seconds.
 
 ## 6. Version
 
@@ -112,16 +126,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:53:34 UTC  U08 fixed: the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'
-- 2026-09-08 15:53:35 UTC  U09 fixed: the Research tab row is now SecondaryScrollableTabRow, like the detail screen's
-- 2026-09-08 15:53:36 UTC  U10 fixed: the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw
-- 2026-09-08 15:53:36 UTC  U11 fixed: renamed to 'Share of your stocks' - the denominator is market value, not total equity
-- 2026-09-08 15:53:37 UTC  U12 fixed: a third branch: while the ledger is still loading the screen says so instead of showing the 'No holdings yet' copy
-- 2026-09-08 15:53:38 UTC  U13 fixed: BenchmarkFill (#7E5A22, 6.23:1 under white) for the vs-SPY chip, and accentText (#5B92F0 on dark, 5.30:1) for the News chip; the score card's three tiers are now theme-aware too - the middling amber was 2.46:1 on white while carrying the number itself
-- 2026-09-08 15:53:39 UTC  U14 fixed: the Portfolio title is weighted so all three header buttons keep 52dp
-- 2026-09-08 15:53:39 UTC  U15 fixed: widthIn(min) rather than a fixed width for the reason bullet
-- 2026-09-08 15:53:40 UTC  U16 fixed: FactCell values use AutoFitNumber, so a three-digit annualised return renders in full at 2x - verified by screenshot
-- 2026-09-08 15:53:41 UTC  U17 fixed: a headline with no URL gets no clickable modifier at all rather than a disabled one that still looks and reports as a control
-- 2026-09-08 15:53:42 UTC  T9 -> done  network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white.
-- 2026-09-08 15:54:05 UTC  T10 -> doing  sweep 3: re-scan for regressions introduced by the ~50 fixes
+- 2026-09-08 16:11:01 UTC  finding R04: KeyValue no longer loses the value; it loses the LABEL instead. Measured with a 
+- 2026-09-08 16:11:01 UTC  finding R05: AutoFitNumber's floor is expressed in sp, so it scales with the user's font sett
+- 2026-09-08 16:11:02 UTC  finding R06: The new 'Loading your holdings...' branch replaces the onboarding copy for a use
+- 2026-09-08 16:11:02 UTC  finding R07: greenText/redText/accentText/scoreColor read isSystemInDarkTheme() rather than t
+- 2026-09-08 16:11:02 UTC  finding R08: The chart now paints two different greens eight dp apart: the legend dot takes t
+- 2026-09-08 16:11:02 UTC  finding R09: The Feed tab's new refresh-on-open never fires: stampFeedAt runs on EVERY pass i
+- 2026-09-08 16:11:02 UTC  finding R10: And even when it does fire, the pass it triggers is gated off: setNewsVisible ca
+- 2026-09-08 16:11:02 UTC  finding R11: insiderAt is stamped on FAILED EDGAR passes. Insider.listFilings returns an empt
+- 2026-09-08 16:11:02 UTC  finding R12: The sparkline filter can suppress a sparkline that was never adopted. Two paths 
+- 2026-09-08 16:11:02 UTC  finding R13: The settings cache can be poisoned by a read racing a write: get() queries on a 
+- 2026-09-08 16:11:02 UTC  finding R14: RetryClock failure counts never decay, so one five-minute outage drives every sy
+- 2026-09-08 16:36:44 UTC  R01 fixed: reverted to height(74.dp) - the children's fillMaxSize needs a bounded maxHeight, and Scaffold gives a bottomBar loose constraints. The label problem it was aimed at is fixed on the label. TabBarUiTest now measures the bar inside a real Scaffold at 1x and 2x, and was verified to FAIL against the broken version.
 

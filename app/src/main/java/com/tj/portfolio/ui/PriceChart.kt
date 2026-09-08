@@ -225,8 +225,16 @@ fun PriceChart(
             return@Column
         }
 
+        // ---- ONE GREEN, ONE RED, FOR THE WHOLE CHART.
+        //
+        // The line used the FILL palette while the readout, the chips and the spread used the
+        // TEXT one, so the legend dot and the figure eight dp beside it were two different
+        // greens describing the same line. On a 2.2dp stroke the darker value is not a
+        // compromise either - `#16C784` on white is 2.20:1, which is faint for a line as well
+        // as illegible for text. The fill palette stays where it belongs: the sparkline's
+        // gradient, the badge and chip backgrounds.
         val up = shown.change >= 0
-        val line = if (up) Green else Red
+        val line = signColor(shown.change)
 
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
@@ -249,7 +257,7 @@ fun PriceChart(
         // canvas, axis labels and caption included - to change one string.
         // THE READOUT IS TEXT, so it takes the text-legible green/red rather than the line's
         // fill colour - see the note on `signColor`. The line itself keeps the brand colour.
-        ChartReadout(shown, range, signColor(shown.change), muted, scrub, cmp, compareLabel)
+        ChartReadout(shown, range, line, muted, scrub, cmp, compareLabel)
 
         Spacer(Modifier.height(8.dp))
 
@@ -262,7 +270,7 @@ fun PriceChart(
             ChartCanvas(
                 shown, line, MaterialTheme.colorScheme.outline,
                 scrub, MaterialTheme.colorScheme.surface, Modifier.fillMaxSize(),
-                cmp, Benchmark
+                cmp, benchmarkColor
             )
             // The y-axis, as two labels rather than a drawn scale: on a 170dp chart on a
             // phone the high and the low are the only two values anyone reads off it.
@@ -347,7 +355,7 @@ fun PriceChart(
                     fontWeight = FontWeight.SemiBold,
                     color = muted
                 )
-                LegendDot(Benchmark)
+                LegendDot(benchmarkColor)
                 Text(
                     "  " + compareLabel,
                     style = MaterialTheme.typography.labelSmall,
@@ -481,7 +489,7 @@ private fun ChartReadout(
                     "$compareLabel " + Fmt.pctSigned(m),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = Benchmark,
+                    color = benchmarkColor,
                     maxLines = 1
                 )
             }
@@ -519,7 +527,7 @@ private fun ChartReadout(
                     "$compareLabel " + Fmt.pctSigned(atFinger),
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = Benchmark,
+                    color = benchmarkColor,
                     maxLines = 1
                 )
             }
