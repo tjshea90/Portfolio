@@ -264,3 +264,4 @@ Tasks 9/12 done, findings 2/2 fixed
 - [x] J02 (med) A truncated series - a stock that listed 18 months ago has no 5Y line - would put a figure under a '5Y' label that is really 18 months. The chart says so in words; the chip cannot, so it must not make the claim.  - a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
 2026-09-08 05:57:25 UTC  checkpoint 63  commit a8f5808  T0 doing
 2026-09-08 06:04:58 UTC  checkpoint 63  commit d4a6b0a  T0 done
+2026-09-08 06:05:05 UTC  checkpoint 63  commit ebe3b26  T1 doing
