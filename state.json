@@ -106,8 +106,8 @@
       "id": "F02",
       "text": "A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared inside the settle branch, so it is still true when the tap's LaunchedEffect runs. Contradicts the documented 'a tap is not a zoom' rule.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "tapping a range chip clears zoomSettling rather than merely not setting it - an explicit destination has no intermediate rungs to swallow"
     },
     {
       "id": "F03",
@@ -308,6 +308,7 @@
     "2026-09-08 07:08:13 UTC  finding F02: A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared",
     "2026-09-08 07:08:13 UTC  finding F03: zoomFactor reads event.changes[0] and [1] positionally. A third finger landing, ",
     "2026-09-08 07:08:13 UTC  finding F04: showMoreResearch on the ETF section calls enrichVisible, which only has work for",
-    "2026-09-08 07:15:27 UTC  F01 fixed: the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL"
+    "2026-09-08 07:15:27 UTC  F01 fixed: the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL",
+    "2026-09-08 07:15:27 UTC  F02 fixed: tapping a range chip clears zoomSettling rather than merely not setting it - an explicit destination has no intermediate rungs to swallow"
   ]
 }
