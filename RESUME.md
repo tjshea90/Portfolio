@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:15:09 UTC)
+# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:17:12 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,25 +27,25 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T5: Fix every finding without introducing new ones
+- **In flight:** (nothing in flight)
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 5/8 done
+## 4. Task ledger — 6/8 done
 
 - [x] T0  Baseline on the shipped tree: release build + 358 tests green before any edit  — release APK + 358/358 green on the shipped tree
 - [x] T1  BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch  — manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
 - [x] T2  UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode  — static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)
 - [x] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate  — efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left
 - [x] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory  — bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
-- [>] T5  Fix every finding without introducing new ones  — fixing G01-G07
+- [x] T5  Fix every finding without introducing new ones  — G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache
 - [ ] T6  Verify: full suite, checkinit, lint, second-pass review of every fix
 - [ ] T7  Ship v7.0 (versionCode 57) + checkpoint delivered
 
-**Resume at T5** (Fix every finding without introducing new ones).
+**Resume at T6** (Verify: full suite, checkinit, lint, second-pass review of every fix).
 
 ## 5. Open findings — 0 still open, 7 fixed
 
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)
 - 2026-09-08 01:05:42 UTC  T3 -> doing  code + efficiency
 - 2026-09-08 01:06:15 UTC  T3 -> done  efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left
 - 2026-09-08 01:06:15 UTC  T4 -> done  bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:15:08 UTC  G05 fixed: refreshSparklines records failures in a RetryClock, so a transient failure still retries quickly but a dead symbol settles at one attempt per 5 minutes
 - 2026-09-08 01:15:08 UTC  G06 fixed: AdviceScreen action numbers use widthIn(min) instead of a fixed width
 - 2026-09-08 01:15:09 UTC  G07 fixed: FeedScreen trending rank uses widthIn(min) instead of a fixed width
+- 2026-09-08 01:17:12 UTC  T5 -> done  G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache
 

@@ -1198,6 +1198,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         _charts.value = emptyMap()
         chartDiskRead.clear()
         chartFetchedAt.clear()
+        // The failure backoff goes with them, or a chart that had been backing off would sit
+        // out its window after the user explicitly asked for a clean slate.
+        chartRetry.clear()
         viewModelScope.launch(Dispatchers.IO) { runCatching { db.clearChartCache() } }
     }
 
@@ -1528,12 +1531,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val stamped = fetched.map {
                     carryDisplayFields(previous[it.symbol], it.copy(updated = now, stale = false))
                 }
-                // ON `viewModelScope`, SO IT SURVIVES THE FETCH BEING CANCELLED. Prices that
-                // have already been paid for should be on disk for the next cold start even
-                // if the user walked away a millisecond later; leaving this inline would have
-                // meant backgrounding mid-write threw the whole pass away.
-                // Still a single hop to IO and a single transaction.
-                viewModelScope.launch(Dispatchers.IO) { runCatching { db.cacheQuotes(stamped) } }
                 // REBUILT FROM THE CURRENT STATE, NOT FROM `previous`. `refreshSparklines`
                 // writes into `_quotes` from its own coroutine, and this function suspended
                 // twice on the way here (the fetch, and - before Round 59 moved it off the
@@ -1561,6 +1558,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     lastRefresh = now,
                     error = if (missing > 0) "$missing symbol(s) failed to update" else null
                 )
+
+                // ---- persist, AFTER the merge and on a scope that survives backgrounding.
+                //
+                // ON `viewModelScope`, so a price already paid for reaches disk even if the
+                // user walks away a millisecond later - the fetch above is cancellable, this
+                // deliberately is not.
+                //
+                // AND IT WRITES `merged`, NOT `stamped`, which is the difference between a
+                // correct write and a racy one. `stamped` is the pre-merge snapshot: it does
+                // not carry a sparkline that `refreshSparklines` or `adoptAsSparkline` landed
+                // while the fetch was in flight. Written after them, it would put a
+                // series-less row over a good one, and the next cold start would paint a
+                // blank chart from it. `merged` is what is actually on screen.
+                val toPersist = stamped.mapNotNull { merged[it.symbol] }
+                if (toPersist.isNotEmpty()) {
+                    viewModelScope.launch(Dispatchers.IO) {
+                        runCatching { db.cacheQuotes(toPersist) }
+                    }
+                }
 
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(error = "Refresh failed: ${e.message}")
@@ -1953,13 +1969,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // battery going in and a stale screen for minutes coming out. Only the
                 // AUTOMATIC path consults this; a deliberate pull-to-refresh always tries,
                 // because the user may know something the connectivity manager does not.
-                if (visibleScope != VisibleScope.None && !pricesAreFinal() && online()) {
+                // ONE ANSWER PER TICK, used by both passes below. Asked once because it is a
+                // binder call and because the two passes should agree with each other.
+                val haveNetwork = online()
+                if (visibleScope != VisibleScope.None && !pricesAreFinal() && haveNetwork) {
                     refresh()
                 }
 
                 sinceFeedRefresh += secs
                 sinceFilings += secs
-                if (sinceFeedRefresh >= MarketClock.feedIntervalSecs()) {
+                // The feed is gated on the network for the same reason the quotes are: with
+                // no signal every feed request fails, and three failures to the same host arm
+                // a cooldown that outlives the dead spot by minutes. The counters above still
+                // advance, so the pass runs as soon as there is a network again rather than
+                // waiting out another full interval.
+                if (haveNetwork && sinceFeedRefresh >= MarketClock.feedIntervalSecs()) {
                     sinceFeedRefresh = 0
                     // refreshFeed() pulls the same headlines and writes them into the
                     // per-symbol news map too, so calling refreshAllNews() here as well

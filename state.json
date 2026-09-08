@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 59,
   "request": "Check the shipped v6.9: thorough sweep for UI and code optimizations, verify the app truly sleeps in the background when not in use, and find and fix bugs.",
-  "updated": "2026-09-08 01:15:09 UTC",
+  "updated": "2026-09-08 01:17:12 UTC",
   "version": {
     "code": 56,
     "name": "6.9",
@@ -10,7 +10,7 @@
     "next_name": "7.0"
   },
   "now": {
-    "step": "T5: Fix every finding without introducing new ones",
+    "step": "",
     "next": "Then T1, the background audit",
     "files": []
   },
@@ -48,8 +48,8 @@
     {
       "id": "T5",
       "title": "Fix every finding without introducing new ones",
-      "status": "doing",
-      "note": "fixing G01-G07"
+      "status": "done",
+      "note": "G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache"
     },
     {
       "id": "T6",
@@ -212,6 +212,7 @@
     "2026-09-08 01:15:07 UTC  G04 fixed: loadHoldings uses the same RetryClock",
     "2026-09-08 01:15:08 UTC  G05 fixed: refreshSparklines records failures in a RetryClock, so a transient failure still retries quickly but a dead symbol settles at one attempt per 5 minutes",
     "2026-09-08 01:15:08 UTC  G06 fixed: AdviceScreen action numbers use widthIn(min) instead of a fixed width",
-    "2026-09-08 01:15:09 UTC  G07 fixed: FeedScreen trending rank uses widthIn(min) instead of a fixed width"
+    "2026-09-08 01:15:09 UTC  G07 fixed: FeedScreen trending rank uses widthIn(min) instead of a fixed width",
+    "2026-09-08 01:17:12 UTC  T5 -> done  G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache"
   ]
 }
