@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T13: Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
 - **Next action:** 1) ./gradlew :app:testDebugUnitTest - expect ~351 tests. Untested edits since the last green run: ChartSeries.regularOnly (ChartModels + ChartFeed.parse + ChartJson + adoptAsSparkline guard) and its 5 new ChartTest cases; RowLayoutUiTest rewritten to useUnmergedTree (5 tests, previously failing for that reason); HoldingsTab itemsIndexed with an explicit key + hoisted topWeight; dp-based stroke widths in PriceChart and Widgets.Sparkline. 2) python3 checkinit.py. 3) ./gradlew :app:assembleRelease. 4) ./ck task T10 done; T11 done; T12 done; T13 doing; ./ck save; deliver the APK and the tarball with SendUserFile. versionCode 56 / 6.9 is already set and CHECKPOINT.md's Round 58 section is already written.
 - **Files being edited:** app/src/main/java/com/tj/portfolio/data/ChartModels.kt, app/src/main/java/com/tj/portfolio/net/ChartFeed.kt, app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt, app/src/main/java/com/tj/portfolio/ui/PriceChart.kt, app/src/main/java/com/tj/portfolio/ui/Widgets.kt, app/src/main/java/com/tj/portfolio/ui/HoldingsTab.kt, app/src/test/java/com/tj/portfolio/ChartTest.kt, app/src/test/java/com/tj/portfolio/RowLayoutUiTest.kt
 
@@ -50,7 +50,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — 22 findings across 3 passes, all fixed; lint clean
 - [x] T11  Fix every finding from T10 without introducing new ones  — every finding closed and re-verified by the suite
 - [x] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review  — 358/358 tests, checkinit ok, lintVital 'No issues found', APK signed with the archived keystore (cert SHA-256 matches), versionCode 56 / 6.9 confirmed in the built APK
-- [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
+- [>] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ  — shipping v6.9
 
 **Resume at T13** (Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ).
 
@@ -88,7 +88,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http
 - 2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed
 - 2026-09-07 20:48:01 UTC  F19 fixed: D5 TTL raised to 30 minutes to match its 30-minute candle
 - 2026-09-07 20:48:01 UTC  F20 fixed: the open chart re-checks its TTL on every quote tick and refreshes itself at its own cadence, answered from memory without a coroutine when nothing is due
@@ -100,4 +99,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean
 - 2026-09-08 00:47:25 UTC  T11 -> done  every finding closed and re-verified by the suite
 - 2026-09-08 00:49:43 UTC  T12 -> done  358/358 tests, checkinit ok, lintVital 'No issues found', APK signed with the archived keystore (cert SHA-256 matches), versionCode 56 / 6.9 confirmed in the built APK
+- 2026-09-08 00:49:43 UTC  T13 -> doing  shipping v6.9
 
