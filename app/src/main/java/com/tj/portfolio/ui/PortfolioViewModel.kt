@@ -161,6 +161,9 @@ const val BUSY_BUILDING = "building"
 const val BUSY_DETAIL = "detail"
 const val BUSY_EXPLAINING = "explaining"
 
+/** The ETF pass. Its own state, because it is a different ten requests on its own clock. */
+const val BUSY_ETFS = "etfs"
+
 const val SORT_VALUE = "value"
 const val SORT_SYMBOL = "symbol"
 const val SORT_DAY = "day"
@@ -964,6 +967,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private val analystDone = java.util.Collections.synchronizedSet(HashSet<String>())
     private val vehicleDone = java.util.Collections.synchronizedSet(HashSet<String>())
     private var researchJob: Job? = null
+
+    /**
+     * The ETF pass has its OWN job handle, not `researchJob`.
+     *
+     * Sharing one would mean opening the ETFs tab cancelled a stock rebuild that was halfway
+     * through its eighteen requests - and then the stock tab would show its old data with no
+     * sign anything had been interrupted. Two independent passes on two different clocks need
+     * two handles.
+     */
+    private var etfJob: Job? = null
     private var enrichJob: Job? = null
 
     // ================================================================ PRICE CHARTS
@@ -3906,8 +3919,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun setWatchSubTab(i: Int) = db.set(Keys.WATCH_SUBTAB, i.coerceIn(0, 1).toString())
 
     /** Which Research list was open last. Coerced, so a bad stored value cannot throw. */
-    fun researchTab(): Int = db.get(Keys.RESEARCH_TAB, "0").toIntOrNull()?.coerceIn(0, 2) ?: 0
-    fun setResearchTab(i: Int) = db.set(Keys.RESEARCH_TAB, i.coerceIn(0, 2).toString())
+    // COERCED TO THE NUMBER OF SECTIONS THERE ACTUALLY ARE. This was 0..2 and became 0..3
+    // when the ETF tab was added in Round 63; a stored "3" read back through the old bound
+    // would have silently reopened on Worst. Derived from `SECTIONS` so the next section to
+    // be added cannot reintroduce the same off-by-one.
+    // A FUNCTION, NOT A PROPERTY, and `checkInitOrder` is the reason: this sits below the
+    // init block, and the build guard - which exists because a property declared after init
+    // does not exist yet while init runs - rightly refuses one there.
+    private fun researchTabMax(): Int = com.tj.portfolio.data.ResearchSet.SECTIONS.lastIndex
+
+    fun researchTab(): Int =
+        db.get(Keys.RESEARCH_TAB, "0").toIntOrNull()?.coerceIn(0, researchTabMax()) ?: 0
+
+    fun setResearchTab(i: Int) =
+        db.set(Keys.RESEARCH_TAB, i.coerceIn(0, researchTabMax()).toString())
 
     fun lastTab(): Int = db.get(Keys.LAST_TAB, "0").toIntOrNull() ?: 0
     fun setLastTab(i: Int) = db.set(Keys.LAST_TAB, i.toString())
@@ -4038,6 +4063,104 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { db.set(Keys.RESEARCH_CACHE, set.toJson().toString()) }
         }
+    }
+
+    /**
+     * IS THE ETF LIST DUE A REBUILD?
+     *
+     * Its own clock, deliberately - [com.tj.portfolio.net.Research.ETF_TTL_MS] is six hours
+     * against the thirty minutes the stock lists run on. TJ's rule for this list, verbatim:
+     * *"keep the current list in cache until each update so it doesn't load on every
+     * refresh."* So a stale list is still DRAWN; staleness only decides whether a rebuild is
+     * allowed to start behind it.
+     */
+    fun etfsStale(): Boolean {
+        val s = _research.value
+        return s.etfs.isEmpty() || s.etfGenerated <= 0L ||
+            System.currentTimeMillis() - s.etfGenerated >
+            com.tj.portfolio.net.Research.ETF_TTL_MS
+    }
+
+    /**
+     * Build (or rebuild) the Best ETFs list.
+     *
+     * Called when the ETFs sub-tab becomes visible and the cache is stale, and on a pull to
+     * refresh there. NEVER on a timer, and never from the stock pass: this is ten requests,
+     * and a list nobody has opened must not cost any.
+     *
+     * ---- THE ONE RULE THAT MATTERS HERE
+     *
+     * A failed or empty rebuild NEVER blanks the list on screen. The previous ETF list stays
+     * exactly where it is, with its own timestamp still saying how old it is, because an
+     * empty pass is almost always a provider cooldown - and replacing forty good rows with an
+     * error because Yahoo rate-limited one burst would be the app punishing the user for
+     * Yahoo's throttle. Same rule `loadResearch` already follows for the stock lists.
+     */
+    fun loadEtfs(force: Boolean = false) {
+        if (_researchBusy.value.isNotEmpty()) return
+        if (!force && !etfsStale()) return
+        etfJob?.cancel()
+        etfJob = fgScope.launch {
+            _researchBusy.value = BUSY_ETFS
+            _researchError.value = null
+            if (force) _ui.value = _ui.value.copy(manualRefresh = true, refreshSource = PULL_RESEARCH)
+            try {
+                val built = withContext(Dispatchers.IO) {
+                    runCatching { com.tj.portfolio.net.Research.buildEtfs() }
+                        .getOrElse {
+                            com.tj.portfolio.data.ResearchSet(
+                                error = "Couldn't build the ETF list: ${it.message}"
+                            )
+                        }
+                }
+                if (built.etfs.isEmpty()) {
+                    _researchError.value = built.error
+                        ?: "No fund data came back this time. Try again in a few minutes."
+                    // The warnings still land, so the footnote can say WHICH screen was quiet.
+                    if (built.etfWarnings.isNotEmpty()) {
+                        cacheResearch(_research.value.copy(etfWarnings = built.etfWarnings))
+                    }
+                } else {
+                    val cur = _research.value
+                    cacheResearch(
+                        cur.copy(
+                            // Claude's paragraph about VOO does not go stale in six hours, and
+                            // re-earning it costs another API call or another file round trip.
+                            etfs = carryEtfExplanations(cur.etfs, built.etfs),
+                            etfGenerated = built.etfGenerated,
+                            etfWarnings = built.etfWarnings
+                        )
+                    )
+                }
+            } finally {
+                _researchBusy.value = ""
+                if (force) _ui.value = _ui.value.copy(manualRefresh = false, refreshSource = PULL_NONE)
+            }
+        }
+    }
+
+    /** Keep the imported explanation for any fund that survived into a fresh ranking. */
+    private fun carryEtfExplanations(
+        old: List<com.tj.portfolio.data.ResearchRow>,
+        fresh: List<com.tj.portfolio.data.ResearchRow>
+    ): List<com.tj.portfolio.data.ResearchRow> {
+        if (old.isEmpty()) return fresh
+        val prior = old.associateBy { it.symbol }
+        val carried = fresh.map { r ->
+            val p = prior[r.symbol] ?: return@map r
+            r.copy(why = if (p.why.isNotBlank()) p.why else r.why)
+        }
+        // FUNDS CLAUDE ADDED SURVIVE A REBUILD TOO.
+        //
+        // A fund that is not in Yahoo's screens can never come back in a fresh pass - that is
+        // the whole reason the online research exists - so dropping the ones Claude found
+        // would silently undo the import six hours later, and the user would have to redo the
+        // file round trip to get them back. They are kept, still carrying the app's "not in
+        // the app's own screen" marker, and re-ranked into place by their existing score.
+        val known = carried.map { it.symbol }.toSet()
+        val addedByClaude = old.filter { it.symbol !in known && it.etf == null && it.why.isNotBlank() }
+        if (addedByClaude.isEmpty()) return carried
+        return (carried + addedByClaude).sortedByDescending { it.score }
     }
 
     fun researchStale(): Boolean {
