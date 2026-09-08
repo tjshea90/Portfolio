@@ -288,6 +288,55 @@ class GestureUiTest {
         rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { up() }
     }
 
+    @Test fun `a third finger landing mid-pinch does not jump the zoom`() {
+        // THE BUG THIS PROVES FIXED. The pinch used to measure `event.changes[0]` against
+        // `[1]` positionally. A third finger reshuffles that list, so the "previous"
+        // separation belonged to a different pair than the current one - and the accumulator
+        // spent the arbitrary ratio that fell out as several real rungs. A palm resting on
+        // the glass could jump the chart from a month to five years.
+        val steps = ArrayList<Int>()
+        show { PriceChart(series(), ChartRange.M6, loading = false, onZoom = { steps.add(it) }) }
+
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
+            down(0, Offset(center.x - 100f, center.y))
+            down(1, Offset(center.x + 100f, center.y))
+            // A third finger lands far away, then everything HOLDS STILL. Whatever the
+            // pointer list does, no finger has moved, so no rung may be crossed.
+            down(2, Offset(center.x, center.y + 60f))
+            moveTo(2, Offset(center.x + 1f, center.y + 60f))
+            moveTo(0, Offset(center.x - 100f, center.y))
+            moveTo(1, Offset(center.x + 100f, center.y))
+            up(0); up(1); up(2)
+        }
+        rule.waitForIdle()
+        assertEquals(
+            "a stationary pinch with a third finger on the glass changed range: $steps",
+            0, steps.sumOf { it }
+        )
+    }
+
+    @Test fun `lifting one finger mid-pinch does not jump the zoom`() {
+        val steps = ArrayList<Int>()
+        show { PriceChart(series(), ChartRange.M6, loading = false, onZoom = { steps.add(it) }) }
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
+            down(0, Offset(center.x - 150f, center.y))
+            down(1, Offset(center.x + 150f, center.y))
+            down(2, Offset(center.x, center.y + 80f))
+            // One of the measured pair leaves. The remaining two are much closer together
+            // than the original pair were, which under positional pairing read as a violent
+            // pinch inward.
+            up(1)
+            moveTo(0, Offset(center.x - 150f, center.y))
+            moveTo(2, Offset(center.x, center.y + 80f))
+            up(0); up(2)
+        }
+        rule.waitForIdle()
+        assertEquals(
+            "a finger leaving was read as a zoom: $steps",
+            0, steps.sumOf { it }
+        )
+    }
+
     @Test fun `the chart still lets the page scroll past it`() {
         // Re-asserted here rather than left to `ScrubGestureUiTest`, because the gesture
         // handler those tests were written against has been replaced wholesale.
