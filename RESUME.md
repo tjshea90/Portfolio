@@ -28,8 +28,7 @@ at once or kill one mid-flight; always background the build with
 ## 3. WHERE THE WORK STOPPED
 
 - **In flight:** (nothing in flight)
-- **Next action:** 1) ./gradlew :app:testDebugUnitTest - expect ~351 tests. Untested edits since the last green run: ChartSeries.regularOnly (ChartModels + ChartFeed.parse + ChartJson + adoptAsSparkline guard) and its 5 new ChartTest cases; RowLayoutUiTest rewritten to useUnmergedTree (5 tests, previously failing for that reason); HoldingsTab itemsIndexed with an explicit key + hoisted topWeight; dp-based stroke widths in PriceChart and Widgets.Sparkline. 2) python3 checkinit.py. 3) ./gradlew :app:assembleRelease. 4) ./ck task T10 done; T11 done; T12 done; T13 doing; ./ck save; deliver the APK and the tarball with SendUserFile. versionCode 56 / 6.9 is already set and CHECKPOINT.md's Round 58 section is already written.
-- **Files being edited:** app/src/main/java/com/tj/portfolio/data/ChartModels.kt, app/src/main/java/com/tj/portfolio/net/ChartFeed.kt, app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt, app/src/main/java/com/tj/portfolio/ui/PriceChart.kt, app/src/main/java/com/tj/portfolio/ui/Widgets.kt, app/src/main/java/com/tj/portfolio/ui/HoldingsTab.kt, app/src/test/java/com/tj/portfolio/ChartTest.kt, app/src/test/java/com/tj/portfolio/RowLayoutUiTest.kt
+- **Next action:** Round 58 is COMPLETE and v6.9 is shipped. A new round starts with ./ck start 59 "<the request>", then ./ck add T0..Tn. Remember to start watchdog.sh on a cold container.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
@@ -81,8 +80,8 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 6. Version
 
-- Shipped: v6.8 (versionCode 55)
-- This round ships: v6.9 (versionCode 56)
+- Shipped: v6.9 (versionCode 56)
+- This round ships: v7.0 (versionCode 57)
 - Bump `app/build.gradle.kts` before the final APK. Android refuses an install
   whose versionCode is not higher than what is on the phone.
 
