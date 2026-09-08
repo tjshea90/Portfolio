@@ -29,6 +29,8 @@ import org.junit.Test
  */
 class RangeChipTest {
 
+    private val HOUR = 3_600_000L
+
     private fun series(
         range: ChartRange = ChartRange.M1,
         closes: List<Double> = listOf(100.0, 101.0, 103.5),
@@ -179,6 +181,41 @@ class RangeChipTest {
         assertTrue(withLiveEdge(one, 105.0, true)!!.isEmpty)
         // ...and the chip says nothing about it.
         assertNull(rangePct(one, 105.0, true))
+    }
+
+    // ------------------------------------------- what a chip is not allowed to claim
+
+    /**
+     * A cached row can be any age at all - the TTL decides when to re-FETCH, not how long a
+     * row lives - so without this a chip could label last week's month "1M".
+     */
+    @Test
+    fun `a figure older than a day is not printed`() {
+        val now = 1_800_000_000_000L
+        val s = series(ChartRange.M1, listOf(100.0, 110.0)).copy(fetched = now - 23 * HOUR)
+        assertEquals(10.0, rangePct(s, 0.0, false, now)!!, 1e-9)
+
+        val old = s.copy(fetched = now - 25 * HOUR)
+        assertNull(rangePct(old, 0.0, false, now))
+    }
+
+    /** An unstamped row is of unknown age, which is not the same as a fresh one. */
+    @Test
+    fun `a row with no fetch stamp is treated as too old, not as new`() {
+        val now = 1_800_000_000_000L
+        val s = series(ChartRange.M1, listOf(100.0, 110.0)).copy(fetched = 0L)
+        assertNull(rangePct(s, 0.0, false, now))
+    }
+
+    /**
+     * The chart says "this is the whole history on record, which is shorter than 5Y" in
+     * words. A chip has nowhere to put that sentence, so it makes no claim at all.
+     */
+    @Test
+    fun `a window shorter than its label makes no claim`() {
+        val s = series(ChartRange.Y5, listOf(100.0, 140.0)).copy(truncated = true)
+        assertNull(rangePct(s, 0.0, false))
+        assertEquals(40.0, rangePct(s.copy(truncated = false), 0.0, false)!!, 1e-9)
     }
 
     // ------------------------------------------------------------------ the label

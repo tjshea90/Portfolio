@@ -459,6 +459,14 @@ fun RangeChips(
     }
 }
 
+/**
+ * How old a cached series may be and still put a figure on a chip.
+ *
+ * A day, which is also the TTL of the longest ranges - so for those "fresh enough to print"
+ * and "fresh enough not to re-fetch" are the same line. See [rangePct].
+ */
+internal const val FIGURE_MAX_AGE_MS = 24 * 3_600_000L
+
 /** What the second line of a chip reads: the figure, "..." while fetching, blank otherwise. */
 internal fun rangeFigure(pct: Double?, loading: Boolean): String = when {
     pct != null -> Fmt.pctSigned(pct)
@@ -484,8 +492,34 @@ internal fun rangeFigure(pct: Double?, loading: Boolean): String = when {
  * and a non-finite result all return null - "no figure" - because the alternative is printing
  * "NaN%" or "+Infinity%" on a button.
  */
-internal fun rangePct(series: ChartSeries?, livePrice: Double, liveEdge: Boolean): Double? {
+internal fun rangePct(
+    series: ChartSeries?,
+    livePrice: Double,
+    liveEdge: Boolean,
+    now: Long = System.currentTimeMillis()
+): Double? {
     if (series == null || series.isEmpty) return null
+
+    // ---- TWO THINGS A CHIP IS NOT ALLOWED TO CLAIM.
+    //
+    // The chart can be drawn from a cache row of any age and from a window shorter than the
+    // one asked for, because it SAYS SO: it prints the first and last date on its axis and
+    // spells out "this is the whole history on record, which is shorter than 5Y" underneath.
+    // A chip is a two-character label and a number. It has nowhere to put a caveat, so where
+    // the chart would caption one, the chip shows nothing instead.
+    //
+    //   1. AGE. A cached 1M series that was fetched last week describes last week's month.
+    //      Inside a day the figure is worth having and the error is at most the part of a
+    //      session it has not seen; past that it is a different window wearing the same
+    //      label. A stamp of zero is an unknown age, which is not good enough either.
+    //   2. TRUNCATION. A stock that listed eighteen months ago has no five-year window, and
+    //      "+40%" under a button marked 5Y is a claim about five years.
+    //
+    // Neither costs anything to recover: selecting the range fetches it, and the chip fills
+    // in from the same answer the chart draws.
+    if (series.truncated) return null
+    if (series.fetched <= 0L || now - series.fetched > FIGURE_MAX_AGE_MS) return null
+
     val from = series.from
     if (from <= 0.0 || !from.isFinite()) return null
     // Exactly [withLiveEdge]'s condition, and deliberately written the same way round.
