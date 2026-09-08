@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 07:15:28 UTC",
+  "updated": "2026-09-08 07:18:00 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -122,6 +122,13 @@
       "sev": "low",
       "status": "fixed",
       "note": "showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage"
+    },
+    {
+      "id": "F05",
+      "text": "The F01 fix reintroduced a worse bug: keying the build effect on the shared busy flag means a FAILED pass re-triggers itself the instant busy clears. An empty result leaves the set stale, so loadResearch/loadEtfs launch again immediately - an unbounded retry loop of 18 (or 10) requests against providers that are almost certainly rate-limiting, which is exactly what the backoff machinery elsewhere in the app exists to prevent.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -311,6 +318,7 @@
     "2026-09-08 07:15:27 UTC  F01 fixed: the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL",
     "2026-09-08 07:15:27 UTC  F02 fixed: tapping a range chip clears zoomSettling rather than merely not setting it - an explicit destination has no intermediate rungs to swallow",
     "2026-09-08 07:15:28 UTC  F03 fixed: the pinch now measures a NAMED pair of pointer ids chosen when the gesture begins; if either finger leaves, the pair is re-chosen and that frame yields no reading, so a third finger costs one frame instead of an arbitrary jump",
-    "2026-09-08 07:15:28 UTC  F04 fixed: showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage"
+    "2026-09-08 07:15:28 UTC  F04 fixed: showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage",
+    "2026-09-08 07:18:00 UTC  finding F05: The F01 fix reintroduced a worse bug: keying the build effect on the shared busy"
   ]
 }

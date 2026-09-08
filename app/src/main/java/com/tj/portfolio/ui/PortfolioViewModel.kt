@@ -164,6 +164,10 @@ const val BUSY_EXPLAINING = "explaining"
 /** The ETF pass. Its own state, because it is a different ten requests on its own clock. */
 const val BUSY_ETFS = "etfs"
 
+/** Backoff keys for the two Research builds. See `PortfolioViewModel.researchRetry`. */
+private const val RETRY_STOCKS = "research"
+private const val RETRY_ETFS = "etfs"
+
 const val SORT_VALUE = "value"
 const val SORT_SYMBOL = "symbol"
 const val SORT_DAY = "day"
@@ -1080,6 +1084,23 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Failure backoff for fund-holdings lookups, keyed by symbol. */
     private val holdingsRetry = RetryClock()
+
+    /**
+     * Failure backoff for the two Research builds, keyed by section (Round 63).
+     *
+     * THE PROBLEM IT SOLVES. Both builds are triggered by a `LaunchedEffect` that has to
+     * re-evaluate when the shared busy flag clears - otherwise a request made while the other
+     * pass was in flight is dropped and never retried, and the tab sits empty. But a FAILED
+     * pass leaves its list stale, so re-evaluating on that same signal would start another
+     * build immediately: eighteen requests, fail, eighteen more, indefinitely, against
+     * providers that were almost certainly rate-limiting in the first place.
+     *
+     * The backoff is what tells the two apart. A pass that succeeded clears the key; a pass
+     * that came back empty sits out 30s, then a minute, then two, then four, capped at five.
+     * A pull-to-refresh or the refresh button passes `force`, which ignores it entirely - the
+     * user asking is always "try it now, whatever".
+     */
+    private val researchRetry = RetryClock()
 
     private val chartFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
@@ -4116,6 +4137,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun loadEtfs(force: Boolean = false) {
         if (_researchBusy.value.isNotEmpty()) return
         if (!force && !etfsStale()) return
+        if (!force && researchRetry.blocked(RETRY_ETFS)) return
+        if (force) researchRetry.clear()
         etfJob?.cancel()
         etfJob = fgScope.launch {
             _researchBusy.value = BUSY_ETFS
@@ -4131,6 +4154,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         }
                 }
                 if (built.etfs.isEmpty()) {
+                    researchRetry.failure(RETRY_ETFS)
                     _researchError.value = built.error
                         ?: "No fund data came back this time. Try again in a few minutes."
                     // The warnings still land, so the footnote can say WHICH screen was quiet.
@@ -4138,6 +4162,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         cacheResearch(_research.value.copy(etfWarnings = built.etfWarnings))
                     }
                 } else {
+                    researchRetry.success(RETRY_ETFS)
                     val cur = _research.value
                     cacheResearch(
                         cur.copy(
@@ -4200,6 +4225,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             enrichVisible()
             return
         }
+        // A RECENT FAILURE IS AN ANSWER TOO - the same rule `loadChart` follows. Without it
+        // the visibility effect and an empty result form a loop: stale list, rebuild, fail,
+        // busy clears, effect re-runs, rebuild. See [researchRetry].
+        if (!force && researchRetry.blocked(RETRY_STOCKS)) return
+        if (force) researchRetry.clear()
         researchJob?.cancel()
         researchJob = fgScope.launch {
             _researchBusy.value = BUSY_BUILDING
@@ -4218,9 +4248,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     // Keep whatever was on screen. An empty rebuild is almost always a
                     // provider cooldown, and blanking three good lists to show an error
                     // would be the app punishing the user for Yahoo's rate limiter.
+                    researchRetry.failure(RETRY_STOCKS)
                     _researchError.value = built.error
                         ?: "No research data came back this time. Try again in a few minutes."
                 } else {
+                    researchRetry.success(RETRY_STOCKS)
                     analystDone.clear()
                     vehicleDone.clear()
                     // A rebuild carries forward the explanations already on file for the same
