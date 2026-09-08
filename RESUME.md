@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:05:42 UTC)
+# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:06:15 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,25 +27,25 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T3: CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate
+- **In flight:** (nothing in flight)
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 3/8 done
+## 4. Task ledger — 4/8 done
 
 - [x] T0  Baseline on the shipped tree: release build + 358 tests green before any edit  — release APK + 358/358 green on the shipped tree
 - [x] T1  BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch  — manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
 - [x] T2  UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode  — static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)
-- [>] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate  — code + efficiency
+- [x] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate  — efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left
 - [ ] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory
 - [ ] T5  Fix every finding without introducing new ones
 - [ ] T6  Verify: full suite, checkinit, lint, second-pass review of every fix
 - [ ] T7  Ship v7.0 (versionCode 57) + checkpoint delivered
 
-**Resume at T3** (CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate).
+**Resume at T4** (BUG HUNT: correctness across the whole app, adversarial not confirmatory).
 
 ## 5. Open findings — 7 still open, 0 fixed
 
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:02:17 UTC  T0 -> done  release APK + 358/358 green on the shipped tree
 - 2026-09-08 01:02:18 UTC  T1 -> doing  background audit
 - 2026-09-08 01:02:57 UTC  finding G02: ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever rea
 - 2026-09-08 01:04:25 UTC  finding G03: chartFetchedAt is written and NEVER read. A chart that cannot be fetched - a del
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:05:23 UTC  finding G07: FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0
 - 2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)
 - 2026-09-08 01:05:42 UTC  T3 -> doing  code + efficiency
+- 2026-09-08 01:06:15 UTC  T3 -> done  efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left
 
