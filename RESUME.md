@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:09:11 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:15:35 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,18 +27,18 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T2: Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m
+- **In flight:** (nothing in flight)
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 2/12 done
+## 4. Task ledger — 3/12 done
 
 - [x] T0  Baseline: v7.3 tree builds and 443 tests green before any edit  — 443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
 - [x] T1  Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs  — gesture-based tab paging (not a pager - neighbours stay uncomposed so VisibleScope still describes one screen); pure swipeTarget decision + slide animation shared with the bar
-- [>] T2  Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m  — pinch-zoom charts
+- [x] T2  Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m  — pinch zoom walks ChartRange.ZOOM_LADDER (All->5Y->1Y->6M->1M->5D->1D/5-minute); one pointer loop shared with scrubbing, per-rung 1.55x accumulator, 380ms settle so a multi-rung spread fetches only the rung it lands on; chip row auto-scrolls to the selection
 - [ ] T3  Best ETFs data: ETF screener feed + scorer + cached section + periodic refresh
 - [ ] T4  Best ETFs UI: fourth research tab + Claude-app bridge export/import
 - [ ] T5  SPY comparison overlay: second series aligned to the first and drawn against it
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 
-**Resume at T2** (Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m).
+**Resume at T3** (Best ETFs data: ETF screener feed + scorer + cached section + periodic refresh).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -64,7 +64,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 04:47:50 UTC  J02 fixed: a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
 - 2026-09-08 04:48:05 UTC  T7 -> done  2 findings (age, truncation), both fixed and both covered by tests
 - 2026-09-08 04:48:06 UTC  T8 -> doing  shipping v7.3
 - 2026-09-08 04:51:10 UTC  T8 -> done  v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean
@@ -76,4 +75,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 06:05:05 UTC  T1 -> doing  swipe-to-change-tabs
 - 2026-09-08 06:09:10 UTC  T1 -> done  gesture-based tab paging (not a pager - neighbours stay uncomposed so VisibleScope still describes one screen); pure swipeTarget decision + slide animation shared with the bar
 - 2026-09-08 06:09:11 UTC  T2 -> doing  pinch-zoom charts
+- 2026-09-08 06:15:35 UTC  T2 -> done  pinch zoom walks ChartRange.ZOOM_LADDER (All->5Y->1Y->6M->1M->5D->1D/5-minute); one pointer loop shared with scrubbing, per-rung 1.55x accumulator, 380ms settle so a multi-rung spread fetches only the rung it lands on; chip row auto-scrolls to the selection
 

@@ -25,6 +25,7 @@ import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -43,6 +44,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -298,6 +301,12 @@ fun PriceChart(
                 append("  -  ")
                 append(shown.points.size)
                 append(if (shown.points.size == 1) " point" else " points")
+                if (onZoom != null) {
+                    // DISCOVERABILITY, in four words. A gesture nothing on screen mentions is
+                    // a gesture nobody finds, and this caption is already the line that says
+                    // what the chart is showing.
+                    append("  -  pinch to zoom")
+                }
                 if (shown.truncated) {
                     // Said out loud rather than drawn as if it were the full window. A stock
                     // that listed eighteen months ago has no five-year chart, and relabelling
@@ -451,6 +460,35 @@ fun RangeChips(
 ) {
     val scroll = rememberScrollState()
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
+
+    // ---- KEEP THE SELECTED CHIP IN VIEW (Round 63).
+    //
+    // Eight chips do not fit across a phone, so this row scrolls - which was fine while the
+    // only way to change range was to tap a chip you could already see. Pinch zoom changes
+    // the selection WITHOUT touching this row, and a four-rung spread could leave the
+    // highlighted chip well off the right-hand edge with the row still showing the window the
+    // user started from. Each chip reports where it was laid out and the row scrolls the
+    // selected one back into view.
+    //
+    // ONLY WHEN IT IS ACTUALLY OFF SCREEN. Re-centring a chip that is already visible would
+    // make the row twitch on every tap, which is a worse fault than the one being fixed.
+    val chipBounds = remember { mutableStateMapOf<ChartRange, IntArray>() }
+    val selectedBounds = chipBounds[selected]
+    LaunchedEffect(selected, selectedBounds, scroll.maxValue) {
+        val b = selectedBounds ?: return@LaunchedEffect
+        val viewport = scroll.viewportSize
+        if (viewport <= 0 || scroll.maxValue <= 0) return@LaunchedEffect
+        val x = b[0]
+        val w = b[1]
+        val lead = 16
+        val target = when {
+            x < scroll.value -> x - lead
+            x + w > scroll.value + viewport -> x + w - viewport + lead
+            else -> return@LaunchedEffect
+        }
+        runCatching { scroll.animateScrollTo(target.coerceIn(0, scroll.maxValue)) }
+    }
+
     Row(
         modifier.fillMaxWidth().horizontalScroll(scroll),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -461,6 +499,18 @@ fun RangeChips(
             val pct = perf[r]
             Box(
                 Modifier
+                    // Where this chip sits inside the scrolling row, so the row can bring it
+                    // back into view when a pinch selects it. Written only when it MOVES -
+                    // an unconditional write in a layout callback re-enters composition on
+                    // every frame.
+                    .onGloballyPositioned { co ->
+                        val x = co.positionInParent().x.toInt()
+                        val w = co.size.width
+                        val had = chipBounds[r]
+                        if (had == null || had[0] != x || had[1] != w) {
+                            chipBounds[r] = intArrayOf(x, w)
+                        }
+                    }
                     // THE APP'S OWN 48dp RULE, and it is not decorative here. Round 46 found
                     // a 33dp target on this screen and the fix was measured, not estimated.
                     // Eight chips in a scrolling row are the worst case for a mis-tap:
