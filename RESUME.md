@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-07 21:02:47 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-08 00:47:24 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -25,39 +25,17 @@ at once or kill one mid-flight; always background the build with
 
 > Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.
 
-## 3a. READ THIS FIRST IF YOU ARE PICKING UP FROM THE ROUND-58 SESSION
-
-The sweep is **finished** — 22 findings, all fixed — and CHECKPOINT.md's Round 58 section,
-the file map, the locked-decisions table and the version bump (56 / 6.9) are all written.
-
-That session ended blocked on a **harness outage**, not on the work: the tool-safety check
-that gates shell commands kept timing out, so no Gradle run was possible after commit
-`021fad8` (the last fully green one: 341 tests). Everything written after that is committed by
-`watchdog.sh` but has **not been compiled or tested**. Nothing is lost; it just needs a run.
-
-What is untested, and what to look at first if something fails:
-
-| Change | Files |
-|---|---|
-| `ChartSeries.regularOnly` — the precondition `adoptAsSparkline` now requires | `data/ChartModels.kt`, `net/ChartFeed.kt`, `ui/PortfolioViewModel.kt` |
-| 5 new `ChartTest` cases for that flag, including the pre-open fallback | `ChartTest.kt` |
-| `RowLayoutUiTest` rewritten to `useUnmergedTree = true` (it was failing without it, because `combinedClickable` merges the whole row into one semantics node) | `RowLayoutUiTest.kt` |
-| `HoldingsTab` — `itemsIndexed` with an explicit key, `topWeight` hoisted out of the item lambda | `ui/HoldingsTab.kt` |
-| Stroke widths converted from raw pixels to dp | `ui/PriceChart.kt`, `ui/Widgets.kt` |
-
-Then: `python3 checkinit.py`, `./gradlew :app:assembleRelease`, `./ck task T10 done` /
-`T11 done` / `T12 done` / `T13 doing`, `./ck save`, and send TJ the APK and the tarball.
-
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T10: Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)
-- **Next action:** Write data/HoldingsModels.kt, net/HoldingsFeed.kt, wire a HOLDINGS tab that only appears for funds
+- **In flight:** (nothing in flight)
+- **Next action:** 1) ./gradlew :app:testDebugUnitTest - expect ~351 tests. Untested edits since the last green run: ChartSeries.regularOnly (ChartModels + ChartFeed.parse + ChartJson + adoptAsSparkline guard) and its 5 new ChartTest cases; RowLayoutUiTest rewritten to useUnmergedTree (5 tests, previously failing for that reason); HoldingsTab itemsIndexed with an explicit key + hoisted topWeight; dp-based stroke widths in PriceChart and Widgets.Sparkline. 2) python3 checkinit.py. 3) ./gradlew :app:assembleRelease. 4) ./ck task T10 done; T11 done; T12 done; T13 doing; ./ck save; deliver the APK and the tarball with SendUserFile. versionCode 56 / 6.9 is already set and CHECKPOINT.md's Round 58 section is already written.
+- **Files being edited:** app/src/main/java/com/tj/portfolio/data/ChartModels.kt, app/src/main/java/com/tj/portfolio/net/ChartFeed.kt, app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt, app/src/main/java/com/tj/portfolio/ui/PriceChart.kt, app/src/main/java/com/tj/portfolio/ui/Widgets.kt, app/src/main/java/com/tj/portfolio/ui/HoldingsTab.kt, app/src/test/java/com/tj/portfolio/ChartTest.kt, app/src/test/java/com/tj/portfolio/RowLayoutUiTest.kt
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 10/14 done
+## 4. Task ledger — 11/14 done
 
 - [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - [x] T1  Baseline: release build + 276-test suite green before any edit  — release APK + 276/276 tests green + checkinit ok
@@ -69,12 +47,12 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T7  After-hours block: stack dollar and percent vertically like the other sections  — extended-hours cell stacks price / dollar change / percent vertically
 - [x] T8  ETF detail: HOLDINGS tab listing each holding and its % of the fund  — FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack
 - [x] T9  Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible  — new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed
-- [>] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — sweep pass 3 - pre-existing code I have not touched
+- [x] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — 22 findings across 3 passes, all fixed; lint clean
 - [ ] T11  Fix every finding from T10 without introducing new ones
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
 
-**Resume at T10** (Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)).
+**Resume at T11** (Fix every finding from T10 without introducing new ones).
 
 ## 5. Open findings — 0 still open, 22 fixed
 
@@ -110,7 +88,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:45:55 UTC  finding F18: Fundamentals.estimates and .history are rendered as keyed LazyColumn items with 
 - 2026-09-07 20:45:55 UTC  finding F19: ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often t
 - 2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche
 - 2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http
@@ -122,4 +99,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:57:06 UTC  T10 -> doing  sweep pass 3 - pre-existing code I have not touched
 - 2026-09-07 20:58:45 UTC  finding F22: An intraday chart left open keeps re-fetching itself after the session that prod
 - 2026-09-07 21:02:47 UTC  F22 fixed: intradayChartIsFinal stops the automatic refresh once the session that produced the line has ended, tested against the real MarketClock including the pre-market fallback case
+- 2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean
 
