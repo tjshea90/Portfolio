@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 20:15:12 UTC",
+  "updated": "2026-09-08 20:15:13 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,8 +10,8 @@
     "next_code": 62
   },
   "now": {
-    "step": "",
-    "next": ""
+    "step": "(nothing in flight)",
+    "next": "Round 63 is complete and shipped as v7.4. Nothing is outstanding. A new round starts with ./ck start 64."
   },
   "tasks": [
     {

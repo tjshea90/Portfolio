@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 20:15:12 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 20:15:13 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -28,7 +28,7 @@ at once or kill one mid-flight; always background the build with
 ## 3. WHERE THE WORK STOPPED
 
 - **In flight:** (nothing in flight)
-- **Next action:** (pick the first unchecked task below)
+- **Next action:** Round 63 is complete and shipped as v7.4. Nothing is outstanding. A new round starts with ./ck start 64.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
