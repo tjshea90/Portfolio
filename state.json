@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 22:38:21 UTC",
+  "updated": "2026-09-08 22:38:22 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -158,7 +158,7 @@
       "id": "G04",
       "text": "Optimistic 40-year bounds made isWhole never true (stuck Reset chip), made Reset select 40 years, and let a two-finger drag on an unzoomed chart pan into pre-history",
       "sev": "high",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     },
     {
@@ -574,6 +574,7 @@
     "2026-09-08 22:38:19 UTC  finding G09: Re-anchoring the window did not re-evaluate which range should draw it",
     "2026-09-08 22:38:19 UTC  G01 fixed",
     "2026-09-08 22:38:20 UTC  G02 fixed",
-    "2026-09-08 22:38:21 UTC  G03 fixed"
+    "2026-09-08 22:38:21 UTC  G03 fixed",
+    "2026-09-08 22:38:22 UTC  G04 fixed"
   ]
 }
