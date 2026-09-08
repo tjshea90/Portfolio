@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 01:58:48 UTC)
+# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 01:58:49 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T5: REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged
 - **Next action:** T1 gesture design
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -41,7 +41,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T2  Implement: crosshair, nearest-point lookup, readout that does not shift the layout  — crosshair + dot, readout at fixed height, index-based scrub state
 - [x] T3  Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm  — mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 - [x] T4  Test: rendered gesture tests + pure-function tests for the lookup  — ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
-- [ ] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged
+- [>] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged  — full regression
 - [ ] T6  Adversarial review of the feature, then fix what it finds
 - [ ] T7  Ship v7.1 (versionCode 58) + checkpoint
 
@@ -60,7 +60,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:17:13 UTC  T6 -> doing  verification
 - 2026-09-08 01:25:26 UTC  v7.0 final verification build running
 - 2026-09-08 01:27:41 UTC  T6 -> done  371/371 tests, checkinit ok, lintVital clean, APK signed with the archived keystore (fingerprint matches), versionCode 57 / 7.0 confirmed
 - 2026-09-08 01:27:41 UTC  T7 -> doing  shipping v7.0
@@ -72,4 +71,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 - 2026-09-08 01:49:38 UTC  T4 -> doing  tests
 - 2026-09-08 01:58:48 UTC  T4 -> done  ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
+- 2026-09-08 01:58:49 UTC  T5 -> doing  full regression
 
