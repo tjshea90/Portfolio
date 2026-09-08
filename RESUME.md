@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:48:05 UTC)
+# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:48:06 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T8: Only if all clean: ship v7.3 (versionCode 60) + checkpoint
 - **Next action:** Round 62 open: per-range performance chips. Work the ladder T0->T8.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -44,7 +44,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof  — RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
 - [x] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged  — 440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
 - [x] T7  Adversarial review of the feature, then fix what it finds  — 2 findings (age, truncation), both fixed and both covered by tests
-- [ ] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint
+- [>] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint  — shipping v7.3
 
 **Resume at T8** (Only if all clean: ship v7.3 (versionCode 60) + checkpoint).
 
@@ -62,7 +62,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 04:34:26 UTC  T2 -> done  rangePct + rangeFigure: total, no allocation, negative zero normalised
 - 2026-09-08 04:34:26 UTC  T3 -> done  two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
 - 2026-09-08 04:34:27 UTC  T4 -> done  DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
 - 2026-09-08 04:34:27 UTC  T5 -> doing  tests
@@ -74,4 +73,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:47:49 UTC  J01 fixed: a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh
 - 2026-09-08 04:47:50 UTC  J02 fixed: a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
 - 2026-09-08 04:48:05 UTC  T7 -> done  2 findings (age, truncation), both fixed and both covered by tests
+- 2026-09-08 04:48:06 UTC  T8 -> doing  shipping v7.3
 
