@@ -10,6 +10,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
 import com.tj.portfolio.data.Db
@@ -167,6 +169,102 @@ class PlModeUiTest {
         val lead = boundsOf("+$119.12")!!
         val sub = boundsOf("+3.84%")!!
         assertTrue(lead.top < sub.top)
+    }
+
+    // ------------------------------------------- the summary card, and the tap
+
+    private fun totals(day: Double = 14.88, total: Double = 119.12) =
+        com.tj.portfolio.domain.PortfolioTotals(
+            marketValue = 3219.12, cash = 500.0, totalEquity = 3719.12,
+            netDeposits = 3600.0, costBasis = 3100.0,
+            realized = 0.0, unrealized = total, unrealizedPct = 3.84,
+            totalGain = total, totalGainPct = 3.84,
+            dayGain = day, dayGainPct = 0.46,
+            dividends = 0.0, fees = 0.0,
+            // Equal to dayGain, so the reconciliation note stays out of the way and the test
+            // is measuring the toggle rather than an unrelated explanatory paragraph.
+            brokerDayGain = day, brokerDayGainPct = 0.46,
+            boughtTodayCount = 0
+        )
+
+    @Test
+    fun `the summary card leads with dollars in dollar mode`() {
+        show {
+            com.tj.portfolio.ui.SummaryHeader(
+                totals(), System.currentTimeMillis(), null, PlMode.DOLLAR, {}
+            )
+        }
+        val lead = boundsOf("+$119.12")
+        val sub = boundsOf("+3.84%")
+        assertTrue("the summary is missing its figures: ${texts()}", lead != null && sub != null)
+        // Side by side on one line, big figure first.
+        assertTrue("the dollar figure is not to the left", lead!!.left < sub!!.left)
+        assertTrue("the hint is missing", texts().any { it.contains("tap a line") })
+    }
+
+    @Test
+    fun `the summary card leads with percent in percent mode`() {
+        show {
+            com.tj.portfolio.ui.SummaryHeader(
+                totals(), System.currentTimeMillis(), null, PlMode.PERCENT, {}
+            )
+        }
+        val lead = boundsOf("+3.84%")
+        val sub = boundsOf("+$119.12")
+        assertTrue("the summary is missing its figures: ${texts()}", lead != null && sub != null)
+        assertTrue("the percentage is not to the left", lead!!.left < sub!!.left)
+    }
+
+    /**
+     * THE LINK THE HELPERS CANNOT PROVE: that tapping actually asks for the switch. Without
+     * this, every part of the feature could be correct and the toggle still do nothing.
+     */
+    @Test
+    fun `tapping a summary line asks for the switch`() {
+        var taps = 0
+        show {
+            com.tj.portfolio.ui.SummaryHeader(
+                totals(), System.currentTimeMillis(), null, PlMode.DOLLAR, { taps++ }
+            )
+        }
+        rule.onNodeWithText("Today").performClick()
+        rule.waitForIdle()
+        assertEquals("tapping the Today line did nothing", 1, taps)
+
+        rule.onNodeWithText("Since you started").performClick()
+        rule.waitForIdle()
+        assertEquals("tapping the all-time line did nothing", 2, taps)
+    }
+
+    /** Both lines are full-width rows, so they clear the app's own 48dp rule comfortably. */
+    @Test
+    fun `the tappable summary lines are big enough to hit`() {
+        show {
+            com.tj.portfolio.ui.SummaryHeader(
+                totals(), System.currentTimeMillis(), null, PlMode.DOLLAR, {}
+            )
+        }
+        val density = 2.0f
+        val small = rule.onAllNodes(
+            androidx.compose.ui.test.hasClickAction(), useUnmergedTree = true
+        ).fetchSemanticsNodes().filter { it.size.height > 0 && it.size.height < 48 * density - 0.5f }
+            .map {
+                "\"" + (it.config.getOrNull(SemanticsProperties.Text)?.joinToString(" ") ?: "?") +
+                    "\" is " + "%.0f".format(it.size.height / density) + "dp"
+            }
+        assertTrue("tap targets under 48dp: " + small.joinToString(", "), small.isEmpty())
+    }
+
+    /** The hint has to say which order is showing, or two swappable numbers are a guess. */
+    @Test
+    fun `the hint names the current order`() {
+        show {
+            com.tj.portfolio.ui.SummaryHeader(
+                totals(), System.currentTimeMillis(), null, PlMode.DOLLAR, {}
+            )
+        }
+        assertTrue("the hint does not say dollars lead: ${texts()}",
+            texts().any { it.startsWith("$ first") })
     }
 
     // ---------------------------------------------------------- persistence

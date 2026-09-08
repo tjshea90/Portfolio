@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:36:51 UTC)
+# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:44:44 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -47,9 +47,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Adversarial review of the feature, then fix what it finds).
 
-## 5. Open findings — 0 still open, 0 fixed
+## 5. Open findings — 1 still open, 1 fixed
 
-(none recorded yet)
+- [x] I01 (med) BigLine's parameters are still named 'money' and 'pct', but they now receive plLead/plSub - so in percent mode the parameter called 'money' holds a percentage. Stale naming that contradicts the value is exactly how two of this project's bugs shipped.  — BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
+- [ ] I02 (low) The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. At a 2.0 font scale that wraps to three lines in the summary card for a sentence that only needs to say two things.
 
 ## 6. Version
 
@@ -60,9 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:24:35 UTC  round 61 started
-- 2026-09-08 02:25:50 UTC  T0 -> done  390/390 green on the v7.1 tree
-- 2026-09-08 02:25:51 UTC  T1 -> done  affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch.
 - 2026-09-08 02:25:51 UTC  T2 -> doing  model + persistence
 - 2026-09-08 02:27:32 UTC  T2 -> done  PlMode enum, Keys.PL_MODE, UiState.plMode seeded in init, setPlMode/togglePlMode, plLead/plSub/plInline helpers
 - 2026-09-08 02:27:32 UTC  T3 -> doing  wiring the three surfaces
@@ -72,4 +70,7 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:34:52 UTC  T5 -> doing  full regression
 - 2026-09-08 02:36:50 UTC  T5 -> done  405/405 green, lint clean, checkinit ok
 - 2026-09-08 02:36:51 UTC  T6 -> doing  adversarial review
+- 2026-09-08 02:37:23 UTC  finding I01: BigLine's parameters are still named 'money' and 'pct', but they now receive plL
+- 2026-09-08 02:37:23 UTC  finding I02: The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. A
+- 2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
 

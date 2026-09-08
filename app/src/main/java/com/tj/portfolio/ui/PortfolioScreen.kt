@@ -163,7 +163,7 @@ fun PortfolioScreen(
 }
 
 @Composable
-private fun SummaryHeader(
+internal fun SummaryHeader(
     t: PortfolioTotals?,
     lastRefresh: Long,
     error: String?,
@@ -240,9 +240,11 @@ private fun SummaryHeader(
         // for in Round 51: two numbers side by side with nothing saying which is which is a
         // guess, and once they can swap places it is a worse guess than before.
         Text(
-            if (plMode == PlMode.DOLLAR)
-                "Showing dollars, then percent - tap a line to swap them"
-            else "Showing percent, then dollars - tap a line to swap them",
+            // SHORT ON PURPOSE. It has to say two things - which order is showing, and that
+            // a tap changes it - and it sits in a card that is already dense. A sentence
+            // wraps to three lines at a 2.0 font scale to say what this says in one.
+            if (plMode == PlMode.DOLLAR) "$ first  -  tap a line for %"
+            else "% first  -  tap a line for $",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp)
@@ -316,8 +318,16 @@ private fun SummaryHeader(
 @Composable
 private fun BigLine(
     label: String,
-    money: String,
-    pct: String,
+    /**
+     * The big figure, and the small one under it - NOT "money" and "pct".
+     *
+     * They were named that until Round 61, and then the toggle made the names lie: in percent
+     * mode the parameter called `money` holds a percentage. A name that contradicts its value
+     * is how two of this project's bugs shipped, so the names describe the ROLE, which is the
+     * thing that does not change.
+     */
+    lead: String,
+    sub: String,
     color: androidx.compose.ui.graphics.Color,
     note: String? = null,
     /**
@@ -348,10 +358,10 @@ private fun BigLine(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.weight(1f))
-        Text(money, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = color)
+        Text(lead, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = color)
         Spacer(Modifier.width(10.dp))
         Text(
-            pct,
+            sub,
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.SemiBold,
             color = color
