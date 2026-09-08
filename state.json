@@ -169,8 +169,8 @@
       "id": "F11",
       "text": "RESEARCH: every stock rebuild destroys the ETF list. carryExplanations returns the freshly built set, which Research.build never populates with etfs/etfGenerated/etfWarnings - so the 30-minute stock pass wipes the 6-hour fund pass, in memory and on disk. Ten Yahoo requests are then re-spent to rebuild it, repeatedly, which is exactly what TJ's 'keep the current list in cache until each update' rule forbids. notes is lost the same way while explained/explainedBy survive, so the screen claims an explanation whose text is gone.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit"
     },
     {
       "id": "F12",
@@ -446,6 +446,7 @@
     "2026-09-08 08:05:35 UTC  F07 fixed: chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)",
     "2026-09-08 08:05:36 UTC  F08 fixed: on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge",
     "2026-09-08 08:05:36 UTC  F09 fixed: priceBounds() is now the single source for both the canvas scale and the corner labels, so the number printed at the top of the axis is by construction the value drawn there",
-    "2026-09-08 08:05:37 UTC  F10 fixed: ComparePair.pairedIndex() - the last index at which BOTH lines have a reading - now feeds the spread and the resting benchmark figure, and the spread normalises negative zero"
+    "2026-09-08 08:05:37 UTC  F10 fixed: ComparePair.pairedIndex() - the last index at which BOTH lines have a reading - now feeds the spread and the resting benchmark figure, and the spread normalises negative zero",
+    "2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit"
   ]
 }
