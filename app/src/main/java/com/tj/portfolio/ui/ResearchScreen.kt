@@ -361,9 +361,15 @@ fun ResearchScreen(
                 item(key = "tools") {
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Text(
-                            "Whole-market lists built on this phone from free feeds, and " +
-                                "scored here - not recommendations. Every score shows its " +
-                                "reasons.",
+                            if (section == Section.ETFS)
+                                "About 850 funds screened on this phone from free feeds and " +
+                                    "scored here - not recommendations. Yahoo's fund screens " +
+                                    "do not cover every US ETF, so ask Claude below: it can " +
+                                    "search the web and add the funds this list cannot see."
+                            else
+                                "Whole-market lists built on this phone from free feeds, and " +
+                                    "scored here - not recommendations. Every score shows its " +
+                                    "reasons.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -407,7 +413,13 @@ fun ResearchScreen(
                                         ".txt or .md file, then tap \"Import answer\" and pick " +
                                         "THAT file - not the prompt file. The explanations " +
                                         "fill in and no API key is used. Anything Claude adds " +
-                                        "that the app missed is added to the list.",
+                                        "that the app missed is added to the list.\n\n" +
+                                        "The ETF list is the one that asks Claude to go and " +
+                                        "research rather than just explain: the prompt names " +
+                                        "the funds Yahoo's screens leave out and asks for the " +
+                                        "ones that belong on a best-ETF list. Funds Claude " +
+                                        "adds are kept when the list rebuilds itself, because " +
+                                        "the app's own screen can never find them again.",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
