@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 61,
   "request": "Feature 2 of 4: a percent/dollar toggle for profit-and-loss figures across the app. Do NOT ship until it is proven to work, be optimised, and to have broken nothing. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 02:24:35 UTC",
+  "updated": "2026-09-08 02:25:50 UTC",
   "version": {
     "code": 58,
     "name": "7.1",
@@ -10,7 +10,7 @@
     "next_name": "7.2"
   },
   "now": {
-    "step": "T0 baseline",
+    "step": "",
     "next": "T1 map every P/L render site",
     "files": []
   },
@@ -18,8 +18,8 @@
     {
       "id": "T0",
       "title": "Baseline: v7.1 tree, 390 tests green before any edit",
-      "status": "doing",
-      "note": ""
+      "status": "done",
+      "note": "390/390 green on the v7.1 tree"
     },
     {
       "id": "T1",
@@ -186,6 +186,7 @@
     "2026-09-08 02:10:32 UTC  T6 -> done  2 findings (H01 mid-drag cancellation, H02 per-frame date formatting), both fixed; H01's test verified by reverting the fix",
     "2026-09-08 02:13:12 UTC  T7 -> doing  shipping",
     "2026-09-08 02:13:22 UTC  T7 -> done  v7.1 APK + checkpoint 60 delivered",
-    "2026-09-08 02:24:35 UTC  round 61 started"
+    "2026-09-08 02:24:35 UTC  round 61 started",
+    "2026-09-08 02:25:50 UTC  T0 -> done  390/390 green on the v7.1 tree"
   ]
 }
