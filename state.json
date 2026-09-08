@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 61,
   "request": "Feature 2 of 4: a percent/dollar toggle for profit-and-loss figures across the app. Do NOT ship until it is proven to work, be optimised, and to have broken nothing. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 02:44:45 UTC",
+  "updated": "2026-09-08 02:49:04 UTC",
   "version": {
     "code": 58,
     "name": "7.1",
@@ -10,7 +10,7 @@
     "next_name": "7.2"
   },
   "now": {
-    "step": "",
+    "step": "T7: Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint",
     "next": "T1 map every P/L render site",
     "files": []
   },
@@ -60,8 +60,8 @@
     {
       "id": "T7",
       "title": "Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "shipping v7.2"
     }
   ],
   "findings": [
@@ -217,6 +217,7 @@
     "2026-09-08 02:37:23 UTC  finding I02: The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. A",
     "2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit",
     "2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'",
-    "2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it"
+    "2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it",
+    "2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2"
   ]
 }

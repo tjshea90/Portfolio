@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:44:45 UTC)
+# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:49:04 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T7: Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint
 - **Next action:** T1 map every P/L render site
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -43,7 +43,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T4  Tests: rendered tests proving BOTH modes on every affected surface  — PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)
 - [x] T5  REGRESSION: full suite + prove rows, summary, watchlist and detail are otherwise unchanged  — 405/405 green, lint clean, checkinit ok
 - [x] T6  Adversarial review of the feature, then fix what it finds  — 2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it
-- [ ] T7  Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint
+- [>] T7  Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint  — shipping v7.2
 
 **Resume at T7** (Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint).
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:27:32 UTC  T3 -> doing  wiring the three surfaces
 - 2026-09-08 02:30:26 UTC  T3 -> done  summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode
 - 2026-09-08 02:30:26 UTC  T4 -> doing  tests
 - 2026-09-08 02:34:52 UTC  T4 -> done  PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
 - 2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'
 - 2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it
+- 2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2
 

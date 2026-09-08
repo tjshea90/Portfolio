@@ -578,9 +578,9 @@ portfolio/
   `ui/` the data class `Row` shadows nothing because layouts are called qualified by
   import order; if a new file uses both, alias the import.
 
-## 6. STATUS — FEATURE COMPLETE, v7.1 SHIPPED
+## 6. STATUS — FEATURE COMPLETE, v7.2 SHIPPED
 
-APK: `portfolio-v7.1.apk`, versionCode 58 / versionName 7.1.
+APK: `portfolio-v7.2.apk`, versionCode 59 / versionName 7.2.
 Version history: v1.0 (core app), v1.1 (watchlist/search/backup/offline bridge),
 v1.2 (gestures, editing, long-press), v1.3 (navigation-bar inset fix),
 v1.4 (update-safety hardening + daily auto-backup),
@@ -652,6 +652,66 @@ news - see Round 55 below),
 v6.7 (RESEARCH IN TABS, and the whole app's network traffic cut by about 80% - see Round 56),
 v6.8 (THE APP NOW ACTUALLY STOPS WHEN IT IS PUT DOWN, and immutable data is never fetched
 twice - see Round 57).
+
+### Round 61 (v7.2) — PERCENT / DOLLAR TOGGLE (feature 2 of 4, shipped on its own)
+
+**What TJ asked for.** *"start the next feature, do not ship unless and until you are confident
+it works well and is optimized and didn't break anything else in the app."*
+
+Every P/L in the app already showed BOTH numbers - a bold dollar figure with the percentage
+under or beside it. So this adds and removes nothing: it swaps which of the two is the big one,
+because *"how much did I make today"* and *"which of these is actually performing"* are
+different questions and each wants a different number first. Tap either line on the summary
+card to switch; the holding rows, the detail card and the stock's own page all follow, and the
+choice is remembered across restarts and carried in the backup.
+
+#### The rule the whole feature rests on
+
+The figure appears in three places - the holding row, the summary card, the stock page - and
+**a toggle that reorders two of those three is worse than no toggle at all**, because the user
+would then be comparing a dollar figure against a percentage without being told. So the three
+share one pair of one-line helpers (`plLead` / `plSub`), and the property asserted in
+`PlModeTest` is precisely the one that makes drift impossible: whatever the mode, the two
+halves are the same two numbers, only swapped. Nothing is ever hidden.
+
+#### Why it is on `UiState` and not a plain property
+
+`sortMode` next to it is a bare `var` on the ViewModel, and that works only because changing
+the sort also changes the ROWS, which republishes the state object and redraws everything as a
+side effect. Switching this changes no data at all - it changes which of two already-computed
+numbers is bold - so a bare property would have been written, persisted, and simply not redrawn
+until something else happened to. It is a field on `UiState`, and `setPlMode` deliberately does
+NOT go through `computeAffecting` / `recompute()`: replaying every transaction to reorder two
+strings is the kind of waste this project has removed twice.
+
+#### The seeding order, which is the subtle part
+
+`init` copies the stored mode onto `_ui` and THEN calls `recompute()`, which copies the state
+object again. Do those two in the other order and the seed is silently overwritten by the
+default on every launch - a bug that looks exactly like "the setting does not save". There is a
+test for it, and the test was verified the only way that means anything: by putting the bug
+back and watching it fail.
+
+#### Found in review of my own change
+
+- `BigLine`'s parameters were still called `money` and `pct` while now receiving lead/sub, so
+  in percent mode the parameter named `money` held a percentage. **A name that contradicts its
+  value is how two of this project's bugs shipped** - renamed to `lead`/`sub`, which is the
+  role, and the role does not change.
+- The mode hint was a sentence that wrapped to three lines at a 2.0 font scale to say what
+  `"$ first  -  tap a line for %"` says in one.
+
+#### Tests: 390 -> 416
+
+`PlModeTest` (8) covers the helpers and the enum's fallback. `PlModeUiTest` (12) renders the
+real holding row and the real summary card in BOTH modes and measures which figure is on top,
+asserts nothing else about the row changes, drives the tap, checks the 48dp rule, and covers
+persistence across a reopen and inclusion in the backup. `PlModeViewModelTest` (6) exercises
+the actual ViewModel: fresh install, publish-on-toggle, write-to-disk, the seeding order, a
+corrupt stored value, and that a no-op set does not churn state.
+
+**Still unbuilt, and still approved:** per-range performance chips, and the SPY comparison
+overlay.
 
 ### Round 60 (v7.1) — CHART SCRUBBING (feature 1 of 4, shipped on its own)
 
