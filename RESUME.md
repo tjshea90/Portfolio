@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:27:41 UTC)
+# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:27:53 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,14 +27,14 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T7: Ship v7.0 (versionCode 57) + checkpoint delivered
+- **In flight:** (nothing in flight)
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 7/8 done
+## 4. Task ledger — 8/8 done
 
 - [x] T0  Baseline on the shipped tree: release build + 358 tests green before any edit  — release APK + 358/358 green on the shipped tree
 - [x] T1  BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch  — manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
@@ -43,9 +43,9 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory  — bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
 - [x] T5  Fix every finding without introducing new ones  — G01-G07 fixed, plus three refinements found reviewing my own fixes: persist merged not stamped, one connectivity answer gating both passes, clear the backoff with the cache
 - [x] T6  Verify: full suite, checkinit, lint, second-pass review of every fix  — 371/371 tests, checkinit ok, lintVital clean, APK signed with the archived keystore (fingerprint matches), versionCode 57 / 7.0 confirmed
-- [>] T7  Ship v7.0 (versionCode 57) + checkpoint delivered  — shipping v7.0
+- [x] T7  Ship v7.0 (versionCode 57) + checkpoint delivered  — v7.0 APK + checkpoint 59 delivered
 
-**Resume at T7** (Ship v7.0 (versionCode 57) + checkpoint delivered).
+**All tasks are done.** Verify, ship the APK, and checkpoint.
 
 ## 5. Open findings — 0 still open, 7 fixed
 
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:15:06 UTC  G01 fixed: refresh() moved to fgScope so a backgrounded pass is cancelled and its socket disconnected; the quote cache write moved to viewModelScope so a fetched price is never lost
 - 2026-09-08 01:15:06 UTC  G02 fixed: util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries.
 - 2026-09-08 01:15:07 UTC  G03 fixed: chart fetches go through a RetryClock; a failure backs off 30s/1m/2m/4m/5m instead of retrying every 15s
 - 2026-09-08 01:15:07 UTC  G04 fixed: loadHoldings uses the same RetryClock
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:25:26 UTC  v7.0 final verification build running
 - 2026-09-08 01:27:41 UTC  T6 -> done  371/371 tests, checkinit ok, lintVital clean, APK signed with the archived keystore (fingerprint matches), versionCode 57 / 7.0 confirmed
 - 2026-09-08 01:27:41 UTC  T7 -> doing  shipping v7.0
+- 2026-09-08 01:27:53 UTC  T7 -> done  v7.0 APK + checkpoint 59 delivered
 
