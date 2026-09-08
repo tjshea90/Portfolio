@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:10:22 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:10:41 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T9: SWEEP 2: UI, code and network-efficiency pass; fix everything found
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -45,7 +45,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T6  Tests for T1-T5: pure + rendered  — SwipeTabTest 15, ChartZoomTest 12, CompareChartTest 10, EtfTest 23, GestureUiTest 11 (real multi-touch), CompareChartUiTest 8 - 79 new
 - [x] T7  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok
 - [x] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found  — two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
-- [ ] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found
+- [>] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found  — sweep 2: UI, code and network efficiency
 - [ ] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 
@@ -84,7 +84,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 08:05:37 UTC  F10 fixed: ComparePair.pairedIndex() - the last index at which BOTH lines have a reading - now feeds the spread and the resting benchmark figure, and the spread normalises negative zero
 - 2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit
 - 2026-09-08 08:05:40 UTC  F12 fixed: fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept
 - 2026-09-08 08:05:41 UTC  F13 fixed: a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json
@@ -96,4 +95,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 08:05:44 UTC  F19 fixed: a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host
 - 2026-09-08 08:05:45 UTC  F20 fixed: comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other
 - 2026-09-08 08:10:22 UTC  T8 -> done  two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
+- 2026-09-08 08:10:41 UTC  T9 -> doing  sweep 2: UI, code and network efficiency
 

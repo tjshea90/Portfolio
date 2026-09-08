@@ -306,3 +306,4 @@ Tasks 9/12 done, findings 2/2 fixed
 2026-09-08 08:05:45 UTC  checkpoint 63  commit a32138a  fix F19
 2026-09-08 08:05:45 UTC  checkpoint 63  commit 6f13699  fix F20
 2026-09-08 08:10:23 UTC  checkpoint 63  commit 17fef1e  T8 done
+2026-09-08 08:10:23 UTC  checkpoint 63  commit e78af29  sweep 1 complete: F06-F20 fixed, 557 tests
