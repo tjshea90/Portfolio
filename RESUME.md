@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 21:13:52 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 21:13:54 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,10 +34,10 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 2/9 done
+## 4. Task ledger — 3/9 done
 
 - [x] T0  Baseline: v7.4 tree builds and 569 tests green before any edit  — v7.4 baseline green
-- [ ] T1  Row sparklines fill their space: measure what the row actually gives them and use it
+- [x] T1  Row sparklines fill their space: measure what the row actually gives them and use it  — row sparkline 1.4:1 weights, 48dp tall
 - [x] T2  Continuous pinch zoom: a real time window scaled smoothly, with the range ladder behind it as the data source  — continuous window zoom + pan, axis-scaled canvas, reset chip
 - [ ] T3  Full-screen chart: tap any chart to open it, sensor rotation, back to close
 - [ ] T4  Tests for T1-T3: pure + rendered + measured
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic
 - [ ] T8  Ship v7.5 (versionCode 62) + final checkpoint
 
-**Resume at T1** (Row sparklines fill their space: measure what the row actually gives them and use it).
+**Resume at T3** (Full-screen chart: tap any chart to open it, sensor rotation, back to close).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 17:06:38 UTC  S07 fixed: KeyValue falls back to its children's intrinsic width when maxWidth is unbounded
 - 2026-09-08 17:06:38 UTC  S08 fixed: two tests for the forgetting rule: a key untouched for ten minutes starts again at 30s, and one still failing steadily keeps its streak
 - 2026-09-08 17:06:57 UTC  T12 -> done  8 findings (S01-S08) incl. a deadlock between the new settings lock and restoreJson's transaction
 - 2026-09-08 17:06:58 UTC  T13 -> doing  sweep 5
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 20:37:55 UTC  T0 -> done  v7.4 baseline green
 - 2026-09-08 20:37:56 UTC  T2 -> doing  continuous window zoom
 - 2026-09-08 21:13:52 UTC  T2 -> done  continuous window zoom + pan, axis-scaled canvas, reset chip
+- 2026-09-08 21:13:54 UTC  T1 -> done  row sparkline 1.4:1 weights, 48dp tall
 
