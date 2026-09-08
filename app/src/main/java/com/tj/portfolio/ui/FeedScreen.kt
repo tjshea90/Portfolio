@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -379,7 +380,10 @@ private fun TrendingRow(t: Trending, owned: Boolean, onClick: () -> Unit) {
             "#${t.rank}",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(34.dp)
+            // widthIn(min), NOT width - same clipping trap as the numbered actions on the
+            // Advice tab. "#50" at a 2.0 font scale is wider than 34dp and was being cut off
+            // with nothing on screen to hint at it.
+            modifier = Modifier.widthIn(min = 34.dp)
         )
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {

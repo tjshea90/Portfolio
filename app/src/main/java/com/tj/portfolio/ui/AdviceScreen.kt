@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -166,7 +167,13 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
                                         "${i + 1}.",
                                         fontWeight = FontWeight.Bold,
                                         color = Accent,
-                                        modifier = Modifier.width(22.dp)
+                                        // widthIn(min), NOT width. Compose's default overflow
+                                        // is Clip, so a FIXED 22dp column silently cut the
+                                        // number off from "10." upward - and sooner than that
+                                        // at a large font scale. This is the v1.6 clipping
+                                        // trap the project has a standing rule about; a
+                                        // minimum keeps the list aligned without capping it.
+                                        modifier = Modifier.widthIn(min = 22.dp)
                                     )
                                     Text(s, style = MaterialTheme.typography.bodyLarge)
                                 }

@@ -147,9 +147,11 @@ fun HoldingsTab(
                 Column(Modifier.padding(horizontal = 12.dp)) {
                     SectionHeader("Sector split")
                     StatCard {
-                        h.sectors.forEach { s ->
-                            WeightRow(s.sector, s.weight, h.sectors.first().weight)
-                        }
+                        // Hoisted, for the same reason `topWeight` is above: every bar is
+                        // drawn against the largest sector, and re-reading it inside the loop
+                        // re-scans the list once per row on every recomposition.
+                        val topSector = h.sectors.first().weight
+                        h.sectors.forEach { s -> WeightRow(s.sector, s.weight, topSector) }
                     }
                     Spacer(Modifier.height(10.dp))
                 }

@@ -986,6 +986,78 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * throttle would send a request on every screen open for any cache older than its TTL,
      * even one that was just refused.
      */
+    /**
+     * A PER-KEY RETRY CLOCK FOR THINGS THAT CAN SIMPLY FAIL.
+     *
+     * ROUND 59. Two of the app's fetches recorded when they last SUCCEEDED and nothing at
+     * all about when they last FAILED, and both turned into request storms as a result:
+     *
+     *  - `loadChart` stamped `chartFetchedAt` and then never read it. A chart that cannot be
+     *    had - a delisted ticker, a 404, a range the provider refuses - left no entry in
+     *    `_charts`, so the freshness guard fell straight through and the detail screen asked
+     *    again on EVERY quote tick. Roughly 240 requests an hour for a picture that is never
+     *    going to arrive, which is the exact traffic shape Round 56 spent a whole round
+     *    removing and the fastest way to be rate-limited.
+     *  - `refreshSparklines` was worse, and it was a regression from Round 58's own fix. That
+     *    fix un-marked every symbol whose series failed so a TRANSIENT failure would retry on
+     *    the next tick instead of sitting out five minutes - which is what put TJ's missing
+     *    charts right - but it made a PERMANENT failure retry every fifteen seconds forever.
+     *
+     * Both need the same thing and it is not "a longer TTL": a fetch that failed should be
+     * retried SOON in case the failure was a passing one, and then progressively less often
+     * as the evidence mounts that it is not. That is a backoff, and the app already has one
+     * whose shape has been reasoned about - `Http.unreachableBackoffMs` - so this uses the
+     * same curve rather than inventing a second answer to the same question.
+     *
+     * A SUCCESS CLEARS THE COUNT. The window is about consecutive failures; one good answer
+     * means the next failure starts again at thirty seconds, not at five minutes.
+     */
+    private class RetryClock {
+        private val attemptedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+        private val failures = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+        /** 30s, 1m, 2m, 4m, then held at 5m. Matches `Http`'s unreachable backoff. */
+        private fun backoffMs(fails: Int): Long =
+            minOf(30_000L shl (fails - 1).coerceIn(0, 4), 300_000L)
+
+        /**
+         * True when this key failed recently enough that asking again would be noise.
+         *
+         * A key that has never failed is never blocked, so this can be added to an existing
+         * guard without changing the behaviour of anything that works.
+         */
+        fun blocked(key: String, now: Long = System.currentTimeMillis()): Boolean {
+            val fails = failures[key] ?: return false
+            if (fails <= 0) return false
+            return now - (attemptedAt[key] ?: 0L) < backoffMs(fails)
+        }
+
+        fun success(key: String) {
+            attemptedAt[key] = System.currentTimeMillis()
+            failures.remove(key)
+        }
+
+        fun failure(key: String) {
+            attemptedAt[key] = System.currentTimeMillis()
+            failures[key] = (failures[key] ?: 0) + 1
+        }
+
+        /** Called by a manual refresh: the user asking counts as "try it now, whatever". */
+        fun clear() {
+            attemptedAt.clear()
+            failures.clear()
+        }
+    }
+
+    /** Failure backoff for chart fetches, keyed by [chartKey]. */
+    private val chartRetry = RetryClock()
+
+    /** Failure backoff for the intraday candle series, keyed by symbol. */
+    private val sparkRetry = RetryClock()
+
+    /** Failure backoff for fund-holdings lookups, keyed by symbol. */
+    private val holdingsRetry = RetryClock()
+
     private val chartFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /**
@@ -1375,12 +1447,36 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // would silently do nothing while an invisible backoff timer ran down.
         if (manual) {
             com.tj.portfolio.net.Http.clearCooldowns()
+            // The failure backoffs go with them. A deliberate pull is the user saying "try
+            // it now", and a chart that has been quietly backing off for five minutes is
+            // precisely what they are pulling down to fix.
+            chartRetry.clear()
+            sparkRetry.clear()
+            holdingsRetry.clear()
             // Same reasoning as the cooldowns: a deliberate pull is exactly when the batched
             // quote endpoint should be tried again, and an invisible "we gave up on that
             // three hours ago" flag would make the gesture quietly do less than it appears to.
             MarketData.resetBatchState()
         }
-        viewModelScope.launch {
+        // ---------------------------------------------------------------------------------
+        // ROUND 59: `fgScope`, NOT `viewModelScope`. This was the last on-demand network path
+        // still outliving the app going away.
+        //
+        // Round 57 moved eleven fetches onto `fgScope` and recorded the poll loop as
+        // "cancelled" - and the LOOP is: `autoJob.cancel()` stops it. But the loop does not
+        // do the work, it calls `refresh()`, which launched a coroutine of its OWN into
+        // `viewModelScope`. Cancelling the loop therefore left an in-flight pass running to
+        // completion or to its fifteen-second timeout, with the socket never disconnected -
+        // exactly the behaviour `Http`'s cancel-and-disconnect exists to prevent.
+        //
+        // It also stranded `loading = true` for the length of that request, and the guard at
+        // the top of this function returns early while it is set - so a user who switched
+        // away and straight back got no refresh at all and looked at stale prices.
+        //
+        // THE DATABASE WRITE STAYS ON `viewModelScope` (see below). That is the whole rule
+        // this project follows: if the answer is only useful while the screen is up, it is
+        // cancellable; if it must not be lost, it is not.
+        fgScope.launch {
             _ui.value = _ui.value.copy(
                 loading = true,
                 manualRefresh = manual || _ui.value.manualRefresh,
@@ -1432,15 +1528,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val stamped = fetched.map {
                     carryDisplayFields(previous[it.symbol], it.copy(updated = now, stale = false))
                 }
-                // single hop to IO, single transaction - previously one of each per symbol
-                withContext(Dispatchers.IO) { runCatching { db.cacheQuotes(stamped) } }
-                // REBUILT FROM THE CURRENT STATE, NOT FROM `previous`. The line above
-                // suspends, and `refreshSparklines` writes into `_quotes` from its own
-                // coroutine - so a sparkline that landed during that suspension would be
-                // overwritten by a map snapshotted before it existed. Because `sparkAt` is
-                // marked before the fetch, that lost write also cost a five-minute wait for
-                // the retry, with `carryDisplayFields` keeping the old series alive so
-                // nothing looked wrong.
+                // ON `viewModelScope`, SO IT SURVIVES THE FETCH BEING CANCELLED. Prices that
+                // have already been paid for should be on disk for the next cold start even
+                // if the user walked away a millisecond later; leaving this inline would have
+                // meant backgrounding mid-write threw the whole pass away.
+                // Still a single hop to IO and a single transaction.
+                viewModelScope.launch(Dispatchers.IO) { runCatching { db.cacheQuotes(stamped) } }
+                // REBUILT FROM THE CURRENT STATE, NOT FROM `previous`. `refreshSparklines`
+                // writes into `_quotes` from its own coroutine, and this function suspended
+                // twice on the way here (the fetch, and - before Round 59 moved it off the
+                // critical path - the cache write), so a sparkline that landed in between
+                // would be overwritten by a map snapshotted before it existed. Because
+                // `sparkAt` is marked before the fetch, that lost write also cost a
+                // five-minute wait for the retry, with `carryDisplayFields` keeping the old
+                // series alive so nothing looked wrong. Reading `_quotes.value` here rather
+                // than reusing `previous` is what makes that impossible.
                 val merged = HashMap(_quotes.value)
                 stamped.forEach { fresh ->
                     // The series is the one field the sparkline pass owns; never let a quote
@@ -1536,7 +1638,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private fun refreshSparklines(symbols: List<String>) {
         if (symbols.isEmpty()) return
         val now = System.currentTimeMillis()
-        val due = symbols.filter { now - (sparkAt[it] ?: 0L) > SPARK_REFRESH_MS }
+        // A symbol that has been failing is asked for less and less often - see [RetryClock].
+        // Without this, Round 58's fix for TJ's missing charts (un-mark a failed symbol so it
+        // retries promptly) turned a PERMANENTLY dead ticker into a fetch every fifteen
+        // seconds for the life of the session.
+        val due = symbols.filter {
+            now - (sparkAt[it] ?: 0L) > SPARK_REFRESH_MS && !sparkRetry.blocked(it, now)
+        }
         if (due.isEmpty()) return
         // Marked BEFORE the fetch, not after. Marking on completion lets the next tick - 15
         // seconds later - queue the same symbols again while the first pass is still in
@@ -1570,7 +1678,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             //
             // A mark means "we hold a series this recent". A symbol with no series has no
             // business holding one.
-            fresh.forEach { (sym, v) -> if (v == null) sparkAt.remove(sym) }
+            fresh.forEach { (sym, v) ->
+                if (v == null) {
+                    // Un-marked so the ordinary five-minute clock does not also hold it back,
+                    // and recorded as a failure so the backoff decides when it is next tried.
+                    sparkAt.remove(sym)
+                    sparkRetry.failure(sym)
+                } else {
+                    sparkRetry.success(sym)
+                }
+            }
             val landed = fresh.mapNotNull { (s, v) -> if (v == null) null else s to v }
             if (landed.isEmpty()) return@launch
             withContext(Dispatchers.Main) {
@@ -1662,6 +1779,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      *
      * Only the AUTOMATIC path consults this. Every deliberate user action still refreshes.
      */
+    /** See [com.tj.portfolio.util.Connectivity] - optimistic, so it only ever skips a pass
+     *  when Android is certain there is no active network. */
+    private fun online(): Boolean =
+        com.tj.portfolio.util.Connectivity.isOnline(getApplication())
+
     private fun pricesAreFinal(): Boolean {
         if (com.tj.portfolio.net.MarketClock.phase() != com.tj.portfolio.net.MarketClock.Phase.CLOSED) {
             return false
@@ -1825,7 +1947,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // reader). Skip the whole pass rather than fetching, repricing and throwing
                 // the result away - the feed cadence below still runs, because headlines are
                 // read on those screens even when prices are not.
-                if (visibleScope != VisibleScope.None && !pricesAreFinal()) refresh()
+                // OFFLINE MEANS SKIP, NOT "TRY AND FAIL". Firing a pass with no network
+                // wakes the radio, fails every socket, and counts three of those into a
+                // per-host cooldown that escalates towards five minutes - so a tunnel cost
+                // battery going in and a stale screen for minutes coming out. Only the
+                // AUTOMATIC path consults this; a deliberate pull-to-refresh always tries,
+                // because the user may know something the connectivity manager does not.
+                if (visibleScope != VisibleScope.None && !pricesAreFinal() && online()) {
+                    refresh()
+                }
 
                 sinceFeedRefresh += secs
                 sinceFilings += secs
@@ -2815,6 +2945,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun loadHoldings(symbol: String, force: Boolean = false) {
         val sym = symbol.uppercase()
         if (_holdingsLoading.value.contains(sym)) return
+        // Same rule as the chart: a lookup that failed must not be retried on every screen
+        // open and every ON_START with no throttle at all.
+        if (!force && holdingsRetry.blocked(sym)) return
         val held = _holdings.value[sym]
         if (!force && held != null && !held.stale()) return
 
@@ -2840,6 +2973,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     runCatching { com.tj.portfolio.net.HoldingsFeed.holdings(sym) }.getOrNull()
                 }
                 holdingsFetchedAt[sym] = System.currentTimeMillis()
+                if (fresh != null) holdingsRetry.success(sym) else holdingsRetry.failure(sym)
                 if (fresh != null) {
                     // WRITTEN EVEN WHEN EMPTY, and that is deliberate. "This symbol is an
                     // ordinary share and has no holdings" is a real answer with a real
@@ -2986,11 +3120,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // moment its range goes stale - see the note there. That is four calls a minute, and
         // all but one in twenty of them have nothing to do. Answering those here costs a map
         // lookup; answering them inside a launched coroutine would cost a coroutine each.
-        if (!force && sym in chartDiskRead) {
-            val cached = _charts.value[key]
-            if (cached != null && !cached.isEmpty &&
-                (!cached.stale() || intradayChartIsFinal(cached))
-            ) return
+        if (!force) {
+            // A RECENT FAILURE IS AN ANSWER TOO. Without this the detail screen re-requested
+            // a chart that cannot be had on every quote tick, because a failed fetch leaves
+            // no entry in `_charts` for the freshness test below to find. See [RetryClock].
+            if (chartRetry.blocked(key)) return
+            if (sym in chartDiskRead) {
+                val cached = _charts.value[key]
+                if (cached != null && !cached.isEmpty &&
+                    (!cached.stale() || intradayChartIsFinal(cached))
+                ) return
+            }
         }
 
         fgScope.launch {
@@ -3033,6 +3173,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     runCatching { com.tj.portfolio.net.ChartFeed.series(sym, range) }.getOrNull()
                 }
                 chartFetchedAt[key] = System.currentTimeMillis()
+                // Recorded either way, so a failure backs the next attempt off instead of
+                // letting the tick clock ask again in fifteen seconds.
+                if (fresh != null && !fresh.isEmpty) chartRetry.success(key)
+                else chartRetry.failure(key)
                 if (fresh != null && !fresh.isEmpty) {
                     _charts.value = _charts.value + (key to fresh)
                     // ONE REQUEST, TWO CONSUMERS (Round 58).
