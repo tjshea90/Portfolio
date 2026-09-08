@@ -4,14 +4,14 @@
   "request": "Add the approved new features ONE AT A TIME, shipping each on its own. Feature 1: chart scrubbing - drag across the chart to read the price and time at that point. Test and optimise before shipping; must not disturb anything else in the app.",
   "updated": "2026-09-08 02:13:12 UTC",
   "version": {
-    "code": 57,
-    "name": "7.0",
-    "next_code": 58,
-    "next_name": "7.1"
+    "code": 58,
+    "name": "7.1",
+    "next_code": 59,
+    "next_name": "7.2"
   },
   "now": {
-    "step": "T7: Ship v7.1 (versionCode 58) + checkpoint",
-    "next": "T1 gesture design",
+    "step": "",
+    "next": "Feature 1 of 4 (scrubbing) is shipped as v7.1. Remaining approved features, one per round: percent/dollar toggle, per-range performance chips, SPY comparison overlay. Start the next with ./ck start 61.",
     "files": []
   },
   "tasks": [

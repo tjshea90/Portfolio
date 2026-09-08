@@ -27,8 +27,8 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T7: Ship v7.1 (versionCode 58) + checkpoint
-- **Next action:** T1 gesture design
+- **In flight:** (nothing in flight)
+- **Next action:** Feature 1 of 4 (scrubbing) is shipped as v7.1. Remaining approved features, one per round: percent/dollar toggle, per-range performance chips, SPY comparison overlay. Start the next with ./ck start 61.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
@@ -54,8 +54,8 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 6. Version
 
-- Shipped: v7.0 (versionCode 57)
-- This round ships: v7.1 (versionCode 58)
+- Shipped: v7.1 (versionCode 58)
+- This round ships: v7.2 (versionCode 59)
 - Bump `app/build.gradle.kts` before the final APK. Android refuses an install
   whose versionCode is not higher than what is on the phone.
 
