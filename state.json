@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 07:08:13 UTC",
+  "updated": "2026-09-08 07:15:27 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -99,8 +99,8 @@
       "id": "F01",
       "text": "loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL"
     },
     {
       "id": "F02",
@@ -307,6 +307,7 @@
     "2026-09-08 07:08:13 UTC  finding F01: loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while",
     "2026-09-08 07:08:13 UTC  finding F02: A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared",
     "2026-09-08 07:08:13 UTC  finding F03: zoomFactor reads event.changes[0] and [1] positionally. A third finger landing, ",
-    "2026-09-08 07:08:13 UTC  finding F04: showMoreResearch on the ETF section calls enrichVisible, which only has work for"
+    "2026-09-08 07:08:13 UTC  finding F04: showMoreResearch on the ETF section calls enrichVisible, which only has work for",
+    "2026-09-08 07:15:27 UTC  F01 fixed: the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL"
   ]
 }
