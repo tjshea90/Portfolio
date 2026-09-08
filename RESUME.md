@@ -27,14 +27,14 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T6: Adversarial review of the feature, then fix what it finds
+- **In flight:** (nothing in flight)
 - **Next action:** T1 map every P/L render site
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 6/8 done
+## 4. Task ledger — 7/8 done
 
 - [x] T0  Baseline: v7.1 tree, 390 tests green before any edit  — 390/390 green on the v7.1 tree
 - [x] T1  Map every place a P/L figure is rendered, so the toggle is complete rather than partial  — affected surfaces: StockRow money cells, PortfolioScreen summary BigLines + detail card, DetailScreen position block. Watchlist rows carry no P/L (watchOnly hides the money half), so nothing there to switch.
@@ -42,10 +42,10 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T3  UI: make the figures tappable to switch, and label so it is never ambiguous which is shown  — summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode
 - [x] T4  Tests: rendered tests proving BOTH modes on every affected surface  — PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)
 - [x] T5  REGRESSION: full suite + prove rows, summary, watchlist and detail are otherwise unchanged  — 405/405 green, lint clean, checkinit ok
-- [>] T6  Adversarial review of the feature, then fix what it finds  — adversarial review
+- [x] T6  Adversarial review of the feature, then fix what it finds  — 2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it
 - [ ] T7  Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint
 
-**Resume at T6** (Adversarial review of the feature, then fix what it finds).
+**Resume at T7** (Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint).
 
 ## 5. Open findings — 0 still open, 2 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:27:32 UTC  T2 -> done  PlMode enum, Keys.PL_MODE, UiState.plMode seeded in init, setPlMode/togglePlMode, plLead/plSub/plInline helpers
 - 2026-09-08 02:27:32 UTC  T3 -> doing  wiring the three surfaces
 - 2026-09-08 02:30:26 UTC  T3 -> done  summary lines tappable + labelled hint; rows, detail card and stock page all follow the mode
 - 2026-09-08 02:30:26 UTC  T4 -> doing  tests
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:37:23 UTC  finding I02: The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. A
 - 2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
 - 2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'
+- 2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it
 

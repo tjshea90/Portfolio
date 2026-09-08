@@ -10,7 +10,7 @@
     "next_name": "7.2"
   },
   "now": {
-    "step": "T6: Adversarial review of the feature, then fix what it finds",
+    "step": "",
     "next": "T1 map every P/L render site",
     "files": []
   },
@@ -54,8 +54,8 @@
     {
       "id": "T6",
       "title": "Adversarial review of the feature, then fix what it finds",
-      "status": "doing",
-      "note": "adversarial review"
+      "status": "done",
+      "note": "2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it"
     },
     {
       "id": "T7",
@@ -216,6 +216,7 @@
     "2026-09-08 02:37:23 UTC  finding I01: BigLine's parameters are still named 'money' and 'pct', but they now receive plL",
     "2026-09-08 02:37:23 UTC  finding I02: The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. A",
     "2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit",
-    "2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'"
+    "2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'",
+    "2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it"
   ]
 }
