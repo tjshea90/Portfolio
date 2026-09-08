@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:34 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:35 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
-## 5. Open findings — 9 still open, 40 fixed
+## 5. Open findings — 8 still open, 41 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -93,7 +93,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] U06 (med) The Research header Row measures four unweighted children in sequence, so at large font scales the Rebuild button - measured last - is squeezed under 48dp from ~1.75x and to zero width at 2.0x. It is the only non-gesture way to rebuild the list being viewed.  — the Research header's texts are weighted, so the Rebuild button is measured first and keeps its 52dp at every font scale
 - [x] U07 (med) The portfolio summary's BigLine and PlainLine starve the same way: the weighted Spacer sits BETWEEN the label and the numbers, so it protects neither. BigLine breaks at ~1.3x and what vanishes is the sub-figure; PlainLine breaks at ~1.6x and what vanishes is the value.  — BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first
 - [x] U08 (med) The Research card's score is a bare integer in a coloured circle. Nothing on the card, and nothing in any section blurb, says it is a score or what the scale is - the blurbs describe the inputs but never the output. The only mention is 300dp below, past ten cards.  — the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'
-- [ ] U09 (med) The Research tab row is a fixed SecondaryTabRow: four tabs across 411dp is 102dp each, and 'Trending (20)' at 14sp needs ~104dp at scale 1.3, so it wraps into a fixed 48dp tab height and clips. DetailScreen's equivalent is scrollable and does not have this.
+- [x] U09 (med) The Research tab row is a fixed SecondaryTabRow: four tabs across 411dp is 102dp each, and 'Trending (20)' at 14sp needs ~104dp at scale 1.3, so it wraps into a fixed 48dp tab height and clips. DetailScreen's equivalent is scrollable and does not have this.  — the Research tab row is now SecondaryScrollableTabRow, like the detail screen's
 - [ ] U10 (med) Three counts on the Research screen can disagree: the tab label prints rows.size, the list renders rows.take(n).distinctBy { symbol } - which can remove rows - and the footer says 'that is all rows.size this pass found'. The code's own comment says an imported Claude answer can name a ticker twice, so this is reachable.
 - [ ] U11 (med) 'Portfolio weight' divides by totals.marketValue - stocks only - while the Portfolio screen's own headline is total equity and shows cash separately. The weights therefore sum to 100% of a number that is explicitly not 'what you have', and nothing says which.
 - [ ] U12 (med) On first launch, before dataMissing or recoverable has resolved, the Portfolio screen renders the full 'No holdings yet - import Ally screenshots' copy under a 2dp progress bar. The file's own comment calls that the worst possible answer for the data-loss case; the loading case reaches it through a different door.
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:28:09 UTC  N09 fixed: chartFetchedAt and holdingsFetchedAt deleted along with their writes; the KDoc that described the first as the bug RetryClock replaced now says it was removed
 - 2026-09-08 15:28:10 UTC  N10 fixed: a shared fundRetry backs off refused quoteSummary and analyst fetches per symbol, cleared by a manual refresh
 - 2026-09-08 15:28:11 UTC  N11 fixed: fillResearchPrices uses the batched MarketData.quotes and reads the Finnhub key once
 - 2026-09-08 15:28:19 UTC  T9 -> doing  sweep 2: UI half
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:53:33 UTC  U06 fixed: the Research header's texts are weighted, so the Rebuild button is measured first and keeps its 52dp at every font scale
 - 2026-09-08 15:53:34 UTC  U07 fixed: BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first
 - 2026-09-08 15:53:34 UTC  U08 fixed: the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'
+- 2026-09-08 15:53:35 UTC  U09 fixed: the Research tab row is now SecondaryScrollableTabRow, like the detail screen's
 
