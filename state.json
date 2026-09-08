@@ -386,8 +386,8 @@
       "id": "U11",
       "text": "'Portfolio weight' divides by totals.marketValue - stocks only - while the Portfolio screen's own headline is total equity and shows cash separately. The weights therefore sum to 100% of a number that is explicitly not 'what you have', and nothing says which.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "renamed to 'Share of your stocks' - the denominator is market value, not total equity"
     },
     {
       "id": "U12",
@@ -704,6 +704,7 @@
     "2026-09-08 15:53:34 UTC  U07 fixed: BigLine and PlainLine weight the label instead of putting a weighted Spacer between it and the numbers, so the figures are measured first",
     "2026-09-08 15:53:34 UTC  U08 fixed: the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'",
     "2026-09-08 15:53:35 UTC  U09 fixed: the Research tab row is now SecondaryScrollableTabRow, like the detail screen's",
-    "2026-09-08 15:53:36 UTC  U10 fixed: the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw"
+    "2026-09-08 15:53:36 UTC  U10 fixed: the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw",
+    "2026-09-08 15:53:36 UTC  U11 fixed: renamed to 'Share of your stocks' - the denominator is market value, not total equity"
   ]
 }
