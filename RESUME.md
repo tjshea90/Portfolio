@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:38:25 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:38:26 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 2 still open, 16 fixed
+## 5. Open findings — 1 still open, 17 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -66,7 +66,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] G05 (med) isWhole at 0.92 discarded genuine small zooms, which the re-anchor effect then silently reset
 - [x] G06 (low) Caption point count came from the padded drawing list
 - [x] G07 (low) Zoomed caption for the after-hours range read oddly (no comma to splice)
-- [ ] G08 (low) ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds inside an effect
+- [x] G08 (low) ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds inside an effect
 - [ ] G09 (med) Re-anchoring the window did not re-evaluate which range should draw it
 
 ## 6. Version
@@ -78,7 +78,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 22:38:19 UTC  finding G05: isWhole at 0.92 discarded genuine small zooms, which the re-anchor effect then s
 - 2026-09-08 22:38:19 UTC  finding G06: Caption point count came from the padded drawing list
 - 2026-09-08 22:38:19 UTC  finding G07: Zoomed caption for the after-hours range read oddly (no comma to splice)
 - 2026-09-08 22:38:19 UTC  finding G08: ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds in
@@ -90,4 +89,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 22:38:23 UTC  G05 fixed
 - 2026-09-08 22:38:24 UTC  G06 fixed
 - 2026-09-08 22:38:25 UTC  G07 fixed
+- 2026-09-08 22:38:26 UTC  G08 fixed
 
