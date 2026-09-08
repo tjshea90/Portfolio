@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 02:13:22 UTC)
+# RESUME — READ THIS FIRST  (round 61, saved 2026-09-08 02:24:35 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -23,34 +23,33 @@ at once or kill one mid-flight; always background the build with
 
 ## 2. The request this round is answering
 
-> Add the approved new features ONE AT A TIME, shipping each on its own. Feature 1: chart scrubbing - drag across the chart to read the price and time at that point. Test and optimise before shipping; must not disturb anything else in the app.
+> Feature 2 of 4: a percent/dollar toggle for profit-and-loss figures across the app. Do NOT ship until it is proven to work, be optimised, and to have broken nothing. Checkpoint frequently - usage may run out.
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
-- **Next action:** Feature 1 of 4 (scrubbing) is shipped as v7.1. Remaining approved features, one per round: percent/dollar toggle, per-range performance chips, SPY comparison overlay. Start the next with ./ck start 61.
+- **In flight:** T0 baseline
+- **Next action:** T1 map every P/L render site
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 8/8 done
+## 4. Task ledger — 0/8 done
 
-- [x] T0  Baseline: v7.0 tree builds and 371 tests green before any edit  — baseline green before the feature
-- [x] T1  Design the scrub gesture so it cannot break vertical scrolling of the list it sits in  — detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
-- [x] T2  Implement: crosshair, nearest-point lookup, readout that does not shift the layout  — crosshair + dot, readout at fixed height, index-based scrub state
-- [x] T3  Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm  — mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
-- [x] T4  Test: rendered gesture tests + pure-function tests for the lookup  — ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
-- [x] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged  — 389/389 green, lint clean, checkinit ok - no regressions
-- [x] T6  Adversarial review of the feature, then fix what it finds  — 2 findings (H01 mid-drag cancellation, H02 per-frame date formatting), both fixed; H01's test verified by reverting the fix
-- [x] T7  Ship v7.1 (versionCode 58) + checkpoint  — v7.1 APK + checkpoint 60 delivered
+- [>] T0  Baseline: v7.1 tree, 390 tests green before any edit
+- [ ] T1  Map every place a P/L figure is rendered, so the toggle is complete rather than partial
+- [ ] T2  Model + persistence: a PlMode setting that survives a restart, in the backup, no DB migration
+- [ ] T3  UI: make the figures tappable to switch, and label so it is never ambiguous which is shown
+- [ ] T4  Tests: rendered tests proving BOTH modes on every affected surface
+- [ ] T5  REGRESSION: full suite + prove rows, summary, watchlist and detail are otherwise unchanged
+- [ ] T6  Adversarial review of the feature, then fix what it finds
+- [ ] T7  Only if all of the above is clean: ship v7.2 (versionCode 59) + checkpoint
 
-**All tasks are done.** Verify, ship the APK, and checkpoint.
+**Resume at T0** (Baseline: v7.1 tree, 390 tests green before any edit).
 
-## 5. Open findings — 0 still open, 2 fixed
+## 5. Open findings — 0 still open, 0 fixed
 
-- [x] H01 (high) BOTH the scrub state and the pointer handler are keyed on 'shown', which withLiveEdge rebuilds on EVERY quote tick while the market is open. So mid-gesture, every 15 seconds: remember(shown) hands back a fresh state (crosshair vanishes) and pointerInput(shown) cancels and restarts the handler (the drag is aborted outright). Scrubbing would break every 15s during exactly the hours TJ uses it.  — scrub state is remember{} with an explicit LaunchedEffect(symbol,range) reset; pointerInput(Unit) with rememberUpdatedState so a quote tick cannot cancel an in-flight drag. Regression test verified by reverting the fix.
-- [x] H02 (low) ChartReadout calls spansMoreThanADay(s) on every frame of a drag, and that formats two ISO dates through SimpleDateFormat. 120-240 date formats a second on the main thread to answer a question whose answer cannot change during a gesture.  — spansMoreThanADay hoisted into remember(s), off the per-frame path
+(none recorded yet)
 
 ## 6. Version
 
@@ -61,7 +60,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:49:38 UTC  T4 -> doing  tests
 - 2026-09-08 01:58:48 UTC  T4 -> done  ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
 - 2026-09-08 01:58:49 UTC  T5 -> doing  full regression
 - 2026-09-08 02:01:30 UTC  T5 -> done  389/389 green, lint clean, checkinit ok - no regressions
@@ -73,4 +71,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:10:32 UTC  T6 -> done  2 findings (H01 mid-drag cancellation, H02 per-frame date formatting), both fixed; H01's test verified by reverting the fix
 - 2026-09-08 02:13:12 UTC  T7 -> doing  shipping
 - 2026-09-08 02:13:22 UTC  T7 -> done  v7.1 APK + checkpoint 60 delivered
+- 2026-09-08 02:24:35 UTC  round 61 started
 
