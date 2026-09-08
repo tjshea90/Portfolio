@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 60,
   "request": "Add the approved new features ONE AT A TIME, shipping each on its own. Feature 1: chart scrubbing - drag across the chart to read the price and time at that point. Test and optimise before shipping; must not disturb anything else in the app.",
-  "updated": "2026-09-08 01:49:33 UTC",
+  "updated": "2026-09-08 01:49:36 UTC",
   "version": {
     "code": 57,
     "name": "7.0",
@@ -24,8 +24,8 @@
     {
       "id": "T1",
       "title": "Design the scrub gesture so it cannot break vertical scrolling of the list it sits in",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll"
     },
     {
       "id": "T2",
@@ -170,6 +170,7 @@
     "2026-09-08 01:27:41 UTC  T7 -> doing  shipping v7.0",
     "2026-09-08 01:27:53 UTC  T7 -> done  v7.0 APK + checkpoint 59 delivered",
     "2026-09-08 01:46:47 UTC  round 60 started",
-    "2026-09-08 01:49:33 UTC  T0 -> done  baseline green before the feature"
+    "2026-09-08 01:49:33 UTC  T0 -> done  baseline green before the feature",
+    "2026-09-08 01:49:36 UTC  T1 -> done  detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll"
   ]
 }

@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 01:49:33 UTC)
+# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 01:49:36 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,10 +34,10 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 1/8 done
+## 4. Task ledger — 2/8 done
 
 - [x] T0  Baseline: v7.0 tree builds and 371 tests green before any edit  — baseline green before the feature
-- [ ] T1  Design the scrub gesture so it cannot break vertical scrolling of the list it sits in
+- [x] T1  Design the scrub gesture so it cannot break vertical scrolling of the list it sits in  — detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
 - [ ] T2  Implement: crosshair, nearest-point lookup, readout that does not shift the layout
 - [ ] T3  Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm
 - [ ] T4  Test: rendered gesture tests + pure-function tests for the lookup
@@ -45,7 +45,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T6  Adversarial review of the feature, then fix what it finds
 - [ ] T7  Ship v7.1 (versionCode 58) + checkpoint
 
-**Resume at T1** (Design the scrub gesture so it cannot break vertical scrolling of the list it sits in).
+**Resume at T2** (Implement: crosshair, nearest-point lookup, readout that does not shift the layout).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -60,7 +60,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:15:07 UTC  G04 fixed: loadHoldings uses the same RetryClock
 - 2026-09-08 01:15:08 UTC  G05 fixed: refreshSparklines records failures in a RetryClock, so a transient failure still retries quickly but a dead symbol settles at one attempt per 5 minutes
 - 2026-09-08 01:15:08 UTC  G06 fixed: AdviceScreen action numbers use widthIn(min) instead of a fixed width
 - 2026-09-08 01:15:09 UTC  G07 fixed: FeedScreen trending rank uses widthIn(min) instead of a fixed width
@@ -72,4 +71,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:27:53 UTC  T7 -> done  v7.0 APK + checkpoint 59 delivered
 - 2026-09-08 01:46:47 UTC  round 60 started
 - 2026-09-08 01:49:33 UTC  T0 -> done  baseline green before the feature
+- 2026-09-08 01:49:36 UTC  T1 -> done  detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
 
