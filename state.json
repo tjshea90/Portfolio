@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 16:36:51 UTC",
+  "updated": "2026-09-08 16:36:52 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -498,8 +498,8 @@
       "id": "R10",
       "text": "And even when it does fire, the pass it triggers is gated off: setNewsVisible calls refreshFeed BEFORE assigning newsVisible = visible, and viewModelScope is Main.immediate, so feedDue is computed while the flag is still false. The pass that exists to fill the tab fetches nothing and then stamps _feedAt twice.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "newsVisible is assigned BEFORE the refresh it gates is kicked (viewModelScope is Main.immediate, so the body runs in place), and both transition edges are captured before the flag moves so the grace window still measures leaving"
     },
     {
       "id": "R11",
@@ -834,6 +834,7 @@
     "2026-09-08 16:36:48 UTC  R06 fixed: reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user",
     "2026-09-08 16:36:49 UTC  R07 fixed: PortfolioTheme publishes LocalDarkTheme and every theme-aware colour reads that instead of isSystemInDarkTheme(), so the seven tests that render the dark scheme now get dark-scheme text",
     "2026-09-08 16:36:50 UTC  R08 fixed: one palette per feature: the chart line, its legend dot, the readout and the chips all take signColor, and benchmarkColor covers the line, the dot, the readouts and the toggle. The sparkline moved with them - a hairline at 2.20:1 on white was faint as a line too.",
-    "2026-09-08 16:36:51 UTC  R09 fixed: stampFeedAtIfFetched - a gated pass that fetched nothing no longer claims to have refreshed, which also stops the header reading 'just now' over hours-old headlines"
+    "2026-09-08 16:36:51 UTC  R09 fixed: stampFeedAtIfFetched - a gated pass that fetched nothing no longer claims to have refreshed, which also stops the header reading 'just now' over hours-old headlines",
+    "2026-09-08 16:36:52 UTC  R10 fixed: newsVisible is assigned BEFORE the refresh it gates is kicked (viewModelScope is Main.immediate, so the body runs in place), and both transition edges are captured before the flag moves so the grace window still measures leaving"
   ]
 }
