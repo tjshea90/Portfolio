@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:01 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:28:04 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
-## 5. Open findings — 27 still open, 22 fixed
+## 5. Open findings — 26 still open, 23 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -75,7 +75,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F19 (low) RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as a failure and retries the identical request against the other Yahoo host, so each list's terminal page costs two requests instead of one.  — a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host
 - [x] F20 (low) RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as a fraction, copying the stock screener's rule for a DIFFERENT field name. Measured live: on ETF rows yieldTTM and dividendYield are both percentages (SPY 0.98). The code is right and its comment is wrong, which is how a later 'fix' introduces a 100x error.  — comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other
 - [x] N01 (high) The per-symbol quote fallback has no failure memory - RetryClock guards charts, sparklines, holdings and research, but not quotes. A symbol the batch endpoint never returns (a delisted ticker, a typo'd watchlist add, a foreign listing) is permanently 'missing', so the four-provider chain runs every tick forever: ~720-960 requests an hour, for one bad symbol, split across Yahoo, Finnhub and Stooq.  — MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds.
-- [ ] N02 (high) News.market() - seven RSS feeds - is pulled unconditionally inside refreshFeed, which runs on a three-minute timer whether or not a headline screen is visible. ~140 requests an hour spent while sitting on Portfolio, Activity, Advice, Settings or a stock. The newsDue flag that would gate it already exists and is computed 55 lines below, guarding only the per-symbol loop.
+- [x] N02 (high) News.market() - seven RSS feeds - is pulled unconditionally inside refreshFeed, which runs on a three-minute timer whether or not a headline screen is visible. ~140 requests an hour spent while sitting on Portfolio, Activity, Advice, Settings or a stock. The newsDue flag that would gate it already exists and is computed 55 lines below, guarding only the per-symbol loop.  — the seven market feeds are gated on the same newsDue rule the per-symbol loop uses, and setNewsVisible(true) kicks a pass when what is held is already past its interval - so the tab is no less fresh, it just stops fetching for a screen nobody is on.
 - [ ] N03 (high) Opening ONE stock sets newsVisible, which makes the three-minute feed pass sweep headlines for every held AND watched symbol - ~480 requests an hour, 23 of every 24 for a symbol not on screen. The open stock's own headlines do not even come from there; DetailScreen reads what loadNews(symbol) fetched.
 - [ ] N04 (med) The 1D chart and the row sparkline are the same Yahoo URL on the same five-minute TTL. Round 58 closed one direction (adoptAsSparkline) but refreshSparklines' due filter never consults _charts, so on the tick where both lapse together the same ~30KB body is fetched twice - about 12 duplicated requests an hour per open detail screen.
 - [ ] N05 (med) loadInsider's guard is 'we already hold filings for this symbol', which never becomes true for a symbol with no Form 4 in the 31-day window - the ordinary case. So every detail-screen open and every resume sends a fresh EDGAR listing request, and the daily-rolling datea parameter means the conditional-GET cache cannot answer it either.
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:08:51 UTC  finding U07: The portfolio summary's BigLine and PlainLine starve the same way: the weighted 
 - 2026-09-08 15:08:51 UTC  finding U08: The Research card's score is a bare integer in a coloured circle. Nothing on the
 - 2026-09-08 15:08:51 UTC  finding U09: The Research tab row is a fixed SecondaryTabRow: four tabs across 411dp is 102dp
 - 2026-09-08 15:08:51 UTC  finding U10: Three counts on the Research screen can disagree: the tab label prints rows.size
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:08:51 UTC  finding U16: FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit an
 - 2026-09-08 15:08:51 UTC  finding U17: A Research headline with a blank URL still renders a minTapTarget()-sized clicka
 - 2026-09-08 15:28:01 UTC  N01 fixed: MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds.
+- 2026-09-08 15:28:04 UTC  N02 fixed: the seven market feeds are gated on the same newsDue rule the per-symbol loop uses, and setNewsVisible(true) kicks a pass when what is held is already past its interval - so the tab is no less fresh, it just stops fetching for a screen nobody is on.
 

@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:28:01 UTC",
+  "updated": "2026-09-08 15:28:04 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -246,8 +246,8 @@
       "id": "N02",
       "text": "News.market() - seven RSS feeds - is pulled unconditionally inside refreshFeed, which runs on a three-minute timer whether or not a headline screen is visible. ~140 requests an hour spent while sitting on Portfolio, Activity, Advice, Settings or a stock. The newsDue flag that would gate it already exists and is computed 55 lines below, guarding only the per-symbol loop.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the seven market feeds are gated on the same newsDue rule the per-symbol loop uses, and setNewsVisible(true) kicks a pass when what is held is already past its interval - so the tab is no less fresh, it just stops fetching for a screen nobody is on."
     },
     {
       "id": "N03",
@@ -683,6 +683,7 @@
     "2026-09-08 15:08:51 UTC  finding U15: ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its h",
     "2026-09-08 15:08:51 UTC  finding U16: FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit an",
     "2026-09-08 15:08:51 UTC  finding U17: A Research headline with a blank URL still renders a minTapTarget()-sized clicka",
-    "2026-09-08 15:28:01 UTC  N01 fixed: MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds."
+    "2026-09-08 15:28:01 UTC  N01 fixed: MarketData now carries its own fallbackRetry (RetryClock) keyed by symbol; a pull-to-refresh clears it. A permanently unanswerable ticker costs one attempt every five minutes instead of four every fifteen seconds.",
+    "2026-09-08 15:28:04 UTC  N02 fixed: the seven market feeds are gated on the same newsDue rule the per-symbol loop uses, and setNewsVisible(true) kicks a pass when what is held is already past its interval - so the tab is no less fresh, it just stops fetching for a screen nobody is on."
   ]
 }
