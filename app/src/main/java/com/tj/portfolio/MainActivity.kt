@@ -74,6 +74,8 @@ import com.tj.portfolio.ui.ReaderScreen
 import com.tj.portfolio.ui.ReaderTarget
 import com.tj.portfolio.ui.SearchSheet
 import com.tj.portfolio.ui.SettingsScreen
+import com.tj.portfolio.ui.TabSlide
+import com.tj.portfolio.ui.swipeBetweenTabs
 import com.tj.portfolio.ui.WATCH_LIST
 import com.tj.portfolio.ui.WATCH_RESEARCH
 import com.tj.portfolio.ui.WatchTab
@@ -337,7 +339,28 @@ fun App() {
             BigTabBar(selected = tab, onSelect = { i -> goToTab(i) })
         }
     ) { pad ->
-        Box(Modifier.fillMaxSize().padding(pad)) {
+        // ---- SWIPE LEFT AND RIGHT TO CHANGE TABS (Round 63).
+        //
+        // The gesture is only live at the ROOT of a tab. With a stock's detail screen, the
+        // search sheet or the article reader on top, a horizontal swipe belongs to that layer
+        // - the chart scrubs, the reader pans - and yanking the layer away underneath would be
+        // the opposite of what the finger was doing. It routes through the SAME `goToTab` the
+        // bottom bar uses, so a swipe and a tap leave the app in identical states: same tab
+        // history for the back button, same persisted last tab, same cleared detail stack.
+        //
+        // See `SwipeTabs.kt` for why this is a gesture rather than a `HorizontalPager`.
+        val rootLayer = detail == null && !searching && reader == null
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(pad)
+                .swipeBetweenTabs(
+                    enabled = rootLayer,
+                    current = tab,
+                    tabCount = TABS.size,
+                    onSwitch = { i -> goToTab(i) }
+                )
+        ) {
             val open = detail
             val article = reader
             when {
@@ -389,32 +412,38 @@ fun App() {
                     }
                 )
 
-                else -> when (tab) {
-                    TAB_PORTFOLIO -> PortfolioScreen(
-                        vm, state,
-                        onOpen = { detail = it; detailToNews = false },
-                        onOpenNews = { detail = it; detailToNews = true },
-                        onSearch = { searching = true }
-                    )
+                // ONE TAB AT A TIME, still - `TabSlide` renders the outgoing screen for
+                // the length of the animation and then drops it, rather than keeping
+                // neighbours composed the way a pager would. `VisibleScope` therefore still
+                // describes exactly one screen. See `SwipeTabs.kt`.
+                else -> TabSlide(tab, Modifier.fillMaxSize()) { t ->
+                    when (t) {
+                        TAB_PORTFOLIO -> PortfolioScreen(
+                            vm, state,
+                            onOpen = { detail = it; detailToNews = false },
+                            onOpenNews = { detail = it; detailToNews = true },
+                            onSearch = { searching = true }
+                        )
 
-                    TAB_WATCHLIST -> WatchTab(
-                        vm, state,
-                        subTab = watchSubTab,
-                        onSubTab = { i -> watchSubTab = i; vm.setWatchSubTab(i) },
-                        onOpen = { detail = it; detailToNews = false },
-                        onOpenNews = { detail = it; detailToNews = true },
-                        onOpenUrl = { url, title -> openArticle(url, title) },
-                        onSearch = { searching = true }
-                    )
+                        TAB_WATCHLIST -> WatchTab(
+                            vm, state,
+                            subTab = watchSubTab,
+                            onSubTab = { i -> watchSubTab = i; vm.setWatchSubTab(i) },
+                            onOpen = { detail = it; detailToNews = false },
+                            onOpenNews = { detail = it; detailToNews = true },
+                            onOpenUrl = { url, title -> openArticle(url, title) },
+                            onSearch = { searching = true }
+                        )
 
-                    TAB_FEED -> FeedScreen(
-                        vm, state,
-                        onOpen = { detail = it; detailToNews = false },
-                        onOpenUrl = { url, title -> openArticle(url, title) }
-                    )
-                    TAB_ACTIVITY -> ActivityScreen(vm, state)
-                    TAB_ADVICE -> AdviceScreen(vm, state)
-                    else -> SettingsScreen(vm)
+                        TAB_FEED -> FeedScreen(
+                            vm, state,
+                            onOpen = { detail = it; detailToNews = false },
+                            onOpenUrl = { url, title -> openArticle(url, title) }
+                        )
+                        TAB_ACTIVITY -> ActivityScreen(vm, state)
+                        TAB_ADVICE -> AdviceScreen(vm, state)
+                        else -> SettingsScreen(vm)
+                    }
                 }
             }
         }
