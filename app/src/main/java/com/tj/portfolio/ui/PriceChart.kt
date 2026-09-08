@@ -354,6 +354,28 @@ fun PriceChart(
                     fontWeight = FontWeight.SemiBold,
                     color = muted
                 )
+                // ---- THE NUMBER THE OVERLAY EXISTS TO PRODUCE.
+                //
+                // Two percentages on one screen still leave the reader doing the subtraction,
+                // and "did it beat the market" is the entire question. Stated in percentage
+                // POINTS and labelled as such: 42.6% against 6.8% is 35.9 points of
+                // difference, not 35.9 percent, and the two are not the same quantity.
+                val spread = remember(cmp) {
+                    val a = cmp.lastOf(cmp.own)
+                    val b = cmp.lastOf(cmp.other)
+                    if (a == null || b == null) null else a - b
+                }
+                if (spread != null) {
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        (if (spread >= 0) "+" else "") +
+                            Fmt.pct(spread).removeSuffix("%") + " pts vs " + compareLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = signColor(spread),
+                        maxLines = 1
+                    )
+                }
             }
         }
 
@@ -827,14 +849,26 @@ private fun ChartCanvas(
         // crosshair below cannot end up reading different scales.
         fun value(i: Int): Double = cmp?.own?.get(i) ?: pts[i].close
 
-        // ---- the zero line, in comparison mode only. It is what both lines are measured
-        // from, so it replaces the dotted previous-close baseline rather than joining it.
+        // ---- THE ZERO LINE, in comparison mode only. It replaces the dotted previous-close
+        // baseline rather than joining it, and it is what both lines are measured from.
+        //
+        // DASHED, LIKE THAT BASELINE, AND NOT LIKE THE GRIDLINES. Drawn solid in the grid
+        // colour it was a third horizontal line among three, distinguishable only by being
+        // slightly darker - and on a chart where the stock is below the market the zero line
+        // lands near the top, right beside a real gridline, exactly where the difference
+        // matters most. A dash pattern is unmistakable at a glance and needs no colour.
         if (cmp != null && 0.0 in lo..hi) {
             val zy = y(0.0)
-            drawLine(
-                grid.copy(alpha = 0.85f), Offset(0f, zy), Offset(w, zy),
-                strokeWidth = baseStroke
-            )
+            val dash = 4.dp.toPx()
+            val gap = 4.dp.toPx()
+            var zx = 0f
+            while (zx < w) {
+                drawLine(
+                    Color.Gray.copy(alpha = 0.75f),
+                    Offset(zx, zy), Offset(minOf(zx + dash, w), zy), strokeWidth = baseStroke
+                )
+                zx += dash + gap
+            }
         }
 
         val path = Path().apply {
