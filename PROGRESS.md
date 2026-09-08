@@ -337,3 +337,4 @@ Tasks 9/12 done, findings 2/2 fixed
 2026-09-08 15:53:39 UTC  checkpoint 63  commit 5fed7d5  fix U14
 2026-09-08 15:53:40 UTC  checkpoint 63  commit 154b025  fix U15
 2026-09-08 15:53:41 UTC  checkpoint 63  commit 140118d  fix U16
+2026-09-08 15:53:42 UTC  checkpoint 63  commit 5f2f85c  fix U17
