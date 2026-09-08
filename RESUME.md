@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:06:15 UTC)
+# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:06:16 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T5: Fix every finding without introducing new ones
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -41,7 +41,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T2  UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode  — static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)
 - [x] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate  — efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left
 - [x] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory  — bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
-- [ ] T5  Fix every finding without introducing new ones
+- [>] T5  Fix every finding without introducing new ones  — fixing G01-G07
 - [ ] T6  Verify: full suite, checkinit, lint, second-pass review of every fix
 - [ ] T7  Ship v7.0 (versionCode 57) + checkpoint delivered
 
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:02:57 UTC  finding G02: ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever rea
 - 2026-09-08 01:04:25 UTC  finding G03: chartFetchedAt is written and NEVER read. A chart that cannot be fetched - a del
 - 2026-09-08 01:04:25 UTC  finding G04: Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fu
 - 2026-09-08 01:04:25 UTC  finding G05: REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the spa
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:05:42 UTC  T3 -> doing  code + efficiency
 - 2026-09-08 01:06:15 UTC  T3 -> done  efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left
 - 2026-09-08 01:06:15 UTC  T4 -> done  bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept
+- 2026-09-08 01:06:16 UTC  T5 -> doing  fixing G01-G07
 

@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 59,
   "request": "Check the shipped v6.9: thorough sweep for UI and code optimizations, verify the app truly sleeps in the background when not in use, and find and fix bugs.",
-  "updated": "2026-09-08 01:06:15 UTC",
+  "updated": "2026-09-08 01:06:16 UTC",
   "version": {
     "code": 56,
     "name": "6.9",
@@ -10,7 +10,7 @@
     "next_name": "7.0"
   },
   "now": {
-    "step": "",
+    "step": "T5: Fix every finding without introducing new ones",
     "next": "Then T1, the background audit",
     "files": []
   },
@@ -48,8 +48,8 @@
     {
       "id": "T5",
       "title": "Fix every finding without introducing new ones",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "fixing G01-G07"
     },
     {
       "id": "T6",
@@ -204,6 +204,7 @@
     "2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)",
     "2026-09-08 01:05:42 UTC  T3 -> doing  code + efficiency",
     "2026-09-08 01:06:15 UTC  T3 -> done  efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left",
-    "2026-09-08 01:06:15 UTC  T4 -> done  bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept"
+    "2026-09-08 01:06:15 UTC  T4 -> done  bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept",
+    "2026-09-08 01:06:16 UTC  T5 -> doing  fixing G01-G07"
   ]
 }
