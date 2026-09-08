@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:53:36 UTC",
+  "updated": "2026-09-08 15:53:37 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -393,8 +393,8 @@
       "id": "U12",
       "text": "On first launch, before dataMissing or recoverable has resolved, the Portfolio screen renders the full 'No holdings yet - import Ally screenshots' copy under a 2dp progress bar. The file's own comment calls that the worst possible answer for the data-loss case; the loading case reaches it through a different door.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "a third branch: while the ledger is still loading the screen says so instead of showing the 'No holdings yet' copy"
     },
     {
       "id": "U13",
@@ -705,6 +705,7 @@
     "2026-09-08 15:53:34 UTC  U08 fixed: the score circle carries a SCORE cap-label and a contentDescription reading 'Score N out of 100'",
     "2026-09-08 15:53:35 UTC  U09 fixed: the Research tab row is now SecondaryScrollableTabRow, like the detail screen's",
     "2026-09-08 15:53:36 UTC  U10 fixed: the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw",
-    "2026-09-08 15:53:36 UTC  U11 fixed: renamed to 'Share of your stocks' - the denominator is market value, not total equity"
+    "2026-09-08 15:53:36 UTC  U11 fixed: renamed to 'Share of your stocks' - the denominator is market value, not total equity",
+    "2026-09-08 15:53:37 UTC  U12 fixed: a third branch: while the ledger is still loading the screen says so instead of showing the 'No holdings yet' copy"
   ]
 }
