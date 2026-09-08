@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:30 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:31 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
-## 5. Open findings — 15 still open, 34 fixed
+## 5. Open findings — 14 still open, 35 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -87,7 +87,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] N11 (low) fillResearchPrices fetches up to 20 quotes one symbol at a time through MarketData.quote, bypassing the batched endpoint that would do it in one request - and calls finnhubKey(), a SQLite read, inside each async.  — fillResearchPrices uses the batched MarketData.quotes and reads the Finnhub key once
 - [x] U01 (high) StockRow's money cells are three weight(1f) columns, ~118dp each on a 411dp phone. A six-figure holding at font scale 1.5, or a five-figure one at 2.0, ellipsizes to '$123,45...' - which is still a well-formed dollar amount and reads at a glance as either $123 thousand or $123 hundred. Nothing else on the row carries the magnitude.  — money figures now shrink to fit rather than truncate - a new AutoFitNumber steps the type down to a floor and only ellipsises below it, so a six-figure holding at 2x reads in full instead of as '$123,45...'
 - [x] U02 (high) The sub-figure under each money cell has maxLines = 1 and NO overflow parameter, so it defaults to Clip. In percent-first P/L mode that is the dollar figure: '+$12,345.67' becomes '+$12,345.' with no ellipsis and nothing saying anything was removed. The two Texts directly above it both pass Ellipsis; this one was missed.  — same widget on the sub-figure, which had no overflow parameter at all and was clipping silently
-- [ ] U03 (high) KeyValue lays out label then value as two UNWEIGHTED children of a Row. Compose measures them in order, so a label long enough to wrap takes the full width and the value is measured at maxWidth = 0 and disappears entirely. Neither Text sets maxLines. Worst case is the portfolio summary card - 'Gain on stocks you still own' plus its figure has 13dp of headroom at scale 1.0, so it breaks at 1.15x, the first slider step above default.
+- [x] U03 (high) KeyValue lays out label then value as two UNWEIGHTED children of a Row. Compose measures them in order, so a label long enough to wrap takes the full width and the value is measured at maxWidth = 0 and disappears entirely. Neither Text sets maxLines. Worst case is the portfolio summary card - 'Gain on stocks you still own' plus its figure has 13dp of headroom at scale 1.0, so it breaks at 1.15x, the first slider step above default.  — KeyValue weights the LABEL, so the value is the unweighted child measured first at full constraints and can never be starved to zero; the label wraps to two lines then ellipsises. Verified by screenshot at 2x.
 - [ ] U04 (med) The bottom tab bar has a hard-coded 74dp height and its labels are unbounded sp. At font scale ~1.45 'Portfolio', 'Activity' and 'Settings' wrap to two lines against a 23dp label budget and paint outside the bar, pushing the icons. It is the one chrome element visible on every screen.
 - [ ] U05 (med) Green #16C784 on the light theme's white background is 2.20:1 - WCAG AA for 15sp bold needs 4.5:1. Red is 3.69:1. In dark they are 8.6:1 and 5.1:1, so the palette was tuned there and never re-checked against light. Worst instance: 'you own this' in green at 10sp on white. This is a contrast problem, not a colour-only-meaning one - the app is disciplined about always printing a sign.
 - [ ] U06 (med) The Research header Row measures four unweighted children in sequence, so at large font scales the Rebuild button - measured last - is squeezed under 48dp from ~1.75x and to zero width at 2.0x. It is the only non-gesture way to rebuild the list being viewed.
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:28:05 UTC  N03 fixed: newsVisible and newsSymbol are now two signals: the Feed tab asks for every followed symbol because that is the list it draws, a detail screen asks for its own one. Opening a stock went from ~480 requests an hour to ~20.
 - 2026-09-08 15:28:06 UTC  N04 fixed: refreshSparklines skips any symbol whose cached 1D chart is regular-session and inside its TTL - exactly the condition adoptAsSparkline requires - so the shared URL is never fetched twice in one window.
 - 2026-09-08 15:28:07 UTC  N05 fixed: insiderAt records that an EDGAR pass COMPLETED rather than that it found something, on a 30-minute TTL matching Form 4's own legal lag; a failed pass still never stamps it
 - 2026-09-08 15:28:07 UTC  N06 fixed: the feed's market pass hoists holdingNames and Relevance.Subject out of the per-headline loop, pre-squashes each headline once, and runs on Dispatchers.Default instead of the main thread
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:28:19 UTC  T9 -> doing  sweep 2: UI half
 - 2026-09-08 15:53:29 UTC  U01 fixed: money figures now shrink to fit rather than truncate - a new AutoFitNumber steps the type down to a floor and only ellipsises below it, so a six-figure holding at 2x reads in full instead of as '$123,45...'
 - 2026-09-08 15:53:30 UTC  U02 fixed: same widget on the sub-figure, which had no overflow parameter at all and was clipping silently
+- 2026-09-08 15:53:31 UTC  U03 fixed: KeyValue weights the LABEL, so the value is the unweighted child measured first at full constraints and can never be starved to zero; the label wraps to two lines then ellipsises. Verified by screenshot at 2x.
 
