@@ -104,8 +104,8 @@
       "id": "G06",
       "text": "AdviceScreen numbers each suggested action in a FIXED 22dp-wide Text. Compose's default overflow is Clip, so from ten actions up - or at a large font scale with fewer - the number is silently cut off. This is the v1.6 clipping trap the project has a standing rule about, recurring in a new place.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "AdviceScreen action numbers use widthIn(min) instead of a fixed width"
     },
     {
       "id": "G07",
@@ -210,6 +210,7 @@
     "2026-09-08 01:15:06 UTC  G02 fixed: util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries.",
     "2026-09-08 01:15:07 UTC  G03 fixed: chart fetches go through a RetryClock; a failure backs off 30s/1m/2m/4m/5m instead of retrying every 15s",
     "2026-09-08 01:15:07 UTC  G04 fixed: loadHoldings uses the same RetryClock",
-    "2026-09-08 01:15:08 UTC  G05 fixed: refreshSparklines records failures in a RetryClock, so a transient failure still retries quickly but a dead symbol settles at one attempt per 5 minutes"
+    "2026-09-08 01:15:08 UTC  G05 fixed: refreshSparklines records failures in a RetryClock, so a transient failure still retries quickly but a dead symbol settles at one attempt per 5 minutes",
+    "2026-09-08 01:15:08 UTC  G06 fixed: AdviceScreen action numbers use widthIn(min) instead of a fixed width"
   ]
 }
