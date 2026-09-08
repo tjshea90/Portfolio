@@ -116,7 +116,19 @@ fun PriceChart(
      * cannot honestly share an axis. See [comparePercents].
      */
     compare: ChartSeries? = null,
-    compareLabel: String = BENCHMARK_SYMBOL
+    compareLabel: String = BENCHMARK_SYMBOL,
+    /**
+     * The benchmark's own live price, on the same terms as [livePrice].
+     *
+     * NEEDED, not a nicety. On an intraday chart the stock's right-hand tip is replaced with
+     * its live quote so the line agrees with the big price above it - and if the benchmark's
+     * tip were left as its last five-minute candle, the two ends being compared would be up
+     * to five minutes apart. The gap between them is the entire number this feature exists to
+     * show, so measuring it between two different moments would be wrong in exactly the place
+     * it matters most. Zero when the app holds no quote for the benchmark, which simply
+     * leaves its line ending on its last candle.
+     */
+    compareLivePrice: Double = 0.0
 ) {
     val muted = MaterialTheme.colorScheme.onSurfaceVariant
     val shown = remember(series, livePrice, liveEdge) {
@@ -158,8 +170,9 @@ fun PriceChart(
         // against or the two disagree at the right-hand edge. Both arrays are null whenever
         // the comparison cannot be made honestly, and every reader below treats null as
         // "draw the ordinary price chart", so there is no half-comparison state.
-        val cmp = remember(shown, compare) {
-            val other = comparePercents(shown, compare)
+        val cmp = remember(shown, compare, compareLivePrice, liveEdge) {
+            val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
+            val other = comparePercents(shown, benchmark)
             val own = if (other == null) null else primaryPercents(shown)
             if (other == null || own == null) null else ComparePair(own, other)
         }

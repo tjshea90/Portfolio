@@ -209,6 +209,7 @@ fun DetailScreen(
 
     var chartRange by remember { mutableStateOf(vm.chartRange()) }
     val chartMap by vm.charts.collectAsState()
+    val quotesMap by vm.quotes.collectAsState()
     val chartLoadingSet by vm.chartLoading.collectAsState()
     val chartKey = vm.chartKey(symbol, chartRange)
     val chart = chartMap[chartKey]
@@ -254,6 +255,10 @@ fun DetailScreen(
     var compareOn by remember { mutableStateOf(vm.chartCompare()) }
     val compareKey = vm.chartKey(BENCHMARK_SYMBOL, chartRange)
     val compareSeries = if (compareOn && !isBenchmark) chartMap[compareKey] else null
+    // The benchmark's own live price, when the app happens to hold a quote for it - it does
+    // whenever SPY is held or watched, and after any research pass that touched it. See the
+    // note on `PriceChart.compareLivePrice` for why the two tips have to be the same moment.
+    val benchmarkQuote = if (compareSeries == null) null else quotesMap[BENCHMARK_SYMBOL]
 
 
     // The "News" chip on a holding row used to open this screen and then try to SCROLL to
@@ -539,6 +544,7 @@ fun DetailScreen(
                     },
                     onChartZoom = onChartZoom,
                     compare = compareSeries,
+                    compareLive = liveEdgePrice(benchmarkQuote, chartRange),
                     compareOn = compareOn && !isBenchmark,
                     compareOffered = !isBenchmark,
                     compareLoading = chartLoadingSet.contains(compareKey),
@@ -678,6 +684,8 @@ private fun OverviewTab(
     onChartZoom: (Int) -> Unit,
     /** The benchmark series for this range, or null when the overlay is off or unloaded. */
     compare: com.tj.portfolio.data.ChartSeries?,
+    /** The benchmark's live price, so both lines end at the same instant. */
+    compareLive: Double,
     compareOn: Boolean,
     /** False on the benchmark's own screen, where the toggle would draw two flat lines. */
     compareOffered: Boolean,
@@ -774,7 +782,8 @@ private fun OverviewTab(
                     liveEdge = liveEdgePrice(q, chartRange) > 0.0,
                     onZoom = onChartZoom,
                     compare = compare,
-                    compareLabel = BENCHMARK_SYMBOL
+                    compareLabel = BENCHMARK_SYMBOL,
+                    compareLivePrice = compareLive
                 )
                 Spacer(Modifier.height(14.dp))
             }
