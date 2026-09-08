@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:32:05 UTC)
+# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:34:26 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,18 +27,18 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T2: Pure model: a total function for what each chip shows
+- **In flight:** (nothing in flight)
 - **Next action:** Round 62 open: per-range performance chips. Work the ladder T0->T8.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 2/9 done
+## 4. Task ledger — 3/9 done
 
 - [x] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  — 416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
 - [x] T1  Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests  — chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
-- [>] T2  Pure model: a total function for what each chip shows  — rangePct
+- [x] T2  Pure model: a total function for what each chip shows  — rangePct + rangeFigure: total, no allocation, negative zero normalised
 - [ ] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription
 - [ ] T4  Wire DetailScreen: per-range live edge, loading state, no extra fetches
 - [ ] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T7  Adversarial review of the feature, then fix what it finds
 - [ ] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint
 
-**Resume at T2** (Pure model: a total function for what each chip shows).
+**Resume at T3** (RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:36:51 UTC  T6 -> doing  adversarial review
 - 2026-09-08 02:37:23 UTC  finding I01: BigLine's parameters are still named 'money' and 'pct', but they now receive plL
 - 2026-09-08 02:37:23 UTC  finding I02: The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. A
 - 2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:32:04 UTC  T0 -> done  416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
 - 2026-09-08 04:32:05 UTC  T1 -> done  chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
 - 2026-09-08 04:32:05 UTC  T2 -> doing  rangePct
+- 2026-09-08 04:34:26 UTC  T2 -> done  rangePct + rangeFigure: total, no allocation, negative zero normalised
 

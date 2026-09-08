@@ -208,6 +208,34 @@ fun DetailScreen(
     val chart = chartMap[chartKey]
     val chartLoading = chartLoadingSet.contains(chartKey)
 
+    // ---- WHAT EACH RANGE DID, for the figures on the range chips (Round 62).
+    //
+    // Built HERE rather than inside `RangeChips`, because this is the only place that holds
+    // all three things the answer needs: the cached series for every range, the quote, and
+    // `liveEdgePrice`'s per-range rule for which live price belongs to which window. The chip
+    // for the selected range therefore prints exactly what the readout under the chart prints
+    // - see `rangePct`.
+    //
+    // COSTS NOTHING ON THE WIRE. `loadChart` already reads every cached range for a symbol
+    // off disk in one query, so these are ranges the app is holding anyway; a window that has
+    // never been fetched simply has no figure, and no request is made to give it one.
+    //
+    // Keyed on the chart map and the quote: the quote moves four times a minute and the live
+    // edge moves with it, so the intraday chips stay honest, and eight map lookups is a great
+    // deal cheaper than the allocation `withLiveEdge` would do per chip per tick.
+    val chartPerf = remember(chartMap, row?.quote, symbol) {
+        val out = HashMap<com.tj.portfolio.data.ChartRange, Double>(16)
+        com.tj.portfolio.data.ChartRange.entries.forEach { r ->
+            val live = liveEdgePrice(row?.quote, r)
+            rangePct(chartMap[vm.chartKey(symbol, r)], live, live > 0.0)?.let { out[r] = it }
+        }
+        out
+    }
+    val chartLoadingRanges = remember(chartLoadingSet, symbol) {
+        com.tj.portfolio.data.ChartRange.entries
+            .filterTo(HashSet()) { chartLoadingSet.contains(vm.chartKey(symbol, it)) }
+    }
+
     // The "News" chip on a holding row used to open this screen and then try to SCROLL to
     // the news section, which was fragile arithmetic over a list whose length changed as
     // headlines arrived. With tabs it just opens the right tab.
@@ -415,6 +443,8 @@ fun DetailScreen(
                     chart = chart,
                     chartRange = chartRange,
                     chartLoading = chartLoading,
+                    chartPerf = chartPerf,
+                    chartLoadingRanges = chartLoadingRanges,
                     onChartRange = { r ->
                         chartRange = r
                         vm.setChartRange(r)
@@ -541,6 +571,10 @@ private fun OverviewTab(
     chart: com.tj.portfolio.data.ChartSeries?,
     chartRange: com.tj.portfolio.data.ChartRange,
     chartLoading: Boolean,
+    /** What each window did, for the figures on the range chips. See `rangePct`. */
+    chartPerf: Map<com.tj.portfolio.data.ChartRange, Double>,
+    /** Ranges with a fetch in flight, so a blank chip can say which kind of blank it is. */
+    chartLoadingRanges: Set<com.tj.portfolio.data.ChartRange>,
     onChartRange: (com.tj.portfolio.data.ChartRange) -> Unit,
     onInfo: (String) -> Unit,
     onEditPosition: () -> Unit,
@@ -601,7 +635,12 @@ private fun OverviewTab(
                 // This was a bare 130dp `Sparkline` of `q.spark` - one fixed day, at five
                 // minutes, with nothing anywhere on screen saying so. TJ: "I cannot see how
                 // long the chart is tracking."
-                RangeChips(selected = chartRange, onSelect = onChartRange)
+                RangeChips(
+                    selected = chartRange,
+                    onSelect = onChartRange,
+                    perf = chartPerf,
+                    loading = chartLoadingRanges
+                )
                 Spacer(Modifier.height(10.dp))
                 PriceChart(
                     series = chart,
