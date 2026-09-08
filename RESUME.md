@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:27:34 UTC)
+# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:32:04 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,16 +27,16 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T0: Baseline: v7.2 tree builds and 411 tests green before any edit
+- **In flight:** (nothing in flight)
 - **Next action:** Round 62 open: per-range performance chips. Work the ladder T0->T8.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 0/9 done
+## 4. Task ledger — 1/9 done
 
-- [>] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  — baseline build + suite
+- [x] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  — 416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
 - [ ] T1  Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests
 - [ ] T2  Pure model: a total function for what each chip shows
 - [ ] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T7  Adversarial review of the feature, then fix what it finds
 - [ ] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint
 
-**Resume at T0** (Baseline: v7.2 tree builds and 411 tests green before any edit).
+**Resume at T1** (Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:34:52 UTC  T4 -> done  PlModeTest (8 pure) + PlModeUiTest (7 rendered/persistence incl. backup)
 - 2026-09-08 02:34:52 UTC  T5 -> doing  full regression
 - 2026-09-08 02:36:50 UTC  T5 -> done  405/405 green, lint clean, checkinit ok
 - 2026-09-08 02:36:51 UTC  T6 -> doing  adversarial review
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2
 - 2026-09-08 04:27:06 UTC  round 62 started
 - 2026-09-08 04:27:34 UTC  T0 -> doing  baseline build + suite
+- 2026-09-08 04:32:04 UTC  T0 -> done  416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
 
