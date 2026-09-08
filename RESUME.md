@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:38:20 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:38:21 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 7 still open, 11 fixed
+## 5. Open findings — 6 still open, 12 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -61,7 +61,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] F09 (low) Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gutters
 - [x] G01 (high) y-axis label unit chosen from cmp but value from cmpInside: a zoomed comparison chart could print a dollar price with a percent sign
 - [x] G02 (high) Canvas scaled to the padded series while the corner labels read the strict one: on every zoomed chart the top label named a price the line never reaches
-- [ ] G03 (high) Wall-clock lookback coarsens the 1D chart every weekend: at noon Saturday the first pinch swapped 5-minute candles for 30-minute ones
+- [x] G03 (high) Wall-clock lookback coarsens the 1D chart every weekend: at noon Saturday the first pinch swapped 5-minute candles for 30-minute ones
 - [ ] G04 (high) Optimistic 40-year bounds made isWhole never true (stuck Reset chip), made Reset select 40 years, and let a two-finger drag on an unzoomed chart pan into pre-history
 - [ ] G05 (med) isWhole at 0.92 discarded genuine small zooms, which the re-anchor effect then silently reset
 - [ ] G06 (low) Caption point count came from the padded drawing list
@@ -78,7 +78,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 22:15:37 UTC  T7 -> doing  sweep 2: verify sweep 1's fixes + T1/T3 + app-wide
 - 2026-09-08 22:38:19 UTC  finding G01: y-axis label unit chosen from cmp but value from cmpInside: a zoomed comparison 
 - 2026-09-08 22:38:19 UTC  finding G02: Canvas scaled to the padded series while the corner labels read the strict one: 
 - 2026-09-08 22:38:19 UTC  finding G03: Wall-clock lookback coarsens the 1D chart every weekend: at noon Saturday the fi
@@ -90,4 +89,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 22:38:19 UTC  finding G09: Re-anchoring the window did not re-evaluate which range should draw it
 - 2026-09-08 22:38:19 UTC  G01 fixed
 - 2026-09-08 22:38:20 UTC  G02 fixed
+- 2026-09-08 22:38:21 UTC  G03 fixed
 
