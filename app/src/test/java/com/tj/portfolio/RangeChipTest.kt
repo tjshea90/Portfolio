@@ -59,14 +59,18 @@ class RangeChipTest {
         // Cannot happen from the parser, which drops non-positive closes - but a corrupt
         // cache row decodes to whatever it decodes to, and this runs on a button.
         assertNull(rangePct(series(closes = listOf(0.0, 0.0)), 0.0, false))
-        assertNull(rangePct(series(closes = listOf(100.0, 110.0), baseline = -1.0)
-            .copy(points = emptyList()), 0.0, false))
+        assertNull(rangePct(series(closes = listOf(-2.0, -1.0)), 0.0, false))
     }
 
     @Test
     fun `non-finite numbers never reach the chip`() {
+        // A corrupt baseline is not a corrupt window: `ChartSeries.from` falls back to the
+        // first point when the baseline is not a usable number, and the chip follows the
+        // chart there rather than inventing a second rule.
         val nanBase = series(closes = listOf(100.0, 110.0), baseline = Double.NaN)
-        assertNull(rangePct(nanBase, 0.0, false))
+        assertEquals(
+            withLiveEdge(nanBase, 0.0, false)!!.changePct, rangePct(nanBase, 0.0, false)!!, 1e-12
+        )
         val infEnd = series(closes = listOf(100.0, Double.POSITIVE_INFINITY))
         assertNull(rangePct(infEnd, 0.0, false))
         val tiny = series(closes = listOf(Double.MIN_VALUE, 1.0e308))
@@ -80,6 +84,20 @@ class RangeChipTest {
         assertEquals(1.0, rangePct(s, 0.0, true)!!, 1e-9)
         assertEquals(1.0, rangePct(s, -5.0, true)!!, 1e-9)
         assertEquals(1.0, rangePct(s, Double.NaN, true)!!, 1e-9)
+    }
+
+    /**
+     * ...and the chart refuses it the same way. This is the one place the two functions used
+     * to differ: `livePrice <= 0.0` is FALSE for NaN, so a NaN price was painted as the last
+     * point of the line while the chip ignored it. Round 62 made both tests `> 0.0`.
+     */
+    @Test
+    fun `a nonsense live price is refused by the chart and the chip alike`() {
+        val s = series(ChartRange.D1, listOf(100.0, 101.0), baseline = 100.0)
+        listOf(Double.NaN, Double.NEGATIVE_INFINITY, 0.0, -3.0).forEach { bad ->
+            assertEquals("live=$bad", 101.0, withLiveEdge(s, bad, true)!!.points.last().close, 1e-9)
+            assertEquals("live=$bad", 1.0, rangePct(s, bad, true)!!, 1e-9)
+        }
     }
 
     // ------------------------------------------------------------------ the maths
@@ -178,6 +196,6 @@ class RangeChipTest {
      */
     @Test
     fun `a range with nothing held still reserves its line`() {
-        assertEquals(" ", rangeFigure(null, loading = false))
+        assertEquals("\u00A0", rangeFigure(null, loading = false))
     }
 }

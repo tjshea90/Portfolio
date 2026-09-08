@@ -16,6 +16,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import com.tj.portfolio.data.ChartPoint
 import com.tj.portfolio.data.ChartRange
@@ -158,7 +159,10 @@ class ChartUiTest {
             }
         }
         ChartRange.entries.forEach { r ->
-            rule.onNodeWithText(r.label).performClick()
+            // SCROLLED TO FIRST (Round 62). The chips carry a figure now, so eight of them
+            // are wider than the phone and the last ones start off-screen - which is what
+            // the horizontal scroll is for, and what a finger would do.
+            rule.onNodeWithText(r.label).performScrollTo().performClick()
             rule.waitForIdle()
             assertEquals(r, range)
             rule.onNodeWithText(r.caption, substring = true).assertExists()
