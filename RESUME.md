@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 02:13:12 UTC)
+# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 02:13:22 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,7 +34,7 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 7/8 done
+## 4. Task ledger — 8/8 done
 
 - [x] T0  Baseline: v7.0 tree builds and 371 tests green before any edit  — baseline green before the feature
 - [x] T1  Design the scrub gesture so it cannot break vertical scrolling of the list it sits in  — detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
@@ -43,9 +43,9 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T4  Test: rendered gesture tests + pure-function tests for the lookup  — ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
 - [x] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged  — 389/389 green, lint clean, checkinit ok - no regressions
 - [x] T6  Adversarial review of the feature, then fix what it finds  — 2 findings (H01 mid-drag cancellation, H02 per-frame date formatting), both fixed; H01's test verified by reverting the fix
-- [>] T7  Ship v7.1 (versionCode 58) + checkpoint  — shipping
+- [x] T7  Ship v7.1 (versionCode 58) + checkpoint  — v7.1 APK + checkpoint 60 delivered
 
-**Resume at T7** (Ship v7.1 (versionCode 58) + checkpoint).
+**All tasks are done.** Verify, ship the APK, and checkpoint.
 
 ## 5. Open findings — 0 still open, 2 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 - 2026-09-08 01:49:38 UTC  T4 -> doing  tests
 - 2026-09-08 01:58:48 UTC  T4 -> done  ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
 - 2026-09-08 01:58:49 UTC  T5 -> doing  full regression
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:08:32 UTC  H02 fixed: spansMoreThanADay hoisted into remember(s), off the per-frame path
 - 2026-09-08 02:10:32 UTC  T6 -> done  2 findings (H01 mid-drag cancellation, H02 per-frame date formatting), both fixed; H01's test verified by reverting the fix
 - 2026-09-08 02:13:12 UTC  T7 -> doing  shipping
+- 2026-09-08 02:13:22 UTC  T7 -> done  v7.1 APK + checkpoint 60 delivered
 
