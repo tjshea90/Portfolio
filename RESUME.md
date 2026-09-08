@@ -34,19 +34,19 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 3/9 done
+## 4. Task ledger — 4/9 done
 
 - [x] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  — 416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
 - [x] T1  Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests  — chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
 - [x] T2  Pure model: a total function for what each chip shows  — rangePct + rangeFigure: total, no allocation, negative zero normalised
-- [ ] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription
+- [x] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription  — two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
 - [ ] T4  Wire DetailScreen: per-range live edge, loading state, no extra fetches
 - [ ] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof
 - [ ] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged
 - [ ] T7  Adversarial review of the feature, then fix what it finds
 - [ ] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint
 
-**Resume at T3** (RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription).
+**Resume at T4** (Wire DetailScreen: per-range live edge, loading state, no extra fetches).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:37:23 UTC  finding I01: BigLine's parameters are still named 'money' and 'pct', but they now receive plL
 - 2026-09-08 02:37:23 UTC  finding I02: The mode hint reads 'Showing dollars, then percent - tap a line to swap them'. A
 - 2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
 - 2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:32:05 UTC  T1 -> done  chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
 - 2026-09-08 04:32:05 UTC  T2 -> doing  rangePct
 - 2026-09-08 04:34:26 UTC  T2 -> done  rangePct + rangeFigure: total, no allocation, negative zero normalised
+- 2026-09-08 04:34:26 UTC  T3 -> done  two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
 
