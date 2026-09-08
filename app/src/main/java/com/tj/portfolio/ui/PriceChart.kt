@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.tj.portfolio.data.ChartPoint
 import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.ChartSeries
+import com.tj.portfolio.data.ChartWindow
 import com.tj.portfolio.util.Fmt
 
 /**
@@ -109,6 +110,22 @@ fun PriceChart(
      */
     onZoom: ((Int) -> Unit)? = null,
     /**
+     * THE CONTINUOUS ZOOM (Round 64).
+     *
+     * [window] is the stretch of time on screen and [onWindow] is how the chart reports a
+     * pinch or a pan back. Together they replace [onZoom]'s rung-stepping: the window scales
+     * by whatever factor the fingers moved, and the CALLER decides - from the span - which
+     * series to fetch behind it. Null leaves the chart exactly as it was, drawing the whole
+     * series, which is what every caller that has no range selector wants.
+     *
+     * [windowBounds] is how far a zoom may go, built from every series the app holds for this
+     * symbol so pinching out past the end of a one-month chart continues into the five-year
+     * one instead of stopping at a boundary the user cannot see.
+     */
+    window: ChartWindow? = null,
+    windowBounds: ChartWindow? = null,
+    onWindow: ((ChartWindow) -> Unit)? = null,
+    /**
      * The benchmark series to draw against this one, or null for the ordinary price chart.
      *
      * When this is present the chart switches to PERCENTAGE mode - both lines measured from
@@ -150,10 +167,55 @@ fun PriceChart(
     // The state and the handler are now declared once, above the branch, and the placeholder
     // carries the same surface - so a pinch continues across a window that has not arrived
     // yet, which is the whole point of a continuous zoom.
+    // ---- WHAT IS ACTUALLY ON SCREEN, AND WHAT THE X-AXIS IS (Round 64).
+    //
+    // `shown` is the whole fetched series; `drawnAll` is the part inside the zoom window plus
+    // one point past each edge so the line reaches both sides (see [clipToWindow]).
+    // `axisWindow` is what x is scaled to - the WINDOW, not the clipped points' own extent, or
+    // those edge points would stretch the scale and the zoom would not line up with the
+    // fingers that placed it.
+    //
+    // With no window both are the identity: `clipToWindow` returns the series unchanged and
+    // the axis is its own span, so an unzoomed chart is the one that shipped in v7.4.
+    //
+    // The percentages come out right on their own, which is worth stating because it looks
+    // like luck: `ChartSeries.from` is the baseline when there is one and the first point
+    // otherwise - so a zoomed 1D line still measures from yesterday's close, and a zoomed
+    // six-month line measures from the first point ON SCREEN, which is what a reader of a
+    // zoomed chart means by "over this window".
+    //
+    // ABOVE THE EMPTY-STATE BRANCH, like the gesture state below it and for the same reason:
+    // the pinch handler reads both, and a pinch has to survive a window whose series has not
+    // been fetched yet.
+    val drawnAll = remember(shown, window) { clipToWindow(shown, window) }
+    val axisWindow = remember(drawnAll, window) {
+        window ?: drawnAll?.let { ChartWindow(it.startMs, it.endMs) }
+    }
+
     val scrub = remember { mutableIntStateOf(NO_SCRUB) }
-    val liveSeries = rememberUpdatedState(shown)
+    // THE DRAWN SERIES, NOT THE WHOLE ONE. `scrub` is an index into whatever the canvas
+    // drew, and on a zoomed chart that is the clipped list - indexing the full series would
+    // put the crosshair on a point that is not on screen.
+    val liveSeries = rememberUpdatedState(drawnAll)
+    val liveAxis = rememberUpdatedState(axisWindow)
     val liveZoom = rememberUpdatedState(onZoom)
+    val liveOnWindow = rememberUpdatedState(onWindow)
+    val liveWindow = rememberUpdatedState(window)
+    val liveBounds = rememberUpdatedState(windowBounds)
     var zooming by remember { mutableStateOf(false) }
+    var zoomSpan by remember { mutableStateOf(0L) }
+
+    // ---- THE WINDOW THE FINGERS ARE WORKING FROM, HELD OUTSIDE COMPOSITION.
+    //
+    // A pinch produces several pointer frames per recomposition. Reading `window` back on
+    // every frame would therefore apply each frame's factor to the SAME stale window and
+    // throw most of the gesture away - the zoom would move in visible jerks, which is the
+    // exact complaint this round exists to fix. The gesture keeps its own running window
+    // here, seeded when the pinch begins, and the hoisted state is told about each result.
+    //
+    // A plain holder rather than `mutableStateOf`: writing Compose state from a pointer
+    // handler would schedule a recomposition per frame for a value composition never reads.
+    val held = remember { WindowHold() }
 
     // A different symbol or a different range is a different chart, so the old position means
     // nothing. New DATA for the same chart is not - that is just the line moving under a
@@ -182,7 +244,7 @@ fun PriceChart(
                     val pts = liveSeries.value?.points.orEmpty()
                     val w = size.width.toFloat()
                     if (pts.size >= 2 && w > 0f) {
-                        scrub.intValue = nearestIndex(pts, x / w)
+                        scrub.intValue = nearestIndex(pts, x / w, liveAxis.value)
                     }
                 },
                 clearPoint = { scrub.intValue = NO_SCRUB },
@@ -195,7 +257,54 @@ fun PriceChart(
                 // 380ms settle silently stopped applying and a four-rung spread fired four
                 // chart fetches, which is the exact traffic the settle exists to remove.
                 zoom = { liveZoom.value },
-                onZoomActive = { active -> zooming = active }
+                // ---- THE CONTINUOUS ZOOM AND PAN (Round 64).
+                //
+                // Providers, for the same reason `zoom` is one: `pointerInput(Unit)` runs its
+                // block once for the life of the node, so a captured lambda would be pinned to
+                // whatever the callbacks were on first composition and would go on writing
+                // into a previous screen's state when the node is reused.
+                //
+                // Both return null - which makes `chartGestures` fall back to the rung ladder,
+                // or to nothing - whenever this chart has no window to move: no `onWindow`
+                // from the caller, or no data yet to seed one from.
+                pinch = {
+                    val send = liveOnWindow.value
+                    val b = liveBounds.value
+                    if (send == null || b == null) null
+                    else { factor: Float, focus: Float ->
+                        val cur = held.window ?: liveWindow.value ?: liveAxis.value
+                        if (cur != null) {
+                            val next = ChartWindow.zoomed(cur, factor, focus, b)
+                            held.window = next
+                            zoomSpan = next.spanMs
+                            send(next)
+                        }
+                    }
+                },
+                pan = {
+                    val send = liveOnWindow.value
+                    val b = liveBounds.value
+                    if (send == null || b == null) null
+                    else { byFraction: Float ->
+                        val cur = held.window ?: liveWindow.value ?: liveAxis.value
+                        // NOT WHILE THE WHOLE SERIES IS ON SCREEN. `panned` already refuses,
+                        // but reporting the unchanged window would still churn the caller's
+                        // state on every frame of a two-finger drag over an unzoomed chart.
+                        if (cur != null && cur.spanMs < b.spanMs) {
+                            val next = ChartWindow.panned(cur, byFraction, b)
+                            held.window = next
+                            send(next)
+                        }
+                    }
+                },
+                onZoomActive = { active ->
+                    // Seeded at the START of the gesture and released at the end, so a pinch
+                    // begun on an unzoomed chart starts from the whole series and a second
+                    // pinch starts from wherever the first one stopped.
+                    held.window = if (active) liveWindow.value ?: liveAxis.value else null
+                    zoomSpan = if (active) held.window?.spanMs ?: 0L else 0L
+                    zooming = active
+                }
             )
         }
 
@@ -235,6 +344,15 @@ fun PriceChart(
         // gradient, the badge and chip backgrounds.
         val line = signColor(shown.change)
 
+        // `drawnAll` and `axisWindow` are computed above the empty-state branch because the
+        // gesture handler needs them; here they are simply narrowed to non-null.
+        val drawn = drawnAll ?: shown
+        val axis = axisWindow ?: ChartWindow(drawn.startMs, drawn.endMs)
+        // True when the window is genuinely narrower than everything the app holds - which is
+        // what the "Reset zoom" affordance is for. A window that merely equals the series is
+        // not a zoom and must not put a button on the chart.
+        val zoomedIn = window != null && !ChartWindow.isWhole(window, windowBounds)
+
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
         // `remember(shown, compare)` and not `remember(compare)`: `shown` is rebuilt on every
@@ -242,10 +360,10 @@ fun PriceChart(
         // against or the two disagree at the right-hand edge. Both arrays are null whenever
         // the comparison cannot be made honestly, and every reader below treats null as
         // "draw the ordinary price chart", so there is no half-comparison state.
-        val cmp = remember(shown, compare, compareLivePrice, liveEdge) {
+        val cmp = remember(drawn, compare, compareLivePrice, liveEdge) {
             val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
-            val other = comparePercents(shown, benchmark)
-            val own = if (other == null) null else primaryPercents(shown)
+            val other = comparePercents(drawn, benchmark)
+            val own = if (other == null) null else primaryPercents(drawn)
             if (other == null || own == null) null else ComparePair(own, other)
         }
 
@@ -256,7 +374,7 @@ fun PriceChart(
         // canvas, axis labels and caption included - to change one string.
         // THE READOUT IS TEXT, so it takes the text-legible green/red rather than the line's
         // fill colour - see the note on `signColor`. The line itself keeps the brand colour.
-        ChartReadout(shown, range, line, muted, scrub, cmp, compareLabel)
+        ChartReadout(drawn, range, line, muted, scrub, cmp, compareLabel)
 
         Spacer(Modifier.height(8.dp))
 
@@ -267,9 +385,9 @@ fun PriceChart(
                 .then(gestures)
         ) {
             ChartCanvas(
-                shown, line, MaterialTheme.colorScheme.outline,
+                drawn, line, MaterialTheme.colorScheme.outline,
                 scrub, MaterialTheme.colorScheme.surface, Modifier.fillMaxSize(),
-                cmp, benchmarkColor
+                cmp, benchmarkColor, axis
             )
             // The y-axis, as two labels rather than a drawn scale: on a 170dp chart on a
             // phone the high and the low are the only two values anyone reads off it.
@@ -286,7 +404,7 @@ fun PriceChart(
             // that corner used to read $104.00, two-thirds of the way down the chart. A label
             // at the top of an axis has to be the top of that axis; the day's own high and
             // low are already legible from the line itself.
-            val bounds = remember(cmp, shown) { cmp?.bounds() ?: priceBounds(shown) }
+            val bounds = remember(cmp, drawn) { cmp?.bounds() ?: priceBounds(drawn) }
             Text(
                 if (cmp != null) Fmt.pctSigned(bounds[1]) else Fmt.price(bounds[1]),
                 style = MaterialTheme.typography.labelSmall,
@@ -316,10 +434,41 @@ fun PriceChart(
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        range.label,
+                        // THE SPAN, NOT THE RANGE, once the zoom is continuous: the fingers
+                        // are moving a window, and naming the range underneath it would leave
+                        // the badge stuck on "1M" through most of a spread that is visibly
+                        // changing the picture. Falls back to the range label on a chart with
+                        // no window, where the rung ladder is still what the pinch moves.
+                        if (zoomSpan > 0L) spanLabel(zoomSpan) else range.label,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
+                    )
+                }
+            } else if (zoomedIn && onWindow != null && windowBounds != null) {
+                // ---- THE WAY BACK OUT.
+                //
+                // A continuous zoom can leave the chart anywhere, and pinching all the way
+                // back is fiddly at the wide end where a whole spread is worth one rung of
+                // span. The range chips above do reset it, but they scroll off a screen that
+                // is itself scrolling - so the escape hatch belongs ON the chart.
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 6.dp, end = 44.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .clickable { onWindow(windowBounds) }
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                        .testTag(RESET_ZOOM_TAG)
+                ) {
+                    Text(
+                        "Reset zoom",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -328,16 +477,20 @@ fun PriceChart(
         Spacer(Modifier.height(3.dp))
 
         // ---- the x-axis, as its two ends
+        // FROM THE AXIS, NOT FROM THE SERIES. The two are the same thing on an unzoomed
+        // chart and different on a zoomed one, where `drawn` carries a point beyond each
+        // edge: labelling the ends with those points' timestamps would print two dates that
+        // are not the two ends of the picture.
         Row(Modifier.fillMaxWidth()) {
-            val withDate = spansMoreThanADay(shown)
+            val withDate = spansMoreThanADay(axis.startMs, axis.endMs)
             Text(
-                axisLabel(shown.startMs, range, withDate),
+                axisLabel(axis.startMs, range, withDate),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted
             )
             Spacer(Modifier.weight(1f))
             Text(
-                axisLabel(shown.endMs, range, withDate),
+                axisLabel(axis.endMs, range, withDate),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted
             )
@@ -551,6 +704,45 @@ internal const val NO_SCRUB = -1
 
 /** Test handle for the scrubbable area. See the note at its use site. */
 internal const val CHART_TEST_TAG = "priceChartSurface"
+
+/** Test handle for the reset-zoom affordance. */
+internal const val RESET_ZOOM_TAG = "chartResetZoom"
+
+/**
+ * The window a pinch is currently working from, held OUTSIDE Compose state (Round 64).
+ *
+ * A pointer handler runs several times per frame and many times per recomposition. Keeping
+ * the running window in `mutableStateOf` would schedule a recomposition for each of those, to
+ * publish a value composition never reads; keeping it in a plain holder lets the gesture
+ * accumulate at pointer speed and tell the hoisted state about each result once.
+ */
+internal class WindowHold {
+    var window: com.tj.portfolio.data.ChartWindow? = null
+}
+
+/**
+ * How much time is on screen, in the shortest words that are still true.
+ *
+ * FOR THE ZOOM BADGE, which has to name a window that no longer lines up with any range chip:
+ * a continuous pinch lands on "3 months" and "7 weeks" as readily as on "1Y". Rounded to a
+ * unit the eye can check against the axis labels rather than given exactly, because the badge
+ * is a running readout during a gesture, not a figure anyone copies down.
+ */
+internal fun spanLabel(ms: Long): String {
+    val minutes = ms / 60_000L
+    return when {
+        minutes < 90L -> "${minutes.coerceAtLeast(1L)} min"
+        minutes < 60L * 36L -> "${Math.round(minutes / 60.0)} hr"
+        minutes < 60L * 24L * 14L -> "${Math.round(minutes / (60.0 * 24))} days"
+        minutes < 60L * 24L * 60L -> "${Math.round(minutes / (60.0 * 24 * 7))} weeks"
+        minutes < 60L * 24L * 730L -> "${Math.round(minutes / (60.0 * 24 * 30.44))} months"
+        else -> {
+            val years = minutes / (60.0 * 24 * 365.25)
+            if (years < 10.0) String.format(java.util.Locale.US, "%.1f yr", years)
+            else "${Math.round(years)} yr"
+        }
+    }
+}
 
 /** How tall the detail chart is. One place, so the empty state matches the drawn one. */
 private const val CHART_HEIGHT = 170
@@ -796,7 +988,21 @@ private fun ChartCanvas(
      * convenience: a second call site would silently get the wrong colour in one theme, and
      * nothing would fail.
      */
-    benchmarkColor: Color
+    benchmarkColor: Color,
+    /**
+     * THE X-AXIS, AS A STRETCH OF TIME (Round 64).
+     *
+     * The scale x is drawn against, and deliberately NOT the drawn points' own extent. When
+     * the chart is zoomed, [clipToWindow] hands this function one point beyond each edge so
+     * the line reaches both sides - and if x were scaled to those points, the axis would be
+     * a candle wider than the window on each side and the picture would not line up with the
+     * fingers that placed it. Scaling to the window instead puts the carried points just
+     * outside the canvas, where they are clipped and simply not seen.
+     *
+     * With no zoom the caller passes the drawn series' own span, which is what the old code
+     * computed here - so an unzoomed chart is pixel-for-pixel the one that shipped in v7.4.
+     */
+    axis: ChartWindow
 ) {
     val pts = s.points
     // ---- THE Y SCALE. Two different questions, so two different answers.
@@ -813,8 +1019,10 @@ private fun ChartCanvas(
     val lo = bounds[0]
     val hi = bounds[1]
     val span = (hi - lo).let { if (it < 1e-9) 1.0 else it }
-    val t0 = pts.first().t
-    val tSpan = (pts.last().t - t0).let { if (it <= 0L) 1L else it }
+    // SECONDS, because `ChartPoint.t` is in seconds and the window is in milliseconds. The
+    // division is done once here rather than per point.
+    val t0 = axis.startMs / 1000L
+    val tSpan = (axis.endMs / 1000L - t0).let { if (it <= 0L) 1L else it }
 
     Canvas(modifier) {
         val w = size.width
@@ -983,12 +1191,28 @@ private fun ChartCanvas(
  * Total: an out-of-range fraction clamps to an end, and a degenerate series returns 0 rather
  * than throwing - this is called from a gesture handler, where an exception is a crash.
  */
-internal fun nearestIndex(points: List<ChartPoint>, xFraction: Float): Int {
+internal fun nearestIndex(
+    points: List<ChartPoint>,
+    xFraction: Float,
+    /**
+     * The axis the chart is drawn against, or null for the points' own extent (Round 64).
+     *
+     * IT HAS TO BE THE SAME SCALE THE CANVAS USED. On a zoomed chart the drawn list carries
+     * one point beyond each edge, so its own first and last timestamps are wider than the
+     * picture - a crosshair placed from them would sit a candle away from the finger, and
+     * further the more the chart is zoomed. Null keeps the pre-zoom behaviour exactly.
+     */
+    axis: ChartWindow? = null
+): Int {
     if (points.size < 2) return 0
-    val t0 = points.first().t
-    val span = (points.last().t - t0).coerceAtLeast(1L)
     val frac = xFraction.coerceIn(0f, 1f).toDouble()
-    val target = t0 + Math.round(frac * span)
+    val target = if (axis != null) {
+        axis.startMs / 1000L + Math.round(frac * (axis.spanMs / 1000L).coerceAtLeast(1L))
+    } else {
+        val t0 = points.first().t
+        val span = (points.last().t - t0).coerceAtLeast(1L)
+        t0 + Math.round(frac * span)
+    }
 
     var lo = 0
     var hi = points.size - 1
@@ -1052,7 +1276,16 @@ internal fun axisLabel(ms: Long, range: ChartRange, withDate: Boolean): String =
 
 /** True when the series' two ends fall on different calendar days. */
 internal fun spansMoreThanADay(s: ChartSeries): Boolean =
-    s.startMs > 0L && s.endMs > 0L && Fmt.iso(s.startMs) != Fmt.iso(s.endMs)
+    spansMoreThanADay(s.startMs, s.endMs)
+
+/**
+ * The same question asked of two moments, which is what a zoom window is.
+ *
+ * The series overload delegates here so a zoomed chart and an unzoomed one cannot answer it
+ * differently - the axis labels read this one and the caption reads the other.
+ */
+internal fun spansMoreThanADay(startMs: Long, endMs: Long): Boolean =
+    startMs > 0L && endMs > 0L && Fmt.iso(startMs) != Fmt.iso(endMs)
 
 // ------------------------------------------------------------------ the gestures
 
@@ -1103,6 +1336,24 @@ internal suspend fun PointerInputScope.chartGestures(
      * Null means "no zoom on this chart".
      */
     zoom: () -> ((Int) -> Unit)?,
+    /**
+     * THE CONTINUOUS ZOOM (Round 64), as a provider on the same terms as [zoom].
+     *
+     * Called with the ratio the fingers' separation changed by SINCE THE LAST FRAME - above 1
+     * for a spread - and where the pinch is centred as a fraction of the width. When this
+     * returns non-null it REPLACES the rung ladder: reporting both would zoom the window and
+     * change the range under it in the same gesture, and the two would fight.
+     */
+    pinch: () -> ((Float, Float) -> Unit)? = { null },
+    /**
+     * TWO-FINGER PAN, in fractions of the visible width, positive when the content is dragged
+     * leftwards (later in time).
+     *
+     * ON THE PINCH GESTURE RATHER THAN ITS OWN, because one finger is already spoken for by
+     * the crosshair and a zoomed chart with no way to move sideways shows a window the user
+     * cannot get out of except by zooming back out.
+     */
+    pan: () -> ((Float) -> Unit)? = { null },
     onZoomActive: (Boolean) -> Unit
 ) {
     val slop = viewConfiguration.touchSlop
@@ -1116,6 +1367,9 @@ internal suspend fun PointerInputScope.chartGestures(
         // rather than an arbitrary jump. See [zoomFactor].
         var pair: Pair<androidx.compose.ui.input.pointer.PointerId,
             androidx.compose.ui.input.pointer.PointerId>? = null
+        // Where the pinch was centred on the previous frame, for the pan. NaN means "no
+        // reading yet" - the first frame of a pinch, or the frame after the pair changed.
+        var centroid = Float.NaN
         try {
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Main)
@@ -1123,7 +1377,9 @@ internal suspend fun PointerInputScope.chartGestures(
                 if (pressed == 0) break
 
                 val onZoomStep = zoom()
-                if (pressed > 1 && onZoomStep != null) {
+                val onPinch = pinch()
+                val onPan = pan()
+                if (pressed > 1 && (onZoomStep != null || onPinch != null)) {
                     if (mode != GestureMode.ZOOM) {
                         mode = GestureMode.ZOOM
                         // A crosshair left behind by the finger that started as a scrub would
@@ -1131,9 +1387,11 @@ internal suspend fun PointerInputScope.chartGestures(
                         clearPoint()
                         zoomAccum = 1f
                         pair = null
+                        centroid = Float.NaN
                         onZoomActive(true)
                     }
                     event.changes.forEach { if (it.pressed) it.consume() }
+                    val width = size.width.toFloat()
                     // Measure between the pair chosen when the pinch began; if either finger
                     // has gone, adopt a new pair and take no reading from this frame - the
                     // accumulator keeps whatever it had, so the gesture continues smoothly
@@ -1141,8 +1399,33 @@ internal suspend fun PointerInputScope.chartGestures(
                     val z = pair?.let { (a, b) -> zoomFactor(event, a, b) }
                     if (z == null) {
                         pair = zoomPair(event)
+                        // The pan reference goes with the pair: measuring the next frame's
+                        // centroid against one computed from different fingers would report a
+                        // jump the hand never made.
+                        centroid = Float.NaN
                         continue
                     }
+
+                    if (onPinch != null) {
+                        // ---- CONTINUOUS. Every frame's ratio is reported as it happens, so
+                        // the window follows the fingers exactly rather than in rungs.
+                        val mid = centroidX(event)
+                        if (width > 0f && mid.isFinite()) {
+                            onPinch(z, (mid / width).coerceIn(0f, 1f))
+                            // PAN AFTER ZOOM, and against the PREVIOUS centroid: the zoom has
+                            // already moved the window under a fixed point, so what is left is
+                            // how far that point itself travelled.
+                            if (onPan != null && centroid.isFinite()) {
+                                val dx = mid - centroid
+                                // The content follows the fingers, so the WINDOW moves the
+                                // other way: dragging right shows earlier time.
+                                if (dx != 0f) onPan(-dx / width)
+                            }
+                        }
+                        centroid = mid
+                        continue
+                    }
+
                     zoomAccum *= z
                     if (!zoomAccum.isFinite() || zoomAccum <= 0f) zoomAccum = 1f
                     // A LOOP, NOT AN `if`. A fast spread can cross two rungs between two
@@ -1152,7 +1435,7 @@ internal suspend fun PointerInputScope.chartGestures(
                     var steps = 0
                     while (zoomAccum >= ZOOM_STEP) { steps++; zoomAccum /= ZOOM_STEP }
                     while (zoomAccum <= 1f / ZOOM_STEP) { steps--; zoomAccum *= ZOOM_STEP }
-                    if (steps != 0) onZoomStep(steps)
+                    if (steps != 0 && onZoomStep != null) onZoomStep(steps)
                     continue
                 }
 
@@ -1225,6 +1508,21 @@ internal fun zoomFactor(
     if (was < 1f || now < 1f) return null
     val f = now / was
     return if (f.isFinite() && f > 0f) f else null
+}
+
+/**
+ * The average x of every finger down, or NaN when there are none.
+ *
+ * The PAN reference, and the ZOOM's focal point. An average rather than the midpoint of the
+ * measured pair, because a third finger landing should not make the window jump - the pair is
+ * for measuring how much the hand SPREAD, which two fingers answer better than three; where
+ * the hand IS, all of them answer.
+ */
+internal fun centroidX(event: androidx.compose.ui.input.pointer.PointerEvent): Float {
+    var sum = 0f
+    var n = 0
+    for (c in event.changes) if (c.pressed) { sum += c.position.x; n++ }
+    return if (n == 0) Float.NaN else sum / n
 }
 
 /** The first two fingers currently down, or null when there are not two. */
@@ -1445,4 +1743,73 @@ private fun LegendDot(color: Color) {
             .size(8.dp)
             .background(color, androidx.compose.foundation.shape.CircleShape)
     )
+}
+
+// -------------------------------------------------------------- the zoom window
+
+/**
+ * The part of a series inside a window, plus one point beyond each edge (Round 64).
+ *
+ * ---- WHY THE EXTRA POINT AT EACH END
+ *
+ * Without it the line stops at the first candle INSIDE the window, leaving a gap between the
+ * edge of the chart and where the data starts - which reads as "nothing traded here" rather
+ * than "the window begins mid-candle". Carrying one point beyond each edge lets the line be
+ * drawn across the full width and clipped by the canvas, which is what every charting tool
+ * does and what makes a pan feel like moving a sheet of paper rather than redrawing a picture.
+ *
+ * The window itself is what the x-axis is scaled to - see [ChartCanvas] - so those outside
+ * points are drawn past the edges and simply not seen.
+ *
+ * Returns the series UNCHANGED when the window covers all of it, which is the ordinary case
+ * and must stay allocation-free: this runs on every quote tick for every chart on screen.
+ */
+internal fun clipToWindow(s: ChartSeries?, w: ChartWindow?): ChartSeries? {
+    if (s == null || w == null || s.points.size < 2) return s
+    val startSec = w.startMs / 1000L
+    val endSec = w.endMs / 1000L
+    if (s.points.first().t >= startSec && s.points.last().t <= endSec) return s
+
+    val pts = s.points
+    var lo = pts.indexOfFirst { it.t >= startSec }
+    if (lo < 0) lo = pts.size - 1
+    if (lo > 0) lo--                       // one before the left edge
+    var hi = pts.indexOfLast { it.t <= endSec }
+    if (hi < 0) hi = 0
+    if (hi < pts.lastIndex) hi++           // one after the right edge
+    if (hi <= lo) {
+        // A window that falls between two candles - possible on a five-year weekly line
+        // zoomed into a single day. Two points is the least that can be a line; showing the
+        // pair that straddles the window is more honest than showing nothing.
+        lo = lo.coerceIn(0, pts.lastIndex - 1)
+        hi = lo + 1
+    }
+    return s.copy(points = pts.subList(lo, hi + 1))
+}
+
+/**
+ * The widest window the data can honestly support, for clamping a zoom.
+ *
+ * Built from the WIDEST series the app is holding for this symbol rather than from the one on
+ * screen, so pinching out past the end of a one-month chart keeps going into the five-year one
+ * instead of stopping dead at a boundary the user cannot see. Falls back to the drawn series
+ * when nothing else is held, which is what happens on the very first chart of a session.
+ */
+internal fun windowBounds(drawn: ChartSeries?, all: Collection<ChartSeries>): ChartWindow? {
+    var lo = Long.MAX_VALUE
+    var hi = Long.MIN_VALUE
+    for (s in all) {
+        if (s.points.size < 2) continue
+        // The after-hours view is a filtered stretch of days, not a wider or narrower window
+        // over the same thing, so its extent says nothing about how far a zoom may go.
+        if (s.range == ChartRange.OVERNIGHT) continue
+        if (s.startMs < lo) lo = s.startMs
+        if (s.endMs > hi) hi = s.endMs
+    }
+    if (lo == Long.MAX_VALUE || hi <= lo) {
+        val d = drawn ?: return null
+        if (d.points.size < 2) return null
+        return ChartWindow(d.startMs, d.endMs)
+    }
+    return ChartWindow(lo, hi)
 }

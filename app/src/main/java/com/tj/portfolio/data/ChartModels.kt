@@ -98,6 +98,84 @@ enum class ChartRange(
          * Total: the result is clamped to the ends of the ladder, so holding a spread at the
          * bottom simply stays on the five-minute chart.
          */
+        /**
+         * Roughly how much time each rung covers, in ms.
+         *
+         * "Roughly" is honest: a five-day chart is five TRADING days, so it spans a week of
+         * wall-clock time, and MAX is however long the company has been listed. These numbers
+         * are used to choose which series can DRAW a given window, which is a question about
+         * candle size, so approximate coverage is exactly the right precision for it.
+         */
+        val ChartRange.approxSpanMs: Long
+            get() = when (this) {
+                D1 -> 86_400_000L
+                D5 -> 7L * 86_400_000L
+                M1 -> 31L * 86_400_000L
+                M6 -> 186L * 86_400_000L
+                Y1 -> 366L * 86_400_000L
+                Y5 -> 1830L * 86_400_000L
+                MAX -> 40L * 366L * 86_400_000L
+                OVERNIGHT -> 7L * 86_400_000L
+            }
+
+        /**
+         * WHICH SERIES CAN DRAW THIS WINDOW (Round 64).
+         *
+         * The window a person is looking at is continuous; the data behind it is not. This
+         * picks the finest rung whose coverage still contains the window - finest, because a
+         * coarser one has coarser candles and would draw the same stretch of time as a
+         * polygon.
+         *
+         * ---- THE HYSTERESIS IS THE POINT, NOT A REFINEMENT
+         *
+         * Without it, a window whose span sits exactly on a boundary flips between two rungs
+         * as the fingers wobble - and every flip is a chart fetch. [current] is therefore kept
+         * unless the window has moved a clear margin past its band: a rung is abandoned only
+         * when the window is more than [KEEP_UP] times its coverage (too wide to be drawn from
+         * it) or less than [KEEP_DOWN] of it (so far inside that a finer rung would show real
+         * detail). Between those two the answer is "whatever is already loaded", which costs
+         * nothing and cannot thrash.
+         *
+         * [OVERNIGHT] is never chosen: it is not a wider or narrower view of the same thing,
+         * it is the same days with the regular sessions cut out. A user who selected it keeps
+         * it until they pick something else - zooming inside it simply scales what it drew.
+         */
+        private const val KEEP_UP = 1.0
+        private const val KEEP_DOWN = 0.22
+
+        fun rangeForSpan(spanMs: Long, current: ChartRange? = null): ChartRange {
+            if (current == OVERNIGHT) return OVERNIGHT
+            if (current != null && current in ZOOM_LADDER) {
+                val cover = current.approxSpanMs
+                if (spanMs <= cover * KEEP_UP && spanMs >= cover * KEEP_DOWN) return current
+            }
+            // Widest-first, so the last rung that still contains the window wins - which is
+            // the finest one that does.
+            var best = MAX
+            for (r in ZOOM_LADDER) if (r.approxSpanMs >= spanMs) best = r
+            return best
+        }
+
+        /**
+         * THE RANGE THAT CAN ACTUALLY DRAW A WINDOW, WHICH IS NOT THE SAME AS ITS SPAN.
+         *
+         * The trap this exists to close: every range this provider serves ENDS AT NOW. "5D"
+         * is the last five days, not any five days. So a three-day window sitting two years
+         * in the past cannot be drawn from the 5D series at all - asking for it would swap in
+         * a series that does not overlap the window and paint a blank chart, or worse, paint
+         * the wrong three days at the wrong scale.
+         *
+         * What decides the rung is therefore the LOOKBACK - how far back from the newest data
+         * the window's left edge reaches - not how much time it covers. For a window pinned
+         * to the right-hand edge, which is the ordinary case, the two are the same number and
+         * this behaves exactly like [rangeForSpan]. For a window panned into the past it is
+         * larger, and the extra is precisely the coverage the finer rung does not have.
+         *
+         * @param lookbackMs newest data time minus the window's start.
+         */
+        fun rangeForLookback(lookbackMs: Long, current: ChartRange? = null): ChartRange =
+            rangeForSpan(lookbackMs.coerceAtLeast(0L), current)
+
         fun zoomed(from: ChartRange, steps: Int): ChartRange? {
             if (steps == 0) return null
             val i = ZOOM_LADDER.indexOf(from)

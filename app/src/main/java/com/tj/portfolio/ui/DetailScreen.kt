@@ -379,6 +379,55 @@ fun DetailScreen(
         }
     }
 
+    // ---- THE CONTINUOUS ZOOM (Round 64).
+    //
+    // TJ: *"make the pinch to zoom smooth instead of chopping between intervals."*
+    //
+    // Round 63's pinch WAS the range change, so the smallest thing it could do was jump a
+    // whole rung. Here the window and the range are separated: the fingers move
+    // [chartWindow], which is any two moments and scales as smoothly as they do, and the
+    // range underneath it is re-chosen only when the window has moved far enough that the
+    // current one's candles can no longer draw it. Most frames change nothing but the window,
+    // which costs a redraw and no network at all.
+    //
+    // NULL MEANS "THE WHOLE SERIES", which is what a range chip selects and what the chart
+    // draws when nothing has been pinched. Keyed on the symbol so opening another stock does
+    // not inherit the last one's window.
+    var chartWindow by remember(symbol) {
+        mutableStateOf<com.tj.portfolio.data.ChartWindow?>(null)
+    }
+
+    // How far a zoom may go, from EVERY series the app is holding for this symbol rather than
+    // from the one on screen - so pinching out past the end of a one-month chart continues
+    // into the five-year one instead of stopping at a boundary the user cannot see.
+    val chartBounds = remember(chartMap, symbol, chart) {
+        windowBounds(
+            chart,
+            com.tj.portfolio.data.ChartRange.entries.mapNotNull {
+                chartMap[vm.chartKey(symbol, it)]
+            }
+        )
+    }
+
+    val onChartWindow: (com.tj.portfolio.data.ChartWindow) -> Unit = { w ->
+        chartWindow = w
+        // WHICH SERIES TO DRAW IT FROM. `rangeForLookback`, not the window's span: every
+        // range this provider serves ends at now, so a window panned into the past needs a
+        // rung that reaches back to it however narrow it is. See the note on that function.
+        val newest = chartBounds?.endMs ?: w.endMs
+        val next = com.tj.portfolio.data.ChartRange.rangeForLookback(
+            newest - w.startMs, chartRange
+        )
+        if (next != chartRange) {
+            // The same settle the rung ladder used, and for the same reason: a spread that
+            // crosses three rungs in half a second must not start three fetches for windows
+            // the fingers were only passing through.
+            zoomSettling = true
+            chartRange = next
+            vm.setChartRange(next)
+        }
+    }
+
     // The chart follows the range the user picked. `loadChart` reads its disk cache first
     // and only reaches for the network when what it holds is past that range's TTL, so
     // flicking back and forth between 1D and 1Y costs nothing after the first look.
@@ -543,10 +592,17 @@ fun DetailScreen(
                         // reason. Tapping a range is an explicit choice of destination - there
                         // are no intermediate rungs to swallow.
                         zoomSettling = false
+                        // A CHIP IS THE WHOLE OF ITS RANGE. Leaving a zoom window in place
+                        // would show a slice of the newly selected series and label it "1Y",
+                        // which is the chart lying about what it is showing.
+                        chartWindow = null
                         chartRange = r
                         vm.setChartRange(r)
                     },
                     onChartZoom = onChartZoom,
+                    chartWindow = chartWindow,
+                    chartBounds = chartBounds,
+                    onChartWindow = onChartWindow,
                     compare = compareSeries,
                     compareLive = liveEdgePrice(benchmarkQuote, chartRange),
                     compareOn = compareOn && !isBenchmark,
@@ -686,6 +742,11 @@ private fun OverviewTab(
     onChartRange: (com.tj.portfolio.data.ChartRange) -> Unit,
     /** One rung of pinch zoom: +1 zooms in, -1 zooms out. See `chartGestures`. */
     onChartZoom: (Int) -> Unit,
+    /** The stretch of time on screen, or null for the whole series. See [ChartWindow]. */
+    chartWindow: com.tj.portfolio.data.ChartWindow?,
+    /** How far a zoom may go, from every series the app holds for this symbol. */
+    chartBounds: com.tj.portfolio.data.ChartWindow?,
+    onChartWindow: (com.tj.portfolio.data.ChartWindow) -> Unit,
     /** The benchmark series for this range, or null when the overlay is off or unloaded. */
     compare: com.tj.portfolio.data.ChartSeries?,
     /** The benchmark's live price, so both lines end at the same instant. */
@@ -785,6 +846,9 @@ private fun OverviewTab(
                     // print on the after-hours line once it has closed. See withLiveEdge.
                     liveEdge = liveEdgePrice(q, chartRange) > 0.0,
                     onZoom = onChartZoom,
+                    window = chartWindow,
+                    windowBounds = chartBounds,
+                    onWindow = onChartWindow,
                     compare = compare,
                     compareLabel = BENCHMARK_SYMBOL,
                     compareLivePrice = compareLive

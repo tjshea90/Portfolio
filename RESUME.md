@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 20:26:04 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 20:37:46 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T0: Baseline: v7.4 tree builds and 569 tests green before any edit
+- **In flight:** T2 continuous zoom wired: ChartWindow + PriceChart axis + chartGestures pinch/pan + DetailScreen window state; compiling next
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
