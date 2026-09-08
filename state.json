@@ -218,8 +218,8 @@
       "id": "F18",
       "text": "RESEARCH: the FOLLOWING chip's watched/held set is remembered on set.generated and set.explained, neither of which changes when the ETF list rebuilds - so on the ETFs tab the chip can lag until the stock pass runs.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the watched/held set is keyed on etfGenerated as well"
     },
     {
       "id": "F19",
@@ -453,6 +453,7 @@
     "2026-09-08 08:05:41 UTC  F14 fixed: same guard - a null longName now falls through to shortName instead of becoming the string 'null'",
     "2026-09-08 08:05:42 UTC  F15 fixed: the bundle carries etfDataAgeMinutes from the fund list's own clock",
     "2026-09-08 08:05:42 UTC  F16 fixed: a fund Claude returned with a category but no paragraph now survives a rebuild",
-    "2026-09-08 08:05:43 UTC  F17 fixed: notes merges with ifBlank rather than overwriting"
+    "2026-09-08 08:05:43 UTC  F17 fixed: notes merges with ifBlank rather than overwriting",
+    "2026-09-08 08:05:43 UTC  F18 fixed: the watched/held set is keyed on etfGenerated as well"
   ]
 }
