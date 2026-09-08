@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:37:17 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:37:18 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T12: SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -48,9 +48,9 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found  — network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white.
 - [x] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug  — 14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales.
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
-- [ ] T12  SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters
+- [>] T12  SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters  — sweep 4
 
-**Resume at T11** (Ship v7.4 (versionCode 61) + final checkpoint).
+**Resume at T12** (SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters).
 
 ## 5. Open findings — 0 still open, 63 fixed
 
@@ -127,7 +127,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:36:47 UTC  R04 fixed: KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value.
 - 2026-09-08 16:36:47 UTC  R05 fixed: the autosize floor is now dp-derived via Dp.toSp(), so it is a physical size that does not scale with the user's setting, and the step is a whole point so neighbouring cells stay on a short ladder
 - 2026-09-08 16:36:48 UTC  R06 fixed: reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user
 - 2026-09-08 16:36:49 UTC  R07 fixed: PortfolioTheme publishes LocalDarkTheme and every theme-aware colour reads that instead of isSystemInDarkTheme(), so the seven tests that render the dark scheme now get dark-scheme text
@@ -139,4 +138,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 16:36:54 UTC  R13 fixed: the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before.
 - 2026-09-08 16:36:55 UTC  R14 fixed: RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process
 - 2026-09-08 16:37:17 UTC  T10 -> done  14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales.
+- 2026-09-08 16:37:18 UTC  T12 -> doing  sweep 4
 
