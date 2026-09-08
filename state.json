@@ -90,8 +90,8 @@
       "id": "G04",
       "text": "Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fund whose holdings fetch fails is re-requested on every screen open and every ON_START with no throttle at all.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "loadHoldings uses the same RetryClock"
     },
     {
       "id": "G05",
@@ -208,6 +208,7 @@
     "2026-09-08 01:06:16 UTC  T5 -> doing  fixing G01-G07",
     "2026-09-08 01:15:06 UTC  G01 fixed: refresh() moved to fgScope so a backgrounded pass is cancelled and its socket disconnected; the quote cache write moved to viewModelScope so a fetched price is never lost",
     "2026-09-08 01:15:06 UTC  G02 fixed: util/Connectivity decides from a pure truth table; the automatic tick skips the pass when Android is certain there is no network. A manual pull always tries.",
-    "2026-09-08 01:15:07 UTC  G03 fixed: chart fetches go through a RetryClock; a failure backs off 30s/1m/2m/4m/5m instead of retrying every 15s"
+    "2026-09-08 01:15:07 UTC  G03 fixed: chart fetches go through a RetryClock; a failure backs off 30s/1m/2m/4m/5m instead of retrying every 15s",
+    "2026-09-08 01:15:07 UTC  G04 fixed: loadHoldings uses the same RetryClock"
   ]
 }
