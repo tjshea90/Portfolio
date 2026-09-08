@@ -372,3 +372,4 @@ Tasks 9/12 done, findings 2/2 fixed
 2026-09-08 20:04:05 UTC  checkpoint 63  commit 9f12f01  T13 done
 2026-09-08 20:04:34 UTC  checkpoint 63  commit 4f2f283  T11 doing
 2026-09-08 20:15:13 UTC  checkpoint 63  commit 56f2ae6  T11 done
+2026-09-08 20:15:14 UTC  checkpoint 63  no-change  v7.4 shipped
