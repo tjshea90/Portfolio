@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 60,
   "request": "Add the approved new features ONE AT A TIME, shipping each on its own. Feature 1: chart scrubbing - drag across the chart to read the price and time at that point. Test and optimise before shipping; must not disturb anything else in the app.",
-  "updated": "2026-09-08 01:49:37 UTC",
+  "updated": "2026-09-08 01:49:38 UTC",
   "version": {
     "code": 57,
     "name": "7.0",
@@ -10,7 +10,7 @@
     "next_name": "7.1"
   },
   "now": {
-    "step": "",
+    "step": "T4: Test: rendered gesture tests + pure-function tests for the lookup",
     "next": "T1 gesture design",
     "files": []
   },
@@ -42,8 +42,8 @@
     {
       "id": "T4",
       "title": "Test: rendered gesture tests + pure-function tests for the lookup",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "tests"
     },
     {
       "id": "T5",
@@ -173,6 +173,7 @@
     "2026-09-08 01:49:33 UTC  T0 -> done  baseline green before the feature",
     "2026-09-08 01:49:36 UTC  T1 -> done  detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll",
     "2026-09-08 01:49:37 UTC  T2 -> done  crosshair + dot, readout at fixed height, index-based scrub state",
-    "2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup"
+    "2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup",
+    "2026-09-08 01:49:38 UTC  T4 -> doing  tests"
   ]
 }
