@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T6: Adversarial review of the feature, then fix what it finds
 - **Next action:** T1 gesture design
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -42,7 +42,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T3  Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm  — mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 - [x] T4  Test: rendered gesture tests + pure-function tests for the lookup  — ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
 - [x] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged  — 389/389 green, lint clean, checkinit ok - no regressions
-- [ ] T6  Adversarial review of the feature, then fix what it finds
+- [>] T6  Adversarial review of the feature, then fix what it finds  — adversarial review of the scrub feature
 - [ ] T7  Ship v7.1 (versionCode 58) + checkpoint
 
 **Resume at T6** (Adversarial review of the feature, then fix what it finds).
@@ -60,7 +60,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:27:41 UTC  T6 -> done  371/371 tests, checkinit ok, lintVital clean, APK signed with the archived keystore (fingerprint matches), versionCode 57 / 7.0 confirmed
 - 2026-09-08 01:27:41 UTC  T7 -> doing  shipping v7.0
 - 2026-09-08 01:27:53 UTC  T7 -> done  v7.0 APK + checkpoint 59 delivered
 - 2026-09-08 01:46:47 UTC  round 60 started
@@ -72,4 +71,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:58:48 UTC  T4 -> done  ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
 - 2026-09-08 01:58:49 UTC  T5 -> doing  full regression
 - 2026-09-08 02:01:30 UTC  T5 -> done  389/389 green, lint clean, checkinit ok - no regressions
+- 2026-09-08 02:01:30 UTC  T6 -> doing  adversarial review of the scrub feature
 
