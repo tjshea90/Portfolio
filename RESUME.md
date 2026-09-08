@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 02:08:32 UTC)
+# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 02:10:32 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,14 +27,14 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T6: Adversarial review of the feature, then fix what it finds
+- **In flight:** (nothing in flight)
 - **Next action:** T1 gesture design
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 6/8 done
+## 4. Task ledger — 7/8 done
 
 - [x] T0  Baseline: v7.0 tree builds and 371 tests green before any edit  — baseline green before the feature
 - [x] T1  Design the scrub gesture so it cannot break vertical scrolling of the list it sits in  — detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
@@ -42,10 +42,10 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T3  Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm  — mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 - [x] T4  Test: rendered gesture tests + pure-function tests for the lookup  — ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
 - [x] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged  — 389/389 green, lint clean, checkinit ok - no regressions
-- [>] T6  Adversarial review of the feature, then fix what it finds  — adversarial review of the scrub feature
+- [x] T6  Adversarial review of the feature, then fix what it finds  — 2 findings (H01 mid-drag cancellation, H02 per-frame date formatting), both fixed; H01's test verified by reverting the fix
 - [ ] T7  Ship v7.1 (versionCode 58) + checkpoint
 
-**Resume at T6** (Adversarial review of the feature, then fix what it finds).
+**Resume at T7** (Ship v7.1 (versionCode 58) + checkpoint).
 
 ## 5. Open findings — 0 still open, 2 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:49:36 UTC  T1 -> done  detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
 - 2026-09-08 01:49:37 UTC  T2 -> done  crosshair + dot, readout at fixed height, index-based scrub state
 - 2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 - 2026-09-08 01:49:38 UTC  T4 -> doing  tests
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 02:01:30 UTC  finding H02: ChartReadout calls spansMoreThanADay(s) on every frame of a drag, and that forma
 - 2026-09-08 02:08:32 UTC  H01 fixed: scrub state is remember{} with an explicit LaunchedEffect(symbol,range) reset; pointerInput(Unit) with rememberUpdatedState so a quote tick cannot cancel an in-flight drag. Regression test verified by reverting the fix.
 - 2026-09-08 02:08:32 UTC  H02 fixed: spansMoreThanADay hoisted into remember(s), off the per-frame path
+- 2026-09-08 02:10:32 UTC  T6 -> done  2 findings (H01 mid-drag cancellation, H02 per-frame date formatting), both fixed; H01's test verified by reverting the fix
 
