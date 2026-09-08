@@ -578,9 +578,9 @@ portfolio/
   `ui/` the data class `Row` shadows nothing because layouts are called qualified by
   import order; if a new file uses both, alias the import.
 
-## 6. STATUS — FEATURE COMPLETE, v7.2 SHIPPED
+## 6. STATUS — FEATURE COMPLETE, v7.3 SHIPPED
 
-APK: `portfolio-v7.2.apk`, versionCode 59 / versionName 7.2.
+APK: `portfolio-v7.3.apk`, versionCode 60 / versionName 7.3.
 Version history: v1.0 (core app), v1.1 (watchlist/search/backup/offline bridge),
 v1.2 (gestures, editing, long-press), v1.3 (navigation-bar inset fix),
 v1.4 (update-safety hardening + daily auto-backup),
@@ -652,6 +652,76 @@ news - see Round 55 below),
 v6.7 (RESEARCH IN TABS, and the whole app's network traffic cut by about 80% - see Round 56),
 v6.8 (THE APP NOW ACTUALLY STOPS WHEN IT IS PUT DOWN, and immutable data is never fetched
 twice - see Round 57).
+
+### Round 62 (v7.3) — PER-RANGE PERFORMANCE CHIPS (feature 3 of 4, shipped on its own)
+
+**What TJ asked for.** *"Add the next feature to the attached app, whatever feature would use
+less Claude usage."* Two features were left of the four approved in Round 59. The chips were
+chosen over the SPY comparison overlay because everything they need is data the app is
+already holding: no new provider, no new request, no new table, no new parser. The overlay
+needs a second symbol fetched, aligned to the first series' timestamps and drawn against it,
+and that is a round of its own.
+
+**What it does.** Every range button now carries what that window actually did - `1M` over
+`-3.42%`, `5Y` over `+218.90%` - so the answer to "how has this done lately" is on screen
+without tapping through eight charts.
+
+#### The rule the whole feature is built on
+
+**A chip may only say what the chart would say, and only about a window it can honestly
+describe.** Three consequences, and each one is a thing that was deliberately NOT done:
+
+1. **No chip ever causes a fetch.** `loadChart`'s disk read already pulls every cached range
+   for a symbol in ONE query, so every window the user has looked at before is answered for
+   free. Filling the blanks would have meant up to seven extra chart requests per stock
+   opened - the exact traffic shape Rounds 56-58 spent three rounds removing.
+2. **A stale figure is not printed.** A cache row can be any age - the TTL decides when to
+   re-FETCH, not how long a row lives - so a cached 1M series from last week describes last
+   week's month. Past 24 hours the chip shows nothing rather than a figure wearing the wrong
+   label, and selecting the range fills it in from the same answer the chart draws.
+3. **A truncated window is not claimed.** A stock that listed eighteen months ago has no
+   five-year line. The chart captions that case in words; a chip is a label and a number with
+   nowhere to put the caveat, so it makes no claim at all.
+
+#### Why `rangePct` exists rather than reusing `withLiveEdge`
+
+The honest definition of "what this window did" is `withLiveEdge(series, ...).changePct` -
+exactly what the readout under the chart shows. Calling it per chip would rebuild a
+400-point list to replace one element, eight times, on every quote tick. So `rangePct` does
+the same arithmetic without the copy - which makes it a DUPLICATE definition, and this
+project's own history says duplicates drift. `RangeChipTest` therefore asserts the two agree
+across every range, both baselines and every live-edge case, and `RangeChipUiTest` renders
+the chip and the readout together and asserts the two strings match. The comment is not the
+guard; the test is.
+
+#### Two bugs found on the way
+
+- `withLiveEdge` refused a live price with `livePrice <= 0.0`, which is FALSE for NaN - so a
+  NaN price was painted as the last point of the line. Now `!(livePrice > 0.0)`, which is the
+  same test the chips do, so the two cannot disagree about a price.
+- A dead-flat window can produce a negative zero, and `Fmt.pctSigned` picks its sign before
+  the formatter prints its own: "+-0.00%". Normalised in `rangePct`.
+
+#### The layout detail that is not cosmetic
+
+The second line is ALWAYS rendered, and when there is nothing to say it holds a non-breaking
+space rather than an empty string. An empty string collapses the line, and the chips that
+have a figure then stand taller than the ones that do not - a visible step in the middle of
+the row, worst at a large font scale. `RangeChipUiTest` measures every chip's height at 1.0x
+and at 2.0x and asserts there is exactly one distinct value.
+
+#### Tests: 416 -> 443
+
+`RangeChipTest` (16 pure) covers totality - no series, one point, a non-positive or
+non-finite baseline, an overflowing ratio, a nonsense live price - the baseline rule per
+range, the age and truncation limits, and the equivalence with the chart. `RangeChipUiTest`
+(9 rendered) covers the figure on the chip, "nothing held" against "on its way", the chip
+agreeing with the readout through the live-edge path, equal heights, the 48dp rule with the
+chip's new shape, selection at 1.3x through a real scroll, and dark mode. `ChartUiTest`'s
+existing chip loop now scrolls to each chip before tapping it: eight chips carrying figures
+are wider than a phone, which is what the horizontal scroll is for.
+
+**Still unbuilt, and still approved:** the SPY comparison overlay.
 
 ### Round 61 (v7.2) — PERCENT / DOLLAR TOGGLE (feature 2 of 4, shipped on its own)
 
