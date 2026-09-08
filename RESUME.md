@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T2: UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -38,7 +38,7 @@ commit, so `git log --oneline` is the history of this round and
 
 - [x] T0  Baseline on the shipped tree: release build + 358 tests green before any edit  — release APK + 358/358 green on the shipped tree
 - [x] T1  BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch  — manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
-- [ ] T2  UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode
+- [>] T2  UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode  — UI sweep
 - [ ] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate
 - [ ] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory
 - [ ] T5  Fix every finding without introducing new ones
@@ -64,7 +64,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 00:49:43 UTC  T13 -> doing  shipping v6.9
 - 2026-09-08 00:49:54 UTC  T13 -> done  v6.9 APK + checkpoint 58 delivered
 - 2026-09-08 01:00:59 UTC  round 59 started
 - 2026-09-08 01:01:02 UTC  round 59 ledger created; baseline build running
@@ -76,4 +75,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:04:25 UTC  finding G04: Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fu
 - 2026-09-08 01:04:25 UTC  finding G05: REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the spa
 - 2026-09-08 01:04:48 UTC  T1 -> done  manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
+- 2026-09-08 01:04:48 UTC  T2 -> doing  UI sweep
 
