@@ -291,14 +291,55 @@ class ScrubGestureUiTest {
 
     // ------------------------------------------------------------ robustness
 
-    /** A chart with nothing in it must not respond to, or crash on, a drag. */
+    /**
+     * A chart with nothing in it must not respond to, or crash on, a drag - but it MUST still
+     * carry the gesture surface.
+     *
+     * THIS ASSERTION WAS INVERTED UNTIL ROUND 63, and the old form was hiding a real bug. It
+     * required the surface NOT to exist while the series was missing, which was true and
+     * looked harmless - until pinch zoom arrived. Pinching to a range this symbol has never
+     * been fetched at leaves the series null for the length of a network round trip, so a
+     * chart with no gesture surface meant the node was DESTROYED with the user's fingers
+     * still on the glass: the zoom stopped after one rung and the remaining touches fell
+     * through to the list underneath. The surface is now always present; what an empty chart
+     * must not do is scrub, throw, or claim a price it does not have.
+     */
     @Test
-    fun `an empty chart ignores a drag`() {
-        show { PriceChart(null, ChartRange.D1, loading = false) }
-        // No scrub surface exists at all when there is no series.
+    fun `an empty chart keeps its gesture surface but does not scrub`() {
+        show { PriceChart(null, ChartRange.D1, loading = false, onZoom = {}) }
         rule.onAllNodesWithTag(CHART_TEST_TAG).fetchSemanticsNodes().let {
-            assertTrue("an empty chart should have no scrub surface", it.isEmpty())
+            assertTrue(
+                "an empty chart must still be pinchable - a zoom lands here mid-gesture",
+                it.isNotEmpty()
+            )
         }
+        // A drag on it does nothing at all, and above all does not crash.
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { down(centerLeft); moveTo(center) }
+        rule.waitForIdle()
+        assertTrue(
+            "an empty chart printed a price at the finger: ${texts()}",
+            texts().none { it.startsWith("$") }
+        )
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { up() }
+    }
+
+    /** And the pinch really does survive the window it is zooming INTO not being loaded. */
+    @Test
+    fun `a pinch keeps working while the chart it landed on is still loading`() {
+        val steps = ArrayList<Int>()
+        show { PriceChart(null, ChartRange.M6, loading = true, onZoom = { steps.add(it) }) }
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
+            down(0, androidx.compose.ui.geometry.Offset(center.x - 20f, center.y))
+            down(1, androidx.compose.ui.geometry.Offset(center.x + 20f, center.y))
+            moveTo(0, androidx.compose.ui.geometry.Offset(center.x - 200f, center.y))
+            moveTo(1, androidx.compose.ui.geometry.Offset(center.x + 200f, center.y))
+            up(0); up(1)
+        }
+        rule.waitForIdle()
+        assertTrue(
+            "the zoom died on a chart that had not arrived yet - the fingers were still down",
+            steps.isNotEmpty()
+        )
     }
 
     @Test

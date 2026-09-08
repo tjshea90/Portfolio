@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:05:45 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 08:10:22 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,14 +27,14 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T8: SWEEP 1: adversarial bug hunt across the whole app; fix everything found
+- **In flight:** (nothing in flight)
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 8/12 done
+## 4. Task ledger — 9/12 done
 
 - [x] T0  Baseline: v7.3 tree builds and 443 tests green before any edit  — 443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
 - [x] T1  Swipe-to-change-tabs: horizontal gesture paging over the 6 top-level tabs  — gesture-based tab paging (not a pager - neighbours stay uncomposed so VisibleScope still describes one screen); pure swipeTarget decision + slide animation shared with the bar
@@ -44,12 +44,12 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T5  SPY comparison overlay: second series aligned to the first and drawn against it  — SPY overlay: percent mode with both lines rebased to the same moment (previous close intraday, the benchmark's value at the window start for longer ranges), zero line, segmented benchmark path across gaps, dual crosshair, legend, live edge on both tips, 'vs SPY' chip beside the range chips; shares loadChart's cache so it costs one fetch per range per TTL for the whole app
 - [x] T6  Tests for T1-T5: pure + rendered  — SwipeTabTest 15, ChartZoomTest 12, CompareChartTest 10, EtfTest 23, GestureUiTest 11 (real multi-touch), CompareChartUiTest 8 - 79 new
 - [x] T7  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok
-- [>] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found  — adversarial sweep
+- [x] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found  — two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
 - [ ] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found
 - [ ] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug
 - [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
 
-**Resume at T8** (SWEEP 1: adversarial bug hunt across the whole app; fix everything found).
+**Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
 ## 5. Open findings — 0 still open, 21 fixed
 
@@ -84,7 +84,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 08:05:36 UTC  F09 fixed: priceBounds() is now the single source for both the canvas scale and the corner labels, so the number printed at the top of the axis is by construction the value drawn there
 - 2026-09-08 08:05:37 UTC  F10 fixed: ComparePair.pairedIndex() - the last index at which BOTH lines have a reading - now feeds the spread and the resting benchmark figure, and the spread normalises negative zero
 - 2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit
 - 2026-09-08 08:05:40 UTC  F12 fixed: fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept
@@ -96,4 +95,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 08:05:43 UTC  F18 fixed: the watched/held set is keyed on etfGenerated as well
 - 2026-09-08 08:05:44 UTC  F19 fixed: a well-formed page carrying zero quotes stops the host loop instead of re-asking the other Yahoo host
 - 2026-09-08 08:05:45 UTC  F20 fixed: comment corrected against the live measurement, and it now names the different field the stock screener converts so nobody applies one rule to the other
+- 2026-09-08 08:10:22 UTC  T8 -> done  two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
 
