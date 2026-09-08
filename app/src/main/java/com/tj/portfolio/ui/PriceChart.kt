@@ -33,6 +33,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -56,6 +57,7 @@ import com.tj.portfolio.data.ChartPoint
 import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.ChartWindow
+import com.tj.portfolio.data.approxSpanMs
 import com.tj.portfolio.util.Fmt
 
 /**
@@ -209,7 +211,11 @@ fun PriceChart(
     // ABOVE THE EMPTY-STATE BRANCH, like the gesture state below it and for the same reason:
     // the pinch handler reads both, and a pinch has to survive a window whose series has not
     // been fetched yet.
-    val drawnAll = remember(shown, window) { clipToWindow(shown, window) }
+    val drawnAll = remember(shown, window) { clipToWindow(shown, window, pad = true) }
+    // WHAT IS MEASURED, as opposed to what is drawn: the same clip WITHOUT the carried edge
+    // points, so every figure printed anywhere on this chart describes the picture the user is
+    // looking at. The two are the same object when nothing is zoomed.
+    val insideAll = remember(shown, window) { clipToWindow(shown, window, pad = false) }
     val axisWindow = remember(drawnAll, window) {
         window ?: drawnAll?.let { ChartWindow(it.startMs, it.endMs) }
     }
@@ -369,6 +375,7 @@ fun PriceChart(
         // `drawnAll` and `axisWindow` are computed above the empty-state branch because the
         // gesture handler needs them; here they are simply narrowed to non-null.
         val drawn = drawnAll ?: shown
+        val inside = insideAll ?: drawn
         val axis = axisWindow ?: ChartWindow(drawn.startMs, drawn.endMs)
         // True when the window is genuinely narrower than everything the app holds - which is
         // what the "Reset zoom" affordance is for. A window that merely equals the series is
@@ -382,11 +389,27 @@ fun PriceChart(
         // against or the two disagree at the right-hand edge. Both arrays are null whenever
         // the comparison cannot be made honestly, and every reader below treats null as
         // "draw the ordinary price chart", so there is no half-comparison state.
-        val cmp = remember(drawn, compare, compareLivePrice, liveEdge) {
+        val tipT = remember(shown) { shown.points.lastOrNull()?.t ?: Long.MIN_VALUE }
+        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT) {
             val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
-            val other = comparePercents(drawn, benchmark)
+            val other = comparePercents(drawn, benchmark, tipT)
             val own = if (other == null) null else primaryPercents(drawn)
             if (other == null || own == null) null else ComparePair(own, other)
+        }
+        // ---- THE SAME COMPARISON, OVER WHAT IS ON SCREEN.
+        //
+        // The readout's resting figures and the y-axis both need percentages that stop at the
+        // window's edges rather than at the carried points beyond them. Identical to `cmp`
+        // when nothing is zoomed - `inside === drawn` then, and this returns the same object
+        // rather than computing a second one.
+        val cmpInside = remember(cmp, inside, drawn, compare, compareLivePrice, liveEdge, tipT) {
+            if (inside === drawn || cmp == null) cmp
+            else {
+                val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
+                val other = comparePercents(inside, benchmark, tipT)
+                val own = if (other == null) null else primaryPercents(inside)
+                if (other == null || own == null) null else ComparePair(own, other)
+            }
         }
 
         // ---- the readout: what the line did over this window, or what it did at your finger
@@ -396,7 +419,11 @@ fun PriceChart(
         // canvas, axis labels and caption included - to change one string.
         // THE READOUT IS TEXT, so it takes the text-legible green/red rather than the line's
         // fill colour - see the note on `signColor`. The line itself keeps the brand colour.
-        ChartReadout(drawn, range, line, muted, scrub, cmp, compareLabel)
+        ChartReadout(
+            drawn, range, line, muted, scrub, cmp, compareLabel,
+            summary = inside, summaryCmp = cmpInside,
+            windowLabel = if (zoomedIn) spanLabel(axis.spanMs) else null
+        )
 
         Spacer(Modifier.height(8.dp))
 
@@ -404,6 +431,11 @@ fun PriceChart(
             Modifier
                 .fillMaxWidth()
                 .height(chartHeight)
+                // CLIPPED, because a zoomed line is deliberately drawn past both edges - see
+                // [clipToWindow]. Compose does not clip a `Canvas` to its node by default, so
+                // without this the carried points' segments bleed into the 16dp gutters the
+                // detail screen pads the chart with.
+                .clipToBounds()
                 .then(gestures)
         ) {
             ChartCanvas(
@@ -426,7 +458,12 @@ fun PriceChart(
             // that corner used to read $104.00, two-thirds of the way down the chart. A label
             // at the top of an axis has to be the top of that axis; the day's own high and
             // low are already legible from the line itself.
-            val bounds = remember(cmp, drawn) { cmp?.bounds() ?: priceBounds(drawn) }
+            // FROM WHAT IS ON SCREEN. Read off `drawn` these labels included the carried
+            // points beyond each edge, so the figure pinned to the top corner could name a
+            // price the line never reaches - the exact fault the note above describes.
+            val bounds = remember(cmpInside, inside) {
+                cmpInside?.bounds() ?: priceBounds(inside)
+            }
             Text(
                 if (cmp != null) Fmt.pctSigned(bounds[1]) else Fmt.price(bounds[1]),
                 style = MaterialTheme.typography.labelSmall,
@@ -587,11 +624,24 @@ fun PriceChart(
                     // chart means. A reader who misses this reads percentages as prices.
                     append("Percent change, both lines from the same start  -  ")
                 }
-                append(range.caption)
+                // ---- WHAT IS ON SCREEN, NOT WHAT WAS FETCHED (Round 64 sweep).
+                //
+                // Both halves were the whole series: "One month, daily closes  -  120 points"
+                // sat under a chart showing three days and eight of them. The caption is the
+                // line that says what the chart is showing, so on a zoomed chart it has to
+                // say the window - and it names the underlying candles too, because "3 days,
+                // daily closes" explains why a three-day picture has three points in it.
+                if (zoomedIn) {
+                    append(spanLabel(axis.spanMs))
+                    append(", ")
+                    append(range.caption.substringAfter(", ").ifBlank { range.caption })
+                } else {
+                    append(range.caption)
+                }
                 append("  -  ")
-                append(shown.points.size)
-                append(if (shown.points.size == 1) " point" else " points")
-                if (onZoom != null) {
+                append(drawn.points.size)
+                append(if (drawn.points.size == 1) " point" else " points")
+                if (onZoom != null || onWindow != null) {
                     // DISCOVERABILITY, in four words. A gesture nothing on screen mentions is
                     // a gesture nobody finds, and this caption is already the line that says
                     // what the chart is showing.
@@ -633,7 +683,28 @@ private fun ChartReadout(
     scrub: MutableIntState,
     /** Both percent series when comparing, null for the ordinary price readout. */
     cmp: ComparePair? = null,
-    compareLabel: String = BENCHMARK_SYMBOL
+    compareLabel: String = BENCHMARK_SYMBOL,
+    /**
+     * WHAT THE WINDOW DID, as opposed to what is drawn (Round 64 sweep).
+     *
+     * [s] is the drawn series, which on a zoomed chart carries one point beyond each edge so
+     * the line reaches both sides; the scrub index points into it, so the crosshair half of
+     * this readout has to use it. Every RESTING figure - the change, the percentage, the
+     * baseline the scrubbed price is measured from - must come from this one instead, or the
+     * chart prints a figure for a stretch of time it is not showing.
+     */
+    summary: ChartSeries = s,
+    /** The comparison over [summary], for the same reason. */
+    summaryCmp: ComparePair? = cmp,
+    /**
+     * What to call the window when it no longer matches the selected range.
+     *
+     * Null on an unzoomed chart, where the range's own label is the honest answer. Once
+     * pinched, "over 1m" beside a three-week picture is the chart contradicting itself - and
+     * the range chip above is still showing the whole month's figure, so the two disagree in
+     * public. Naming the actual span settles it.
+     */
+    windowLabel: String? = null
 ) {
     val i = scrub.intValue
     val point = if (i in s.points.indices) s.points[i] else null
@@ -648,7 +719,8 @@ private fun ChartReadout(
     ) {
         if (point == null) {
             Text(
-                Fmt.changeMoney(s.last, s.change) + "   " + Fmt.pctSigned(s.changePct),
+                Fmt.changeMoney(summary.last, summary.change) + "   " +
+                    Fmt.pctSigned(summary.changePct),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = line
@@ -657,9 +729,10 @@ private fun ChartReadout(
             Text(
                 // NAMES THE BASELINE. The same omission the price block was corrected for in
                 // Round 51: a percentage with nothing saying what it is a percentage OF.
-                when (range) {
-                    ChartRange.D1 -> "since yesterday's close"
-                    ChartRange.OVERNIGHT -> "since today's close"
+                when {
+                    windowLabel != null -> "over $windowLabel"
+                    range == ChartRange.D1 -> "since yesterday's close"
+                    range == ChartRange.OVERNIGHT -> "since today's close"
                     else -> "over ${range.label.lowercase()}"
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -673,7 +746,7 @@ private fun ChartReadout(
             // what people get wrong.
             // The benchmark AT THE LAST SHARED MOMENT, for the same reason the spread is -
             // see [ComparePair.pairedIndex].
-            cmp?.pairedIndex()?.let { pi -> cmp.other[pi] }?.let { m ->
+            summaryCmp?.pairedIndex()?.let { pi -> summaryCmp.other[pi] }?.let { m ->
                 Spacer(Modifier.weight(1f))
                 Text(
                     "$compareLabel " + Fmt.pctSigned(m),
@@ -689,7 +762,8 @@ private fun ChartReadout(
             // the 1D and after-hours views, where the baseline is the previous close rather
             // than the first plotted point, and quietly switching reference mid-gesture would
             // make the number disagree with the one shown a moment earlier.
-            val from = s.from
+            // FROM THE WINDOW'S OWN BASELINE, not the drawn list's - see [summary].
+            val from = summary.from
             val delta = if (from > 0.0) point.close - from else 0.0
             val pct = if (from > 0.0) delta / from * 100.0 else 0.0
             Text(
@@ -1291,8 +1365,25 @@ internal fun nearestIndex(
     }
     // `lo` is the first point at or after the target; whichever neighbour is closer wins, and
     // a tie goes to the earlier one so dragging left and right lands on the same point.
-    if (lo > 0 && (target - points[lo - 1].t) <= (points[lo].t - target)) return lo - 1
-    return lo
+    var best = lo
+    if (lo > 0 && (target - points[lo - 1].t) <= (points[lo].t - target)) best = lo - 1
+
+    // ---- AND NEVER ON A POINT THAT IS NOT ON SCREEN (Round 64 sweep).
+    //
+    // The drawn list carries one candle beyond each edge so the line reaches both sides. At
+    // the far left of a zoomed chart the nearer of the two neighbours is often that carried
+    // point - so the readout printed a price and a date from outside the window while the
+    // crosshair itself was drawn at a negative x and could not be seen. Clamping to the points
+    // inside the axis keeps the two together; a window with no point inside it at all (a
+    // monthly line zoomed into one day) falls back to the nearest, which is all there is.
+    if (axis != null) {
+        val lowSec = axis.startMs / 1000L
+        val highSec = axis.endMs / 1000L
+        val firstIn = points.indexOfFirst { it.t >= lowSec }
+        val lastIn = points.indexOfLast { it.t <= highSec }
+        if (firstIn in 0..lastIn) best = best.coerceIn(firstIn, lastIn)
+    }
+    return best
 }
 
 // ---------------------------------------------------------------------- helpers
@@ -1678,7 +1769,24 @@ const val BENCHMARK_SYMBOL = "SPY"
  * drawn. A missing overlay is a small disappointment; a wrong one is a false claim about
  * performance.
  */
-internal fun comparePercents(primary: ChartSeries?, compare: ChartSeries?): DoubleArray? {
+internal fun comparePercents(
+    primary: ChartSeries?,
+    compare: ChartSeries?,
+    /**
+     * The timestamp of the PRIMARY SERIES' TRUE LAST POINT (Round 64 sweep).
+     *
+     * THE BUG THIS CLOSES. The tip-pairing below used to fire on `primary.points.lastIndex`,
+     * and since the zoom arrived `primary` is often a CLIPPED series whose last index is the
+     * right-hand edge of the window rather than the newest candle. `cs.last().t` is always
+     * later than a mid-window timestamp, so the branch fired on every zoomed intraday chart
+     * and pasted SPY's CURRENT price onto a point in the middle of the morning: the benchmark
+     * line jumped at its end and the out-performance figure compared 11:05 against 15:55.
+     *
+     * Passing the real tip means the pairing happens where it was meant to and nowhere else.
+     * The default keeps every existing caller and test on the old behaviour.
+     */
+    primaryTipT: Long = Long.MAX_VALUE
+): DoubleArray? {
     if (primary == null || compare == null) return null
     if (primary.isEmpty || compare.isEmpty) return null
     val pts = primary.points
@@ -1708,12 +1816,17 @@ internal fun comparePercents(primary: ChartSeries?, compare: ChartSeries?): Doub
     // Only for the intraday ranges, and deliberately so: on a five-year monthly line a
     // benchmark whose series runs a month past a delisted stock's is not "now", it is a month
     // of trading the stock was not present for, and pairing them would invent a comparison.
+    // AND ONLY AT THE SERIES' REAL TIP - see [primaryTipT]. `MAX_VALUE` (the default) means
+    // "the caller did not say", and then the drawn list's own last point is the tip, which is
+    // true for every unzoomed chart.
     val pairTips = primary.range.intraday
     val lastIndex = pts.lastIndex
+    val tipIsReal = primaryTipT == Long.MAX_VALUE || pts[lastIndex].t == primaryTipT
     val out = DoubleArray(pts.size)
     var drawn = 0
     for (i in pts.indices) {
-        val v = if (pairTips && i == lastIndex && cs.last().t > pts[i].t) cs.last().close
+        val v = if (pairTips && tipIsReal && i == lastIndex && cs.last().t > pts[i].t)
+            cs.last().close
         else valueAtOrBefore(cs, pts[i].t)
         if (v == null || v <= 0.0) {
             // NaN, not zero. Zero is a real percentage - "the benchmark was flat here" - and
@@ -1867,7 +1980,23 @@ private fun LegendDot(color: Color) {
  * Returns the series UNCHANGED when the window covers all of it, which is the ordinary case
  * and must stay allocation-free: this runs on every quote tick for every chart on screen.
  */
-internal fun clipToWindow(s: ChartSeries?, w: ChartWindow?): ChartSeries? {
+internal fun clipToWindow(
+    s: ChartSeries?,
+    w: ChartWindow?,
+    /**
+     * Whether to carry one point beyond each edge (Round 64 sweep).
+     *
+     * TWO DIFFERENT QUESTIONS, AND THEY NEEDED TWO DIFFERENT ANSWERS. Drawing wants the extra
+     * points, so the line reaches both sides of the picture. MEASURING must not have them:
+     * everything a `ChartSeries` derives - `first`, `last`, `from`, `change`, `changePct`,
+     * `startMs`, `endMs` - comes from its point list, so a padded series reports the change
+     * between two candles the user cannot see. On a one-month chart zoomed to a week that was
+     * a nine-day figure printed over a seven-day picture, and on an all-time chart zoomed into
+     * a single day it was the change between two monthly closes, labelled "over all". The
+     * y-axis had the same fault: its top label could name a price nothing on screen reached.
+     */
+    pad: Boolean = true
+): ChartSeries? {
     if (s == null || w == null || s.points.size < 2) return s
     val startSec = w.startMs / 1000L
     val endSec = w.endMs / 1000L
@@ -1876,10 +2005,10 @@ internal fun clipToWindow(s: ChartSeries?, w: ChartWindow?): ChartSeries? {
     val pts = s.points
     var lo = pts.indexOfFirst { it.t >= startSec }
     if (lo < 0) lo = pts.size - 1
-    if (lo > 0) lo--                       // one before the left edge
+    if (pad && lo > 0) lo--                // one before the left edge
     var hi = pts.indexOfLast { it.t <= endSec }
     if (hi < 0) hi = 0
-    if (hi < pts.lastIndex) hi++           // one after the right edge
+    if (pad && hi < pts.lastIndex) hi++    // one after the right edge
     if (hi <= lo) {
         // A window that falls between two candles - possible on a five-year weekly line
         // zoomed into a single day. Two points is the least that can be a line; showing the
@@ -1899,8 +2028,26 @@ internal fun clipToWindow(s: ChartSeries?, w: ChartWindow?): ChartSeries? {
  * when nothing else is held, which is what happens on the very first chart of a session.
  */
 internal fun windowBounds(drawn: ChartSeries?, all: Collection<ChartSeries>): ChartWindow? {
+    // ---- THE AFTER-HOURS VIEW IS ITS OWN WORLD (Round 64 sweep).
+    //
+    // THE BUG THIS FIXES, and it was a bad one. The overnight series is the stretch from the
+    // last regular close to now - so it sits ENTIRELY AFTER the 1D series, with no overlap at
+    // all. Excluding it from the bounds (which is right: it is a filter, not a wider window)
+    // while still clamping its window against them meant that the first pinch on the
+    // after-hours chart slid the window back into the regular session, where the overnight
+    // series has no points - and the chart went blank, with "Reset zoom" restoring it to the
+    // same empty regular session. The only way out was another range chip.
+    //
+    // While it is what is drawn, it is the whole of what a zoom may cover.
+    if (drawn != null && drawn.range == ChartRange.OVERNIGHT) {
+        if (drawn.points.size < 2) return null
+        return ChartWindow(drawn.startMs, drawn.endMs)
+    }
+
     var lo = Long.MAX_VALUE
     var hi = Long.MIN_VALUE
+    var widest = 0L
+    var haveMax = false
     for (s in all) {
         if (s.points.size < 2) continue
         // The after-hours view is a filtered stretch of days, not a wider or narrower window
@@ -1908,11 +2055,36 @@ internal fun windowBounds(drawn: ChartSeries?, all: Collection<ChartSeries>): Ch
         if (s.range == ChartRange.OVERNIGHT) continue
         if (s.startMs < lo) lo = s.startMs
         if (s.endMs > hi) hi = s.endMs
+        if (s.range == ChartRange.MAX) haveMax = true
+        val cover = s.range.approxSpanMs
+        if (cover > widest) widest = cover
     }
     if (lo == Long.MAX_VALUE || hi <= lo) {
         val d = drawn ?: return null
         if (d.points.size < 2) return null
-        return ChartWindow(d.startMs, d.endMs)
+        lo = d.startMs
+        hi = d.endMs
+        haveMax = d.range == ChartRange.MAX
+    }
+
+    // ---- HOW FAR OUT A PINCH MAY GO, WHICH IS NOT THE SAME AS WHAT IS LOADED.
+    //
+    // THE BUG THIS FIXES. Bounds built only from the series in hand meant that on a stock
+    // opened for the first time - one 1D series cached, nothing else - a pinch outward
+    // saturated instantly at today, because `ChartWindow.zoomed` clamps to the bounds' span.
+    // TJ asked for exactly the opposite: *"pinch gesture in to zoom back out, all the way to
+    // the stock's all time chart"*. The window is what DECIDES which range to fetch, so
+    // bounding it by what has already been fetched is circular - nothing wider could ever be
+    // asked for.
+    //
+    // So until the all-time series has actually arrived, a zoom may reach back as far as that
+    // series could possibly go. The reach is optimistic on purpose, and it is corrected the
+    // moment the data lands: once a MAX series is held, its real first point is the limit - a
+    // company that listed in 2019 has no chart before 2019 and must not be zoomable into the
+    // blank years before it. `ChartWindow.clamped` pulls the window back in when that happens.
+    if (!haveMax) {
+        val reach = hi - ChartRange.MAX.approxSpanMs
+        if (reach < lo) lo = reach
     }
     return ChartWindow(lo, hi)
 }

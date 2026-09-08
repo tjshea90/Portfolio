@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 21:45:42 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:19 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,9 +48,17 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (SWEEP 1: adversarial bug hunt over the new code and the app).
 
-## 5. Open findings — 0 still open, 0 fixed
+## 5. Open findings — 8 still open, 1 fixed
 
-(none recorded yet)
+- [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
+- [ ] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
+- [ ] F03 (high) Window is never re-anchored when a new range's series arrives; lookback is measured from a stale coarse-candle timestamp, so a spread near the right edge of a 5Y chart can land on a blank chart
+- [ ] F04 (high) Readout, percent change and y-axis labels are computed from the two carried points OUTSIDE the window - a 7-day picture reports a 9-day change
+- [ ] F05 (high) Comparison overlay pastes SPY's live price onto a mid-window point once zoomed: tip-pairing tests drawn.lastIndex, not the series' true tip
+- [ ] F06 (med) Chip figure, caption and point count still describe the unzoomed range while the readout describes the window - two figures on one screen that disagree
+- [ ] F07 (med) Reset zoom chip appears on its own every ~5 min as windowBounds advances with the periodic refresh
+- [ ] F08 (low) Crosshair can land on a carried off-window point: readout updates but the dot and line are drawn off-canvas
+- [ ] F09 (low) Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gutters
 
 ## 6. Version
 
@@ -61,16 +69,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 20:24:41 UTC  round 64 started
-- 2026-09-08 20:26:04 UTC  T0 -> doing  baseline
-- 2026-09-08 20:37:55 UTC  T0 -> done  v7.4 baseline green
-- 2026-09-08 20:37:56 UTC  T2 -> doing  continuous window zoom
-- 2026-09-08 21:13:52 UTC  T2 -> done  continuous window zoom + pan, axis-scaled canvas, reset chip
-- 2026-09-08 21:13:54 UTC  T1 -> done  row sparkline 1.4:1 weights, 48dp tall
-- 2026-09-08 21:13:55 UTC  T3 -> done  FullScreenChart dialog + sensor orientation + manifest configChanges
-- 2026-09-08 21:13:56 UTC  T4 -> doing  tests for T1-T3
-- 2026-09-08 21:37:22 UTC  T4 -> done  ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7
-- 2026-09-08 21:37:23 UTC  T5 -> doing  full regression suite
 - 2026-09-08 21:45:40 UTC  T5 -> done  632/632 green, lint vital clean, checkinit ok
 - 2026-09-08 21:45:42 UTC  T6 -> doing  adversarial sweep 1
+- 2026-09-08 21:56:12 UTC  finding F01: Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED s
+- 2026-09-08 21:56:12 UTC  finding F02: Pinching the After-hours chart blanks it permanently: windowBounds excludes OVER
+- 2026-09-08 21:56:12 UTC  finding F03: Window is never re-anchored when a new range's series arrives; lookback is measu
+- 2026-09-08 21:56:12 UTC  finding F04: Readout, percent change and y-axis labels are computed from the two carried poin
+- 2026-09-08 21:56:12 UTC  finding F05: Comparison overlay pastes SPY's live price onto a mid-window point once zoomed: 
+- 2026-09-08 21:56:12 UTC  finding F06: Chip figure, caption and point count still describe the unzoomed range while the
+- 2026-09-08 21:56:12 UTC  finding F07: Reset zoom chip appears on its own every ~5 min as windowBounds advances with th
+- 2026-09-08 21:56:12 UTC  finding F08: Crosshair can land on a carried off-window point: readout updates but the dot an
+- 2026-09-08 21:56:12 UTC  finding F09: Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gut
+- 2026-09-08 22:15:19 UTC  F01 fixed
 

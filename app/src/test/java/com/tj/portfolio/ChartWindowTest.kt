@@ -278,7 +278,7 @@ class ChartWindowTest {
     @Test fun `bounds span every series the app holds`() {
         val short = series(20, 300L, ChartRange.D1)
         val long = ChartSeries(
-            symbol = "T", range = ChartRange.Y5,
+            symbol = "T", range = ChartRange.MAX,
             points = (0 until 60).map { ChartPoint(1_500_000_000L + it * 2_592_000L, 50.0) },
             baseline = 50.0, fetched = 1L
         )
@@ -287,23 +287,128 @@ class ChartWindowTest {
         assertEquals(short.endMs, b.endMs)
     }
 
-    @Test fun `the after-hours series never widens the bounds`() {
+    @Test fun `a pinch may reach back further than what has been fetched`() {
+        // THE BUG THIS PROVES FIXED. Bounds built only from the series in hand meant that on a
+        // stock opened for the first time - one 1D series cached and nothing else - a pinch
+        // outward saturated at today, because the zoom clamps to the bounds' span. The window
+        // is what CHOOSES the range to fetch, so bounding it by what has already been fetched
+        // made "zoom out to the all-time chart" impossible.
+        val day = series(80, 300L, ChartRange.D1)
+        val b = windowBounds(day, listOf(day))!!
+        assertTrue(
+            "a pinch out from a 1D chart cannot reach past a day: span is ${b.spanMs}ms",
+            b.spanMs > 3650L * DAY
+        )
+        assertEquals("the right-hand edge must stay at the newest data", day.endMs, b.endMs)
+    }
+
+    @Test fun `and stops reaching once the all-time series has actually arrived`() {
+        // A company that listed in 2019 has no chart before 2019: once the MAX series is held,
+        // its real first point is the limit, or a pinch-out shows blank years before the IPO.
+        val day = series(80, 300L, ChartRange.D1)
+        val max = ChartSeries(
+            symbol = "T", range = ChartRange.MAX,
+            points = (0 until 60).map { ChartPoint(1_600_000_000L + it * 2_592_000L, 50.0) },
+            baseline = 50.0, fetched = 1L
+        )
+        val b = windowBounds(day, listOf(day, max))!!
+        assertEquals(
+            "the all-time series is loaded, so its own start is the limit",
+            max.startMs, b.startMs
+        )
+    }
+
+    @Test fun `the after-hours view is bounded by itself`() {
+        // THE BUG THIS PROVES FIXED. The overnight series runs from the last regular close to
+        // now, so it sits ENTIRELY AFTER the 1D series. Clamping its window against bounds
+        // that exclude it slid the window into the regular session, where the overnight series
+        // has no points at all - one pinch and the after-hours chart went blank, with "Reset
+        // zoom" restoring it to the same empty stretch.
         val day = series(20, 300L, ChartRange.D1)
+        val overnight = ChartSeries(
+            symbol = "T", range = ChartRange.OVERNIGHT,
+            points = (0 until 20).map {
+                ChartPoint(day.points.last().t + 3_600L + it * 300L, 50.0)
+            },
+            baseline = 50.0, fetched = 1L
+        )
+        val b = windowBounds(overnight, listOf(day, overnight))!!
+        assertEquals(overnight.startMs, b.startMs)
+        assertEquals(overnight.endMs, b.endMs)
+    }
+
+    @Test fun `the after-hours series never widens another chart's bounds`() {
+        // With the all-time series present there is no optimistic reach, so the bounds are
+        // exactly the data - which is the state in which a stray series would show up.
+        val day = series(20, 300L, ChartRange.D1)
+        val max = ChartSeries(
+            symbol = "T", range = ChartRange.MAX,
+            points = (0 until 60).map { ChartPoint(1_500_000_000L + it * 2_592_000L, 50.0) },
+            baseline = 50.0, fetched = 1L
+        )
         val overnight = ChartSeries(
             symbol = "T", range = ChartRange.OVERNIGHT,
             points = (0 until 20).map { ChartPoint(1_000_000_000L + it * 300L, 50.0) },
             baseline = 50.0, fetched = 1L
         )
-        val b = windowBounds(day, listOf(day, overnight))!!
+        val b = windowBounds(day, listOf(day, max, overnight))!!
         assertEquals(
-            "the after-hours view is a filter, not a wider window", day.startMs, b.startMs
+            "the after-hours view is a filter, not a wider window",
+            day.endMs, b.endMs
+        )
+        assertEquals(
+            "an overnight series from another era leaked into the bounds",
+            max.startMs, b.startMs
         )
     }
 
     @Test fun `bounds fall back to the drawn series and then to nothing`() {
         val s = series(20, 300L)
-        assertEquals(ChartWindow(s.startMs, s.endMs), windowBounds(s, emptyList()))
+        val b = windowBounds(s, emptyList())!!
+        assertEquals("the newest data is still the right-hand edge", s.endMs, b.endMs)
+        assertTrue("the reach should still apply", b.startMs <= s.startMs)
         assertNull(windowBounds(null, emptyList()))
+    }
+
+    // ------------------------------------------------- re-anchoring when data moves
+
+    @Test fun `a window wider than the data is pulled back inside it`() {
+        val wide = ChartWindow(bounds.startMs - 5000L * DAY, bounds.endMs)
+        val c = ChartWindow.clamped(wide, bounds, wasAtRightEdge = true)!!
+        assertEquals(bounds.startMs, c.startMs)
+        assertEquals(bounds.endMs, c.endMs)
+    }
+
+    @Test fun `a window at the newest data follows the data forward`() {
+        val atEnd = ChartWindow(base.endMs - 5L * DAY, base.endMs)
+        val moved = ChartWindow(bounds.startMs, base.endMs + 30L * DAY)
+        assertTrue(ChartWindow.atRightEdge(atEnd, ChartWindow(bounds.startMs, base.endMs)))
+        val c = ChartWindow.clamped(atEnd, moved, wasAtRightEdge = true)!!
+        assertEquals("it should still be showing the newest data", moved.endMs, c.endMs)
+        assertEquals("and must not have changed size", atEnd.spanMs, c.spanMs)
+    }
+
+    @Test fun `a window parked in history stays where it was put`() {
+        val old = ChartWindow(bounds.startMs + 100L * DAY, bounds.startMs + 130L * DAY)
+        assertTrue(!ChartWindow.atRightEdge(old, bounds))
+        val c = ChartWindow.clamped(old, bounds, wasAtRightEdge = false)!!
+        assertEquals(old, c)
+    }
+
+    @Test fun `clamping is safe with nothing to clamp`() {
+        assertNull(ChartWindow.clamped(null, bounds, false))
+        assertEquals(base, ChartWindow.clamped(base, null, false))
+    }
+
+    @Test fun `a chart pinched back out counts as unzoomed again`() {
+        // The reset chip used to appear on its own: `isWhole` asked whether the two ENDS were
+        // near the bounds' ends, and the newest data moves on every five-minute refresh.
+        val whole = ChartWindow(bounds.startMs, bounds.endMs)
+        val refreshed = ChartWindow(bounds.startMs, bounds.endMs + 5L * 60_000L)
+        assertTrue(
+            "five minutes of fresh data made an unzoomed chart look zoomed",
+            ChartWindow.isWhole(whole, refreshed)
+        )
     }
 
     // ------------------------------------------------------- the crosshair and axis

@@ -99,26 +99,6 @@ enum class ChartRange(
          * bottom simply stays on the five-minute chart.
          */
         /**
-         * Roughly how much time each rung covers, in ms.
-         *
-         * "Roughly" is honest: a five-day chart is five TRADING days, so it spans a week of
-         * wall-clock time, and MAX is however long the company has been listed. These numbers
-         * are used to choose which series can DRAW a given window, which is a question about
-         * candle size, so approximate coverage is exactly the right precision for it.
-         */
-        val ChartRange.approxSpanMs: Long
-            get() = when (this) {
-                D1 -> 86_400_000L
-                D5 -> 7L * 86_400_000L
-                M1 -> 31L * 86_400_000L
-                M6 -> 186L * 86_400_000L
-                Y1 -> 366L * 86_400_000L
-                Y5 -> 1830L * 86_400_000L
-                MAX -> 40L * 366L * 86_400_000L
-                OVERNIGHT -> 7L * 86_400_000L
-            }
-
-        /**
          * WHICH SERIES CAN DRAW THIS WINDOW (Round 64).
          *
          * The window a person is looking at is continuous; the data behind it is not. This
@@ -185,6 +165,30 @@ enum class ChartRange(
         }
     }
 }
+
+/**
+ * Roughly how much time each rung covers, in ms.
+ *
+ * "Roughly" is honest: a five-day chart is five TRADING days, so it spans a week of wall-clock
+ * time, and MAX is however long the company has been listed. These numbers are used to choose
+ * which series can DRAW a given window, which is a question about candle size, so approximate
+ * coverage is exactly the right precision for it.
+ *
+ * TOP-LEVEL rather than a member of the companion (Round 64 sweep): the UI needs it too, to
+ * work out how far out a pinch may reach before the all-time series has been fetched, and a
+ * member extension can only be called from inside the companion's own scope.
+ */
+val ChartRange.approxSpanMs: Long
+    get() = when (this) {
+        ChartRange.D1 -> 86_400_000L
+        ChartRange.D5 -> 7L * 86_400_000L
+        ChartRange.M1 -> 31L * 86_400_000L
+        ChartRange.M6 -> 186L * 86_400_000L
+        ChartRange.Y1 -> 366L * 86_400_000L
+        ChartRange.Y5 -> 1830L * 86_400_000L
+        ChartRange.MAX -> 40L * 366L * 86_400_000L
+        ChartRange.OVERNIGHT -> 7L * 86_400_000L
+    }
 
 /** One candle close, with the moment it belongs to. */
 data class ChartPoint(val t: Long, val close: Double)

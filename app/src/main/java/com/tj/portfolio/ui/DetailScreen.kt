@@ -401,6 +401,7 @@ fun DetailScreen(
     // it forces the sensor orientation while it is open.
     var chartExpanded by remember(symbol) { mutableStateOf(false) }
 
+
     // How far a zoom may go, from EVERY series the app is holding for this symbol rather than
     // from the one on screen - so pinching out past the end of a one-month chart continues
     // into the five-year one instead of stopping at a boundary the user cannot see.
@@ -418,7 +419,14 @@ fun DetailScreen(
         // WHICH SERIES TO DRAW IT FROM. `rangeForLookback`, not the window's span: every
         // range this provider serves ends at now, so a window panned into the past needs a
         // rung that reaches back to it however narrow it is. See the note on that function.
-        val newest = chartBounds?.endMs ?: w.endMs
+        //
+        // MEASURED FROM THE CLOCK, NOT FROM THE NEWEST CANDLE (Round 64 sweep). A coarse
+        // candle is stamped at its OPEN, so the last point of a five-year monthly series can
+        // be three weeks old - and a lookback measured from there came out three weeks short.
+        // Zooming into the right-hand edge of an all-time chart then asked for a 1D series
+        // covering today for a window sitting in a week the 1D series does not reach, and the
+        // chart went blank. The clock is the honest reference: every range ends at now.
+        val newest = maxOf(chartBounds?.endMs ?: 0L, System.currentTimeMillis())
         val next = com.tj.portfolio.data.ChartRange.rangeForLookback(
             newest - w.startMs, chartRange
         )
@@ -430,6 +438,30 @@ fun DetailScreen(
             chartRange = next
             vm.setChartRange(next)
         }
+    }
+
+    // ---- RE-ANCHORING THE WINDOW WHEN THE DATA MOVES UNDER IT (Round 64 sweep).
+    //
+    // A zoom is what MAKES the bounds change: the window chooses a finer or wider range, the
+    // fetch lands, and the app is suddenly holding data it did not have when the fingers left
+    // the glass. Two things go wrong if nothing re-anchors the window, and both end with a
+    // chart the user cannot read:
+    //
+    //   * the optimistic pinch-out reach (see [windowBounds]) lets a window be wider than the
+    //     all-time series turns out to be, which would draw years of nothing before the IPO;
+    //   * a window pinned to the right-hand edge of a coarse chart can land in a week the
+    //     finer series does not cover, and the chart goes blank.
+    //
+    // `ChartWindow.clamped` pulls it back in, keeping it at the newest data if that is where
+    // it already was. And a window that now covers everything stops being a zoom at all - it
+    // is set back to null, which is what the chart draws when nothing has been pinched, and
+    // is what stops the "Reset zoom" chip appearing over an unzoomed chart.
+    LaunchedEffect(chartBounds) {
+        val b = chartBounds ?: return@LaunchedEffect
+        val w = chartWindow ?: return@LaunchedEffect
+        val pinned = com.tj.portfolio.data.ChartWindow.atRightEdge(w, b)
+        val next = com.tj.portfolio.data.ChartWindow.clamped(w, b, pinned)
+        chartWindow = if (com.tj.portfolio.data.ChartWindow.isWhole(next, b)) null else next
     }
 
     // The chart follows the range the user picked. `loadChart` reads its disk cache first

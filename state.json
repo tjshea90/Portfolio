@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 21:45:42 UTC",
+  "updated": "2026-09-08 22:15:19 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -69,7 +69,71 @@
       "note": ""
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "id": "F01",
+      "text": "Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible",
+      "sev": "high",
+      "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "F02",
+      "text": "Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F03",
+      "text": "Window is never re-anchored when a new range's series arrives; lookback is measured from a stale coarse-candle timestamp, so a spread near the right edge of a 5Y chart can land on a blank chart",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F04",
+      "text": "Readout, percent change and y-axis labels are computed from the two carried points OUTSIDE the window - a 7-day picture reports a 9-day change",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F05",
+      "text": "Comparison overlay pastes SPY's live price onto a mid-window point once zoomed: tip-pairing tests drawn.lastIndex, not the series' true tip",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F06",
+      "text": "Chip figure, caption and point count still describe the unzoomed range while the readout describes the window - two figures on one screen that disagree",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F07",
+      "text": "Reset zoom chip appears on its own every ~5 min as windowBounds advances with the periodic refresh",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F08",
+      "text": "Crosshair can land on a carried off-window point: readout updates but the dot and line are drawn off-canvas",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F09",
+      "text": "Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gutters",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    }
+  ],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -414,6 +478,16 @@
     "2026-09-08 21:37:22 UTC  T4 -> done  ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7",
     "2026-09-08 21:37:23 UTC  T5 -> doing  full regression suite",
     "2026-09-08 21:45:40 UTC  T5 -> done  632/632 green, lint vital clean, checkinit ok",
-    "2026-09-08 21:45:42 UTC  T6 -> doing  adversarial sweep 1"
+    "2026-09-08 21:45:42 UTC  T6 -> doing  adversarial sweep 1",
+    "2026-09-08 21:56:12 UTC  finding F01: Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED s",
+    "2026-09-08 21:56:12 UTC  finding F02: Pinching the After-hours chart blanks it permanently: windowBounds excludes OVER",
+    "2026-09-08 21:56:12 UTC  finding F03: Window is never re-anchored when a new range's series arrives; lookback is measu",
+    "2026-09-08 21:56:12 UTC  finding F04: Readout, percent change and y-axis labels are computed from the two carried poin",
+    "2026-09-08 21:56:12 UTC  finding F05: Comparison overlay pastes SPY's live price onto a mid-window point once zoomed: ",
+    "2026-09-08 21:56:12 UTC  finding F06: Chip figure, caption and point count still describe the unzoomed range while the",
+    "2026-09-08 21:56:12 UTC  finding F07: Reset zoom chip appears on its own every ~5 min as windowBounds advances with th",
+    "2026-09-08 21:56:12 UTC  finding F08: Crosshair can land on a carried off-window point: readout updates but the dot an",
+    "2026-09-08 21:56:12 UTC  finding F09: Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gut",
+    "2026-09-08 22:15:19 UTC  F01 fixed"
   ]
 }

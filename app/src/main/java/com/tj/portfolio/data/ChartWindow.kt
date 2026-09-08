@@ -116,14 +116,67 @@ data class ChartWindow(val startMs: Long, val endMs: Long) {
             return ChartWindow(start, start + span)
         }
 
-        /** True when this window is (near enough) the whole of what is available. */
+        /**
+         * True when this window is (near enough) the whole of what is available.
+         *
+         * ---- BY PROPORTION, NOT BY POSITION (Round 64 sweep)
+         *
+         * This was written as "starts within a percent of the start AND ends within a percent
+         * of the end", and the second half of that made the "Reset zoom" chip appear on its
+         * own. `bounds` is rebuilt from every series the app holds, and the newest of those
+         * moves on every refresh: on a 1D chart the one-percent slack is under four minutes,
+         * and the chart reloads every five - so a chart the user had pinched back OUT to whole
+         * sprouted a reset chip roughly once per refresh, for a zoom that no longer existed.
+         *
+         * What actually matters is how much of the data is on screen. A window covering nine
+         * tenths of it is not something anyone needs a button to escape from, wherever its two
+         * ends happen to sit, and a few minutes of fresh data at the right-hand edge changes
+         * that proportion by a fraction of a percent instead of by a boolean.
+         */
         fun isWhole(w: ChartWindow?, bounds: ChartWindow?): Boolean {
             if (w == null || bounds == null) return true
-            // Within a percent of the full span, and touching both ends, counts as whole: a
-            // window a few milliseconds inside the data is the same picture, and treating it
-            // as zoomed would show the "zoomed in" affordances over an unzoomed chart.
-            val slack = (bounds.spanMs / 100L).coerceAtLeast(1L)
-            return w.startMs <= bounds.startMs + slack && w.endMs >= bounds.endMs - slack
+            return w.spanMs >= (bounds.spanMs * WHOLE_FRACTION).toLong()
+        }
+
+        /** How much of the data has to be on screen before a window counts as unzoomed. */
+        private const val WHOLE_FRACTION = 0.92
+
+        /**
+         * A window pulled back inside bounds that have MOVED UNDER IT (Round 64 sweep).
+         *
+         * Bounds change whenever a series arrives, and a zoom is what MAKES them change: the
+         * window picks a finer range, the fetch lands, and the app is suddenly holding data it
+         * did not have when the fingers left the glass. Two things then go wrong if nothing
+         * re-anchors the window:
+         *
+         *   * it can be wider than everything now known, which draws a stretch of nothing;
+         *   * it can sit entirely outside the newly loaded series - a real case, because a
+         *     coarse series is stamped at the candle's OPEN, so the right-hand edge of a
+         *     five-year monthly chart can be three weeks behind today. Zooming into that edge
+         *     produces a window in a week the finer series does not cover, and the chart goes
+         *     blank with no way back but the range chips.
+         *
+         * PINNED TO THE RIGHT WHEN IT WAS ALREADY THERE. A window whose end was at the newest
+         * data is a request to watch the latest, so it follows the data forward rather than
+         * being left behind by it; one parked in the middle of history stays where it was put.
+         */
+        fun clamped(w: ChartWindow?, bounds: ChartWindow?, wasAtRightEdge: Boolean): ChartWindow? {
+            if (w == null || bounds == null) return w
+            val span = w.spanMs.coerceAtMost(bounds.spanMs)
+            if (wasAtRightEdge) {
+                val start = (bounds.endMs - span).coerceAtLeast(bounds.startMs)
+                return ChartWindow(start, bounds.endMs)
+            }
+            var start = w.startMs.coerceIn(bounds.startMs, bounds.endMs - span)
+            if (start < bounds.startMs) start = bounds.startMs
+            return ChartWindow(start, start + span)
+        }
+
+        /** True when a window's right-hand edge is at (or past) the newest data it knows of. */
+        fun atRightEdge(w: ChartWindow?, bounds: ChartWindow?): Boolean {
+            if (w == null || bounds == null) return false
+            val slack = (w.spanMs / 50L).coerceAtLeast(1L)
+            return w.endMs >= bounds.endMs - slack
         }
     }
 }
