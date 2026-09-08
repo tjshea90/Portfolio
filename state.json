@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 62,
   "request": "Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 04:51:10 UTC",
+  "updated": "2026-09-08 04:51:11 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -11,7 +11,7 @@
   },
   "now": {
     "step": "",
-    "next": "Round 62 open: per-range performance chips. Work the ladder T0->T8.",
+    "next": "Feature 3 of 4 shipped (per-range performance chips, v7.3). One approved feature left: the SPY comparison overlay - a second series fetched, aligned to the first's timestamps and drawn against it. Start with ./ck start 63.",
     "files": []
   },
   "tasks": [

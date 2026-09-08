@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:51:10 UTC)
+# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:51:11 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -28,7 +28,7 @@ at once or kill one mid-flight; always background the build with
 ## 3. WHERE THE WORK STOPPED
 
 - **In flight:** (nothing in flight)
-- **Next action:** Round 62 open: per-range performance chips. Work the ladder T0->T8.
+- **Next action:** Feature 3 of 4 shipped (per-range performance chips, v7.3). One approved feature left: the SPY comparison overlay - a second series fetched, aligned to the first's timestamps and drawn against it. Start with ./ck start 63.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
