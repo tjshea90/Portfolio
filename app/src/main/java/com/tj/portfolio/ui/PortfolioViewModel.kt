@@ -4213,7 +4213,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // file round trip to get them back. They are kept, still carrying the app's "not in
         // the app's own screen" marker, and re-ranked into place by their existing score.
         val known = carried.map { it.symbol }.toSet()
-        val addedByClaude = old.filter { it.symbol !in known && it.etf == null && it.why.isNotBlank() }
+        // A CATEGORY COUNTS AS SOMETHING CLAUDE SAID. `ResearchBridge.section` admits a row
+        // on any of why / catalyst / risk / vehicle, so requiring `why` here meant a fund
+        // returned with a category and no paragraph appeared in the list and then vanished six
+        // hours later - contradicting what the screen tells the user happens to added funds.
+        val addedByClaude = old.filter {
+            it.symbol !in known && it.etf == null &&
+                (it.why.isNotBlank() || it.catalyst.isNotBlank())
+        }
         if (addedByClaude.isEmpty()) return carried
         return (carried + addedByClaude).sortedByDescending { it.score }
     }
@@ -4286,9 +4293,23 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         old: com.tj.portfolio.data.ResearchSet,
         fresh: com.tj.portfolio.data.ResearchSet
     ): com.tj.portfolio.data.ResearchSet {
-        if (old.isEmpty) return fresh
+        // THE EARLY EXITS CARRY THE FUND LIST TOO. `old.isEmpty` asks only about the three
+        // STOCK lists, so someone who has opened the ETFs tab and nothing else takes this
+        // path - and returning `fresh` bare here is exactly how their fund list was thrown
+        // away by the first stock build that ran behind it.
+        val keepEtfs = { f: com.tj.portfolio.data.ResearchSet ->
+            f.copy(
+                etfs = old.etfs,
+                etfGenerated = old.etfGenerated,
+                etfWarnings = old.etfWarnings,
+                notes = old.notes,
+                explained = old.explained,
+                explainedBy = old.explainedBy
+            )
+        }
+        if (old.isEmpty) return keepEtfs(fresh)
         val prior = (old.trending + old.best + old.worst).associateBy { it.symbol }
-        if (prior.isEmpty()) return fresh
+        if (prior.isEmpty()) return keepEtfs(fresh)
         fun carry(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
             val p = prior[r.symbol] ?: return@map r
             // THE INVERSE-ETF MAPPING IS CARRIED TOO, SINCE ROUND 57.
@@ -4309,6 +4330,22 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             trending = carry(fresh.trending),
             best = carry(fresh.best),
             worst = carry(fresh.worst),
+            // ---- THE FUND LIST AND ITS OWN CLOCK, CARRIED ACROSS EXPLICITLY.
+            //
+            // `fresh` comes from `Research.build`, which builds the three STOCK lists and
+            // never touches `etfs`. Returning it as-is therefore wiped the fund list - and
+            // its timestamp, and its warnings - on every thirty-minute stock rebuild, in
+            // memory and on disk, and the ETFs tab then spent ten Yahoo requests rebuilding
+            // something it had already paid for. That is the precise opposite of TJ's rule
+            // for this list: "keep the current list in cache until each update".
+            //
+            // `notes` goes with them for the same reason: `explained` and `explainedBy` were
+            // already carried, so losing the text left the screen saying "Explained 4 minutes
+            // ago via API" with nothing to show for it.
+            etfs = old.etfs,
+            etfGenerated = old.etfGenerated,
+            etfWarnings = old.etfWarnings,
+            notes = old.notes,
             explained = old.explained,
             explainedBy = old.explainedBy
         )
@@ -4576,7 +4613,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 .sortedByDescending { it.score },
             explained = System.currentTimeMillis(),
             explainedBy = via,
-            notes = parsed.notes,
+            // MERGED, not overwritten - every other field in this copy is. A second reply
+            // that simply omits `notes` used to erase the first one's paragraph.
+            notes = parsed.notes.ifBlank { cur.notes },
             // Claude may have named the inverse ETF the app could not find, and that answer
             // must not be overwritten by a later "no listed fund shorts this" lookup.
             generated = cur.generated
@@ -4621,7 +4660,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             }
             val s = _research.value
             cacheResearch(
-                s.copy(trending = fill(s.trending), best = fill(s.best), worst = fill(s.worst))
+                // `etfs` INCLUDED. Claude is explicitly asked to add funds the app's screener
+            // universe cannot see, and those rows arrive with no price - so leaving them out
+            // here spent a real quote request per added fund and discarded the answer, then
+            // re-spent it on the next import because the row still had no price.
+            s.copy(
+                trending = fill(s.trending), best = fill(s.best), worst = fill(s.worst),
+                etfs = fill(s.etfs)
+            )
             )
         }
     }

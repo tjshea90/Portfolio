@@ -269,15 +269,23 @@ fun PriceChart(
             // Leaving dollar labels on a percentage chart is the kind of quiet wrongness this
             // project has spent rounds removing - the numbers would be real and would describe
             // a different chart.
-            val bounds = remember(cmp, shown) { cmp?.bounds() }
+            //
+            // THEY DESCRIBE THE AXIS, NOT THE SERIES, and the difference is real. The canvas
+            // widens its scale to include the dotted previous-close baseline so that line is
+            // always visible - so on a gap-down day (previous close 110, the whole session
+            // between 98 and 104) the top of the drawn area is 110 while the label pinned to
+            // that corner used to read $104.00, two-thirds of the way down the chart. A label
+            // at the top of an axis has to be the top of that axis; the day's own high and
+            // low are already legible from the line itself.
+            val bounds = remember(cmp, shown) { cmp?.bounds() ?: priceBounds(shown) }
             Text(
-                if (bounds != null) Fmt.pctSigned(bounds[1]) else Fmt.price(shown.high),
+                if (cmp != null) Fmt.pctSigned(bounds[1]) else Fmt.price(bounds[1]),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted,
                 modifier = Modifier.align(Alignment.TopEnd)
             )
             Text(
-                if (bounds != null) Fmt.pctSigned(bounds[0]) else Fmt.price(shown.low),
+                if (cmp != null) Fmt.pctSigned(bounds[0]) else Fmt.price(bounds[0]),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted,
                 modifier = Modifier.align(Alignment.BottomEnd)
@@ -350,11 +358,12 @@ fun PriceChart(
                 // and "did it beat the market" is the entire question. Stated in percentage
                 // POINTS and labelled as such: 42.6% against 6.8% is 35.9 points of
                 // difference, not 35.9 percent, and the two are not the same quantity.
-                val spread = remember(cmp) {
-                    val a = cmp.lastOf(cmp.own)
-                    val b = cmp.lastOf(cmp.other)
-                    if (a == null || b == null) null else a - b
-                }
+                // AT THE LAST MOMENT BOTH LINES HAVE A READING, not at each line's own last
+                // point. `other` carries NaN wherever the benchmark has no value for one of
+                // the stock's points - a fund that did not trade in an extended session, say -
+                // so taking each series' own final figure would subtract two different
+                // moments and print the result as this window's out-performance.
+                val spread = remember(cmp) { cmp.spread() }
                 if (spread != null) {
                     Spacer(Modifier.weight(1f))
                     Text(
@@ -462,7 +471,9 @@ private fun ChartReadout(
             // The whole reason for the overlay, in one line: the difference between the two
             // is what "beat the market" means, and reading it off two lines by eye is exactly
             // what people get wrong.
-            cmp?.lastOf(cmp.other)?.let { m ->
+            // The benchmark AT THE LAST SHARED MOMENT, for the same reason the spread is -
+            // see [ComparePair.pairedIndex].
+            cmp?.pairedIndex()?.let { pi -> cmp.other[pi] }?.let { m ->
                 Spacer(Modifier.weight(1f))
                 Text(
                     "$compareLabel " + Fmt.pctSigned(m),
@@ -781,9 +792,11 @@ private fun ChartCanvas(
     // whole reference and an axis that excluded it would draw two lines with nothing to
     // measure them against.
     val base = if (cmp != null) null else s.baseline.takeIf { it > 0.0 }
-    val bounds = cmp?.bounds()
-    val lo = if (bounds != null) bounds[0] else minOf(s.low, base ?: s.low)
-    val hi = if (bounds != null) bounds[1] else maxOf(s.high, base ?: s.high)
+    // ONE FUNCTION FOR BOTH THE SCALE AND THE LABELS ([priceBounds]), so the number printed
+    // at the top of the axis is by construction the value drawn there.
+    val bounds = cmp?.bounds() ?: priceBounds(s)
+    val lo = bounds[0]
+    val hi = bounds[1]
     val span = (hi - lo).let { if (it < 1e-9) 1.0 else it }
     val t0 = pts.first().t
     val tSpan = (pts.last().t - t0).let { if (it <= 0L) 1L else it }
@@ -1265,10 +1278,27 @@ internal fun comparePercents(primary: ChartSeries?, compare: ChartSeries?): Doub
     }
     if (base <= 0.0 || !base.isFinite()) return null
 
+    // ---- THE TWO RIGHT-HAND TIPS ARE THE SAME MOMENT: "NOW".
+    //
+    // Every benchmark value is looked up by the STOCK's timestamp, which is right everywhere
+    // except at the very last point of an intraday line. There, both lines mean "now" - the
+    // stock's tip has been replaced with its live quote and so has the benchmark's - but if
+    // the benchmark's final candle is stamped LATER than the stock's (a thinly traded stock
+    // whose 15:55 candle was empty and skipped, against SPY's 15:55), `valueAtOrBefore`
+    // returns the benchmark's SECOND-to-last point and the live price written into its tip is
+    // never read. The out-performance figure would then be a difference between two moments
+    // up to five minutes apart, which is exactly what the live edge exists to prevent.
+    //
+    // Only for the intraday ranges, and deliberately so: on a five-year monthly line a
+    // benchmark whose series runs a month past a delisted stock's is not "now", it is a month
+    // of trading the stock was not present for, and pairing them would invent a comparison.
+    val pairTips = primary.range.intraday
+    val lastIndex = pts.lastIndex
     val out = DoubleArray(pts.size)
     var drawn = 0
     for (i in pts.indices) {
-        val v = valueAtOrBefore(cs, pts[i].t)
+        val v = if (pairTips && i == lastIndex && cs.last().t > pts[i].t) cs.last().close
+        else valueAtOrBefore(cs, pts[i].t)
         if (v == null || v <= 0.0) {
             // NaN, not zero. Zero is a real percentage - "the benchmark was flat here" - and
             // painting it where there is simply no data invents a horizontal line.
@@ -1348,11 +1378,48 @@ internal class ComparePair(val own: DoubleArray, val other: DoubleArray) {
         return doubleArrayOf(lo, hi)
     }
 
-    /** The last real value in a series, or null when it has none. Used for the readout. */
-    fun lastOf(a: DoubleArray): Double? {
-        for (i in a.indices.reversed()) if (a[i].isFinite()) return a[i]
+    /**
+     * The last index at which BOTH lines have a reading, or null when there is none.
+     *
+     * `other` carries NaN wherever the benchmark has no value for one of the stock's points,
+     * and `own` never does - so taking each series' own final figure compares two different
+     * moments. Every number this class publishes is read at this one index instead.
+     */
+    fun pairedIndex(): Int? {
+        val n = minOf(own.size, other.size)
+        for (i in n - 1 downTo 0) if (own[i].isFinite() && other[i].isFinite()) return i
         return null
     }
+
+    /**
+     * How far ahead of the benchmark the stock is, in PERCENTAGE POINTS, at the last moment
+     * both were measured. Null when they were never measured together.
+     *
+     * `+ 0.0` normalises a negative zero: without it a dead-level pair formats as "+-0.00",
+     * because the sign is chosen before the number is formatted. The same guard `rangePct`
+     * carries, for the same reason.
+     */
+    fun spread(): Double? {
+        val i = pairedIndex() ?: return null
+        val d = own[i] - other[i]
+        return if (d.isFinite()) d + 0.0 else null
+    }
+}
+
+/**
+ * The y-axis range for an ordinary price chart: the series' own high and low, WIDENED to
+ * include the dotted previous-close baseline so that line is always on screen.
+ *
+ * Its own function because the canvas and the corner labels both need it and must not be able
+ * to disagree - which they did: the canvas widened the scale and the labels printed the
+ * series' extremes, so on a gap-down day the top of the axis and the label pinned to it were
+ * different numbers.
+ */
+internal fun priceBounds(s: ChartSeries): DoubleArray {
+    val base = s.baseline.takeIf { it > 0.0 }
+    val lo = minOf(s.low, base ?: s.low)
+    val hi = maxOf(s.high, base ?: s.high)
+    return doubleArrayOf(lo, hi)
 }
 
 /** A filled dot for the legend, at text size. */
