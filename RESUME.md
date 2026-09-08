@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:38 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 15:53:39 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,7 +51,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T9** (SWEEP 2: UI, code and network-efficiency pass; fix everything found).
 
-## 5. Open findings — 4 still open, 45 fixed
+## 5. Open findings — 3 still open, 46 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -98,7 +98,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] U11 (med) 'Portfolio weight' divides by totals.marketValue - stocks only - while the Portfolio screen's own headline is total equity and shows cash separately. The weights therefore sum to 100% of a number that is explicitly not 'what you have', and nothing says which.  — renamed to 'Share of your stocks' - the denominator is market value, not total equity
 - [x] U12 (med) On first launch, before dataMissing or recoverable has resolved, the Portfolio screen renders the full 'No holdings yet - import Ally screenshots' copy under a 2dp progress bar. The file's own comment calls that the worst possible answer for the data-loss case; the loading case reaches it through a different door.  — a third branch: while the ledger is still loading the screen says so instead of showing the 'No holdings yet' copy
 - [x] U13 (low) Accent #2E6BE6 on the dark surfaceVariant is 3.40:1 at 13sp on the News chip - the most-tapped control on the portfolio list - and white on the new Benchmark amber is 3.29:1 in both themes.  — BenchmarkFill (#7E5A22, 6.23:1 under white) for the vs-SPY chip, and accentText (#5B92F0 on dark, 5.30:1) for the News chip; the score card's three tiers are now theme-aware too - the middling amber was 2.46:1 on white while carrying the number itself
-- [ ] U14 (low) The Portfolio header's Sort button is measured last among unweighted children and is squeezed to ~37dp at font scale 2.0, under the app's own documented 48dp rule.
+- [x] U14 (low) The Portfolio header's Sort button is measured last among unweighted children and is squeezed to ~37dp at font scale 2.0, under the app's own documented 48dp rule.  — the Portfolio title is weighted so all three header buttons keep 52dp
 - [ ] U15 (low) ResearchScreen's reason-line bullet uses a FIXED Modifier.width(12.dp) for its hyphen - the identical trap FeedScreen documents and fixes with widthIn(min = 34.dp). It survives at 2.0x today, but it is the same latent bug in the same codebase.
 - [ ] U16 (low) FactCell values are maxLines = 1 with Ellipsis in ~110dp cells; a three-digit annualised return at 2.0x ellipsizes to '+123...', which is not a number.
 - [ ] U17 (low) A Research headline with a blank URL still renders a minTapTarget()-sized clickable(enabled = false) block that looks identical to a tappable one.
@@ -112,7 +112,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 15:53:30 UTC  U02 fixed: same widget on the sub-figure, which had no overflow parameter at all and was clipping silently
 - 2026-09-08 15:53:31 UTC  U03 fixed: KeyValue weights the LABEL, so the value is the unweighted child measured first at full constraints and can never be starved to zero; the label wraps to two lines then ellipsises. Verified by screenshot at 2x.
 - 2026-09-08 15:53:32 UTC  U04 fixed: the tab bar uses heightIn(min = 74.dp) so it grows with the font, and every label is one line, centred, ellipsised
 - 2026-09-08 15:53:32 UTC  U05 fixed: text and fill palettes separated: Green/Red are untouched as fills, and signColor - which every signed figure uses - is now theme-aware, resolving to #0A8055 (4.96:1) and #C62B3C (5.51:1) on light and to the brand colours on dark. Standalone green/red TEXT sites routed the same way.
@@ -124,4 +123,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 15:53:36 UTC  U11 fixed: renamed to 'Share of your stocks' - the denominator is market value, not total equity
 - 2026-09-08 15:53:37 UTC  U12 fixed: a third branch: while the ledger is still loading the screen says so instead of showing the 'No holdings yet' copy
 - 2026-09-08 15:53:38 UTC  U13 fixed: BenchmarkFill (#7E5A22, 6.23:1 under white) for the vs-SPY chip, and accentText (#5B92F0 on dark, 5.30:1) for the News chip; the score card's three tiers are now theme-aware too - the middling amber was 2.46:1 on white while carrying the number itself
+- 2026-09-08 15:53:39 UTC  U14 fixed: the Portfolio title is weighted so all three header buttons keep 52dp
 

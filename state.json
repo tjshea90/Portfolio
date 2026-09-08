@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 15:53:38 UTC",
+  "updated": "2026-09-08 15:53:39 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -407,8 +407,8 @@
       "id": "U14",
       "text": "The Portfolio header's Sort button is measured last among unweighted children and is squeezed to ~37dp at font scale 2.0, under the app's own documented 48dp rule.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the Portfolio title is weighted so all three header buttons keep 52dp"
     },
     {
       "id": "U15",
@@ -707,6 +707,7 @@
     "2026-09-08 15:53:36 UTC  U10 fixed: the rows are de-duplicated once, where they are read, so the tab badge, the Load-more count and the footer all count what the list will actually draw",
     "2026-09-08 15:53:36 UTC  U11 fixed: renamed to 'Share of your stocks' - the denominator is market value, not total equity",
     "2026-09-08 15:53:37 UTC  U12 fixed: a third branch: while the ledger is still loading the screen says so instead of showing the 'No holdings yet' copy",
-    "2026-09-08 15:53:38 UTC  U13 fixed: BenchmarkFill (#7E5A22, 6.23:1 under white) for the vs-SPY chip, and accentText (#5B92F0 on dark, 5.30:1) for the News chip; the score card's three tiers are now theme-aware too - the middling amber was 2.46:1 on white while carrying the number itself"
+    "2026-09-08 15:53:38 UTC  U13 fixed: BenchmarkFill (#7E5A22, 6.23:1 under white) for the vs-SPY chip, and accentText (#5B92F0 on dark, 5.30:1) for the News chip; the score card's three tiers are now theme-aware too - the middling amber was 2.46:1 on white while carrying the number itself",
+    "2026-09-08 15:53:39 UTC  U14 fixed: the Portfolio title is weighted so all three header buttons keep 52dp"
   ]
 }
