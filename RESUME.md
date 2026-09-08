@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 20:03:55 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 20:04:33 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T11: Ship v7.4 (versionCode 61) + final checkpoint
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -47,7 +47,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found  — two independent reviewers over the chart/gesture and research/ETF code found 15 real bugs (F06-F20), including two severe ones I had shipped into this round: the pinch was destroyed mid-gesture on any uncached range, and every stock rebuild silently wiped the ETF list off disk. All fixed and regression-tested.
 - [x] T9  SWEEP 2: UI, code and network-efficiency pass; fix everything found  — network: 11 findings (N01-N11) - the biggest were a quote fallback with no failure memory (~900 req/hr for one bad ticker), the market feeds pulled for an invisible screen (~140/hr) and one open stock sweeping the whole portfolio's headlines (~480/hr). UI: 17 findings (U01-U17) - the worst were three Row-starvation bugs that made dollar figures vanish or truncate into plausible wrong numbers, and Green measuring 2.20:1 as text on white.
 - [x] T10  SWEEP 3: re-scan until clean - verify no fix introduced a new bug  — 14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales.
-- [ ] T11  Ship v7.4 (versionCode 61) + final checkpoint
+- [>] T11  Ship v7.4 (versionCode 61) + final checkpoint  — final cleanups + ship v7.4
 - [x] T12  SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters  — 8 findings (S01-S08) incl. a deadlock between the new settings lock and restoreJson's transaction
 - [x] T13  SWEEP 5: final verification pass; ship only if it finds nothing above cosmetic  — verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases.
 
@@ -136,7 +136,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:52:21 UTC  finding S08: RetryClock's new ten-minute forgetting rule has no test, in the file whose whole
 - 2026-09-08 17:06:33 UTC  S01 fixed: restoreJson writes settings rows through a lock-free writeSetting against its own transaction handle instead of calling set(); the cache is dropped wholesale afterwards. The lock-order inversion is gone.
 - 2026-09-08 17:06:34 UTC  S02 fixed: only feedDue stamps _feedAt - it governs the market-wide list and the refresh-on-open rule, and a per-symbol fetch is not that
 - 2026-09-08 17:06:34 UTC  S03 fixed: the disk-restore path adopts only a series that is still inside its TTL, so a stale one can no longer stamp sparkAt and suppress the real refresh
@@ -148,4 +147,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 17:06:57 UTC  T12 -> done  8 findings (S01-S08) incl. a deadlock between the new settings lock and restoreJson's transaction
 - 2026-09-08 17:06:58 UTC  T13 -> doing  sweep 5
 - 2026-09-08 20:03:55 UTC  T13 -> done  verdict SHIP - no new defect in any of the sweep-4 fixes; the settings lock has one acquisition order and no path holds the connection or the helper monitor and then wants it; the insider stamp is right in all six reachable combinations; the feed pass is correct in all four states. Remaining items are an unused import, a dead default parameter, a doc sentence and two pre-existing edge cases.
+- 2026-09-08 20:04:33 UTC  T11 -> doing  final cleanups + ship v7.4
 
