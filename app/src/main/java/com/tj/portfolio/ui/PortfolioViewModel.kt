@@ -3151,6 +3151,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun chartRange(): ChartRange = ChartRange.byName(db.get(Keys.CHART_RANGE))
 
+    /**
+     * Is the benchmark overlay switched on? Remembered across launches, like the range.
+     *
+     * DEFAULTS OFF. It is a second chart request per range and per symbol, and a feature the
+     * user has not asked for should not spend requests on their behalf.
+     */
+    fun chartCompare(): Boolean = db.get(Keys.CHART_COMPARE, "0") == "1"
+
+    fun setChartCompare(on: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { db.set(Keys.CHART_COMPARE, if (on) "1" else "0") }
+        }
+    }
+
     fun setChartRange(range: ChartRange) {
         // Settings writes are synchronous SQLite; this one does not affect the ledger, so it
         // deliberately does not go through the recompute path - see `computeAffecting`.

@@ -1379,6 +1379,15 @@ object Keys {
     const val CHART_RANGE = "chart_range"
 
     /**
+     * Whether the detail chart draws the benchmark beside the stock (Round 63).
+     *
+     * Remembered for the same reason [CHART_RANGE] is: whether you read a chart against the
+     * market is a habit, not a per-symbol decision, and re-enabling it on every stock would
+     * be the thing that stops it being used. A genuine preference, so it IS in the backup.
+     */
+    const val CHART_COMPARE = "chart_compare"
+
+    /**
      * Whether profit-and-loss figures lead with dollars or with a percentage (Round 61).
      *
      * A genuine preference rather than a derived cache, so it IS carried in the JSON backup -

@@ -1,6 +1,8 @@
 package com.tj.portfolio.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -41,6 +44,9 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -236,6 +242,20 @@ fun DetailScreen(
             .filterTo(HashSet()) { chartLoadingSet.contains(vm.chartKey(symbol, it)) }
     }
 
+    // ---- THE BENCHMARK OVERLAY (Round 63).
+    //
+    // Off by default and remembered once switched on, because whether you read a chart
+    // against the market is a habit rather than a per-symbol decision.
+    //
+    // NEVER OFFERED ON THE BENCHMARK ITSELF. Drawing SPY against SPY is a flat line at zero
+    // with a second flat line on top of it, and a toggle that produces that is a toggle that
+    // looks broken.
+    val isBenchmark = symbol.equals(BENCHMARK_SYMBOL, true)
+    var compareOn by remember { mutableStateOf(vm.chartCompare()) }
+    val compareKey = vm.chartKey(BENCHMARK_SYMBOL, chartRange)
+    val compareSeries = if (compareOn && !isBenchmark) chartMap[compareKey] else null
+
+
     // The "News" chip on a holding row used to open this screen and then try to SCROLL to
     // the news section, which was fragile arithmetic over a list whose length changed as
     // headlines arrived. With tabs it just opens the right tab.
@@ -303,6 +323,7 @@ fun DetailScreen(
     val currentSymbol by rememberUpdatedState(symbol)
     val currentRange by rememberUpdatedState(chartRange)
     val currentTab by rememberUpdatedState(tab)
+    val currentCompare by rememberUpdatedState(compareOn && !isBenchmark)
     DisposableEffect(lifecycleOwner) {
         val obs = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
@@ -311,6 +332,7 @@ fun DetailScreen(
                 vm.loadInsider(currentSymbol)
                 vm.loadHoldings(currentSymbol)
                 vm.loadChart(currentSymbol, currentRange)
+                if (currentCompare) vm.loadChart(BENCHMARK_SYMBOL, currentRange)
                 if (currentTab == DetailTab.ANALYSTS) vm.loadRatings(currentSymbol)
             }
         }
@@ -365,6 +387,20 @@ fun DetailScreen(
         vm.loadChart(symbol, chartRange)
     }
 
+    // THE BENCHMARK IS FETCHED THROUGH THE SAME `loadChart`, which is the entire reason this
+    // costs almost nothing. It shares the disk cache, the per-range TTL, the in-flight guard
+    // and the failure backoff - so the second, third and tenth stock opened on the same range
+    // all draw the same cached SPY series with no request at all, and the overlay costs one
+    // fetch per range per TTL for the whole app rather than one per stock.
+    //
+    // Its own effect rather than a second call inside the one above: the toggle can be turned
+    // on without the range changing, and that must fetch.
+    LaunchedEffect(compareOn, isBenchmark, chartRange, zoomSettling) {
+        if (compareOn && !isBenchmark && !zoomSettling) {
+            vm.loadChart(BENCHMARK_SYMBOL, chartRange)
+        }
+    }
+
     // AND IT KEEPS ITSELF CURRENT WHILE YOU WATCH IT.
     //
     // The effect above fires on a change of symbol or range and never again, so a stock left
@@ -389,7 +425,7 @@ fun DetailScreen(
     // and this screen recomposes on every quote tick - so `Refreshable` and the header button
     // were being invalidated four times a minute for a callback that had not changed. Keyed
     // on what it actually captures.
-    val refreshEverything = remember(symbol, tab, chartRange) {
+    val refreshEverything = remember(symbol, tab, chartRange, compareOn, isBenchmark) {
         {
             vm.refresh(manual = true)
             vm.loadNews(symbol, force = true)
@@ -398,6 +434,9 @@ fun DetailScreen(
             // TJ's rule for this round, exactly: cache and refresh periodically on its own,
             // but a pull-down always re-fetches. `force` is what bypasses the TTL.
             vm.loadChart(symbol, chartRange, force = true)
+            if (compareOn && !isBenchmark) {
+                vm.loadChart(BENCHMARK_SYMBOL, chartRange, force = true)
+            }
             if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol, force = true)
             if (tab == DetailTab.HOLDINGS) vm.loadHoldings(symbol, force = true)
         }
@@ -499,6 +538,15 @@ fun DetailScreen(
                         vm.setChartRange(r)
                     },
                     onChartZoom = onChartZoom,
+                    compare = compareSeries,
+                    compareOn = compareOn && !isBenchmark,
+                    compareOffered = !isBenchmark,
+                    compareLoading = chartLoadingSet.contains(compareKey),
+                    onToggleCompare = {
+                        val next = !compareOn
+                        compareOn = next
+                        vm.setChartCompare(next)
+                    },
                     onInfo = { infoKey = it },
                     onEditPosition = { pending = PendingAction(symbol, RowAction.EDIT_POSITION) },
                     onAddTxn = { addingTxn = true },
@@ -628,6 +676,13 @@ private fun OverviewTab(
     onChartRange: (com.tj.portfolio.data.ChartRange) -> Unit,
     /** One rung of pinch zoom: +1 zooms in, -1 zooms out. See `chartGestures`. */
     onChartZoom: (Int) -> Unit,
+    /** The benchmark series for this range, or null when the overlay is off or unloaded. */
+    compare: com.tj.portfolio.data.ChartSeries?,
+    compareOn: Boolean,
+    /** False on the benchmark's own screen, where the toggle would draw two flat lines. */
+    compareOffered: Boolean,
+    compareLoading: Boolean,
+    onToggleCompare: () -> Unit,
     onInfo: (String) -> Unit,
     onEditPosition: () -> Unit,
     onAddTxn: () -> Unit,
@@ -687,12 +742,26 @@ private fun OverviewTab(
                 // This was a bare 130dp `Sparkline` of `q.spark` - one fixed day, at five
                 // minutes, with nothing anywhere on screen saying so. TJ: "I cannot see how
                 // long the chart is tracking."
-                RangeChips(
-                    selected = chartRange,
-                    onSelect = onChartRange,
-                    perf = chartPerf,
-                    loading = chartLoadingRanges
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RangeChips(
+                        selected = chartRange,
+                        onSelect = onChartRange,
+                        perf = chartPerf,
+                        loading = chartLoadingRanges,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (compareOffered) {
+                        Spacer(Modifier.width(6.dp))
+                        // OUTSIDE the chips' horizontal scroll, so it is always reachable.
+                        // Put inside, it would be the ninth item in a row that already does
+                        // not fit and would need a thumb-flick to find.
+                        CompareToggle(
+                            on = compareOn,
+                            loading = compareLoading,
+                            onClick = onToggleCompare
+                        )
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
                 PriceChart(
                     series = chart,
@@ -703,7 +772,9 @@ private fun OverviewTab(
                     // regular price on the 1D line while the market is open, the extended
                     // print on the after-hours line once it has closed. See withLiveEdge.
                     liveEdge = liveEdgePrice(q, chartRange) > 0.0,
-                    onZoom = onChartZoom
+                    onZoom = onChartZoom,
+                    compare = compare,
+                    compareLabel = BENCHMARK_SYMBOL
                 )
                 Spacer(Modifier.height(14.dp))
             }
@@ -1059,6 +1130,58 @@ private fun NewsTab(
                     modifier = Modifier.padding(16.dp)
                 )
             }
+        }
+    }
+}
+
+/**
+ * The "vs SPY" switch that sits at the end of the range-chip row.
+ *
+ * A CHIP, NOT A CHECKBOX, so it matches the eight buttons beside it - the same height, the
+ * same corner radius, the same selected-state fill. It reads as the ninth member of that row
+ * rather than as a control bolted on next to it, which is what it is: another thing that
+ * changes what the chart is showing.
+ *
+ * The 48dp rule applies here as much as it does to the chips, and for the same reason - the
+ * nearest thing to mis-tap is the range button next to it.
+ */
+@Composable
+private fun CompareToggle(on: Boolean, loading: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .minTapTarget()
+            .background(
+                if (on) Benchmark else MaterialTheme.colorScheme.surfaceVariant,
+                RoundedCornerShape(10.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+            .semantics {
+                // Spelled out for a screen reader: "vs SPY" alone does not say whether it is
+                // currently on, and the colour is the only other thing that does.
+                contentDescription =
+                    if (on) "Hide the $BENCHMARK_SYMBOL comparison"
+                    else "Compare against $BENCHMARK_SYMBOL"
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "vs",
+                fontSize = 13.sp,
+                fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                color = if (on) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+            Text(
+                // The same non-breaking-space trick the range chips use, so this chip is
+                // exactly as tall as they are whether or not it is loading.
+                if (loading) "..." else BENCHMARK_SYMBOL,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (on) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
         }
     }
 }
