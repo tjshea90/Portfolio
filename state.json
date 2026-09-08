@@ -10,7 +10,7 @@
     "next_name": "7.3"
   },
   "now": {
-    "step": "",
+    "step": "T2: Pure model: a total function for what each chip shows",
     "next": "Round 62 open: per-range performance chips. Work the ladder T0->T8.",
     "files": []
   },
@@ -30,8 +30,8 @@
     {
       "id": "T2",
       "title": "Pure model: a total function for what each chip shows",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "rangePct"
     },
     {
       "id": "T3",
@@ -213,6 +213,7 @@
     "2026-09-08 04:27:06 UTC  round 62 started",
     "2026-09-08 04:27:34 UTC  T0 -> doing  baseline build + suite",
     "2026-09-08 04:32:04 UTC  T0 -> done  416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)",
-    "2026-09-08 04:32:05 UTC  T1 -> done  chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free"
+    "2026-09-08 04:32:05 UTC  T1 -> done  chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free",
+    "2026-09-08 04:32:05 UTC  T2 -> doing  rangePct"
   ]
 }
