@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 60,
   "request": "Add the approved new features ONE AT A TIME, shipping each on its own. Feature 1: chart scrubbing - drag across the chart to read the price and time at that point. Test and optimise before shipping; must not disturb anything else in the app.",
-  "updated": "2026-09-08 01:58:49 UTC",
+  "updated": "2026-09-08 02:01:30 UTC",
   "version": {
     "code": 57,
     "name": "7.0",
@@ -10,7 +10,7 @@
     "next_name": "7.1"
   },
   "now": {
-    "step": "T5: REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged",
+    "step": "",
     "next": "T1 gesture design",
     "files": []
   },
@@ -48,8 +48,8 @@
     {
       "id": "T5",
       "title": "REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged",
-      "status": "doing",
-      "note": "full regression"
+      "status": "done",
+      "note": "389/389 green, lint clean, checkinit ok - no regressions"
     },
     {
       "id": "T6",
@@ -176,6 +176,7 @@
     "2026-09-08 01:49:37 UTC  T3 -> done  mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup",
     "2026-09-08 01:49:38 UTC  T4 -> doing  tests",
     "2026-09-08 01:58:48 UTC  T4 -> done  ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions",
-    "2026-09-08 01:58:49 UTC  T5 -> doing  full regression"
+    "2026-09-08 01:58:49 UTC  T5 -> doing  full regression",
+    "2026-09-08 02:01:30 UTC  T5 -> done  389/389 green, lint clean, checkinit ok - no regressions"
   ]
 }

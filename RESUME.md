@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 01:58:49 UTC)
+# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 02:01:30 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,25 +27,25 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T5: REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged
+- **In flight:** (nothing in flight)
 - **Next action:** T1 gesture design
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 5/8 done
+## 4. Task ledger — 6/8 done
 
 - [x] T0  Baseline: v7.0 tree builds and 371 tests green before any edit  — baseline green before the feature
 - [x] T1  Design the scrub gesture so it cannot break vertical scrolling of the list it sits in  — detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
 - [x] T2  Implement: crosshair, nearest-point lookup, readout that does not shift the layout  — crosshair + dot, readout at fixed height, index-based scrub state
 - [x] T3  Optimise: no allocation per drag event, binary search not linear scan, no recomposition storm  — mutableIntStateOf (no boxing per frame), draw-phase-only state read in the canvas, readout isolated so only it recomposes, binary search lookup
 - [x] T4  Test: rendered gesture tests + pure-function tests for the lookup  — ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
-- [>] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged  — full regression
+- [x] T5  REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged  — 389/389 green, lint clean, checkinit ok - no regressions
 - [ ] T6  Adversarial review of the feature, then fix what it finds
 - [ ] T7  Ship v7.1 (versionCode 58) + checkpoint
 
-**Resume at T5** (REGRESSION CHECK: full suite, and prove the chart/holdings/row behaviour is unchanged).
+**Resume at T6** (Adversarial review of the feature, then fix what it finds).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -60,7 +60,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:25:26 UTC  v7.0 final verification build running
 - 2026-09-08 01:27:41 UTC  T6 -> done  371/371 tests, checkinit ok, lintVital clean, APK signed with the archived keystore (fingerprint matches), versionCode 57 / 7.0 confirmed
 - 2026-09-08 01:27:41 UTC  T7 -> doing  shipping v7.0
 - 2026-09-08 01:27:53 UTC  T7 -> done  v7.0 APK + checkpoint 59 delivered
@@ -72,4 +71,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:49:38 UTC  T4 -> doing  tests
 - 2026-09-08 01:58:48 UTC  T4 -> done  ScrubTest (10 pure) + ScrubGestureUiTest (8 real-touch), incl. both scroll directions
 - 2026-09-08 01:58:49 UTC  T5 -> doing  full regression
+- 2026-09-08 02:01:30 UTC  T5 -> done  389/389 green, lint clean, checkinit ok - no regressions
 
