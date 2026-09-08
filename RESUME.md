@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:48:06 UTC)
+# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:51:10 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,14 +27,14 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T8: Only if all clean: ship v7.3 (versionCode 60) + checkpoint
+- **In flight:** (nothing in flight)
 - **Next action:** Round 62 open: per-range performance chips. Work the ladder T0->T8.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 8/9 done
+## 4. Task ledger — 9/9 done
 
 - [x] T0  Baseline: v7.2 tree builds and 411 tests green before any edit  — 416/416 green on the untouched v7.2 tree (Gradle + SDK restored on a cold container)
 - [x] T1  Design: chip figures mirror the drawn chart exactly, cached-only, zero new requests  — chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
@@ -44,9 +44,9 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof  — RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
 - [x] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged  — 440/440 green, lint vital clean, checkinit ok; the only pre-existing test touched is ChartUiTest's chip loop, which now scrolls as a finger would
 - [x] T7  Adversarial review of the feature, then fix what it finds  — 2 findings (age, truncation), both fixed and both covered by tests
-- [>] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint  — shipping v7.3
+- [x] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint  — v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean
 
-**Resume at T8** (Only if all clean: ship v7.3 (versionCode 60) + checkpoint).
+**All tasks are done.** Verify, ship the APK, and checkpoint.
 
 ## 5. Open findings — 0 still open, 2 fixed
 
@@ -55,14 +55,13 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 6. Version
 
-- Shipped: v7.2 (versionCode 59)
-- This round ships: v7.3 (versionCode 60)
+- Shipped: v7.3 (versionCode 60)
+- This round ships: v7.4 (versionCode 61)
 - Bump `app/build.gradle.kts` before the final APK. Android refuses an install
   whose versionCode is not higher than what is on the phone.
 
 ## 7. Recent log
 
-- 2026-09-08 04:34:26 UTC  T3 -> done  two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
 - 2026-09-08 04:34:27 UTC  T4 -> done  DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
 - 2026-09-08 04:34:27 UTC  T5 -> doing  tests
 - 2026-09-08 04:43:56 UTC  T5 -> done  RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)
@@ -74,4 +73,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:47:50 UTC  J02 fixed: a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
 - 2026-09-08 04:48:05 UTC  T7 -> done  2 findings (age, truncation), both fixed and both covered by tests
 - 2026-09-08 04:48:06 UTC  T8 -> doing  shipping v7.3
+- 2026-09-08 04:51:10 UTC  T8 -> done  v7.3 shipped: versionCode 60, signed with the archived key (cert SHA-256 unchanged), 443/443 green, lint clean
 
