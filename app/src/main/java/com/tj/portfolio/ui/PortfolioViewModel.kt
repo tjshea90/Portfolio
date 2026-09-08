@@ -400,6 +400,119 @@ private const val AUTOSAVE_FILE = "portfolio-autosave.json"
 private const val ADVICE_PROMPT_FILE = "claude-advice-prompt.md"
 private const val SCREENSHOT_PROMPT_FILE = "claude-screenshot-prompt.md"
 
+
+// ==================================================================== research carry-over
+//
+// TOP-LEVEL AND PURE. Both functions are functions of their arguments alone - no ViewModel
+// state, no clock, no database - and they hold the two rules that decide what survives a
+// rebuild. Reaching them from a test through the ViewModel would mean constructing an
+// `AndroidViewModel`, which opens the database in `init`; as free functions they can simply
+// be called. That matters because one of them is the fix for the worst bug of this round:
+// the thirty-minute stock rebuild was silently wiping the six-hour fund list.
+
+/** Keep the imported explanation for any fund that survived into a fresh ranking. */
+internal fun carryEtfExplanations(
+    old: List<com.tj.portfolio.data.ResearchRow>,
+    fresh: List<com.tj.portfolio.data.ResearchRow>
+): List<com.tj.portfolio.data.ResearchRow> {
+    if (old.isEmpty()) return fresh
+    val prior = old.associateBy { it.symbol }
+    val carried = fresh.map { r ->
+        val p = prior[r.symbol] ?: return@map r
+        r.copy(why = if (p.why.isNotBlank()) p.why else r.why)
+    }
+    // FUNDS CLAUDE ADDED SURVIVE A REBUILD TOO.
+    //
+    // A fund that is not in Yahoo's screens can never come back in a fresh pass - that is
+    // the whole reason the online research exists - so dropping the ones Claude found
+    // would silently undo the import six hours later, and the user would have to redo the
+    // file round trip to get them back. They are kept, still carrying the app's "not in
+    // the app's own screen" marker, and re-ranked into place by their existing score.
+    val known = carried.map { it.symbol }.toSet()
+    // A CATEGORY COUNTS AS SOMETHING CLAUDE SAID. `ResearchBridge.section` admits a row
+    // on any of why / catalyst / risk / vehicle, so requiring `why` here meant a fund
+    // returned with a category and no paragraph appeared in the list and then vanished six
+    // hours later - contradicting what the screen tells the user happens to added funds.
+    val addedByClaude = old.filter {
+        it.symbol !in known && it.etf == null &&
+            (it.why.isNotBlank() || it.catalyst.isNotBlank())
+    }
+    if (addedByClaude.isEmpty()) return carried
+    return (carried + addedByClaude).sortedByDescending { it.score }
+}
+
+
+/**
+ * Keep [old]'s `why` text for any symbol that survived into [fresh], AND keep the whole
+ * fund list, which [fresh] never contains.
+ *
+ * `internal` rather than private: this is the rule that stopped the thirty-minute stock
+ * rebuild from wiping the six-hour fund list, and a rule that severe is worth a test that
+ * calls it directly rather than one that stands up a ViewModel to reach it.
+ */
+internal fun carryExplanations(
+    old: com.tj.portfolio.data.ResearchSet,
+    fresh: com.tj.portfolio.data.ResearchSet
+): com.tj.portfolio.data.ResearchSet {
+    // THE EARLY EXITS CARRY THE FUND LIST TOO. `old.isEmpty` asks only about the three
+    // STOCK lists, so someone who has opened the ETFs tab and nothing else takes this
+    // path - and returning `fresh` bare here is exactly how their fund list was thrown
+    // away by the first stock build that ran behind it.
+    val keepEtfs = { f: com.tj.portfolio.data.ResearchSet ->
+        f.copy(
+            etfs = old.etfs,
+            etfGenerated = old.etfGenerated,
+            etfWarnings = old.etfWarnings,
+            notes = old.notes,
+            explained = old.explained,
+            explainedBy = old.explainedBy
+        )
+    }
+    if (old.isEmpty) return keepEtfs(fresh)
+    val prior = (old.trending + old.best + old.worst).associateBy { it.symbol }
+    if (prior.isEmpty()) return keepEtfs(fresh)
+    fun carry(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
+        val p = prior[r.symbol] ?: return@map r
+        // THE INVERSE-ETF MAPPING IS CARRIED TOO, SINCE ROUND 57.
+        //
+        // Only `why` used to survive a rebuild. `shortVehicle` did not, so every fresh
+        // row came back blank, `vehicleDone` was cleared at the same moment, and the
+        // early-out in `Research.enrichShortVehicles` never fired - meaning up to twenty
+        // Yahoo search requests every thirty minutes, indefinitely, to re-derive that
+        // TSLA's inverse ETF is TSLS. That mapping changes perhaps twice a year.
+        r.copy(
+            why = if (p.why.isNotBlank()) p.why else r.why,
+            shortVehicle = if (r.shortVehicle.isBlank()) p.shortVehicle else r.shortVehicle,
+            shortVehicleNote =
+                if (r.shortVehicleNote.isBlank()) p.shortVehicleNote else r.shortVehicleNote
+        )
+    }
+    return fresh.copy(
+        trending = carry(fresh.trending),
+        best = carry(fresh.best),
+        worst = carry(fresh.worst),
+        // ---- THE FUND LIST AND ITS OWN CLOCK, CARRIED ACROSS EXPLICITLY.
+        //
+        // `fresh` comes from `Research.build`, which builds the three STOCK lists and
+        // never touches `etfs`. Returning it as-is therefore wiped the fund list - and
+        // its timestamp, and its warnings - on every thirty-minute stock rebuild, in
+        // memory and on disk, and the ETFs tab then spent ten Yahoo requests rebuilding
+        // something it had already paid for. That is the precise opposite of TJ's rule
+        // for this list: "keep the current list in cache until each update".
+        //
+        // `notes` goes with them for the same reason: `explained` and `explainedBy` were
+        // already carried, so losing the text left the screen saying "Explained 4 minutes
+        // ago via API" with nothing to show for it.
+        etfs = old.etfs,
+        etfGenerated = old.etfGenerated,
+        etfWarnings = old.etfWarnings,
+        notes = old.notes,
+        explained = old.explained,
+        explainedBy = old.explainedBy
+    )
+}
+
+
 /**
  * A PER-KEY FAILURE BACKOFF: ask again, but less and less often.
  *
@@ -4194,37 +4307,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Keep the imported explanation for any fund that survived into a fresh ranking. */
-    private fun carryEtfExplanations(
-        old: List<com.tj.portfolio.data.ResearchRow>,
-        fresh: List<com.tj.portfolio.data.ResearchRow>
-    ): List<com.tj.portfolio.data.ResearchRow> {
-        if (old.isEmpty()) return fresh
-        val prior = old.associateBy { it.symbol }
-        val carried = fresh.map { r ->
-            val p = prior[r.symbol] ?: return@map r
-            r.copy(why = if (p.why.isNotBlank()) p.why else r.why)
-        }
-        // FUNDS CLAUDE ADDED SURVIVE A REBUILD TOO.
-        //
-        // A fund that is not in Yahoo's screens can never come back in a fresh pass - that is
-        // the whole reason the online research exists - so dropping the ones Claude found
-        // would silently undo the import six hours later, and the user would have to redo the
-        // file round trip to get them back. They are kept, still carrying the app's "not in
-        // the app's own screen" marker, and re-ranked into place by their existing score.
-        val known = carried.map { it.symbol }.toSet()
-        // A CATEGORY COUNTS AS SOMETHING CLAUDE SAID. `ResearchBridge.section` admits a row
-        // on any of why / catalyst / risk / vehicle, so requiring `why` here meant a fund
-        // returned with a category and no paragraph appeared in the list and then vanished six
-        // hours later - contradicting what the screen tells the user happens to added funds.
-        val addedByClaude = old.filter {
-            it.symbol !in known && it.etf == null &&
-                (it.why.isNotBlank() || it.catalyst.isNotBlank())
-        }
-        if (addedByClaude.isEmpty()) return carried
-        return (carried + addedByClaude).sortedByDescending { it.score }
-    }
-
     fun researchStale(): Boolean {
         val s = _research.value
         return s.isEmpty ||
@@ -4286,76 +4368,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             }
             enrichVisible()
         }
-    }
-
-    /**
-     * Keep [old]'s `why` text for any symbol that survived into [fresh], AND keep the whole
-     * fund list, which [fresh] never contains.
-     *
-     * `internal` rather than private: this is the rule that stopped the thirty-minute stock
-     * rebuild from wiping the six-hour fund list, and a rule that severe is worth a test that
-     * calls it directly rather than one that stands up a ViewModel to reach it.
-     */
-    internal fun carryExplanations(
-        old: com.tj.portfolio.data.ResearchSet,
-        fresh: com.tj.portfolio.data.ResearchSet
-    ): com.tj.portfolio.data.ResearchSet {
-        // THE EARLY EXITS CARRY THE FUND LIST TOO. `old.isEmpty` asks only about the three
-        // STOCK lists, so someone who has opened the ETFs tab and nothing else takes this
-        // path - and returning `fresh` bare here is exactly how their fund list was thrown
-        // away by the first stock build that ran behind it.
-        val keepEtfs = { f: com.tj.portfolio.data.ResearchSet ->
-            f.copy(
-                etfs = old.etfs,
-                etfGenerated = old.etfGenerated,
-                etfWarnings = old.etfWarnings,
-                notes = old.notes,
-                explained = old.explained,
-                explainedBy = old.explainedBy
-            )
-        }
-        if (old.isEmpty) return keepEtfs(fresh)
-        val prior = (old.trending + old.best + old.worst).associateBy { it.symbol }
-        if (prior.isEmpty()) return keepEtfs(fresh)
-        fun carry(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
-            val p = prior[r.symbol] ?: return@map r
-            // THE INVERSE-ETF MAPPING IS CARRIED TOO, SINCE ROUND 57.
-            //
-            // Only `why` used to survive a rebuild. `shortVehicle` did not, so every fresh
-            // row came back blank, `vehicleDone` was cleared at the same moment, and the
-            // early-out in `Research.enrichShortVehicles` never fired - meaning up to twenty
-            // Yahoo search requests every thirty minutes, indefinitely, to re-derive that
-            // TSLA's inverse ETF is TSLS. That mapping changes perhaps twice a year.
-            r.copy(
-                why = if (p.why.isNotBlank()) p.why else r.why,
-                shortVehicle = if (r.shortVehicle.isBlank()) p.shortVehicle else r.shortVehicle,
-                shortVehicleNote =
-                    if (r.shortVehicleNote.isBlank()) p.shortVehicleNote else r.shortVehicleNote
-            )
-        }
-        return fresh.copy(
-            trending = carry(fresh.trending),
-            best = carry(fresh.best),
-            worst = carry(fresh.worst),
-            // ---- THE FUND LIST AND ITS OWN CLOCK, CARRIED ACROSS EXPLICITLY.
-            //
-            // `fresh` comes from `Research.build`, which builds the three STOCK lists and
-            // never touches `etfs`. Returning it as-is therefore wiped the fund list - and
-            // its timestamp, and its warnings - on every thirty-minute stock rebuild, in
-            // memory and on disk, and the ETFs tab then spent ten Yahoo requests rebuilding
-            // something it had already paid for. That is the precise opposite of TJ's rule
-            // for this list: "keep the current list in cache until each update".
-            //
-            // `notes` goes with them for the same reason: `explained` and `explainedBy` were
-            // already carried, so losing the text left the screen saying "Explained 4 minutes
-            // ago via API" with nothing to show for it.
-            etfs = old.etfs,
-            etfGenerated = old.etfGenerated,
-            etfWarnings = old.etfWarnings,
-            notes = old.notes,
-            explained = old.explained,
-            explainedBy = old.explainedBy
-        )
     }
 
     /** Reveal ten more rows of one section, and pay for their lookups - only then. */
