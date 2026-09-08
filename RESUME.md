@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:36 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:15:37 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T7: SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -43,7 +43,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T4  Tests for T1-T3: pure + rendered + measured  — ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7
 - [x] T5  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 632/632 green, lint vital clean, checkinit ok
 - [x] T6  SWEEP 1: adversarial bug hunt over the new code and the app  — 9 findings, all fixed, 640 tests green
-- [ ] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic
+- [>] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic  — sweep 2: verify sweep 1's fixes + T1/T3 + app-wide
 - [ ] T8  Ship v7.5 (versionCode 62) + final checkpoint
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
@@ -69,7 +69,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 21:56:12 UTC  finding F09: Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gut
 - 2026-09-08 22:15:19 UTC  F01 fixed
 - 2026-09-08 22:15:20 UTC  F02 fixed
 - 2026-09-08 22:15:21 UTC  F03 fixed
@@ -81,4 +80,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 22:15:27 UTC  F09 fixed
 - 2026-09-08 22:15:28 UTC  sweep 1 fixes: F01-F09 all closed; 640 tests green
 - 2026-09-08 22:15:36 UTC  T6 -> done  9 findings, all fixed, 640 tests green
+- 2026-09-08 22:15:37 UTC  T7 -> doing  sweep 2: verify sweep 1's fixes + T1/T3 + app-wide
 
