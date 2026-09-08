@@ -42,8 +42,8 @@
     {
       "id": "T4",
       "title": "BUG HUNT: correctness across the whole app, adversarial not confirmatory",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept"
     },
     {
       "id": "T5",
@@ -203,6 +203,7 @@
     "2026-09-08 01:05:23 UTC  finding G07: FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0",
     "2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)",
     "2026-09-08 01:05:42 UTC  T3 -> doing  code + efficiency",
-    "2026-09-08 01:06:15 UTC  T3 -> done  efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left"
+    "2026-09-08 01:06:15 UTC  T3 -> done  efficiency pass: list filtering is remembered; no composition-time IO; one per-row hoist left",
+    "2026-09-08 01:06:15 UTC  T4 -> done  bug hunt: 7 findings (G01-G07); empty-collection and clipping classes swept"
   ]
 }
