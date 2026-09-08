@@ -79,7 +79,7 @@ class ShotTest {
         }
     }
 
-    @Test fun shots() {
+    @Test fun plainLight() {
         shoot("chart_plain_light", false) {
             Column {
                 RangeChips(ChartRange.M6, {}, perf = mapOf(
@@ -89,16 +89,37 @@ class ShotTest {
                 PriceChart(stock, ChartRange.M6, loading = false, onZoom = {})
             }
         }
+    }
+
+    @Test fun compareLight() {
         shoot("chart_compare_light", false) {
             Column {
                 RangeChips(ChartRange.M6, {}, perf = mapOf(ChartRange.M6 to 41.2))
                 PriceChart(stock, ChartRange.M6, loading = false, onZoom = {}, compare = bench)
             }
         }
+    }
+
+    @Test fun compareDark() {
         shoot("chart_compare_dark", true) {
             Column {
                 RangeChips(ChartRange.M6, {}, perf = mapOf(ChartRange.M6 to 41.2))
                 PriceChart(stock, ChartRange.M6, loading = false, onZoom = {}, compare = bench)
+            }
+        }
+    }
+
+    @Test fun compareLosing() {
+        // The stock behind the market, so the sign colours and the zero line can be checked.
+        val falling = stock.copy(
+            points = (0 until 120).map {
+                ChartPoint(t0 + it * 86_400L, 200.0 - it * 0.4 + Math.sin(it / 6.0) * 5)
+            }
+        )
+        shoot("chart_compare_losing", false) {
+            Column {
+                RangeChips(ChartRange.M6, {}, perf = mapOf(ChartRange.M6 to -22.0))
+                PriceChart(falling, ChartRange.M6, loading = false, onZoom = {}, compare = bench)
             }
         }
     }
