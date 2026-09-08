@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 07:08:12 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 07:08:13 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -51,9 +51,13 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T8** (SWEEP 1: adversarial bug hunt across the whole app; fix everything found).
 
-## 5. Open findings — 0 still open, 1 fixed
+## 5. Open findings — 4 still open, 1 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
+- [ ] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.
+- [ ] F02 (med) A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared inside the settle branch, so it is still true when the tap's LaunchedEffect runs. Contradicts the documented 'a tap is not a zoom' rule.
+- [ ] F03 (med) zoomFactor reads event.changes[0] and [1] positionally. A third finger landing, or one of two lifting, reshuffles that list and produces an impossible one-frame separation ratio - which the accumulator then spends as several real zoom rungs.
+- [ ] F04 (low) showMoreResearch on the ETF section calls enrichVisible, which only has work for BEST and WORST - so revealing ten more funds starts an analyst pass and flips the busy indicator for nothing.
 
 ## 6. Version
 
@@ -64,10 +68,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 06:26:50 UTC  T3 -> done  EtfScreener (3 keyless Yahoo fund screens, 10 requests, ~850 funds - measured that top_performing_etfs duplicates top_etfs_us and dropped it), EtfRow/EtfFacts, EtfScore (returns weighted to 5y/3y, cost, size, liquidity, age, trend; leveraged+inverse excluded), Research.buildEtfs on its own 6h TTL, vm.loadEtfs/etfsStale with its own job
-- 2026-09-08 06:26:51 UTC  T4 -> doing  Best ETFs UI + Claude bridge
-- 2026-09-08 06:33:55 UTC  T4 -> done  fourth research tab with its own scroll state, timestamp, refresh target, blurb, sources and warnings; ETF facts grid on the card; prompt/bundle/parse/merge carry the etfs array and name the universe gaps so Claude adds the funds Yahoo's screens omit; funds Claude adds survive a rebuild
-- 2026-09-08 06:33:56 UTC  T5 -> doing  SPY comparison overlay
 - 2026-09-08 06:43:44 UTC  T5 -> done  SPY overlay: percent mode with both lines rebased to the same moment (previous close intraday, the benchmark's value at the window start for longer ranges), zero line, segmented benchmark path across gaps, dual crosshair, legend, live edge on both tips, 'vs SPY' chip beside the range chips; shares loadChart's cache so it costs one fetch per range per TTL for the whole app
 - 2026-09-08 06:43:45 UTC  T6 -> doing  tests for T1-T5
 - 2026-09-08 06:53:58 UTC  finding J01: isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ul
@@ -76,4 +76,8 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 07:00:39 UTC  T7 -> doing  full regression
 - 2026-09-08 07:06:28 UTC  T7 -> done  522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok
 - 2026-09-08 07:08:12 UTC  T8 -> doing  adversarial sweep
+- 2026-09-08 07:08:13 UTC  finding F01: loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while
+- 2026-09-08 07:08:13 UTC  finding F02: A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared
+- 2026-09-08 07:08:13 UTC  finding F03: zoomFactor reads event.changes[0] and [1] positionally. A third finger landing, 
+- 2026-09-08 07:08:13 UTC  finding F04: showMoreResearch on the ETF section calls enrichVisible, which only has work for
 

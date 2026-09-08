@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 07:08:12 UTC",
+  "updated": "2026-09-08 07:08:13 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -94,6 +94,34 @@
       "sev": "high",
       "status": "fixed",
       "note": "the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways."
+    },
+    {
+      "id": "F01",
+      "text": "loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F02",
+      "text": "A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared inside the settle branch, so it is still true when the tap's LaunchedEffect runs. Contradicts the documented 'a tap is not a zoom' rule.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F03",
+      "text": "zoomFactor reads event.changes[0] and [1] positionally. A third finger landing, or one of two lifting, reshuffles that list and produces an impossible one-frame separation ratio - which the accumulator then spends as several real zoom rungs.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F04",
+      "text": "showMoreResearch on the ETF section calls enrichVisible, which only has work for BEST and WORST - so revealing ten more funds starts an analyst pass and flips the busy indicator for nothing.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -275,6 +303,10 @@
     "2026-09-08 07:00:39 UTC  T6 -> done  SwipeTabTest 15, ChartZoomTest 12, CompareChartTest 10, EtfTest 23, GestureUiTest 11 (real multi-touch), CompareChartUiTest 8 - 79 new",
     "2026-09-08 07:00:39 UTC  T7 -> doing  full regression",
     "2026-09-08 07:06:28 UTC  T7 -> done  522/522 green (443 baseline + 79 new, nothing pre-existing touched), lint vital clean, checkinit ok",
-    "2026-09-08 07:08:12 UTC  T8 -> doing  adversarial sweep"
+    "2026-09-08 07:08:12 UTC  T8 -> doing  adversarial sweep",
+    "2026-09-08 07:08:13 UTC  finding F01: loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while",
+    "2026-09-08 07:08:13 UTC  finding F02: A chip tap straight after a pinch is delayed 380ms: zoomSettling is only cleared",
+    "2026-09-08 07:08:13 UTC  finding F03: zoomFactor reads event.changes[0] and [1] positionally. A third finger landing, ",
+    "2026-09-08 07:08:13 UTC  finding F04: showMoreResearch on the ETF section calls enrichVisible, which only has work for"
   ]
 }
