@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 59,
   "request": "Check the shipped v6.9: thorough sweep for UI and code optimizations, verify the app truly sleeps in the background when not in use, and find and fix bugs.",
-  "updated": "2026-09-08 01:04:48 UTC",
+  "updated": "2026-09-08 01:05:42 UTC",
   "version": {
     "code": 56,
     "name": "6.9",
@@ -10,7 +10,7 @@
     "next_name": "7.0"
   },
   "now": {
-    "step": "T2: UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode",
+    "step": "",
     "next": "Then T1, the background audit",
     "files": []
   },
@@ -30,8 +30,8 @@
     {
       "id": "T2",
       "title": "UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode",
-      "status": "doing",
-      "note": "UI sweep"
+      "status": "done",
+      "note": "static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)"
     },
     {
       "id": "T3",
@@ -97,6 +97,20 @@
       "id": "G05",
       "text": "REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the sparkAt mark for every symbol that failed, so a TRANSIENT failure retries on the next tick - which is what fixed TJ's missing charts - but a PERMANENT one (a delisted watchlist ticker, a symbol Yahoo has no series for) is now retried every 15 seconds forever instead of every 5 minutes. Two dead symbols is ~480 wasted requests an hour.",
       "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G06",
+      "text": "AdviceScreen numbers each suggested action in a FIXED 22dp-wide Text. Compose's default overflow is Clip, so from ten actions up - or at a large font scale with fewer - the number is silently cut off. This is the v1.6 clipping trap the project has a standing rule about, recurring in a new place.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G07",
+      "text": "FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0 font scale is wider than that and is silently clipped. Same trap as G06.",
+      "sev": "med",
       "status": "open",
       "note": ""
     }
@@ -184,6 +198,9 @@
     "2026-09-08 01:04:25 UTC  finding G04: Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fu",
     "2026-09-08 01:04:25 UTC  finding G05: REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the spa",
     "2026-09-08 01:04:48 UTC  T1 -> done  manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings",
-    "2026-09-08 01:04:48 UTC  T2 -> doing  UI sweep"
+    "2026-09-08 01:04:48 UTC  T2 -> doing  UI sweep",
+    "2026-09-08 01:05:23 UTC  finding G06: AdviceScreen numbers each suggested action in a FIXED 22dp-wide Text. Compose's ",
+    "2026-09-08 01:05:23 UTC  finding G07: FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0",
+    "2026-09-08 01:05:42 UTC  T2 -> done  static UI pass: all maxLines have overflow policies; two fixed-width text clips found (G06, G07)"
   ]
 }
