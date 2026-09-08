@@ -678,7 +678,7 @@ private fun OverviewTab(
                         KeyValue("Cost basis", Fmt.usd(row.position?.costBasis ?: 0.0))
                         KeyValue(
                             "All-time gain/loss",
-                            "${Fmt.usdSigned(row.totalPnl)}  (${Fmt.pctSigned(row.totalPct)})",
+                            plInline(state.plMode, row.totalPnl, row.totalPct),
                             signColor(row.totalPnl), bold = true
                         )
                         KeyValue(
@@ -689,7 +689,7 @@ private fun OverviewTab(
                                 )
                                 if (row.boughtToday) append("  (from your fill)")
                             },
-                            "${Fmt.usdSigned(row.dayPnl)}  (${Fmt.pctSigned(row.dayPnlPct)})",
+                            plInline(state.plMode, row.dayPnl, row.dayPnlPct),
                             signColor(row.dayPnl), bold = true
                         )
                         if (row.boughtToday) {
@@ -712,8 +712,9 @@ private fun OverviewTab(
                         if (eq != null && extendedPrice(eq) != null) {
                             KeyValue(
                                 "${eq.extLabel ?: "Extended"} gain/loss",
-                                "${Fmt.usdSigned(row.shares * eq.extChange)}  " +
-                                    "(${Fmt.pctSigned(eq.extChangePct)})",
+                                plInline(
+                                    state.plMode, row.shares * eq.extChange, eq.extChangePct
+                                ),
                                 signColor(eq.extChangePct)
                             )
                         }

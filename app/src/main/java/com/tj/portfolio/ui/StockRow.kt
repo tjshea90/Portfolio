@@ -29,6 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tj.portfolio.data.PlMode
 import com.tj.portfolio.util.Fmt
 
 /** What the long-press menu asked for. */
@@ -49,7 +50,16 @@ fun StockRowItem(
     row: Row,
     onClick: () -> Unit,
     onNews: () -> Unit,
-    onAction: (RowAction) -> Unit = {}
+    onAction: (RowAction) -> Unit = {},
+    /**
+     * Which half of a P/L figure leads (Round 61).
+     *
+     * DEFAULTED, so every existing caller and every existing test keeps the behaviour the app
+     * has always had. Only the Portfolio screen passes anything else, because it is the only
+     * screen with P/L on it - a watchlist row is `watchOnly` and its money half is not drawn
+     * at all.
+     */
+    plMode: PlMode = PlMode.DOLLAR
 ) {
     var menu by remember { mutableStateOf(false) }
     val q = row.quote
@@ -121,16 +131,20 @@ fun StockRowItem(
                             if (row.sessionLabel.isBlank()) "YOU MADE TODAY"
                             else "YOU MADE ${row.sessionLabel.uppercase()}"
                         ) + if (row.boughtToday) "*" else "",
-                        value = if (hasDay || row.boughtToday) Fmt.usdSigned(row.dayPnl) else "--",
-                        sub = if (hasDay || row.boughtToday) Fmt.pctSigned(row.dayPnlPct) else null,
+                        value = if (hasDay || row.boughtToday)
+                            plLead(plMode, row.dayPnl, row.dayPnlPct) else "--",
+                        sub = if (hasDay || row.boughtToday)
+                            plSub(plMode, row.dayPnl, row.dayPnlPct) else null,
                         color = if (hasDay || row.boughtToday) signColor(row.dayPnl)
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyCell(
                         modifier = Modifier.weight(1f),
                         label = "SINCE YOU BOUGHT",
-                        value = if (row.price > 0) Fmt.usdSigned(row.totalPnl) else "--",
-                        sub = if (row.price > 0) Fmt.pctSigned(row.totalPct) else null,
+                        value = if (row.price > 0)
+                            plLead(plMode, row.totalPnl, row.totalPct) else "--",
+                        sub = if (row.price > 0)
+                            plSub(plMode, row.totalPnl, row.totalPct) else null,
                         color = if (row.price > 0) signColor(row.totalPnl)
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )

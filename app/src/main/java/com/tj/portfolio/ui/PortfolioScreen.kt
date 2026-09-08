@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.tj.portfolio.data.PlMode
 import com.tj.portfolio.domain.PortfolioTotals
 import com.tj.portfolio.util.Fmt
 
@@ -89,7 +90,13 @@ fun PortfolioScreen(
 
         Refreshable(refreshing = state.pulling(PULL_PRICES), onRefresh = { vm.refresh(manual = true) }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
-            item { SummaryHeader(state.totals, state.lastRefresh, state.error) }
+            item {
+                SummaryHeader(
+                    state.totals, state.lastRefresh, state.error,
+                    plMode = state.plMode,
+                    onTogglePl = { vm.togglePlMode() }
+                )
+            }
 
             item {
                 Text(
@@ -106,7 +113,8 @@ fun PortfolioScreen(
                     row,
                     onClick = { onOpen(row.symbol) },
                     onNews = { onOpenNews(row.symbol) },
-                    onAction = { a -> pending = PendingAction(row.symbol, a) }
+                    onAction = { a -> pending = PendingAction(row.symbol, a) },
+                    plMode = state.plMode
                 )
                 RowSeparator()
             }
@@ -155,7 +163,13 @@ fun PortfolioScreen(
 }
 
 @Composable
-private fun SummaryHeader(t: PortfolioTotals?, lastRefresh: Long, error: String?) {
+private fun SummaryHeader(
+    t: PortfolioTotals?,
+    lastRefresh: Long,
+    error: String?,
+    plMode: PlMode,
+    onTogglePl: () -> Unit
+) {
     // This header is item 0 of a LazyColumn, so scrolling it off screen DISPOSES it. With a
     // plain remember the expanded detail card silently collapsed itself every time you
     // scrolled down to your holdings and back. rememberSaveable is retained by the lazy
@@ -194,9 +208,10 @@ private fun SummaryHeader(t: PortfolioTotals?, lastRefresh: Long, error: String?
         val dayDiffers = t != null && kotlin.math.abs(broker - day) > 0.005
         BigLine(
             "Today",
-            Fmt.usdSigned(day),
-            Fmt.pctSigned(t?.dayGainPct ?: 0.0),
+            plLead(plMode, day, t?.dayGainPct ?: 0.0),
+            plSub(plMode, day, t?.dayGainPct ?: 0.0),
             signColor(day),
+            onToggle = onTogglePl,
             note = if (dayDiffers) {
                 val n = t.boughtTodayCount
                 "Your broker will show ${Fmt.usdSigned(broker)}. It measures " +
@@ -210,15 +225,28 @@ private fun SummaryHeader(t: PortfolioTotals?, lastRefresh: Long, error: String?
         val totalDiffers = t != null && kotlin.math.abs(openOnly - total) > 0.005
         BigLine(
             "Since you started",
-            Fmt.usdSigned(total),
-            Fmt.pctSigned(t?.totalGainPct ?: 0.0),
+            plLead(plMode, total, t?.totalGainPct ?: 0.0),
+            plSub(plMode, total, t?.totalGainPct ?: 0.0),
             signColor(total),
+            onToggle = onTogglePl,
             note = if (totalDiffers)
                 "Your broker's Total G/L will show ${Fmt.usdSigned(openOnly)} - that is the " +
                     "gain on stocks you still own. This adds the profit you already banked."
             else null
         )
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+
+        // WHAT THE TWO FIGURES ARE, SPELLED OUT. The same rule the price block was corrected
+        // for in Round 51: two numbers side by side with nothing saying which is which is a
+        // guess, and once they can swap places it is a worse guess than before.
+        Text(
+            if (plMode == PlMode.DOLLAR)
+                "Showing dollars, then percent - tap a line to swap them"
+            else "Showing percent, then dollars - tap a line to swap them",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp)
+        )
 
         Spacer(Modifier.height(10.dp))
 
@@ -247,7 +275,7 @@ private fun SummaryHeader(t: PortfolioTotals?, lastRefresh: Long, error: String?
                 KeyValue("What your shares cost you", Fmt.usd(t?.costBasis ?: 0.0))
                 KeyValue(
                     "Gain on stocks you still own",
-                    "${Fmt.usdSigned(t?.unrealized ?: 0.0)}  (${Fmt.pctSigned(t?.unrealizedPct ?: 0.0)})",
+                    plInline(plMode, t?.unrealized ?: 0.0, t?.unrealizedPct ?: 0.0),
                     signColor(t?.unrealized ?: 0.0)
                 )
                 KeyValue(
@@ -291,11 +319,27 @@ private fun BigLine(
     money: String,
     pct: String,
     color: androidx.compose.ui.graphics.Color,
-    note: String? = null
+    note: String? = null,
+    /**
+     * Tap anywhere on the line to swap which figure is the big one (Round 61).
+     *
+     * THE WHOLE ROW IS THE TARGET, not the number itself. A P/L figure is a few characters
+     * wide and this project has a standing 48dp rule with two rounds of scar tissue behind
+     * it; a full-width row is the only version that is comfortably hittable, and it is also
+     * what other stock apps do. Null leaves the line inert, which is what the note-only
+     * variants want.
+     */
+    onToggle: (() -> Unit)? = null
 ) {
   Column {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 10.dp),
+        Modifier
+            .fillMaxWidth()
+            .then(
+                if (onToggle == null) Modifier
+                else Modifier.minTapTarget().clickable(onClick = onToggle)
+            )
+            .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
