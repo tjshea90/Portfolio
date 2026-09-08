@@ -360,19 +360,44 @@ internal const val CHART_TEST_TAG = "priceChartSurface"
 private const val CHART_HEIGHT = 170
 
 /**
- * The row of range buttons.
+ * The row of range buttons, each carrying what that window actually did (Round 62).
  *
  * Horizontally scrollable rather than wrapped onto two lines: eight chips do not fit across
  * a phone, and a second row pushes the chart itself below the fold on the screen whose whole
  * job is to show it.
+ *
+ * ---- THE FIGURE ON THE CHIP
+ *
+ * [perf] is what each window did, as a percentage, and it comes from the caller rather than
+ * being worked out here for two reasons. The first is that this composable has no idea which
+ * symbol it belongs to. The second is the one that matters: **the number on a chip must be
+ * the number the chart itself would show for that range**, and only the screen holding the
+ * quote can say what the live edge is for each window - see [rangePct] and `liveEdgePrice`.
+ * Two figures on one screen that disagree about the same window would be worse than no
+ * figures at all.
+ *
+ * NO CHIP EVER CAUSES A FETCH, and that is a deliberate limit rather than an oversight. The
+ * disk read in `PortfolioViewModel.loadChart` already pulls EVERY cached range for a symbol
+ * in one query, so every window the user has looked at before is answered for free; a window
+ * that has never been loaded shows no figure until it is selected. Filling the blanks would
+ * mean up to seven extra chart requests per stock opened, which is exactly the traffic shape
+ * Rounds 56-58 spent three rounds removing.
+ *
+ * [loading] is told apart from "nothing held" for the same reason the empty chart is: a chip
+ * that is blank because a request is in flight and one that is blank because nothing has ever
+ * been fetched are different situations, and showing the same thing for both makes the first
+ * look broken.
  */
 @Composable
 fun RangeChips(
     selected: ChartRange,
     onSelect: (ChartRange) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    perf: Map<ChartRange, Double> = emptyMap(),
+    loading: Set<ChartRange> = emptySet()
 ) {
     val scroll = rememberScrollState()
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Row(
         modifier.fillMaxWidth().horizontalScroll(scroll),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -380,6 +405,7 @@ fun RangeChips(
     ) {
         ChartRange.entries.forEach { r ->
             val on = r == selected
+            val pct = perf[r]
             Box(
                 Modifier
                     // THE APP'S OWN 48dp RULE, and it is not decorative here. Round 46 found
@@ -395,18 +421,82 @@ fun RangeChips(
                         RoundedCornerShape(10.dp)
                     )
                     .clickable { onSelect(r) }
-                    .padding(horizontal = 14.dp),
+                    // 12dp rather than 14dp: the chip is wider now that it carries a figure,
+                    // and eight of them still have to be reachable with one thumb-flick.
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    r.label,
-                    fontSize = 13.sp,
-                    fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
-                    color = if (on) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        r.label,
+                        fontSize = 13.sp,
+                        fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
+                        color = if (on) Color.White else muted,
+                        maxLines = 1
+                    )
+                    Text(
+                        // ALWAYS RENDERED, even when there is nothing to say, and the blank
+                        // is a NON-BREAKING SPACE rather than an empty string. Every chip
+                        // then reserves the same two lines, so the row does not go ragged
+                        // when one window has a figure and its neighbour does not - which at
+                        // a large font scale is a visible step in the middle of the row.
+                        rangeFigure(pct, r in loading),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = when {
+                            // On the selected chip the sign colour would be read against
+                            // Accent, where Red in particular does not carry. The "+" or "-"
+                            // already says the direction.
+                            on -> Color.White
+                            pct != null -> signColor(pct)
+                            else -> muted
+                        },
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
+}
+
+/** What the second line of a chip reads: the figure, "..." while fetching, blank otherwise. */
+internal fun rangeFigure(pct: Double?, loading: Boolean): String = when {
+    pct != null -> Fmt.pctSigned(pct)
+    loading -> "..."
+    // A NON-BREAKING SPACE, written as an escape so it cannot be mistaken for an ordinary
+    // one or trimmed by an editor. An empty string would collapse the line entirely and
+    // leave that chip shorter than its neighbours.
+    else -> "\u00A0"
+}
+
+/**
+ * WHAT ONE RANGE DID, as a percentage - or null when the app cannot honestly say.
+ *
+ * THIS IS THE SAME ARITHMETIC THE CHART READOUT DOES, and it has to stay that way: the chip
+ * for the selected range sits directly above a line that states the same window's move, and
+ * two different numbers for one window on one screen is the kind of quiet contradiction this
+ * project has spent rounds removing. `ChartSeries.changePct` measured on [withLiveEdge]'s
+ * output is the definition; this reproduces it WITHOUT the copy, because `withLiveEdge`
+ * rebuilds the whole point list to replace one element and this runs for every chip on every
+ * quote tick. `RangeChipTest` asserts the two agree rather than trusting the comment.
+ *
+ * TOTAL BY CONSTRUCTION. A missing series, a one-point series, a zero or non-finite baseline
+ * and a non-finite result all return null - "no figure" - because the alternative is printing
+ * "NaN%" or "+Infinity%" on a button.
+ */
+internal fun rangePct(series: ChartSeries?, livePrice: Double, liveEdge: Boolean): Double? {
+    if (series == null || series.isEmpty) return null
+    val from = series.from
+    if (from <= 0.0 || !from.isFinite()) return null
+    // Exactly [withLiveEdge]'s condition, and deliberately written the same way round.
+    val last =
+        if (series.range.intraday && liveEdge && livePrice > 0.0) livePrice else series.last
+    if (last <= 0.0 || !last.isFinite()) return null
+    val pct = (last - from) / from * 100.0
+    if (!pct.isFinite()) return null
+    // `+ 0.0` turns a negative zero into a positive one. Without it a dead-flat window can
+    // format as "+-0.00%", because the sign is chosen before the number is formatted.
+    return pct + 0.0
 }
 
 // ---------------------------------------------------------------------- drawing
