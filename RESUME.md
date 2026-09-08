@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:47:49 UTC)
+# RESUME — READ THIS FIRST  (round 62, saved 2026-09-08 04:47:50 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,10 +48,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (Adversarial review of the feature, then fix what it finds).
 
-## 5. Open findings — 1 still open, 1 fixed
+## 5. Open findings — 0 still open, 2 fixed
 
 - [x] J01 (med) A chip figure comes from whatever series is cached for that range, and a cached row can be days old - so a chip could label a month-old figure '1M' with nothing saying when it was measured. The chart has dates and a caption; a chip has neither.  — a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh
-- [ ] J02 (med) A truncated series - a stock that listed 18 months ago has no 5Y line - would put a figure under a '5Y' label that is really 18 months. The chart says so in words; the chip cannot, so it must not make the claim.
+- [x] J02 (med) A truncated series - a stock that listed 18 months ago has no 5Y line - would put a figure under a '5Y' label that is really 18 months. The chart says so in words; the chip cannot, so it must not make the claim.  — a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
 
 ## 6. Version
 
@@ -62,7 +62,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 04:32:05 UTC  T1 -> done  chips show the SAME figure the chart readout shows for that window - same series, same baseline, same live edge - and only for ranges already held. No chip ever starts a fetch: the disk read in loadChart already publishes every cached range for the symbol in one query, so this feature is free
 - 2026-09-08 04:32:05 UTC  T2 -> doing  rangePct
 - 2026-09-08 04:34:26 UTC  T2 -> done  rangePct + rangeFigure: total, no allocation, negative zero normalised
 - 2026-09-08 04:34:26 UTC  T3 -> done  two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
@@ -74,4 +73,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:45:19 UTC  finding J01: A chip figure comes from whatever series is cached for that range, and a cached 
 - 2026-09-08 04:45:19 UTC  finding J02: A truncated series - a stock that listed 18 months ago has no 5Y line - would pu
 - 2026-09-08 04:47:49 UTC  J01 fixed: a figure is printed only from a series fetched within the last 24h; an unstamped row counts as unknown age, not as fresh
+- 2026-09-08 04:47:50 UTC  J02 fixed: a truncated series puts no figure on its chip - the chart captions that case in words and a chip cannot
 
