@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 08:05:37 UTC",
+  "updated": "2026-09-08 08:05:40 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -176,8 +176,8 @@
       "id": "F12",
       "text": "RESEARCH: fillResearchPrices writes the fetched quotes back into trending/best/worst but not into etfs. A fund Claude adds - which the prompt explicitly asks for - costs a real quote request whose answer is discarded, renders with no price forever, and re-spends the same request on every later import.",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept"
     },
     {
       "id": "F13",
@@ -447,6 +447,7 @@
     "2026-09-08 08:05:36 UTC  F08 fixed: on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge",
     "2026-09-08 08:05:36 UTC  F09 fixed: priceBounds() is now the single source for both the canvas scale and the corner labels, so the number printed at the top of the axis is by construction the value drawn there",
     "2026-09-08 08:05:37 UTC  F10 fixed: ComparePair.pairedIndex() - the last index at which BOTH lines have a reading - now feeds the spread and the resting benchmark figure, and the spread normalises negative zero",
-    "2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit"
+    "2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit",
+    "2026-09-08 08:05:40 UTC  F12 fixed: fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept"
   ]
 }
