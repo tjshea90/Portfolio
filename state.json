@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 16:36:48 UTC",
+  "updated": "2026-09-08 16:36:49 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -477,8 +477,8 @@
       "id": "R07",
       "text": "greenText/redText/accentText/scoreColor read isSystemInDarkTheme() rather than the scheme actually in force, while PortfolioTheme takes a dark override. Production is unaffected, but seven UI tests pass dark = true and now render light-theme text colours on dark surfaces - so any dark-mode assertion is measuring the wrong pair.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "PortfolioTheme publishes LocalDarkTheme and every theme-aware colour reads that instead of isSystemInDarkTheme(), so the seven tests that render the dark scheme now get dark-scheme text"
     },
     {
       "id": "R08",
@@ -831,6 +831,7 @@
     "2026-09-08 16:36:46 UTC  R03 fixed: both texts in the score circle have explicit line heights, the number auto-fits, and the cap-label is dropped above 1.15x - the contentDescription says 'Score N out of 100' regardless",
     "2026-09-08 16:36:47 UTC  R04 fixed: KeyValue is now a measuring Layout: it gives the value what it needs, and when the remainder for the label falls below 72dp it stacks them instead of dropping one. KeyValueUiTest asserts both halves have a non-zero width at 1.0x, 1.15x, 1.5x and 2.0x with the app's longest real label and value.",
     "2026-09-08 16:36:47 UTC  R05 fixed: the autosize floor is now dp-derived via Dp.toSp(), so it is a physical size that does not scale with the user's setting, and the step is a whole point so neighbouring cells stay on a short ladder",
-    "2026-09-08 16:36:48 UTC  R06 fixed: reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user"
+    "2026-09-08 16:36:48 UTC  R06 fixed: reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user",
+    "2026-09-08 16:36:49 UTC  R07 fixed: PortfolioTheme publishes LocalDarkTheme and every theme-aware colour reads that instead of isSystemInDarkTheme(), so the seven tests that render the dark scheme now get dark-scheme text"
   ]
 }
