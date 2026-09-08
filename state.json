@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 62,
   "request": "Feature 3 of 4: per-range performance chips - each chart range button shows what that window did, from data the app already holds (no new network traffic). Ship only when proven and nothing else broke. Checkpoint frequently - usage may run out.",
-  "updated": "2026-09-08 04:34:27 UTC",
+  "updated": "2026-09-08 04:43:56 UTC",
   "version": {
     "code": 59,
     "name": "7.2",
@@ -10,7 +10,7 @@
     "next_name": "7.3"
   },
   "now": {
-    "step": "T5: Tests: pure + rendered, incl. chip equals readout and no-new-request proof",
+    "step": "",
     "next": "Round 62 open: per-range performance chips. Work the ladder T0->T8.",
     "files": []
   },
@@ -48,8 +48,8 @@
     {
       "id": "T5",
       "title": "Tests: pure + rendered, incl. chip equals readout and no-new-request proof",
-      "status": "doing",
-      "note": "tests"
+      "status": "done",
+      "note": "RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)"
     },
     {
       "id": "T6",
@@ -218,6 +218,7 @@
     "2026-09-08 04:34:26 UTC  T2 -> done  rangePct + rangeFigure: total, no allocation, negative zero normalised",
     "2026-09-08 04:34:26 UTC  T3 -> done  two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height",
     "2026-09-08 04:34:27 UTC  T4 -> done  DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean",
-    "2026-09-08 04:34:27 UTC  T5 -> doing  tests"
+    "2026-09-08 04:34:27 UTC  T5 -> doing  tests",
+    "2026-09-08 04:43:56 UTC  T5 -> done  RangeChipTest (13 pure) + RangeChipUiTest (9 rendered, incl. chip-equals-readout with the live edge)"
   ]
 }
