@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 08:05:41 UTC",
+  "updated": "2026-09-08 08:05:42 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -197,8 +197,8 @@
       "id": "F15",
       "text": "RESEARCH: ResearchBridge's bundle computes dataAgeMinutes from set.generated only, so a user who has only opened the ETFs tab tells Claude the fund data is 0 minutes old when it may be six hours. etfGenerated is nowhere in the bundle.",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the bundle carries etfDataAgeMinutes from the fund list's own clock"
     },
     {
       "id": "F16",
@@ -450,6 +450,7 @@
     "2026-09-08 08:05:37 UTC  F11 fixed: carryExplanations carries etfs, etfGenerated, etfWarnings and notes on all three exit paths; regression-tested directly (ResearchCarryTest) including the ETF-only cache case that takes the early exit",
     "2026-09-08 08:05:40 UTC  F12 fixed: fillResearchPrices fills the etfs list too, so a quote fetched for a fund Claude added is kept",
     "2026-09-08 08:05:41 UTC  F13 fixed: a shared JSONObject.text()/JSONArray.text() guard replaces optString across the Claude reply reader and both screener parsers; tested against real JSONObject.NULL under Robolectric, which is Android's org.json",
-    "2026-09-08 08:05:41 UTC  F14 fixed: same guard - a null longName now falls through to shortName instead of becoming the string 'null'"
+    "2026-09-08 08:05:41 UTC  F14 fixed: same guard - a null longName now falls through to shortName instead of becoming the string 'null'",
+    "2026-09-08 08:05:42 UTC  F15 fixed: the bundle carries etfDataAgeMinutes from the fund list's own clock"
   ]
 }
