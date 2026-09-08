@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T5: Tests: pure + rendered, incl. chip equals readout and no-new-request proof
 - **Next action:** Round 62 open: per-range performance chips. Work the ladder T0->T8.
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -41,7 +41,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T2  Pure model: a total function for what each chip shows  — rangePct + rangeFigure: total, no allocation, negative zero normalised
 - [x] T3  RangeChips UI: two-line chip, sign colour, 48dp rule, contentDescription  — two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
 - [x] T4  Wire DetailScreen: per-range live edge, loading state, no extra fetches  — DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
-- [ ] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof
+- [>] T5  Tests: pure + rendered, incl. chip equals readout and no-new-request proof  — tests
 - [ ] T6  REGRESSION: full suite, lint, checkinit; prove chart and the rest unchanged
 - [ ] T7  Adversarial review of the feature, then fix what it finds
 - [ ] T8  Only if all clean: ship v7.3 (versionCode 60) + checkpoint
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 02:44:44 UTC  I01 fixed: BigLine parameters renamed money/pct -> lead/sub, which is the role rather than the unit
 - 2026-09-08 02:44:45 UTC  I02 fixed: hint shortened to '$ first - tap a line for %'
 - 2026-09-08 02:44:45 UTC  T6 -> done  2 findings, both fixed; VM link and seeding order now covered, and the seeding test verified by breaking it
 - 2026-09-08 02:49:04 UTC  T7 -> doing  shipping v7.2
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 04:34:26 UTC  T2 -> done  rangePct + rangeFigure: total, no allocation, negative zero normalised
 - 2026-09-08 04:34:26 UTC  T3 -> done  two-line chip: label over figure, sign colour off the selected chip, nbsp keeps every chip the same height
 - 2026-09-08 04:34:27 UTC  T4 -> done  DetailScreen builds chartPerf/chartLoadingRanges from the map it already collects; compiles clean
+- 2026-09-08 04:34:27 UTC  T5 -> doing  tests
 
