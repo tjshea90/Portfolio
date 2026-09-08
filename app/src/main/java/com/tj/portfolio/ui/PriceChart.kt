@@ -135,6 +135,70 @@ fun PriceChart(
         withLiveEdge(series, livePrice, liveEdge)
     }
 
+    // ---- GESTURE STATE, HOISTED ABOVE THE EMPTY-STATE BRANCH (Round 63 sweep).
+    //
+    // THE BUG THIS FIXES. Everything below used to sit after a `return@Column` taken when the
+    // series is null or empty, so the whole gesture node - crosshair state, pinch handler,
+    // zoom badge - simply did not exist while a chart was missing. And a chart is missing for
+    // exactly the moment that matters most: pinch to a range this symbol has never been
+    // fetched at and `chartMap` has no entry for it, so the node was DESTROYED mid-gesture.
+    // The zoom stopped after one rung, the badge vanished at the instant it was supposed to
+    // name the new window, and the fingers still on the glass fell through to the list
+    // underneath. "Zoom in gradually all the way down to 5 minute" was impossible in one
+    // gesture on any stock opened for the first time.
+    //
+    // The state and the handler are now declared once, above the branch, and the placeholder
+    // carries the same surface - so a pinch continues across a window that has not arrived
+    // yet, which is the whole point of a continuous zoom.
+    val scrub = remember { mutableIntStateOf(NO_SCRUB) }
+    val liveSeries = rememberUpdatedState(shown)
+    val liveZoom = rememberUpdatedState(onZoom)
+    var zooming by remember { mutableStateOf(false) }
+
+    // A different symbol or a different range is a different chart, so the old position means
+    // nothing. New DATA for the same chart is not - that is just the line moving under a
+    // finger that is still pointing at the same moment in time.
+    LaunchedEffect(shown?.symbol, shown?.range) { scrub.intValue = NO_SCRUB }
+
+    val gestures = Modifier
+        // So the gesture can be driven from a rendered test. The one thing about scrubbing
+        // that source review cannot answer is whether it has stolen the list's vertical
+        // scroll, and that has to be measured on a real touch.
+        .testTag(CHART_TEST_TAG)
+        // ---- THE SCRUB AND THE PINCH, IN ONE HANDLER.
+        //
+        // ONE HANDLER FOR BOTH, not two `pointerInput` modifiers. Two independent detectors
+        // on the same node both see every event, so a two-finger pinch would ALSO be read as
+        // a one-finger drag by the scrub detector and the crosshair would chase a finger that
+        // is zooming. Deciding once, from the pointer count, is the only way the two agree.
+        //
+        // `pointerInput(Unit)`, NOT `pointerInput(shown)`. Changing that key CANCELS and
+        // restarts the handler, and `shown` is rebuilt on every quote tick - so keying on it
+        // aborted an in-progress drag every fifteen seconds during market hours. The series
+        // and the callback are read through `rememberUpdatedState` instead.
+        .pointerInput(Unit) {
+            chartGestures(
+                pointAt = { x ->
+                    val pts = liveSeries.value?.points.orEmpty()
+                    val w = size.width.toFloat()
+                    if (pts.size >= 2 && w > 0f) {
+                        scrub.intValue = nearestIndex(pts, x / w)
+                    }
+                },
+                clearPoint = { scrub.intValue = NO_SCRUB },
+                // A PROVIDER, NOT A CAPTURED VALUE, and that is the second half of the same
+                // fix. `onZoomStep = liveZoom.value` read the callback ONCE, in the body of
+                // `pointerInput(Unit)`, which runs exactly once for the life of the node -
+                // defeating the `rememberUpdatedState` two lines above it. Opening a fund and
+                // tapping through to one of its holdings reuses this node, so the stale
+                // lambda went on writing into the previous screen's `zoomSettling` state: the
+                // 380ms settle silently stopped applying and a four-rung spread fired four
+                // chart fetches, which is the exact traffic the settle exists to remove.
+                zoom = { liveZoom.value },
+                onZoomActive = { active -> zooming = active }
+            )
+        }
+
     Column(modifier.fillMaxWidth()) {
         if (shown == null || shown.isEmpty) {
             Box(
@@ -144,7 +208,8 @@ fun PriceChart(
                     .background(
                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                         RoundedCornerShape(10.dp)
-                    ),
+                    )
+                    .then(gestures),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -177,43 +242,6 @@ fun PriceChart(
             if (other == null || own == null) null else ComparePair(own, other)
         }
 
-        // ---- SCRUB STATE.
-        //
-        // An INDEX, not a raw x, and that is the whole reason this stays cheap. The pointer
-        // handler already knows the layout width, so the x -> point lookup happens once per
-        // drag event there instead of being redone by every consumer of the position. -1 is
-        // "not scrubbing".
-        //
-        // `mutableIntStateOf`, not `mutableStateOf(Int)`: a drag emits an event per frame and
-        // the boxed version would allocate an Integer for every one of them.
-        //
-        // NOT KEYED ON `shown`, AND THAT IS THE IMPORTANT PART. `withLiveEdge` rebuilds
-        // `shown` on every quote tick while the market is open, so `remember(shown)` handed
-        // back a FRESH state every fifteen seconds - which cleared the crosshair out from
-        // under a finger that was still on the screen, during exactly the hours the feature
-        // is for. The index is reset deliberately below instead, when the chart being drawn
-        // actually changes; a stale index in between is harmless because every reader
-        // bounds-checks it against `points.indices`.
-        val scrub = remember { mutableIntStateOf(NO_SCRUB) }
-
-        // A different symbol or a different range is a different chart, so the old position
-        // means nothing. New DATA for the same chart is not - that is just the line moving
-        // under a finger that is still pointing at the same moment in time.
-        LaunchedEffect(shown.symbol, shown.range) { scrub.intValue = NO_SCRUB }
-
-        // Read INSIDE the gesture handler so the handler itself never has to restart - see
-        // the note on `pointerInput(Unit)` below.
-        val liveSeries = rememberUpdatedState(shown)
-        // Same treatment for the zoom callback: it is a fresh lambda on every recomposition
-        // of the screen above, and keying the handler on it would abort a pinch in progress
-        // four times a minute during market hours.
-        val liveZoom = rememberUpdatedState(onZoom)
-
-        // True from the moment a second finger lands until the last one lifts. Drives the
-        // range badge below - the chips are off the top of a scrolling screen while you are
-        // pinching, so without it there is nothing on screen saying where the zoom has got to.
-        var zooming by remember { mutableStateOf(false) }
-
         // ---- the readout: what the line did over this window, or what it did at your finger
         //
         // ITS OWN COMPOSABLE so that scrubbing recomposes only this line. Read `scrub` here
@@ -227,45 +255,7 @@ fun PriceChart(
             Modifier
                 .fillMaxWidth()
                 .height(CHART_HEIGHT.dp)
-                // So the gesture can be driven from a rendered test. The one thing about
-                // scrubbing that source review cannot answer is whether it has stolen the
-                // list's vertical scroll, and that has to be measured on a real touch.
-                .testTag(CHART_TEST_TAG)
-                // ---- THE SCRUB GESTURE.
-                //
-                // `detectHorizontalDragGestures` is chosen over a raw pointer loop for one
-                // specific reason: it waits for the HORIZONTAL touch slop before it claims the
-                // gesture, and it does not consume the initial press. A vertical swipe that
-                // starts on the chart therefore still scrolls the page it sits in, which
-                // matters because the chart is 170dp of a scrolling screen and making that a
-                // dead zone would be a worse bug than the feature is a feature.
-                // `pointerInput(Unit)`, NOT `pointerInput(shown)`. Changing that key
-                // CANCELS and restarts the handler, and `shown` is rebuilt on every quote
-                // tick - so keying on it aborted an in-progress drag every fifteen seconds
-                // during market hours. The series is read through `rememberUpdatedState`
-                // instead, which keeps the handler alive while still seeing current data.
-                //
-                // ---- AND THE PINCH (Round 63).
-                //
-                // ONE HANDLER FOR BOTH, not two `pointerInput` modifiers. Two independent
-                // detectors on the same node both see every event, so a two-finger pinch
-                // would ALSO be read as a one-finger drag by the scrub detector and the
-                // crosshair would chase a finger that is zooming. Deciding once, from the
-                // pointer count, is the only way the two can agree.
-                .pointerInput(Unit) {
-                    chartGestures(
-                        pointAt = { x ->
-                            val pts = liveSeries.value.points
-                            val w = size.width.toFloat()
-                            if (pts.size >= 2 && w > 0f) {
-                                scrub.intValue = nearestIndex(pts, x / w)
-                            }
-                        },
-                        clearPoint = { scrub.intValue = NO_SCRUB },
-                        onZoomStep = liveZoom.value,
-                        onZoomActive = { active -> zooming = active }
-                    )
-                }
+                .then(gestures)
         ) {
             ChartCanvas(
                 shown, line, MaterialTheme.colorScheme.outline,
@@ -1076,7 +1066,15 @@ private const val ZOOM_STEP = 1.55f
 internal suspend fun PointerInputScope.chartGestures(
     pointAt: (Float) -> Unit,
     clearPoint: () -> Unit,
-    onZoomStep: ((Int) -> Unit)?,
+    /**
+     * The zoom callback, as a PROVIDER read at gesture time rather than a value captured
+     * once. `pointerInput(Unit)` runs its block exactly once for the life of the node, so a
+     * plain parameter here silently pins whatever the callback was on first composition -
+     * which defeats the `rememberUpdatedState` the caller uses and, when the node is reused
+     * for another symbol, leaves the pinch writing into the previous screen's state.
+     * Null means "no zoom on this chart".
+     */
+    zoom: () -> ((Int) -> Unit)?,
     onZoomActive: (Boolean) -> Unit
 ) {
     val slop = viewConfiguration.touchSlop
@@ -1096,6 +1094,7 @@ internal suspend fun PointerInputScope.chartGestures(
                 val pressed = event.changes.count { it.pressed }
                 if (pressed == 0) break
 
+                val onZoomStep = zoom()
                 if (pressed > 1 && onZoomStep != null) {
                     if (mode != GestureMode.ZOOM) {
                         mode = GestureMode.ZOOM

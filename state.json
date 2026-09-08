@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 07:37:51 UTC",
+  "updated": "2026-09-08 07:49:08 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -129,6 +129,111 @@
       "sev": "high",
       "status": "fixed",
       "note": "both auto-builds now sit behind RetryClock (30s/1m/2m/4m/5m per section), so an empty pass backs off instead of re-firing the moment busy clears; force still ignores it. RetryClock promoted to top-level internal and RetryBackoffTest now exercises the real class instead of a copy of its rule."
+    },
+    {
+      "id": "F06",
+      "text": "CHART: PriceChart returns from the Column BEFORE the gesture surface whenever the series is null or empty. Pinching to a range that has never been fetched therefore destroys the gesture node mid-pinch: the zoom stops after exactly one rung, the badge vanishes, and the remaining fingers fall through to the list underneath. 'Zoom all the way down to 5 minute' is impossible in one gesture on any stock opened for the first time.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F07",
+      "text": "CHART: onZoomStep = liveZoom.value is read ONCE inside pointerInput(Unit), so rememberUpdatedState is defeated and the captured lambda is whatever onZoom was on first composition. Opening a fund and tapping through to one of its holdings reuses the node, so the stale lambda writes zoomSettling into a dead MutableState - the 380ms settle never applies and a four-rung spread fires four chart fetches (eight with the overlay on), which is the exact traffic the feature was built to avoid.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F08",
+      "text": "CHART: the benchmark's live edge is discarded whenever its last candle is later than the stock's - comparePercents looks every value up by the STOCK's timestamps, so valueAtOrBefore returns SPY's second-to-last point and the live price written into its tip is never read. The two ends being compared are then up to five minutes apart, which is precisely what compareLivePrice exists to prevent.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F09",
+      "text": "CHART: in price mode the y-axis corner labels print the series high and low, but the axis is widened to include the dotted previous-close baseline. On a gap-down day - previous close 110, session 98-104 - the top of the axis is 110 while the label pinned to it reads 104.00. Comparison mode uses the real bounds for the same two labels, so the two modes give the same corners different meanings.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F10",
+      "text": "CHART: the 'pts vs SPY' spread and the resting SPY readout take the benchmark's LAST FINITE value, which can be an earlier index than the stock's last point when the benchmark's tail is NaN. The printed out-performance is then a difference between two different moments.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F11",
+      "text": "RESEARCH: every stock rebuild destroys the ETF list. carryExplanations returns the freshly built set, which Research.build never populates with etfs/etfGenerated/etfWarnings - so the 30-minute stock pass wipes the 6-hour fund pass, in memory and on disk. Ten Yahoo requests are then re-spent to rebuild it, repeatedly, which is exactly what TJ's 'keep the current list in cache until each update' rule forbids. notes is lost the same way while explained/explainedBy survive, so the screen claims an explanation whose text is gone.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F12",
+      "text": "RESEARCH: fillResearchPrices writes the fetched quotes back into trending/best/worst but not into etfs. A fund Claude adds - which the prompt explicitly asks for - costs a real quote request whose answer is discarded, renders with no price forever, and re-spends the same request on every later import.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F13",
+      "text": "RESEARCH: the org.json NULL trap, in the one place the architecture notes warn about it. optString on a JSON null returns the literal string 'null' on Android. A Claude reply with \"catalyst\": null paints 'null' under the card; \"shortVehicle\": null becomes a red 'NULL' inverse-ETF chip; \"symbol\": null inserts a fabricated NULL row. The desktop org.json used in tests returns the fallback, so no existing test can catch it.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F14",
+      "text": "RESEARCH: the same NULL trap in EtfScreener.parse - a Yahoo row with a null longName yields the name 'null', and .ifBlank never fires because 'null' is not blank, so both fallbacks are skipped and the leverage filter runs its whole test against that string.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F15",
+      "text": "RESEARCH: ResearchBridge's bundle computes dataAgeMinutes from set.generated only, so a user who has only opened the ETFs tab tells Claude the fund data is 0 minutes old when it may be six hours. etfGenerated is nowhere in the bundle.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F16",
+      "text": "RESEARCH: a fund Claude returns with a category but no why survives the import and then vanishes at the next rebuild - carryEtfExplanations requires why to be non-blank - contradicting the screen's own promise that funds Claude adds are kept.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F17",
+      "text": "RESEARCH: an imported reply with no notes blanks the previous notes; every other field in that copy merges rather than overwrites.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F18",
+      "text": "RESEARCH: the FOLLOWING chip's watched/held set is remembered on set.generated and set.explained, neither of which changes when the ETF list rebuilds - so on the ETFs tab the chip can lag until the stock pass runs.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F19",
+      "text": "RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as a failure and retries the identical request against the other Yahoo host, so each list's terminal page costs two requests instead of one.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "F20",
+      "text": "RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as a fraction, copying the stock screener's rule for a DIFFERENT field name. Measured live: on ETF rows yieldTTM and dividendYield are both percentages (SPY 0.98). The code is right and its comment is wrong, which is how a later 'fix' introduces a 100x error.",
+      "sev": "low",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -321,6 +426,21 @@
     "2026-09-08 07:15:28 UTC  F04 fixed: showMoreResearch only enriches Best and Worst - a fund's numbers arrive with its screener row and have no second stage",
     "2026-09-08 07:18:00 UTC  finding F05: The F01 fix reintroduced a worse bug: keying the build effect on the shared busy",
     "2026-09-08 07:23:19 UTC  F05 fixed: both auto-builds now sit behind RetryClock (30s/1m/2m/4m/5m per section), so an empty pass backs off instead of re-firing the moment busy clears; force still ignores it. RetryClock promoted to top-level internal and RetryBackoffTest now exercises the real class instead of a copy of its rule.",
-    "2026-09-08 07:37:51 UTC  sweep: dashed zero line + 'pts vs SPY' spread on the legend; EtfFactsGrid + chip auto-scroll now covered by rendered tests"
+    "2026-09-08 07:37:51 UTC  sweep: dashed zero line + 'pts vs SPY' spread on the legend; EtfFactsGrid + chip auto-scroll now covered by rendered tests",
+    "2026-09-08 07:49:07 UTC  finding F06: CHART: PriceChart returns from the Column BEFORE the gesture surface whenever th",
+    "2026-09-08 07:49:07 UTC  finding F07: CHART: onZoomStep = liveZoom.value is read ONCE inside pointerInput(Unit), so re",
+    "2026-09-08 07:49:07 UTC  finding F08: CHART: the benchmark's live edge is discarded whenever its last candle is later ",
+    "2026-09-08 07:49:07 UTC  finding F09: CHART: in price mode the y-axis corner labels print the series high and low, but",
+    "2026-09-08 07:49:07 UTC  finding F10: CHART: the 'pts vs SPY' spread and the resting SPY readout take the benchmark's ",
+    "2026-09-08 07:49:07 UTC  finding F11: RESEARCH: every stock rebuild destroys the ETF list. carryExplanations returns t",
+    "2026-09-08 07:49:07 UTC  finding F12: RESEARCH: fillResearchPrices writes the fetched quotes back into trending/best/w",
+    "2026-09-08 07:49:07 UTC  finding F13: RESEARCH: the org.json NULL trap, in the one place the architecture notes warn a",
+    "2026-09-08 07:49:07 UTC  finding F14: RESEARCH: the same NULL trap in EtfScreener.parse - a Yahoo row with a null long",
+    "2026-09-08 07:49:07 UTC  finding F15: RESEARCH: ResearchBridge's bundle computes dataAgeMinutes from set.generated onl",
+    "2026-09-08 07:49:08 UTC  finding F16: RESEARCH: a fund Claude returns with a category but no why survives the import a",
+    "2026-09-08 07:49:08 UTC  finding F17: RESEARCH: an imported reply with no notes blanks the previous notes; every other",
+    "2026-09-08 07:49:08 UTC  finding F18: RESEARCH: the FOLLOWING chip's watched/held set is remembered on set.generated a",
+    "2026-09-08 07:49:08 UTC  finding F19: RESEARCH: EtfScreener.fetch treats a valid 200 carrying zero quotes the same as ",
+    "2026-09-08 07:49:08 UTC  finding F20: RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as"
   ]
 }
