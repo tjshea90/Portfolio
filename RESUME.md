@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:38:27 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:38:28 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -78,7 +78,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 22:38:19 UTC  finding G07: Zoomed caption for the after-hours range read oddly (no comma to splice)
 - 2026-09-08 22:38:19 UTC  finding G08: ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds in
 - 2026-09-08 22:38:19 UTC  finding G09: Re-anchoring the window did not re-evaluate which range should draw it
 - 2026-09-08 22:38:19 UTC  G01 fixed
@@ -90,4 +89,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 22:38:25 UTC  G07 fixed
 - 2026-09-08 22:38:26 UTC  G08 fixed
 - 2026-09-08 22:38:27 UTC  G09 fixed
+- 2026-09-08 22:38:28 UTC  sweep 2: 9 findings on sweep 1's own fixes, all closed
 
