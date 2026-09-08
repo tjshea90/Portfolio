@@ -175,4 +175,51 @@ class RetryBackoffTest {
         val first = Connectivity.isOnline(ctx)
         repeat(5) { assertEquals(first, Connectivity.isOnline(ctx)) }
     }
+
+    // ------------------------------------------------- forgetting (Round 63, sweep 3)
+
+    /**
+     * A COUNT DESCRIBES CONSECUTIVE RECENT FAILURES, NOT THE LIFE OF THE PROCESS.
+     *
+     * Before this, only a success or a manual pull cleared a count - so one five-minute
+     * outage drove every symbol to the top tier and left it there for the rest of the
+     * session, and the next single dropped symbol, long after the network came back, started
+     * at a five-minute backoff instead of thirty seconds.
+     */
+    @Test
+    fun `a key untouched for ten minutes starts again from the shortest window`() {
+        val c = clock()
+        repeat(5) { c.failure("X", t0) }
+        // Still at the capped tier while it is recent.
+        assertTrue(c.blocked("X", t0 + 200_000L))
+        assertFalse(c.blocked("X", t0 + 301_000L))
+
+        // Ten minutes later the streak is forgotten entirely...
+        assertFalse(c.blocked("X", t0 + 700_000L))
+        // ...so the next failure is a FIRST failure: a 30-second window, not five minutes.
+        val later = t0 + 800_000L
+        c.failure("X", later)
+        assertTrue("should be blocked inside 30s", c.blocked("X", later + 20_000L))
+        assertFalse("should be free after 30s, not after 5 minutes", c.blocked("X", later + 31_000L))
+    }
+
+    @Test
+    fun `forgetting does not disturb a key that is still failing steadily`() {
+        val c = clock()
+        // Attempted roughly every backoff window, which is what the app actually does.
+        var now = t0
+        repeat(4) {
+            c.failure("Y", now)
+            now += 310_000L
+        }
+        // Every attempt was inside the forgetting window, so the streak of FOUR stands and
+        // the backoff is the fourth tier - four minutes - rather than having been reset to
+        // the first. That is the whole distinction: forgetting is about a key nobody has
+        // asked about, not about one that is still failing.
+        val last = now - 310_000L
+        assertEquals(240_000L, c.backoffMs(4))
+        assertTrue("the streak was reset", c.blocked("Y", last + 200_000L))
+        assertTrue("a 30s window means the streak was forgotten", c.blocked("Y", last + 31_000L))
+        assertFalse(c.blocked("Y", last + 241_000L))
+    }
 }

@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 16:37:18 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 17:06:33 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -52,7 +52,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T12** (SWEEP 4: verify the sweep-3 fixes; stop only when a sweep finds nothing that matters).
 
-## 5. Open findings — 0 still open, 63 fixed
+## 5. Open findings — 7 still open, 64 fixed
 
 - [x] J01 (high) isLeveragedOrInverse excluded every short-duration bond fund: ' short ' and ' ultrashort ' matched 'iShares Short Treasury Bond ETF', 'Vanguard Short-Term Bond', 'PIMCO Enhanced Short Maturity' and 'iShares Ultra Short-Term Bond'. Short-duration bond funds are among the most widely held ETFs there are - the Best ETFs list could not have contained the safe half of a portfolio.  — the test is now what the fund is short OF: 'short' followed by a duration or credit word (term/duration/maturity/treasury/bond/...) is an ordinary bond fund; anything else is inverse. Explicit multiples and 'bear'/'inverse'/'ultrapro' still exclude outright. 9 real fund names asserted both ways.
 - [x] F01 (high) loadEtfs shares _researchBusy with the stock pass, so opening the ETFs tab while the 18-request stock build is running silently does nothing - and nothing ever retries. The tab sits empty until the user switches away and back or pulls down.  — the section's build effect is keyed on the shared busy flag as well, so a request dropped while the other pass was in flight is re-made the moment it clears; neither call can loop because both return immediately inside their own TTL
@@ -117,6 +117,14 @@ commit, so `git log --oneline` is the history of this round and
 - [x] R12 (med) The sparkline filter can suppress a sparkline that was never adopted. Two paths publish a D1 chart without ever writing Quote.spark - the fetch path when no quote exists yet, and the DISK RESTORE path, which never calls adoptAsSparkline at all - so a cold start into a detail screen leaves that row's sparkline stale for up to five minutes.  — the sparkline filter requires sparkAt to be set - proof the series was actually adopted - and loadChart's disk-restore path now adopts a restored 1D series, which also saves the request outright
 - [x] R13 (med) The settings cache can be poisoned by a read racing a write: get() queries on a miss and stores what it read afterwards, so a read that starts before a concurrent set() commits and finishes after it leaves the cache holding the old value permanently. Also invalidateSettings() runs before endTransaction() in restoreJson's finally, so a reader in that gap can cache a value that is about to roll back.  — the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before.
 - [x] R14 (low) RetryClock failure counts never decay, so one five-minute outage drives every symbol to the five-minute tier for the rest of the process - and the next single dropped symbol starts at that tier instead of at thirty seconds.  — RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process
+- [x] S01 (high) DEADLOCK, introduced by my own settings-cache lock. restoreJson holds an exclusive SQLite transaction and calls set() inside it, which then wants settingsLock; meanwhile any other thread doing db.set (stampFeedAt, setChartRange, setPlMode) takes settingsLock first and blocks on the connection the restore is holding. Both threads wedge permanently and the next main-thread settings read ANRs the app. A restore is exactly when the auto loop is still ticking, so this needs no exotic timing.  — restoreJson writes settings rows through a lock-free writeSetting against its own transaction handle instead of calling set(); the cache is dropped wholesale afterwards. The lock-order inversion is gone.
+- [ ] S02 (high) stampFeedAtIfFetched(feedDue || newsSymbols.isNotEmpty()) still lies and re-disables the refresh-on-open gate: newsSymbols is non-empty whenever a stock detail screen is open, so browsing stocks stamps _feedAt every tick without the market feeds having been fetched. Opening the Feed then sees age < interval, skips the refresh, and shows hours-old headlines captioned 'Updated 1 minute ago'.
+- [ ] S03 (high) adoptAsSparkline on the disk-restore path adopts an arbitrarily STALE D1 series and stamps sparkAt, which is the same bug it was added to fix, from the other side. A cold start onto a stock whose remembered range is not 1D restores yesterday's intraday line into Quote.spark, and the portfolio row then draws it against TODAY's previous close for five minutes - wrong shape and possibly wrong colour.
+- [ ] S04 (med) Routing the vs-SPY chip through benchmarkColor re-broke the contrast BenchmarkFill was created to fix: in the dark theme it resolves to #B4863B and the chip's white 13sp and 11sp text is 3.1:1 against it.
+- [ ] S05 (low) Insider.forSymbol is now a verbatim copy of forSymbolResult's body and both it and listFilings have zero callers - dead duplicated logic that can only drift.
+- [ ] S06 (low) insiderAt is stamped when the LISTING was answered even if every per-filing fetch then failed, so a partial failure caches an empty result for thirty minutes.
+- [ ] S07 (low) KeyValue's Layout does not guard against an unbounded maxWidth - unreachable today, since no call site is inside a horizontal scroller or under IntrinsicSize, but it would place the value about 16 million pixels off screen.
+- [ ] S08 (low) RetryClock's new ten-minute forgetting rule has no test, in the file whose whole purpose is testing that rule.
 
 ## 6. Version
 
@@ -127,16 +135,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 16:36:47 UTC  R05 fixed: the autosize floor is now dp-derived via Dp.toSp(), so it is a physical size that does not scale with the user's setting, and the step is a whole point so neighbouring cells stay on a short ladder
-- 2026-09-08 16:36:48 UTC  R06 fixed: reverted - it never fired on the frames it was written for (recompute runs synchronously in init) and it replaced the onboarding copy with a spinner caption on every tick for a watchlist-only user
-- 2026-09-08 16:36:49 UTC  R07 fixed: PortfolioTheme publishes LocalDarkTheme and every theme-aware colour reads that instead of isSystemInDarkTheme(), so the seven tests that render the dark scheme now get dark-scheme text
-- 2026-09-08 16:36:50 UTC  R08 fixed: one palette per feature: the chart line, its legend dot, the readout and the chips all take signColor, and benchmarkColor covers the line, the dot, the readouts and the toggle. The sparkline moved with them - a hairline at 2.20:1 on white was faint as a line too.
-- 2026-09-08 16:36:51 UTC  R09 fixed: stampFeedAtIfFetched - a gated pass that fetched nothing no longer claims to have refreshed, which also stops the header reading 'just now' over hours-old headlines
-- 2026-09-08 16:36:52 UTC  R10 fixed: newsVisible is assigned BEFORE the refresh it gates is kicked (viewModelScope is Main.immediate, so the body runs in place), and both transition edges are captured before the flag moves so the grace window still measures leaving
-- 2026-09-08 16:36:53 UTC  R11 fixed: Insider.listing/forSymbolResult report whether EDGAR ANSWERED, taken from the HTTP response rather than inferred from an empty list, and insiderAt is only stamped when it did
-- 2026-09-08 16:36:53 UTC  R12 fixed: the sparkline filter requires sparkAt to be set - proof the series was actually adopted - and loadChart's disk-restore path now adopts a restored 1D series, which also saves the request outright
-- 2026-09-08 16:36:54 UTC  R13 fixed: the settings cache's miss path and its writes are serialised on one lock with a re-check inside it; the hit path stays lock-free. restoreJson invalidates after endTransaction rather than before.
 - 2026-09-08 16:36:55 UTC  R14 fixed: RetryClock forgets a key untouched for ten minutes - twice the maximum backoff - so a count describes consecutive RECENT failures rather than the life of the process
 - 2026-09-08 16:37:17 UTC  T10 -> done  14 regressions from my own fixes (R01-R14) found and fixed, including one that would have made the app render nothing. New tests measure the tab bar inside a real Scaffold and KeyValue at four font scales.
 - 2026-09-08 16:37:18 UTC  T12 -> doing  sweep 4
+- 2026-09-08 16:52:21 UTC  finding S01: DEADLOCK, introduced by my own settings-cache lock. restoreJson holds an exclusi
+- 2026-09-08 16:52:21 UTC  finding S02: stampFeedAtIfFetched(feedDue || newsSymbols.isNotEmpty()) still lies and re-disa
+- 2026-09-08 16:52:21 UTC  finding S03: adoptAsSparkline on the disk-restore path adopts an arbitrarily STALE D1 series 
+- 2026-09-08 16:52:21 UTC  finding S04: Routing the vs-SPY chip through benchmarkColor re-broke the contrast BenchmarkFi
+- 2026-09-08 16:52:21 UTC  finding S05: Insider.forSymbol is now a verbatim copy of forSymbolResult's body and both it a
+- 2026-09-08 16:52:21 UTC  finding S06: insiderAt is stamped when the LISTING was answered even if every per-filing fetc
+- 2026-09-08 16:52:21 UTC  finding S07: KeyValue's Layout does not guard against an unbounded maxWidth - unreachable tod
+- 2026-09-08 16:52:21 UTC  finding S08: RetryClock's new ten-minute forgetting rule has no test, in the file whose whole
+- 2026-09-08 17:06:33 UTC  S01 fixed: restoreJson writes settings rows through a lock-free writeSetting against its own transaction handle instead of calling set(); the cache is dropped wholesale afterwards. The lock-order inversion is gone.
 

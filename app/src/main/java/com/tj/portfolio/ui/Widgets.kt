@@ -546,7 +546,13 @@ fun KeyValue(label: String, value: String, valueColor: Color? = null, bold: Bool
             )
         }
     ) { measurables, constraints ->
-        val width = constraints.maxWidth
+        // BOUNDED, because `layout()` places children against this number. An unbounded
+        // `maxWidth` - a horizontal scroller, or an intrinsic-measurement pass - would put the
+        // value about sixteen million pixels off screen. No call site does that today; this is
+        // one line so that none ever can.
+        val width =
+            if (constraints.hasBoundedWidth) constraints.maxWidth
+            else measurables.sumOf { it.maxIntrinsicWidth(constraints.maxHeight) }
         val loose = Constraints(maxWidth = width)
         val valuePlaceable = measurables[1].measure(loose)
         val forLabel = width - valuePlaceable.width - gap

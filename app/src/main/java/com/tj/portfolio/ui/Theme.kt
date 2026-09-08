@@ -67,6 +67,17 @@ val benchmarkColor: Color
     @Composable get() = if (LocalDarkTheme.current) Benchmark else BenchmarkFill
 
 /**
+ * What to write ON [benchmarkColor], which is not the same answer in both themes.
+ *
+ * Unifying the amber fixed one problem and reintroduced another: the "vs SPY" chip carries
+ * 13sp and 11sp text on that fill, and white on the light `#B4863B` is 3.27:1. The fill has to
+ * stay as it is - it is the line's colour and the chip must match the line - so the TEXT
+ * moves instead: near-black on the bright amber is 5.42:1, white on the dark one is 6.23:1.
+ */
+val onBenchmark: Color
+    @Composable get() = if (LocalDarkTheme.current) Color(0xFF141821) else Color.White
+
+/**
  * [Accent] as TEXT, brightened for the dark theme (Round 63 sweep).
  *
  * `#2E6BE6` on the light surfaceVariant is 4.41:1 - a hair under AA and acceptable at the

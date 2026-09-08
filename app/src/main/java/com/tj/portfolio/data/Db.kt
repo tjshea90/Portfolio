@@ -739,9 +739,30 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     }
 
     fun set(key: String, value: String) = synchronized(settingsLock) {
-        val cv = ContentValues().apply { put("k", key); put("v", value) }
-        writableDatabase.insertWithOnConflict("settings", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
+        writeSetting(writableDatabase, key, value)
         settingsCache[key] = value
+    }
+
+    /**
+     * The raw row write, WITHOUT the cache lock.
+     *
+     * ---- THIS EXISTS TO BREAK A DEADLOCK, AND IT IS THE ONLY REASON IT EXISTS.
+     *
+     * `set` takes `settingsLock` and then reaches for the database connection. `restoreJson`
+     * does the opposite: it holds an exclusive transaction on that connection and then, for
+     * every settings row in the file, calls `set` - which wants the lock. So a restore running
+     * while ANY other thread writes a setting (`stampFeedAt`, `setChartRange`, `setPlMode`,
+     * all on IO, all live during a restore because the poll loop keeps ticking) is a
+     * lock-order inversion: one thread holds the lock and waits for the connection, the other
+     * holds the connection and waits for the lock. Both wedge for good, and the next
+     * main-thread settings read ANRs the app.
+     *
+     * Inside a transaction the cache is being invalidated wholesale afterwards anyway, so the
+     * restore writes rows through here and never touches the lock.
+     */
+    private fun writeSetting(db: SQLiteDatabase, key: String, value: String) {
+        val cv = ContentValues().apply { put("k", key); put("v", value) }
+        db.insertWithOnConflict("settings", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
     /** Is this key stored at all? Distinct from [get] returning "", which a stored blank does too. */
@@ -1342,7 +1363,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 // the "last backup" date to a stale one. Replace still takes the file
                 // wholesale - that is the device-transfer path.
                 if (!replace && hasSetting(k)) continue
-                set(k, st.optString(k)); sN++
+                // NOT `set` - see `writeSetting`. Calling it here, inside the transaction,
+                // is the deadlock. The whole cache is dropped in the `finally` below.
+                writeSetting(db, k, st.optString(k)); sN++
             }
 
             var iN = 0

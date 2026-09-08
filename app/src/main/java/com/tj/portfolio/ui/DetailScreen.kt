@@ -1167,13 +1167,16 @@ private fun NewsTab(
  */
 @Composable
 private fun CompareToggle(on: Boolean, loading: Boolean, onClick: () -> Unit) {
+    // The same amber the line is painted in, so the control and what it turns on are visibly
+    // one thing - and the text on it follows the theme, because white does not carry on the
+    // bright value. See `benchmarkColor` and `onBenchmark`.
+    val fill = benchmarkColor
+    val onFill = onBenchmark
     Box(
         Modifier
             .minTapTarget()
             .background(
-                // The same amber the line is painted in, so the control and what it turns on
-                // are visibly one thing - see `benchmarkColor`.
-                if (on) benchmarkColor else MaterialTheme.colorScheme.surfaceVariant,
+                if (on) fill else MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(10.dp)
             )
             .clickable(onClick = onClick)
@@ -1192,7 +1195,7 @@ private fun CompareToggle(on: Boolean, loading: Boolean, onClick: () -> Unit) {
                 "vs",
                 fontSize = 13.sp,
                 fontWeight = if (on) FontWeight.Bold else FontWeight.Medium,
-                color = if (on) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (on) onFill else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
             Text(
@@ -1201,7 +1204,7 @@ private fun CompareToggle(on: Boolean, loading: Boolean, onClick: () -> Unit) {
                 if (loading) "..." else BENCHMARK_SYMBOL,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = if (on) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (on) onFill else MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1
             )
         }

@@ -3105,7 +3105,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // half an hour: a stock opened while the SEC was refusing showed no filings
                 // across every re-open until the TTL ran out. `answered` is the distinction,
                 // and it comes from the HTTP response rather than from the shape of the list.
-                if (result?.answered == true) insiderAt[symbol] = System.currentTimeMillis()
+                // ANSWERED, AND ACTUALLY RESOLVED. A listing that came back but whose every
+                // per-filing fetch then failed is a partial failure, not "this company filed
+                // nothing" - caching it would hide the section for half an hour on the
+                // strength of a request that did not work.
+                val resolved = result != null && result.answered &&
+                    (result.filings.isNotEmpty() || result.listed == 0)
+                if (resolved) insiderAt[symbol] = System.currentTimeMillis()
                 if (items.isEmpty()) return@launch
                 rememberInsiderDocs(items)
                 // De-duplicated by accession: EDGAR occasionally repeats an entry, and the
@@ -3566,7 +3572,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // is what lets that pass safely skip a symbol whose chart is fresh.
                         // `adoptAsSparkline` checks its own preconditions and does nothing if
                         // there is no quote to attach it to yet.
-                        m[chartKey(sym, ChartRange.D1)]?.let { adoptAsSparkline(sym, it) }
+                        // ONLY IF IT IS STILL FRESH. `adoptAsSparkline` checks that the
+                        // series is regular-session and that a quote exists to attach it to,
+                        // but not how OLD it is - which is fine on the fetch path, where it
+                        // is fresh by construction, and wrong here, where it is whatever
+                        // SQLite held. Adopting a stale one stamps `sparkAt` and so
+                        // suppresses the real refresh for five minutes, drawing yesterday's
+                        // intraday line against today's previous close: the very bug this
+                        // adoption was added to prevent, arriving from the other side.
+                        m[chartKey(sym, ChartRange.D1)]
+                            ?.takeIf { !it.stale() }
+                            ?.let { adoptAsSparkline(sym, it) }
                     }
                 }
 
@@ -4180,7 +4196,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     newsItems + marketItems + existingFilings + _feed.value,
                     toCache = newsItems + marketItems
                 )
-                stampFeedAtIfFetched(feedDue || newsSymbols.isNotEmpty())
+                // `feedDue`, NOT "did this pass fetch anything". `_feedAt` governs the
+                // market-wide list and the refresh-on-open rule that depends on it, and
+                // `newsSymbols` is non-empty whenever a stock detail screen is open - so
+                // stamping on that meant browsing stocks kept `_feedAt` permanently fresh
+                // while the seven market feeds were never pulled. Opening the Feed then saw
+                // "refreshed a minute ago" over headlines hours old.
+                stampFeedAtIfFetched(feedDue)
 
                 // ---- stage 2: SEC filings, which are two business days behind by law and
                 // ride their own slow cadence, so they must never hold the headlines up

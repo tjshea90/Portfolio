@@ -180,7 +180,18 @@ object Insider {
      *
      * The second half of that is what lets a caller cache "nothing to report" - see [Listing].
      */
-    data class SymbolResult(val filings: List<InsiderFiling>, val answered: Boolean)
+    data class SymbolResult(
+        val filings: List<InsiderFiling>,
+        val answered: Boolean,
+        /**
+         * How many filings the listing named, before any of them was fetched.
+         *
+         * Zero with `answered` true is the real "this company filed nothing this month". A
+         * non-zero count with no filings is a partial failure wearing the same shape, and the
+         * caller must not cache it as an answer.
+         */
+        val listed: Int = 0
+    )
 
     suspend fun forSymbolResult(
         symbol: String,
@@ -194,9 +205,10 @@ object Insider {
             .filter { it.accession !in skip }
             .take(MAX_PER_SYMBOL)
         if (refs.isEmpty()) {
-            return@coroutineScope SymbolResult(emptyList(), listing.answered)
+            return@coroutineScope SymbolResult(emptyList(), listing.answered, listed = 0)
         }
         SymbolResult(
+            listed = refs.size,
             filings = refs.map { ref ->
                 async {
                     cached[ref.accession] ?: run {
@@ -213,30 +225,20 @@ object Insider {
         )
     }
 
+    /**
+     * The filings alone, for callers that do not need to know whether EDGAR answered.
+     *
+     * DELEGATES - it does not repeat the body. It briefly did, and two copies of a
+     * twenty-line coroutine that differ only in their return type are two copies that will
+     * drift.
+     */
     suspend fun forSymbol(
         symbol: String,
         cached: Map<String, InsiderFiling>,
         gate: Semaphore,
         since: String,
         skip: MutableSet<String> = HashSet()
-    ): List<InsiderFiling> = coroutineScope {
-        val refs = gate.withPermit { listFilings(symbol, since) }
-            .filter { it.accession !in skip }
-            .take(MAX_PER_SYMBOL)
-        if (refs.isEmpty()) return@coroutineScope emptyList()
-        refs.map { ref ->
-            async {
-                cached[ref.accession] ?: run {
-                    val parsed = gate.withPermit {
-                        runCatching { fetch(symbol, ref) }.getOrNull()
-                    }
-                    if (parsed is Unreadable) {
-                        synchronized(skip) { skip.add(ref.accession) }; null
-                    } else parsed as? InsiderFiling
-                }
-            }
-        }.awaitAll().filterNotNull().sortedByDescending { it.filedAt }
-    }
+    ): List<InsiderFiling> = forSymbolResult(symbol, cached, gate, since, skip).filings
 
     // ---------------------------------------------------------------- listing
 
