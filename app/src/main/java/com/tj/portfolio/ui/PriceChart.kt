@@ -22,7 +22,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -127,7 +129,24 @@ fun PriceChart(
         //
         // `mutableIntStateOf`, not `mutableStateOf(Int)`: a drag emits an event per frame and
         // the boxed version would allocate an Integer for every one of them.
-        val scrub = remember(shown) { mutableIntStateOf(NO_SCRUB) }
+        //
+        // NOT KEYED ON `shown`, AND THAT IS THE IMPORTANT PART. `withLiveEdge` rebuilds
+        // `shown` on every quote tick while the market is open, so `remember(shown)` handed
+        // back a FRESH state every fifteen seconds - which cleared the crosshair out from
+        // under a finger that was still on the screen, during exactly the hours the feature
+        // is for. The index is reset deliberately below instead, when the chart being drawn
+        // actually changes; a stale index in between is harmless because every reader
+        // bounds-checks it against `points.indices`.
+        val scrub = remember { mutableIntStateOf(NO_SCRUB) }
+
+        // A different symbol or a different range is a different chart, so the old position
+        // means nothing. New DATA for the same chart is not - that is just the line moving
+        // under a finger that is still pointing at the same moment in time.
+        LaunchedEffect(shown.symbol, shown.range) { scrub.intValue = NO_SCRUB }
+
+        // Read INSIDE the gesture handler so the handler itself never has to restart - see
+        // the note on `pointerInput(Unit)` below.
+        val liveSeries = rememberUpdatedState(shown)
 
         // ---- the readout: what the line did over this window, or what it did at your finger
         //
@@ -154,12 +173,18 @@ fun PriceChart(
                 // starts on the chart therefore still scrolls the page it sits in, which
                 // matters because the chart is 170dp of a scrolling screen and making that a
                 // dead zone would be a worse bug than the feature is a feature.
-                .pointerInput(shown) {
-                    if (shown.points.size < 2) return@pointerInput
+                // `pointerInput(Unit)`, NOT `pointerInput(shown)`. Changing that key
+                // CANCELS and restarts the handler, and `shown` is rebuilt on every quote
+                // tick - so keying on it aborted an in-progress drag every fifteen seconds
+                // during market hours. The series is read through `rememberUpdatedState`
+                // instead, which keeps the handler alive while still seeing current data.
+                .pointerInput(Unit) {
                     fun at(x: Float) {
+                        val pts = liveSeries.value.points
+                        if (pts.size < 2) return
                         val w = size.width.toFloat()
                         if (w <= 0f) return
-                        scrub.intValue = nearestIndex(shown.points, x / w)
+                        scrub.intValue = nearestIndex(pts, x / w)
                     }
                     detectHorizontalDragGestures(
                         onDragStart = { at(it.x) },
@@ -257,6 +282,10 @@ private fun ChartReadout(
 ) {
     val i = scrub.intValue
     val point = if (i in s.points.indices) s.points[i] else null
+    // HOISTED OUT OF THE PER-FRAME PATH. This formats two ISO dates through SimpleDateFormat,
+    // and it was being asked on every frame of a drag to answer a question whose answer
+    // cannot change during one.
+    val withDate = remember(s) { spansMoreThanADay(s) }
 
     Row(
         Modifier.fillMaxWidth().height(READOUT_HEIGHT.dp),
@@ -309,7 +338,7 @@ private fun ChartReadout(
             Text(
                 // Always dated when the window spans more than a day, because on the
                 // after-hours and 5-day views a bare clock does not say which day it is.
-                axisLabel(point.t * 1000L, range, spansMoreThanADay(s)),
+                axisLabel(point.t * 1000L, range, withDate),
                 style = MaterialTheme.typography.bodySmall,
                 color = muted,
                 maxLines = 1

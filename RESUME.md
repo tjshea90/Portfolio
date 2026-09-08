@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 02:01:30 UTC)
+# RESUME — READ THIS FIRST  (round 60, saved 2026-09-08 02:08:32 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -47,9 +47,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Adversarial review of the feature, then fix what it finds).
 
-## 5. Open findings — 0 still open, 0 fixed
+## 5. Open findings — 1 still open, 1 fixed
 
-(none recorded yet)
+- [x] H01 (high) BOTH the scrub state and the pointer handler are keyed on 'shown', which withLiveEdge rebuilds on EVERY quote tick while the market is open. So mid-gesture, every 15 seconds: remember(shown) hands back a fresh state (crosshair vanishes) and pointerInput(shown) cancels and restarts the handler (the drag is aborted outright). Scrubbing would break every 15s during exactly the hours TJ uses it.  — scrub state is remember{} with an explicit LaunchedEffect(symbol,range) reset; pointerInput(Unit) with rememberUpdatedState so a quote tick cannot cancel an in-flight drag. Regression test verified by reverting the fix.
+- [ ] H02 (low) ChartReadout calls spansMoreThanADay(s) on every frame of a drag, and that formats two ISO dates through SimpleDateFormat. 120-240 date formats a second on the main thread to answer a question whose answer cannot change during a gesture.
 
 ## 6. Version
 
@@ -60,9 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 01:27:41 UTC  T7 -> doing  shipping v7.0
-- 2026-09-08 01:27:53 UTC  T7 -> done  v7.0 APK + checkpoint 59 delivered
-- 2026-09-08 01:46:47 UTC  round 60 started
 - 2026-09-08 01:49:33 UTC  T0 -> done  baseline green before the feature
 - 2026-09-08 01:49:36 UTC  T1 -> done  detectHorizontalDragGestures: horizontal touch slop claims the scrub, vertical swipes fall through to the list scroll
 - 2026-09-08 01:49:37 UTC  T2 -> done  crosshair + dot, readout at fixed height, index-based scrub state
@@ -72,4 +70,7 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:58:49 UTC  T5 -> doing  full regression
 - 2026-09-08 02:01:30 UTC  T5 -> done  389/389 green, lint clean, checkinit ok - no regressions
 - 2026-09-08 02:01:30 UTC  T6 -> doing  adversarial review of the scrub feature
+- 2026-09-08 02:01:30 UTC  finding H01: BOTH the scrub state and the pointer handler are keyed on 'shown', which withLiv
+- 2026-09-08 02:01:30 UTC  finding H02: ChartReadout calls spansMoreThanADay(s) on every frame of a drag, and that forma
+- 2026-09-08 02:08:32 UTC  H01 fixed: scrub state is remember{} with an explicit LaunchedEffect(symbol,range) reset; pointerInput(Unit) with rememberUpdatedState so a quote tick cannot cancel an in-flight drag. Regression test verified by reverting the fix.
 

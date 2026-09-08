@@ -9,6 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -234,6 +236,57 @@ class ScrubGestureUiTest {
                 "(was $down, now ${scroll.value})",
             scroll.value < down
         )
+    }
+
+    // ------------------------------------ the bug a quote tick would have caused
+
+    /**
+     * THE REGRESSION THIS FEATURE ALMOST SHIPPED WITH.
+     *
+     * `withLiveEdge` rebuilds the series on every quote tick - four times a minute while the
+     * market is open. The first version keyed both the scrub state and the pointer handler on
+     * that rebuilt series, so a tick mid-gesture cleared the crosshair and cancelled the drag.
+     * It would have worked perfectly in testing after hours and broken every fifteen seconds
+     * during the day, which is the worst possible shape for a bug.
+     *
+     * Driven here by changing `livePrice` while a finger is down.
+     */
+    @Test
+    fun `a live price update mid-drag does not cancel the scrub`() {
+        var price by androidx.compose.runtime.mutableDoubleStateOf(150.0)
+        rule.setContent {
+            PortfolioTheme(dark = false) {
+                Box(Modifier.fillMaxSize()) {
+                    PriceChart(
+                        series(), ChartRange.D1, loading = false,
+                        livePrice = price, liveEdge = true
+                    )
+                }
+            }
+        }
+
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { down(centerLeft); moveTo(center) }
+        rule.waitForIdle()
+        val during = texts().firstOrNull { it.startsWith("$1") }
+        assertTrue("the drag did not scrub at all", during != null)
+
+        // A quote tick lands, exactly as it would at 15-second intervals all day.
+        price = 151.0
+        rule.waitForIdle()
+
+        assertTrue(
+            "a quote tick cleared the crosshair out from under the finger: " +
+                texts().joinToString(" | "),
+            !readoutShowsWindowChange()
+        )
+        // ...and the gesture is still live, so moving still moves the crosshair.
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { moveTo(topLeft) }
+        rule.waitForIdle()
+        assertTrue(
+            "the drag was cancelled by the tick - moving no longer scrubs: ${texts()}",
+            texts().any { it == "$100.00" }
+        )
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { up() }
     }
 
     // ------------------------------------------------------------ robustness
