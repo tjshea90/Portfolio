@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 58,
   "request": "Chart time-range selector (1D/5D/1M/6M/1Y/5Y/All/overnight); more pronounced separation between stocks in vertical lists; charts vanish after backgrounding - cache instead of reloading, but always refresh on pull-down; stack after-hours $ and % vertically; fix unreliable/inefficient chart fetching; ETF Holdings tab with each holding's weight; verify the app truly sleeps in the background (RAM/CPU/battery); full sweep for bugs, UI, efficiency and code improvements without introducing new bugs.",
-  "updated": "2026-09-08 00:47:24 UTC",
+  "updated": "2026-09-08 00:47:25 UTC",
   "version": {
     "code": 55,
     "name": "6.8",
@@ -93,8 +93,8 @@
     {
       "id": "T11",
       "title": "Fix every finding from T10 without introducing new ones",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "every finding closed and re-verified by the suite"
     },
     {
       "id": "T12",
@@ -333,6 +333,7 @@
     "2026-09-07 20:57:06 UTC  T10 -> doing  sweep pass 3 - pre-existing code I have not touched",
     "2026-09-07 20:58:45 UTC  finding F22: An intraday chart left open keeps re-fetching itself after the session that prod",
     "2026-09-07 21:02:47 UTC  F22 fixed: intradayChartIsFinal stops the automatic refresh once the session that produced the line has ended, tested against the real MarketClock including the pre-market fallback case",
-    "2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean"
+    "2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean",
+    "2026-09-08 00:47:25 UTC  T11 -> done  every finding closed and re-verified by the suite"
   ]
 }

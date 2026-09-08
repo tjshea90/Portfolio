@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 58, saved 2026-09-08 00:47:24 UTC)
+# RESUME — READ THIS FIRST  (round 58, saved 2026-09-08 00:47:25 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -35,7 +35,7 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 11/14 done
+## 4. Task ledger — 12/14 done
 
 - [x] T0  Cowork checkpoint system: ck tool, RESUME.md, state.json, git, 3-min watchdog  — ck tool, RESUME.md, state.json, git repo, 3-min watchdog, CHECKPOINT.md section 0 rewritten
 - [x] T1  Baseline: release build + 276-test suite green before any edit  — release APK + 276/276 tests green + checkinit ok
@@ -48,11 +48,11 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T8  ETF detail: HOLDINGS tab listing each holding and its % of the fund  — FundHoldings model + HoldingsFeed (Yahoo topHoldings/fundProfile/quoteType) + HoldingsTab (holdings with weights, sector split, asset mix) + fund-only tab visibility + detail nav stack
 - [x] T9  Background audit: prove the app sleeps - no RAM/CPU/battery use when not visible  — new code audited: loadChart/loadHoldings on fgScope, writes on viewModelScope, no new timers; trim thresholds corrected; duplicate 1D request removed
 - [x] T10  Full adversarial sweep: bugs, UI, efficiency, code quality (record every finding)  — 22 findings across 3 passes, all fixed; lint clean
-- [ ] T11  Fix every finding from T10 without introducing new ones
+- [x] T11  Fix every finding from T10 without introducing new ones  — every finding closed and re-verified by the suite
 - [ ] T12  Verification: unit tests, checkinit, lint, simulations, second-pass review
 - [ ] T13  Ship v6.9 (versionCode 56) + final checkpoint delivered to TJ
 
-**Resume at T11** (Fix every finding from T10 without introducing new ones).
+**Resume at T12** (Verification: unit tests, checkinit, lint, simulations, second-pass review).
 
 ## 5. Open findings — 0 still open, 22 fixed
 
@@ -88,7 +88,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:45:55 UTC  finding F19: ChartRange.D5 has a 5-minute TTL against a 30-minute candle. Asking more often t
 - 2026-09-07 20:45:55 UTC  finding F20: A chart never refreshes while its screen stays open. loadChart runs from Launche
 - 2026-09-07 20:48:00 UTC  F17 fixed: purgeChartCache moved to the once-a-session purge alongside news, fundamentals and http
 - 2026-09-07 20:48:01 UTC  F18 fixed: estimates and history are de-duplicated before being keyed
@@ -100,4 +99,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-07 20:58:45 UTC  finding F22: An intraday chart left open keeps re-fetching itself after the session that prod
 - 2026-09-07 21:02:47 UTC  F22 fixed: intradayChartIsFinal stops the automatic refresh once the session that produced the line has ended, tested against the real MarketClock including the pre-market fallback case
 - 2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean
+- 2026-09-08 00:47:25 UTC  T11 -> done  every finding closed and re-verified by the suite
 
