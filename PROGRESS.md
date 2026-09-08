@@ -292,3 +292,4 @@ Tasks 9/12 done, findings 2/2 fixed
 2026-09-08 07:37:51 UTC  checkpoint 63  no-change  sweep in progress: F01-F05 fixed, UI verified by screenshot
 2026-09-08 08:05:35 UTC  checkpoint 63  commit 4d2d6df  fix F06
 2026-09-08 08:05:35 UTC  checkpoint 63  commit 85a0868  fix F07
+2026-09-08 08:05:36 UTC  checkpoint 63  commit 983c46b  fix F08

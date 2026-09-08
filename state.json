@@ -155,8 +155,8 @@
       "id": "F09",
       "text": "CHART: in price mode the y-axis corner labels print the series high and low, but the axis is widened to include the dotted previous-close baseline. On a gap-down day - previous close 110, session 98-104 - the top of the axis is 110 while the label pinned to it reads 104.00. Comparison mode uses the real bounds for the same two labels, so the two modes give the same corners different meanings.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "priceBounds() is now the single source for both the canvas scale and the corner labels, so the number printed at the top of the axis is by construction the value drawn there"
     },
     {
       "id": "F10",
@@ -444,6 +444,7 @@
     "2026-09-08 07:49:08 UTC  finding F20: RESEARCH: the ETF screener parse comment claims Yahoo publishes dividendYield as",
     "2026-09-08 08:05:34 UTC  F06 fixed: the gesture surface and its state are hoisted above the empty-state branch and the placeholder carries the same modifier, so a pinch continues across a window that has not been fetched yet",
     "2026-09-08 08:05:35 UTC  F07 fixed: chartGestures now takes the zoom callback as a provider read per gesture rather than a value captured once inside pointerInput(Unit)",
-    "2026-09-08 08:05:36 UTC  F08 fixed: on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge"
+    "2026-09-08 08:05:36 UTC  F08 fixed: on an intraday range the two right-hand tips are paired explicitly - both mean 'now' - so a benchmark candle stamped later than the stock's no longer discards the live edge",
+    "2026-09-08 08:05:36 UTC  F09 fixed: priceBounds() is now the single source for both the canvas scale and the corner labels, so the number printed at the top of the axis is by construction the value drawn there"
   ]
 }
