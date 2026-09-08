@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 63,
   "request": "Round 63: (1) swipe left/right to change tabs, (2) pinch-zoom charts continuously from All-time down to 5-minute intervals, (3) Best ETFs research tab - online research, periodically refreshed, cached between updates, with the Claude-app export the other sections have, (4) the last approved feature: SPY comparison overlay. Then a thorough sweep for UI/code/network improvements and bugs, repeated until confident the app is clean.",
-  "updated": "2026-09-08 06:33:55 UTC",
+  "updated": "2026-09-08 06:33:56 UTC",
   "version": {
     "code": 60,
     "name": "7.3",
@@ -10,7 +10,7 @@
     "next_name": "7.4"
   },
   "now": {
-    "step": "",
+    "step": "T5: SPY comparison overlay: second series aligned to the first and drawn against it",
     "next": ""
   },
   "tasks": [
@@ -47,8 +47,8 @@
     {
       "id": "T5",
       "title": "SPY comparison overlay: second series aligned to the first and drawn against it",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "SPY comparison overlay"
     },
     {
       "id": "T6",
@@ -258,6 +258,7 @@
     "2026-09-08 06:15:36 UTC  T3 -> doing  Best ETFs data layer",
     "2026-09-08 06:26:50 UTC  T3 -> done  EtfScreener (3 keyless Yahoo fund screens, 10 requests, ~850 funds - measured that top_performing_etfs duplicates top_etfs_us and dropped it), EtfRow/EtfFacts, EtfScore (returns weighted to 5y/3y, cost, size, liquidity, age, trend; leveraged+inverse excluded), Research.buildEtfs on its own 6h TTL, vm.loadEtfs/etfsStale with its own job",
     "2026-09-08 06:26:51 UTC  T4 -> doing  Best ETFs UI + Claude bridge",
-    "2026-09-08 06:33:55 UTC  T4 -> done  fourth research tab with its own scroll state, timestamp, refresh target, blurb, sources and warnings; ETF facts grid on the card; prompt/bundle/parse/merge carry the etfs array and name the universe gaps so Claude adds the funds Yahoo's screens omit; funds Claude adds survive a rebuild"
+    "2026-09-08 06:33:55 UTC  T4 -> done  fourth research tab with its own scroll state, timestamp, refresh target, blurb, sources and warnings; ETF facts grid on the card; prompt/bundle/parse/merge carry the etfs array and name the universe gaps so Claude adds the funds Yahoo's screens omit; funds Claude adds survive a rebuild",
+    "2026-09-08 06:33:56 UTC  T5 -> doing  SPY comparison overlay"
   ]
 }

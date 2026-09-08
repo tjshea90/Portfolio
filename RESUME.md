@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:33:55 UTC)
+# RESUME — READ THIS FIRST  (round 63, saved 2026-09-08 06:33:56 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T5: SPY comparison overlay: second series aligned to the first and drawn against it
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -41,7 +41,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T2  Pinch-zoom charts: continuous zoom across the range ladder, All-time <-> 5m  — pinch zoom walks ChartRange.ZOOM_LADDER (All->5Y->1Y->6M->1M->5D->1D/5-minute); one pointer loop shared with scrubbing, per-rung 1.55x accumulator, 380ms settle so a multi-rung spread fetches only the rung it lands on; chip row auto-scrolls to the selection
 - [x] T3  Best ETFs data: ETF screener feed + scorer + cached section + periodic refresh  — EtfScreener (3 keyless Yahoo fund screens, 10 requests, ~850 funds - measured that top_performing_etfs duplicates top_etfs_us and dropped it), EtfRow/EtfFacts, EtfScore (returns weighted to 5y/3y, cost, size, liquidity, age, trend; leveraged+inverse excluded), Research.buildEtfs on its own 6h TTL, vm.loadEtfs/etfsStale with its own job
 - [x] T4  Best ETFs UI: fourth research tab + Claude-app bridge export/import  — fourth research tab with its own scroll state, timestamp, refresh target, blurb, sources and warnings; ETF facts grid on the card; prompt/bundle/parse/merge carry the etfs array and name the universe gaps so Claude adds the funds Yahoo's screens omit; funds Claude adds survive a rebuild
-- [ ] T5  SPY comparison overlay: second series aligned to the first and drawn against it
+- [>] T5  SPY comparison overlay: second series aligned to the first and drawn against it  — SPY comparison overlay
 - [ ] T6  Tests for T1-T5: pure + rendered
 - [ ] T7  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke
 - [ ] T8  SWEEP 1: adversarial bug hunt across the whole app; fix everything found
@@ -64,7 +64,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 05:56:26 UTC  round 63 started
 - 2026-09-08 05:57:17 UTC  round 63 started
 - 2026-09-08 05:57:24 UTC  T0 -> doing  baseline build+test
 - 2026-09-08 06:04:57 UTC  T0 -> done  443/443 green on the untouched v7.3 tree (one transient Robolectric jar-fetch failure on the first run, clean on re-run)
@@ -76,4 +75,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 06:26:50 UTC  T3 -> done  EtfScreener (3 keyless Yahoo fund screens, 10 requests, ~850 funds - measured that top_performing_etfs duplicates top_etfs_us and dropped it), EtfRow/EtfFacts, EtfScore (returns weighted to 5y/3y, cost, size, liquidity, age, trend; leveraged+inverse excluded), Research.buildEtfs on its own 6h TTL, vm.loadEtfs/etfsStale with its own job
 - 2026-09-08 06:26:51 UTC  T4 -> doing  Best ETFs UI + Claude bridge
 - 2026-09-08 06:33:55 UTC  T4 -> done  fourth research tab with its own scroll state, timestamp, refresh target, blurb, sources and warnings; ETF facts grid on the card; prompt/bundle/parse/merge carry the etfs array and name the universe gaps so Claude adds the funds Yahoo's screens omit; funds Claude adds survive a rebuild
+- 2026-09-08 06:33:56 UTC  T5 -> doing  SPY comparison overlay
 
