@@ -59,8 +59,8 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 6. Version
 
-- Shipped: v6.9 (versionCode 56)
-- This round ships: v7.0 (versionCode 57)
+- Shipped: v7.0 (versionCode 57)
+- This round ships: v7.1 (versionCode 58)
 - Bump `app/build.gradle.kts` before the final APK. Android refuses an install
   whose versionCode is not higher than what is on the phone.
 
