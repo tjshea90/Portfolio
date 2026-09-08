@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 59,
   "request": "Check the shipped v6.9: thorough sweep for UI and code optimizations, verify the app truly sleeps in the background when not in use, and find and fix bugs.",
-  "updated": "2026-09-08 01:15:08 UTC",
+  "updated": "2026-09-08 01:15:09 UTC",
   "version": {
     "code": 56,
     "name": "6.9",
@@ -111,8 +111,8 @@
       "id": "G07",
       "text": "FeedScreen draws the WSB trending rank in a FIXED 34dp-wide Text. '#50' at a 2.0 font scale is wider than that and is silently clipped. Same trap as G06.",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "FeedScreen trending rank uses widthIn(min) instead of a fixed width"
     }
   ],
   "log": [
@@ -211,6 +211,7 @@
     "2026-09-08 01:15:07 UTC  G03 fixed: chart fetches go through a RetryClock; a failure backs off 30s/1m/2m/4m/5m instead of retrying every 15s",
     "2026-09-08 01:15:07 UTC  G04 fixed: loadHoldings uses the same RetryClock",
     "2026-09-08 01:15:08 UTC  G05 fixed: refreshSparklines records failures in a RetryClock, so a transient failure still retries quickly but a dead symbol settles at one attempt per 5 minutes",
-    "2026-09-08 01:15:08 UTC  G06 fixed: AdviceScreen action numbers use widthIn(min) instead of a fixed width"
+    "2026-09-08 01:15:08 UTC  G06 fixed: AdviceScreen action numbers use widthIn(min) instead of a fixed width",
+    "2026-09-08 01:15:09 UTC  G07 fixed: FeedScreen trending rank uses widthIn(min) instead of a fixed width"
   ]
 }
