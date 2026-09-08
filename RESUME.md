@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:02:18 UTC)
+# RESUME — READ THIS FIRST  (round 59, saved 2026-09-08 01:04:48 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,17 +27,17 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T1: BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch
+- **In flight:** (nothing in flight)
 - **Next action:** Then T1, the background audit
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 1/8 done
+## 4. Task ledger — 2/8 done
 
 - [x] T0  Baseline on the shipped tree: release build + 358 tests green before any edit  — release APK + 358/358 green on the shipped tree
-- [>] T1  BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch  — background audit
+- [x] T1  BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch  — manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
 - [ ] T2  UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode
 - [ ] T3  CODE + EFFICIENCY SWEEP: main-thread work, recomposition, allocation, DB queries, request rate
 - [ ] T4  BUG HUNT: correctness across the whole app, adversarial not confirmatory
@@ -45,11 +45,15 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T6  Verify: full suite, checkinit, lint, second-pass review of every fix
 - [ ] T7  Ship v7.0 (versionCode 57) + checkpoint delivered
 
-**Resume at T1** (BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch).
+**Resume at T2** (UI SWEEP: every screen rendered and measured - overflow, tap targets, font scale 1.0/1.3/2.0, dark mode).
 
-## 5. Open findings — 1 still open, 0 fixed
+## 5. Open findings — 5 still open, 0 fixed
 
 - [ ] G01 (high) refresh() launches its network pass into viewModelScope, which OUTLIVES backgrounding. autoJob.cancel() stops the LOOP but not a refresh already in flight, so the batched quote request keeps transferring after the user leaves and its socket is never disconnected - the exact class of work Round 57 moved to fgScope. It also strands loading=true for up to 15s, during which the resume refresh returns early at its own guard and the user comes back to stale prices.
+- [ ] G02 (med) ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever reads connectivity. Two costs: an install-time permission that buys nothing, and - more importantly - the app fires a full pass of requests while the phone has no network at all, waking the radio, failing every socket and escalating per-host cooldowns, when one cheap check could skip the pass entirely.
+- [ ] G03 (high) chartFetchedAt is written and NEVER read. A chart that cannot be fetched - a delisted ticker, a 404, a range Yahoo refuses - leaves no entry in _charts, so the guard falls through and the detail screen re-requests it on EVERY quote tick: ~240 requests an hour to Yahoo for a chart that will never arrive. loadFundamentals uses coreFetchedAt exactly this way; the chart path was modelled on it and then guarded on the wrong thing.
+- [ ] G04 (med) Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fund whose holdings fetch fails is re-requested on every screen open and every ON_START with no throttle at all.
+- [ ] G05 (high) REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the sparkAt mark for every symbol that failed, so a TRANSIENT failure retries on the next tick - which is what fixed TJ's missing charts - but a PERMANENT one (a delisted watchlist ticker, a symbol Yahoo has no series for) is now retried every 15 seconds forever instead of every 5 minutes. Two dead symbols is ~480 wasted requests an hour.
 
 ## 6. Version
 
@@ -60,11 +64,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-07 20:58:45 UTC  finding F22: An intraday chart left open keeps re-fetching itself after the session that prod
-- 2026-09-07 21:02:47 UTC  F22 fixed: intradayChartIsFinal stops the automatic refresh once the session that produced the line has ended, tested against the real MarketClock including the pre-market fallback case
-- 2026-09-08 00:47:24 UTC  T10 -> done  22 findings across 3 passes, all fixed; lint clean
-- 2026-09-08 00:47:25 UTC  T11 -> done  every finding closed and re-verified by the suite
-- 2026-09-08 00:49:43 UTC  T12 -> done  358/358 tests, checkinit ok, lintVital 'No issues found', APK signed with the archived keystore (cert SHA-256 matches), versionCode 56 / 6.9 confirmed in the built APK
 - 2026-09-08 00:49:43 UTC  T13 -> doing  shipping v6.9
 - 2026-09-08 00:49:54 UTC  T13 -> done  v6.9 APK + checkpoint 58 delivered
 - 2026-09-08 01:00:59 UTC  round 59 started
@@ -72,4 +71,9 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-08 01:01:55 UTC  finding G01: refresh() launches its network pass into viewModelScope, which OUTLIVES backgrou
 - 2026-09-08 01:02:17 UTC  T0 -> done  release APK + 358/358 green on the shipped tree
 - 2026-09-08 01:02:18 UTC  T1 -> doing  background audit
+- 2026-09-08 01:02:57 UTC  finding G02: ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever rea
+- 2026-09-08 01:04:25 UTC  finding G03: chartFetchedAt is written and NEVER read. A chart that cannot be fetched - a del
+- 2026-09-08 01:04:25 UTC  finding G04: Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fu
+- 2026-09-08 01:04:25 UTC  finding G05: REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the spa
+- 2026-09-08 01:04:48 UTC  T1 -> done  manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings
 

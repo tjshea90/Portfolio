@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 59,
   "request": "Check the shipped v6.9: thorough sweep for UI and code optimizations, verify the app truly sleeps in the background when not in use, and find and fix bugs.",
-  "updated": "2026-09-08 01:02:18 UTC",
+  "updated": "2026-09-08 01:04:48 UTC",
   "version": {
     "code": 56,
     "name": "6.9",
@@ -10,7 +10,7 @@
     "next_name": "7.0"
   },
   "now": {
-    "step": "T1: BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch",
+    "step": "",
     "next": "Then T1, the background audit",
     "files": []
   },
@@ -24,8 +24,8 @@
     {
       "id": "T1",
       "title": "BACKGROUND AUDIT: trace every coroutine, timer, listener and lifecycle path in v6.9 from scratch",
-      "status": "doing",
-      "note": "background audit"
+      "status": "done",
+      "note": "manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings"
     },
     {
       "id": "T2",
@@ -68,6 +68,34 @@
     {
       "id": "G01",
       "text": "refresh() launches its network pass into viewModelScope, which OUTLIVES backgrounding. autoJob.cancel() stops the LOOP but not a refresh already in flight, so the batched quote request keeps transferring after the user leaves and its socket is never disconnected - the exact class of work Round 57 moved to fgScope. It also strands loading=true for up to 15s, during which the resume refresh returns early at its own guard and the user comes back to stale prices.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G02",
+      "text": "ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever reads connectivity. Two costs: an install-time permission that buys nothing, and - more importantly - the app fires a full pass of requests while the phone has no network at all, waking the radio, failing every socket and escalating per-host cooldowns, when one cheap check could skip the pass entirely.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G03",
+      "text": "chartFetchedAt is written and NEVER read. A chart that cannot be fetched - a delisted ticker, a 404, a range Yahoo refuses - leaves no entry in _charts, so the guard falls through and the detail screen re-requests it on EVERY quote tick: ~240 requests an hour to Yahoo for a chart that will never arrive. loadFundamentals uses coreFetchedAt exactly this way; the chart path was modelled on it and then guarded on the wrong thing.",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G04",
+      "text": "Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fund whose holdings fetch fails is re-requested on every screen open and every ON_START with no throttle at all.",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "G05",
+      "text": "REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the sparkAt mark for every symbol that failed, so a TRANSIENT failure retries on the next tick - which is what fixed TJ's missing charts - but a PERMANENT one (a delisted watchlist ticker, a symbol Yahoo has no series for) is now retried every 15 seconds forever instead of every 5 minutes. Two dead symbols is ~480 wasted requests an hour.",
       "sev": "high",
       "status": "open",
       "note": ""
@@ -150,6 +178,11 @@
     "2026-09-08 01:01:02 UTC  round 59 ledger created; baseline build running",
     "2026-09-08 01:01:55 UTC  finding G01: refresh() launches its network pass into viewModelScope, which OUTLIVES backgrou",
     "2026-09-08 01:02:17 UTC  T0 -> done  release APK + 358/358 green on the shipped tree",
-    "2026-09-08 01:02:18 UTC  T1 -> doing  background audit"
+    "2026-09-08 01:02:18 UTC  T1 -> doing  background audit",
+    "2026-09-08 01:02:57 UTC  finding G02: ACCESS_NETWORK_STATE is declared in the manifest but nothing in the app ever rea",
+    "2026-09-08 01:04:25 UTC  finding G03: chartFetchedAt is written and NEVER read. A chart that cannot be fetched - a del",
+    "2026-09-08 01:04:25 UTC  finding G04: Same shape in loadHoldings: holdingsFetchedAt is written and never read, so a fu",
+    "2026-09-08 01:04:25 UTC  finding G05: REGRESSION FROM MY OWN ROUND-58 FIX (F03). refreshSparklines now removes the spa",
+    "2026-09-08 01:04:48 UTC  T1 -> done  manifest clean (no services/wakelocks/receivers); listeners balanced; 13 fgScope vs 45 viewModelScope sites all classified; 5 findings"
   ]
 }
