@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:48:11 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:51:24 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,14 +27,14 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** 14: Audit the six subsystems the two interrupted workflow runs never reached
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 6/9 done
+## 4. Task ledger — 6/10 done
 
 - [x] T0  Baseline: v7.6 tree green in this container  — v7.6 tree green in this container
 - [x] T1  Thicker separator bars between stocks  — separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
@@ -45,8 +45,9 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T6  Whole-app parallel review: bugs, efficiency, UI, features working as designed
 - [ ] T7  Fix every confirmed finding
 - [ ] T8  REGRESSION + ship v7.7
+- [>] 14  Audit the six subsystems the two interrupted workflow runs never reached  — portfolio-ui, detail-ui, research-ui, settings-explain, cross-cutting, round66-diff
 
-**Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
+**Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
 ## 5. Open findings — 1 still open, 27 fixed
 
@@ -88,7 +89,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 19:31:57 UTC  E2 fixed: region is tested before the US size ladder, regional size bands stay separate, miners never group with bullion, and a Treasury fund is only grouped when its name states a maturity band; five new tests
 - 2026-09-09 19:31:58 UTC  E3 fixed: the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for
 - 2026-09-09 19:32:00 UTC  E4 fixed: the return normalisation gates on the record rather than the weight sum; two tests pin the invariant
 - 2026-09-09 19:32:02 UTC  E5 fixed: the 52-week figure is shown as '1Y price' and earns nothing - every other horizon in the score is a NAV total return, and averaging a price change with them marked income funds down by their own yield
@@ -100,4 +100,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 19:38:40 UTC  H3 fixed: YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401
 - 2026-09-09 19:38:42 UTC  H4 fixed: the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests
 - 2026-09-09 19:48:11 UTC  R2 fixed: Trending rows outside the nine screeners had no price/name/change - loadResearch now awaits one batched fill
+- 2026-09-09 19:51:24 UTC  14 -> doing  portfolio-ui, detail-ui, research-ui, settings-explain, cross-cutting, round66-diff
 

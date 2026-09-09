@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 19:48:11 UTC",
+  "updated": "2026-09-09 19:51:24 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,7 +10,7 @@
     "next_code": 62
   },
   "now": {
-    "step": "",
+    "step": "14: Audit the six subsystems the two interrupted workflow runs never reached",
     "next": ""
   },
   "tasks": [
@@ -67,6 +67,12 @@
       "title": "REGRESSION + ship v7.7",
       "status": "todo",
       "note": ""
+    },
+    {
+      "id": "14",
+      "title": "Audit the six subsystems the two interrupted workflow runs never reached",
+      "status": "doing",
+      "note": "portfolio-ui, detail-ui, research-ui, settings-explain, cross-cutting, round66-diff"
     }
   ],
   "findings": [
@@ -809,6 +815,7 @@
     "2026-09-09 19:38:39 UTC  H2 fixed: Screener, EtfScreener and FundamentalsFeed skip a cooling host instead of abandoning the call, matching what ChartFeed already documented; one 429 on query1 no longer empties the Research and ETF tabs",
     "2026-09-09 19:38:40 UTC  H3 fixed: YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401",
     "2026-09-09 19:38:42 UTC  H4 fixed: the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests",
-    "2026-09-09 19:48:11 UTC  R2 fixed: Trending rows outside the nine screeners had no price/name/change - loadResearch now awaits one batched fill"
+    "2026-09-09 19:48:11 UTC  R2 fixed: Trending rows outside the nine screeners had no price/name/change - loadResearch now awaits one batched fill",
+    "2026-09-09 19:51:24 UTC  14 -> doing  portfolio-ui, detail-ui, research-ui, settings-explain, cross-cutting, round66-diff"
   ]
 }
