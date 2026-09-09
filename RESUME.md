@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 01:27:35 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 01:27:36 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 1 still open, 30 fixed
+## 5. Open findings — 0 still open, 31 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -80,7 +80,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] H10 (low) Re-anchor effect can null the window mid-pinch while WindowHold still holds it: one-frame pop-out
 - [x] H11 (low) Pan guard falls back to the optimistic 40-year bounds while the series is loading
 - [x] H12 (low) Reset chip does not clear zoomSettling, unlike the range chip handler
-- [ ] H13 (low) StockRow comment still argues for weight 1.4 while the code is 1.6; SparklineSizeUiTest asserts !hasVisualOverflow on a widget whose job is to shrink until that is true
+- [x] H13 (low) StockRow comment still argues for weight 1.4 while the code is 1.6; SparklineSizeUiTest asserts !hasVisualOverflow on a widget whose job is to shrink until that is true
 
 ## 6. Version
 
@@ -91,7 +91,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 01:27:19 UTC  H01 fixed
 - 2026-09-09 01:27:25 UTC  H02 fixed
 - 2026-09-09 01:27:26 UTC  H03 fixed
 - 2026-09-09 01:27:27 UTC  H04 fixed
@@ -103,4 +102,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 01:27:33 UTC  H10 fixed
 - 2026-09-09 01:27:34 UTC  H11 fixed
 - 2026-09-09 01:27:35 UTC  H12 fixed
+- 2026-09-09 01:27:36 UTC  H13 fixed
 
