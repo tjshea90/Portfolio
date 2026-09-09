@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 01:27:36 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 01:27:37 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -91,7 +91,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 01:27:25 UTC  H02 fixed
 - 2026-09-09 01:27:26 UTC  H03 fixed
 - 2026-09-09 01:27:27 UTC  H04 fixed
 - 2026-09-09 01:27:28 UTC  H05 fixed
@@ -103,4 +102,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 01:27:34 UTC  H11 fixed
 - 2026-09-09 01:27:35 UTC  H12 fixed
 - 2026-09-09 01:27:36 UTC  H13 fixed
+- 2026-09-09 01:27:37 UTC  sweep 3: 13 findings (2 high in sweep 2's own fixes), all closed; 656 tests green
 
