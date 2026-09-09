@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "round": 64,
-  "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-09 02:42:05 UTC",
+  "round": 65,
+  "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
+  "updated": "2026-09-09 04:49:04 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,382 +10,54 @@
     "next_code": 62
   },
   "now": {
-    "step": "",
+    "step": "T0: Baseline: round-64 tree (29bd6bf) compiles and 663 tests green in the new container",
     "next": ""
   },
   "tasks": [
     {
       "id": "T0",
-      "title": "Baseline: v7.4 tree builds and 569 tests green before any edit",
-      "status": "done",
-      "note": "v7.4 baseline green"
+      "title": "Baseline: round-64 tree (29bd6bf) compiles and 663 tests green in the new container",
+      "status": "doing",
+      "note": "cold-container baseline build running"
     },
     {
       "id": "T1",
-      "title": "Row sparklines fill their space: measure what the row actually gives them and use it",
-      "status": "done",
-      "note": "row sparkline 1.4:1 weights, 48dp tall"
+      "title": "Row charts sized by measuring the text, not by weight: ~215dp of chart, no gap",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T2",
-      "title": "Continuous pinch zoom: a real time window scaled smoothly, with the range ladder behind it as the data source",
-      "status": "done",
-      "note": "continuous window zoom + pan, axis-scaled canvas, reset chip"
+      "title": "One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T3",
-      "title": "Full-screen chart: tap any chart to open it, sensor rotation, back to close",
-      "status": "done",
-      "note": "FullScreenChart dialog + sensor orientation + manifest configChanges"
+      "title": "Tests: 350ms vertical rest still scrolls; slow drag pans not scrubs; caption never promises a dead pan",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T4",
-      "title": "Tests for T1-T3: pure + rendered + measured",
-      "status": "done",
-      "note": "ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7"
+      "title": "REGRESSION: full suite, lint, checkinit",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T5",
-      "title": "REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke",
-      "status": "done",
-      "note": "632/632 green, lint vital clean, checkinit ok"
+      "title": "SWEEPS: adversarial bug hunt, repeated until a pass finds nothing above cosmetic",
+      "status": "todo",
+      "note": ""
     },
     {
       "id": "T6",
-      "title": "SWEEP 1: adversarial bug hunt over the new code and the app",
-      "status": "done",
-      "note": "9 findings, all fixed, 640 tests green"
-    },
-    {
-      "id": "T7",
-      "title": "SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic",
-      "status": "done",
-      "note": "6 sweeps: 45 findings, all closed; sweep 6 found one low + one stale comment"
-    },
-    {
-      "id": "T8",
-      "title": "Ship v7.5 (versionCode 62) + final checkpoint",
-      "status": "done",
-      "note": "v7.5 (versionCode 62) built, signed with the same cert, 663 tests green"
-    }
-  ],
-  "findings": [
-    {
-      "id": "F01",
-      "text": "Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "F02",
-      "text": "Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "F03",
-      "text": "Window is never re-anchored when a new range's series arrives; lookback is measured from a stale coarse-candle timestamp, so a spread near the right edge of a 5Y chart can land on a blank chart",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "F04",
-      "text": "Readout, percent change and y-axis labels are computed from the two carried points OUTSIDE the window - a 7-day picture reports a 9-day change",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "F05",
-      "text": "Comparison overlay pastes SPY's live price onto a mid-window point once zoomed: tip-pairing tests drawn.lastIndex, not the series' true tip",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "F06",
-      "text": "Chip figure, caption and point count still describe the unzoomed range while the readout describes the window - two figures on one screen that disagree",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "F07",
-      "text": "Reset zoom chip appears on its own every ~5 min as windowBounds advances with the periodic refresh",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "F08",
-      "text": "Crosshair can land on a carried off-window point: readout updates but the dot and line are drawn off-canvas",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "F09",
-      "text": "Chart canvas is not clipped to bounds, so a zoomed line bleeds into the 16dp gutters",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G01",
-      "text": "y-axis label unit chosen from cmp but value from cmpInside: a zoomed comparison chart could print a dollar price with a percent sign",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G02",
-      "text": "Canvas scaled to the padded series while the corner labels read the strict one: on every zoomed chart the top label named a price the line never reaches",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G03",
-      "text": "Wall-clock lookback coarsens the 1D chart every weekend: at noon Saturday the first pinch swapped 5-minute candles for 30-minute ones",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G04",
-      "text": "Optimistic 40-year bounds made isWhole never true (stuck Reset chip), made Reset select 40 years, and let a two-finger drag on an unzoomed chart pan into pre-history",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G05",
-      "text": "isWhole at 0.92 discarded genuine small zooms, which the re-anchor effect then silently reset",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G06",
-      "text": "Caption point count came from the padded drawing list",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G07",
-      "text": "Zoomed caption for the after-hours range read oddly (no comma to splice)",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G08",
-      "text": "ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds inside an effect",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "G09",
-      "text": "Re-anchoring the window did not re-evaluate which range should draw it",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H01",
-      "text": "Comparison chart drawn with cmp (padded, rebased one candle earlier) against yBounds from cmpInside: both lines shifted vertically off their own axis on a zoomed 5Y/MAX compare chart",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H02",
-      "text": "cmp non-null with cmpInside null draws percentages against a dollar axis: lines land far off-canvas and the plot area shows gridlines only",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H03",
-      "text": "Full-screen viewer sets decorFitsSystemWindows=false but consumes no insets: title, chips and close button sit behind the status bar",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H04",
-      "text": "RESERVED=150 in the full-screen viewer has zero slack: the SPY legend row and any font scale above 1.0 push the caption and x-axis off the bottom",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H05",
-      "text": "Expand button is a 34dp target with no content description and overlaps the high-price label from ~1.15x font scale; the reset chip covers it from ~1.3x",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H06",
-      "text": "uiMode in configChanges leaves the status bar icons stale after a dark-mode toggle (enableEdgeToEdge only runs in onCreate)",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H07",
-      "text": "AutoFitNumber applied to the watchlist company name defeats the font-scale setting: a long name renders at 11dp at the Largest setting",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H08",
-      "text": "configChanges omits fontWeightAdjustment, so toggling accessibility Bold text still destroys the nav stack",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H09",
-      "text": "Re-anchor effect leaves a permanently-wider-than-data window on recently listed stocks (monthly candle lag exceeds the 1.03 guard)",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H10",
-      "text": "Re-anchor effect can null the window mid-pinch while WindowHold still holds it: one-frame pop-out",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H11",
-      "text": "Pan guard falls back to the optimistic 40-year bounds while the series is loading",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H12",
-      "text": "Reset chip does not clear zoomSettling, unlike the range chip handler",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "H13",
-      "text": "StockRow comment still argues for weight 1.4 while the code is 1.6; SparklineSizeUiTest asserts !hasVisualOverflow on a widget whose job is to shrink until that is true",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "J01",
-      "text": "Zeroing the baseline keyed on window!=null while every explaining label keys on zoomedIn: pinch out on a 1D chart and the readout measures from the session open while still saying 'since yesterday's close'; no reset chip; the dotted previous-close line is clipped away",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "J02",
-      "text": "Readout colour comes from the whole series while its value comes from the window: a negative change printed in green on a zoomed chart",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "J03",
-      "text": "clipToWindow(pad=false)'s straddle fallback picks lo..lo+1 instead of the straddling pair, so 'inside' and insideIndices describe different points; a single in-window point is also widened to two",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "J04",
-      "text": "The legend's 'pts vs SPY' still uses pairedIndex() over the padded list, so it reads one candle past the window while the readout above reads inside it",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "J05",
-      "text": "baseIndex==0 short-circuit gives the comparison overlay the previous-close rule while the readout uses the first on-screen point",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "J06",
-      "text": "chartFillsHeight has no floor: when the fixed children out-measure a short landscape window the plot is given zero height and vanishes",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "J07",
-      "text": "Status-bar icon polarity in the full-screen dialog does not follow a dark-mode toggle while it is open",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "K01",
-      "text": "atRightEdge's slack is 2% of the window, smaller than one candle: a zoomed-in 1D window stops following new data and the chart freezes while the price above it keeps ticking",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "K02",
-      "text": "heightIn(min) after weight(1f) is inert - weight passes fixed constraints and heightIn enforces incoming - so the full-screen plot can still collapse to zero",
-      "sev": "high",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "K03",
-      "text": "The re-anchor's reset test is span-only while isDefaultView is start-sensitive: a slight pinch plus a sideways drag pans the chart, then jumps back on finger-lift",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "K04",
-      "text": "The full-screen dialog corrects the status-bar polarity but not the navigation bar",
-      "sev": "med",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "K05",
-      "text": "A window containing exactly one candle reports +0.00 over a visibly sloping line, with the same price in both y-axis corners",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "L01",
-      "text": "Full-screen empty/loading placeholder collapses to the 120dp floor instead of filling, shrinking the gesture surface a pinch relies on",
-      "sev": "low",
-      "status": "fixed",
-      "note": ""
-    },
-    {
-      "id": "L02",
-      "text": "atRightEdge's comment says the slack is one candle, not a percentage; the code correctly uses the max of both",
-      "sev": "low",
-      "status": "fixed",
+      "title": "Ship v7.6 (versionCode 63) + final checkpoint",
+      "status": "todo",
       "note": ""
     }
   ],
+  "findings": [],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -832,6 +504,8 @@
     "2026-09-09 02:37:30 UTC  L02 fixed",
     "2026-09-09 02:37:31 UTC  T7 -> done  6 sweeps: 45 findings, all closed; sweep 6 found one low + one stale comment",
     "2026-09-09 02:37:33 UTC  T8 -> doing  ship v7.5",
-    "2026-09-09 02:42:05 UTC  T8 -> done  v7.5 (versionCode 62) built, signed with the same cert, 663 tests green"
+    "2026-09-09 02:42:05 UTC  T8 -> done  v7.5 (versionCode 62) built, signed with the same cert, 663 tests green",
+    "2026-09-09 04:48:55 UTC  round 65 started",
+    "2026-09-09 04:49:04 UTC  T0 -> doing  cold-container baseline build running"
   ]
 }
