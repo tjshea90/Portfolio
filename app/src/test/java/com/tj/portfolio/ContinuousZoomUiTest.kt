@@ -250,17 +250,28 @@ class ContinuousZoomUiTest {
 
     // ------------------------------------------ what must NOT have been taken away
 
-    @Test fun `one finger still scrubs while a window is set`() {
+    /**
+     * ROUND 65 CHANGED WHAT THIS ASSERTS, deliberately.
+     *
+     * Round 64 left one finger meaning "scrub" everywhere, so a zoomed chart could only be
+     * moved with two. Round 65 gives a zoomed chart a one-finger pan and puts the crosshair
+     * behind a press-and-hold - so the thing to prove here is that the crosshair is still
+     * REACHABLE on a zoomed chart, not that a plain drag reaches it. `PanGestureUiTest` covers
+     * the full contract; this keeps the check attached to a chart zoomed by real fingers.
+     */
+    @Test fun `the crosshair is still reachable on a chart zoomed by fingers`() {
         show { ZoomableChart() }
         spread(steps = 6, perStep = 1.25f)
         rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
             down(Offset(width * 0.2f, height * 0.5f))
+            advanceEventTime(600)
+            moveTo(Offset(width * 0.2f + 1f, height * 0.5f))
             moveTo(Offset(width * 0.6f, height * 0.5f))
         }
         rule.waitForIdle()
         val shown = texts()
         assertTrue(
-            "the crosshair readout never appeared on a zoomed chart:\n" +
+            "press-and-hold did not reach the crosshair on a zoomed chart:\n" +
                 shown.joinToString("\n"),
             shown.any { it.contains("$") }
         )

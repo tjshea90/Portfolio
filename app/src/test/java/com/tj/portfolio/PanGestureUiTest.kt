@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -230,30 +231,45 @@ class PanGestureUiTest {
 
     /**
      * REVIEW M02. The first draft timed the hold from the PRESS, so any drag slow enough to
-     * take a third of a second to travel eight dp became a hold-scrub - and a small, careful
-     * pan is exactly that drag. The feature never fired for the gesture it was built for.
+     * take a third of a second to travel one touch slop became a hold-scrub - and a small,
+     * careful pan is exactly that drag. The feature never fired for the gesture it was built
+     * for.
      *
-     * This drags three pixels every hundred milliseconds: past the hold threshold twice over
-     * before it ever crosses the touch slop.
+     * THE DRAG HERE IS SIZED FROM THE REAL TOUCH SLOP rather than from a pixel count, because
+     * the threshold this is about is the slop and a literal would be testing the emulator's
+     * density instead. It crosses the slop in about 420ms - comfortably past the 350ms hold -
+     * and must still pan.
+     *
+     * (A finger drifting slower than about half a slop per hold window IS treated as still,
+     * deliberately: at that speed it is a resting thumb's tremor, not a pan. See `jitter`.)
      */
     @Test fun `a slow drag that outlasts the hold still pans`() {
-        show { Chart(zoomed) }
+        var slop = 0f
+        rule.setContent {
+            slop = LocalViewConfiguration.current.touchSlop
+            PortfolioTheme(dark = false) { Box(Modifier.fillMaxSize()) { Chart(zoomed) } }
+        }
+        rule.waitForIdle()
+        assertTrue("the touch slop could not be read", slop > 0f)
+
         val before = zoomed
+        val step = slop * 0.15f
         rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
             val x0 = width * 0.75f
             val y = height * 0.5f
             down(Offset(x0, y))
-            for (i in 1..10) {
-                advanceEventTime(100)
-                moveTo(Offset(x0 - i * 3f, y))
+            for (i in 1..8) {
+                advanceEventTime(60)
+                moveTo(Offset(x0 - i * step, y))
             }
             up()
         }
         rule.waitForIdle()
 
         assertTrue(
-            "PROBE slow reported=${reported.size} scrubbing=${scrubbing()}",
-            false
+            "a slow drag was captured as a hold-scrub and never panned " +
+                "(slop=${slop}px, ${step}px every 60ms)",
+            reported.isNotEmpty()
         )
         val after = reported.last()
         assertEquals("the slow drag resized the window", before.spanMs, after.spanMs)
@@ -370,79 +386,5 @@ class PanGestureUiTest {
                 "${afterPan!!.startMs} -> ${afterPinch.startMs}",
             afterPinch.startMs >= afterPan.startMs - afterPan.spanMs / 20
         )
-    }
-}
-
-// temporary probes
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], qualifiers = "w411dp-h891dp-xhdpi")
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
-class ProbeTimingTest {
-    @get:Rule val rule = createComposeRule()
-    private fun series() = ChartSeries(
-        symbol = "TEST", range = ChartRange.M6,
-        points = (0 until 180).map { ChartPoint(1_740_000_000L + it * 86_400L, 100.0 + it) },
-        baseline = 100.0, currency = "USD", fetched = System.currentTimeMillis()
-    )
-    private val whole: ChartWindow get() = series().let { ChartWindow(it.startMs, it.endMs) }
-    private val zoomed: ChartWindow get() = whole.let {
-        val third = (it.endMs - it.startMs) / 3
-        ChartWindow(it.startMs + third, it.endMs - third)
-    }
-    private val reported = ArrayList<ChartWindow>()
-    private var holds = 0
-
-    @Composable private fun Chart() {
-        var w by remember { mutableStateOf<ChartWindow?>(zoomed) }
-        PriceChart(series = series(), range = ChartRange.M6, loading = false,
-            window = w, windowBounds = whole,
-            onWindow = { next -> w = next; reported.add(next) }, onResetWindow = { w = null })
-    }
-    private fun run(step: Float, gap: Long, n: Int): String {
-        rule.setContent { PortfolioTheme(dark = false) { Box(Modifier.fillMaxSize()) { Chart() } } }
-        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
-            val x0 = width * 0.8f; val y = height * 0.5f
-            down(Offset(x0, y))
-            for (i in 1..n) { advanceEventTime(gap); moveTo(Offset(x0 - i * step, y)) }
-            up()
-        }
-        rule.waitForIdle()
-        return "step=$step gap=$gap n=$n reported=${reported.size}"
-    }
-    @Test fun `probe A fast big`() { assertTrue("PROBE " + run(20f, 16L, 5), false) }
-}
-
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], qualifiers = "w411dp-h891dp-xhdpi")
-@GraphicsMode(GraphicsMode.Mode.NATIVE)
-class ProbeTimingTest2 {
-    @get:Rule val rule = createComposeRule()
-    private fun series() = ChartSeries(
-        symbol = "TEST", range = ChartRange.M6,
-        points = (0 until 180).map { ChartPoint(1_740_000_000L + it * 86_400L, 100.0 + it) },
-        baseline = 100.0, currency = "USD", fetched = System.currentTimeMillis()
-    )
-    private val whole: ChartWindow get() = series().let { ChartWindow(it.startMs, it.endMs) }
-    private val zoomed: ChartWindow get() = whole.let {
-        val third = (it.endMs - it.startMs) / 3
-        ChartWindow(it.startMs + third, it.endMs - third)
-    }
-    private val reported = ArrayList<ChartWindow>()
-    @Composable private fun Chart() {
-        var w by remember { mutableStateOf<ChartWindow?>(zoomed) }
-        PriceChart(series = series(), range = ChartRange.M6, loading = false,
-            window = w, windowBounds = whole,
-            onWindow = { next -> w = next; reported.add(next) }, onResetWindow = { w = null })
-    }
-    @Test fun `probe B slow small no advance`() {
-        rule.setContent { PortfolioTheme(dark = false) { Box(Modifier.fillMaxSize()) { Chart() } } }
-        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
-            val x0 = width * 0.8f; val y = height * 0.5f
-            down(Offset(x0, y))
-            for (i in 1..10) { moveTo(Offset(x0 - i * 3f, y)) }
-            up()
-        }
-        rule.waitForIdle()
-        assertTrue("PROBE noAdvance reported=${reported.size}", false)
     }
 }

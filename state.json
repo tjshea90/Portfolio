@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 04:57:51 UTC",
+  "updated": "2026-09-09 05:13:00 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,7 +10,7 @@
     "next_code": 62
   },
   "now": {
-    "step": "T2: One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures",
+    "step": "",
     "next": ""
   },
   "tasks": [
@@ -29,8 +29,8 @@
     {
       "id": "T2",
       "title": "One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures",
-      "status": "doing",
-      "note": "one-finger pan + press-and-hold scrub in chartGestures"
+      "status": "done",
+      "note": "one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in"
     },
     {
       "id": "T3",
@@ -510,6 +510,7 @@
     "2026-09-09 04:52:56 UTC  T0 -> done  cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover",
     "2026-09-09 04:52:58 UTC  T1 -> doing  replacing the 1.6:1 weight split with a measuring layout",
     "2026-09-09 04:57:50 UTC  T1 -> done  TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested",
-    "2026-09-09 04:57:51 UTC  T2 -> doing  one-finger pan + press-and-hold scrub in chartGestures"
+    "2026-09-09 04:57:51 UTC  T2 -> doing  one-finger pan + press-and-hold scrub in chartGestures",
+    "2026-09-09 05:13:00 UTC  T2 -> done  one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in"
   ]
 }

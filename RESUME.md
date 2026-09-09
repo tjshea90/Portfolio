@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 04:57:51 UTC)
+# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:13:00 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,24 +27,24 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T2: One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures
+- **In flight:** (nothing in flight)
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 2/7 done
+## 4. Task ledger — 3/7 done
 
 - [x] T0  Baseline: round-64 tree (29bd6bf) compiles and 663 tests green in the new container  — cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover
 - [x] T1  Row charts sized by measuring the text, not by weight: ~215dp of chart, no gap  — TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested
-- [>] T2  One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures  — one-finger pan + press-and-hold scrub in chartGestures
+- [x] T2  One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures  — one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in
 - [ ] T3  Tests: 350ms vertical rest still scrolls; slow drag pans not scrubs; caption never promises a dead pan
 - [ ] T4  REGRESSION: full suite, lint, checkinit
 - [ ] T5  SWEEPS: adversarial bug hunt, repeated until a pass finds nothing above cosmetic
 - [ ] T6  Ship v7.6 (versionCode 63) + final checkpoint
 
-**Resume at T2** (One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures).
+**Resume at T3** (Tests: 350ms vertical rest still scrolls; slow drag pans not scrubs; caption never promises a dead pan).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -59,7 +59,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 02:32:27 UTC  finding L02: atRightEdge's comment says the slack is one candle, not a percentage; the code c
 - 2026-09-09 02:37:28 UTC  L01 fixed
 - 2026-09-09 02:37:30 UTC  L02 fixed
 - 2026-09-09 02:37:31 UTC  T7 -> done  6 sweeps: 45 findings, all closed; sweep 6 found one low + one stale comment
@@ -71,4 +70,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 04:52:58 UTC  T1 -> doing  replacing the 1.6:1 weight split with a measuring layout
 - 2026-09-09 04:57:50 UTC  T1 -> done  TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested
 - 2026-09-09 04:57:51 UTC  T2 -> doing  one-finger pan + press-and-hold scrub in chartGestures
+- 2026-09-09 05:13:00 UTC  T2 -> done  one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in
 
