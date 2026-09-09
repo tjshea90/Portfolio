@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-09 02:01:33 UTC",
+  "updated": "2026-09-09 02:22:06 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -334,6 +334,41 @@
       "text": "Status-bar icon polarity in the full-screen dialog does not follow a dark-mode toggle while it is open",
       "sev": "low",
       "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "K01",
+      "text": "atRightEdge's slack is 2% of the window, smaller than one candle: a zoomed-in 1D window stops following new data and the chart freezes while the price above it keeps ticking",
+      "sev": "high",
+      "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "K02",
+      "text": "heightIn(min) after weight(1f) is inert - weight passes fixed constraints and heightIn enforces incoming - so the full-screen plot can still collapse to zero",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "K03",
+      "text": "The re-anchor's reset test is span-only while isDefaultView is start-sensitive: a slight pinch plus a sideways drag pans the chart, then jumps back on finger-lift",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "K04",
+      "text": "The full-screen dialog corrects the status-bar polarity but not the navigation bar",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "K05",
+      "text": "A window containing exactly one candle reports +0.00 over a visibly sloping line, with the same price in both y-axis corners",
+      "sev": "low",
+      "status": "open",
       "note": ""
     }
   ],
@@ -765,6 +800,12 @@
     "2026-09-09 02:01:30 UTC  J06 fixed",
     "2026-09-09 02:01:32 UTC  J07 fixed",
     "2026-09-09 02:01:33 UTC  sweep 4: 7 findings (1 high from sweep 3's own fix), all closed; 658 tests green",
-    "2026-09-09 02:01:33 UTC  T7 -> doing  sweep 5: must come back clean"
+    "2026-09-09 02:01:33 UTC  T7 -> doing  sweep 5: must come back clean",
+    "2026-09-09 02:16:10 UTC  finding K01: atRightEdge's slack is 2% of the window, smaller than one candle: a zoomed-in 1D",
+    "2026-09-09 02:16:10 UTC  finding K02: heightIn(min) after weight(1f) is inert - weight passes fixed constraints and he",
+    "2026-09-09 02:16:10 UTC  finding K03: The re-anchor's reset test is span-only while isDefaultView is start-sensitive: ",
+    "2026-09-09 02:16:10 UTC  finding K04: The full-screen dialog corrects the status-bar polarity but not the navigation b",
+    "2026-09-09 02:16:10 UTC  finding K05: A window containing exactly one candle reports +0.00 over a visibly sloping line",
+    "2026-09-09 02:22:06 UTC  K01 fixed"
   ]
 }

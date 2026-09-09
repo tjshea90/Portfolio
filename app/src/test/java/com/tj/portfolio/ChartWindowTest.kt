@@ -7,6 +7,7 @@ import com.tj.portfolio.data.ChartWindow
 import com.tj.portfolio.data.approxSpanMs
 import com.tj.portfolio.data.candleMs
 import com.tj.portfolio.ui.clipToWindow
+import com.tj.portfolio.ui.insideIndices
 import com.tj.portfolio.ui.nearestIndex
 import com.tj.portfolio.ui.spanLabel
 import com.tj.portfolio.ui.windowBounds
@@ -482,6 +483,86 @@ class ChartWindowTest {
         assertTrue(
             "the next step could not reach the intraday rungs",
             ChartRange.rangeForLookback(thenLookback, r).approxSpanMs <= 7L * DAY
+        )
+    }
+
+
+    @Test fun `a zoomed window keeps following new data as candles arrive`() {
+        // THE REGRESSION THIS PROVES FIXED. The re-anchor runs BECAUSE new data arrived, so it
+        // holds the new bounds and a window still at the old edge - and the gap it has to
+        // tolerate is one candle, not a percentage of the window. Written as two percent of
+        // the window, the pin only held for windows spanning fifty candles or more: zoom into
+        // the last half hour of a five-minute chart and it froze there for the rest of the
+        // session while the price above it went on ticking.
+        val candle = ChartRange.D1.candleMs
+        val newest = 1_000_000_000_000L
+        val old = ChartWindow(newest - 30L * 60_000L, newest)
+        val grown = ChartWindow(newest - 6L * 3_600_000L, newest + candle)
+        assertTrue(
+            "a half-hour window at the edge was not recognised as pinned",
+            ChartWindow.atRightEdge(old, grown, candle)
+        )
+        val moved = ChartWindow.clamped(old, grown, wasAtRightEdge = true)!!
+        assertEquals("it did not follow the new candle", grown.endMs, moved.endMs)
+        assertEquals("and it changed size doing so", old.spanMs, moved.spanMs)
+    }
+
+    @Test fun `a window parked in history is still not dragged forward`() {
+        val candle = ChartRange.D1.candleMs
+        val newest = 1_000_000_000_000L
+        val parked = ChartWindow(newest - 5L * 3_600_000L, newest - 3L * 3_600_000L)
+        val grown = ChartWindow(newest - 6L * 3_600_000L, newest + candle)
+        assertTrue(!ChartWindow.atRightEdge(parked, grown, candle))
+    }
+
+
+    @Test fun `a window holding one candle still measures the line that is drawn`() {
+        // A fine window over a coarse series contains a single point, and everything measured
+        // over one point is degenerate in the same direction - a 0.00 change and two identical
+        // axis corners, printed over a line the canvas draws visibly sloping.
+        val s = series(20, 7L * 86_400L)                  // weekly candles
+        val t = s.points[5].t * 1000L
+        val w = ChartWindow(t - 3_600_000L, t + 3_600_000L)
+        val drawn = clipToWindow(s, w, pad = true)!!
+        val r = insideIndices(drawn, w)
+        assertTrue(
+            "the measured range is a single point, so every figure over it is 0.00",
+            r.last > r.first
+        )
+    }
+
+    // ------------------------------------------------ one predicate for "is this default"
+
+    @Test fun `a same-width window dragged sideways is not the default view`() {
+        // The chart and the screen used to answer this differently - span-only on one side,
+        // start-sensitive on the other - so a slight pinch plus a sideways drag panned the
+        // chart and then had the pan thrown away the instant the fingers lifted.
+        val series = ChartWindow(base.startMs, base.endMs)
+        val panned = ChartWindow(
+            base.startMs + base.spanMs / 5, base.endMs + base.spanMs / 5
+        )
+        assertTrue(
+            "a window the same width but somewhere else read as untouched",
+            !ChartWindow.isDefaultView(panned, series)
+        )
+        assertTrue(
+            "the same window still reads as untouched with a candle of slack",
+            !ChartWindow.isDefaultView(panned, series, ChartRange.M6.candleMs)
+        )
+    }
+
+    @Test fun `the untouched view is recognised in both directions`() {
+        val series = ChartWindow(base.startMs, base.endMs)
+        assertTrue(ChartWindow.isDefaultView(series, series))
+        assertTrue("a hair narrower is still the default view",
+            ChartWindow.isDefaultView(
+                ChartWindow(series.startMs, series.endMs - series.spanMs / 100), series
+            )
+        )
+        assertTrue("a clearly wider window is NOT the default view",
+            !ChartWindow.isDefaultView(
+                ChartWindow(series.startMs - series.spanMs, series.endMs), series
+            )
         )
     }
 

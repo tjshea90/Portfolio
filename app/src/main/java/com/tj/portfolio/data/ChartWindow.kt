@@ -152,9 +152,27 @@ data class ChartWindow(val startMs: Long, val endMs: Long) {
          * point on screen while printing the label for the untouched view, and offered no way
          * back. This asks the stricter question the labels actually need.
          */
-        fun isDefaultView(w: ChartWindow?, series: ChartWindow?): Boolean {
+        fun isDefaultView(
+            w: ChartWindow?,
+            series: ChartWindow?,
+            /**
+             * Extra tolerance, in ms, on top of the proportional slack.
+             *
+             * The screen passes one candle here and the chart passes none, and that difference
+             * is deliberate: the screen is deciding whether to DISCARD the user's window, and a
+             * coarse candle is stamped at its open, so a window that really is the whole chart
+             * can sit up to a month short of the newest data. The chart is only deciding what
+             * to call the picture, where no such allowance is wanted.
+             *
+             * They are the same predicate otherwise, and they have to be (sweep 5): a
+             * span-only test on one side and a start-sensitive one on the other meant a slight
+             * pinch plus a sideways drag panned the chart and then had the pan thrown away the
+             * instant the fingers lifted.
+             */
+            extraSlackMs: Long = 0L
+        ): Boolean {
             if (w == null || series == null) return true
-            val slack = (series.spanMs / 33L).coerceAtLeast(1L)   // ~3%
+            val slack = maxOf(series.spanMs / 33L, extraSlackMs).coerceAtLeast(1L)   // ~3%
             if (w.spanMs < series.spanMs - slack) return false
             if (w.spanMs > series.spanMs + slack) return false
             return kotlin.math.abs(w.startMs - series.startMs) <= slack
@@ -196,10 +214,25 @@ data class ChartWindow(val startMs: Long, val endMs: Long) {
             return ChartWindow(start, start + span)
         }
 
-        /** True when a window's right-hand edge is at (or past) the newest data it knows of. */
-        fun atRightEdge(w: ChartWindow?, bounds: ChartWindow?): Boolean {
+        /**
+         * True when a window's right-hand edge is at (or past) the newest data it knows of.
+         *
+         * ---- THE SLACK IS ONE CANDLE, NOT A PERCENTAGE OF THE WINDOW (Round 64 sweep 5)
+         *
+         * This is only ever asked by the re-anchor, which runs BECAUSE new data arrived - so
+         * it holds the new bounds and a window still sitting at the OLD edge. The gap it has
+         * to tolerate is therefore exactly the drift the new data introduced, which is one
+         * candle, and nothing to do with how wide the window is.
+         *
+         * Written as two percent of the window it only held for windows spanning fifty candles
+         * or more. Zoom into the last half hour of a five-minute chart and the answer became
+         * "no": the window was left where it was and never advanced again, so the line stopped
+         * growing and its right-hand edge froze at the minute of the pinch while the price
+         * above it went on ticking.
+         */
+        fun atRightEdge(w: ChartWindow?, bounds: ChartWindow?, slackMs: Long = 0L): Boolean {
             if (w == null || bounds == null) return false
-            val slack = (w.spanMs / 50L).coerceAtLeast(1L)
+            val slack = maxOf(slackMs, w.spanMs / 50L).coerceAtLeast(1L)
             return w.endMs >= bounds.endMs - slack
         }
     }

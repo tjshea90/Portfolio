@@ -137,8 +137,13 @@ fun FullScreenChart(
         LaunchedEffect(dark, view) {
             val window = (view.parent as? DialogWindowProvider)?.window
             if (window != null) {
-                WindowCompat.getInsetsController(window, view)
-                    .isAppearanceLightStatusBars = !dark
+                val bars = WindowCompat.getInsetsController(window, view)
+                bars.isAppearanceLightStatusBars = !dark
+                // BOTH BARS. The status bar was the obvious one and the navigation bar has the
+                // same fault from the other end: this window's theme sets no
+                // `windowLightNavigationBar`, so in light mode the gesture handle came up white
+                // over a near-white page for as long as the chart was open.
+                bars.isAppearanceLightNavigationBars = !dark
             }
         }
 

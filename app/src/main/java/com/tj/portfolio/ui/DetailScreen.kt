@@ -472,7 +472,9 @@ fun DetailScreen(
         if (chartPinching) return@LaunchedEffect
         val b = chartBounds ?: return@LaunchedEffect
         val w = chartWindow ?: return@LaunchedEffect
-        val pinned = com.tj.portfolio.data.ChartWindow.atRightEdge(w, b)
+        // ONE CANDLE OF SLACK: this effect holds the NEW bounds and a window still at the old
+        // edge, so what it must tolerate is the drift the new data introduced.
+        val pinned = com.tj.portfolio.data.ChartWindow.atRightEdge(w, b, chartRange.candleMs)
         val next = com.tj.portfolio.data.ChartWindow.clamped(w, b, pinned)
             ?: return@LaunchedEffect
 
@@ -490,10 +492,14 @@ fun DetailScreen(
         // than three percent of the whole chart. The window was then never recognised as the
         // whole of it, and the screen kept an axis a few percent wider than the line for good:
         // an empty gutter at the right and an end-date label naming a date past the last point.
+        // THE SAME PREDICATE THE CHART USES to decide whether it has been moved (sweep 5),
+        // with one candle of extra tolerance for a coarse series stamped at its open. When the
+        // two differed - span-only here, start-sensitive there - a slight pinch plus a
+        // sideways drag panned the chart and then had the pan discarded on finger-lift.
         val series = com.tj.portfolio.data.ChartWindow.of(chart)
-        if (series != null &&
-            com.tj.portfolio.data.ChartWindow.isWhole(next, series) &&
-            next.spanMs <= series.spanMs + chartRange.candleMs
+        if (com.tj.portfolio.data.ChartWindow.isDefaultView(
+                next, series, chartRange.candleMs
+            ) && series != null
         ) {
             chartWindow = null
             return@LaunchedEffect

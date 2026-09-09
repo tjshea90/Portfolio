@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:01:33 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:22:06 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 0 still open, 38 fixed
+## 5. Open findings — 4 still open, 39 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -88,6 +88,11 @@ commit, so `git log --oneline` is the history of this round and
 - [x] J05 (med) baseIndex==0 short-circuit gives the comparison overlay the previous-close rule while the readout uses the first on-screen point
 - [x] J06 (low) chartFillsHeight has no floor: when the fixed children out-measure a short landscape window the plot is given zero height and vanishes
 - [x] J07 (low) Status-bar icon polarity in the full-screen dialog does not follow a dark-mode toggle while it is open
+- [x] K01 (high) atRightEdge's slack is 2% of the window, smaller than one candle: a zoomed-in 1D window stops following new data and the chart freezes while the price above it keeps ticking
+- [ ] K02 (high) heightIn(min) after weight(1f) is inert - weight passes fixed constraints and heightIn enforces incoming - so the full-screen plot can still collapse to zero
+- [ ] K03 (med) The re-anchor's reset test is span-only while isDefaultView is start-sensitive: a slight pinch plus a sideways drag pans the chart, then jumps back on finger-lift
+- [ ] K04 (med) The full-screen dialog corrects the status-bar polarity but not the navigation bar
+- [ ] K05 (low) A window containing exactly one candle reports +0.00 over a visibly sloping line, with the same price in both y-axis corners
 
 ## 6. Version
 
@@ -98,16 +103,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 01:41:54 UTC  finding J05: baseIndex==0 short-circuit gives the comparison overlay the previous-close rule 
-- 2026-09-09 01:41:55 UTC  finding J06: chartFillsHeight has no floor: when the fixed children out-measure a short lands
-- 2026-09-09 01:41:55 UTC  finding J07: Status-bar icon polarity in the full-screen dialog does not follow a dark-mode t
-- 2026-09-09 02:01:23 UTC  J01 fixed
-- 2026-09-09 02:01:25 UTC  J02 fixed
-- 2026-09-09 02:01:26 UTC  J03 fixed
 - 2026-09-09 02:01:28 UTC  J04 fixed
 - 2026-09-09 02:01:29 UTC  J05 fixed
 - 2026-09-09 02:01:30 UTC  J06 fixed
 - 2026-09-09 02:01:32 UTC  J07 fixed
 - 2026-09-09 02:01:33 UTC  sweep 4: 7 findings (1 high from sweep 3's own fix), all closed; 658 tests green
 - 2026-09-09 02:01:33 UTC  T7 -> doing  sweep 5: must come back clean
+- 2026-09-09 02:16:10 UTC  finding K01: atRightEdge's slack is 2% of the window, smaller than one candle: a zoomed-in 1D
+- 2026-09-09 02:16:10 UTC  finding K02: heightIn(min) after weight(1f) is inert - weight passes fixed constraints and he
+- 2026-09-09 02:16:10 UTC  finding K03: The re-anchor's reset test is span-only while isDefaultView is start-sensitive: 
+- 2026-09-09 02:16:10 UTC  finding K04: The full-screen dialog corrects the status-bar polarity but not the navigation b
+- 2026-09-09 02:16:10 UTC  finding K05: A window containing exactly one candle reports +0.00 over a visibly sloping line
+- 2026-09-09 02:22:06 UTC  K01 fixed
 

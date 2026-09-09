@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -410,7 +410,14 @@ fun PriceChart(
             // font scale, or split-screen - what is left is nothing, and the chart itself
             // disappeared while its caption stayed. Overflowing the bottom of a cramped window
             // is a far better failure than deleting the subject of the screen.
-            if (chartFillsHeight) Modifier.fillMaxWidth().weight(1f).heightIn(min = 120.dp)
+            // `requiredHeightIn`, NOT `heightIn` (sweep 5). `weight` hands the child FIXED
+            // height constraints, and `heightIn` coerces its minimum into whatever it is
+            // given - so against a share of zero it produced zero and the floor was inert.
+            // The `required` form ignores the incoming constraints, which is the whole point:
+            // overflowing the bottom of a cramped window is a far better failure than deleting
+            // the subject of the screen.
+            if (chartFillsHeight)
+                Modifier.fillMaxWidth().weight(1f).requiredHeightIn(min = 120.dp)
             else Modifier.fillMaxWidth().height(chartHeight)
         if (shown == null || shown.isEmpty) {
             Box(
@@ -2256,6 +2263,19 @@ internal fun insideIndices(s: ChartSeries, w: ChartWindow?): IntRange {
     val first = pts.indexOfFirst { it.t >= lowSec }
     val last = pts.indexOfLast { it.t <= highSec }
     if (first < 0 || last < first) return pts.indices
+    // ---- NEVER A SINGLE POINT (Round 64 sweep 5).
+    //
+    // A fine window over a coarse series - zooming into a monthly line while the finer fetch
+    // is still on its way - can contain exactly one candle. Everything measured over one point
+    // is degenerate in the same direction: the change is 0.00, the percentage is 0.00, and the
+    // two y-axis corners print the same price - all of it drawn over a line that is visibly
+    // sloping, because the CANVAS has the straddling pair. Reaching back one candle makes the
+    // figures describe the line that is actually on screen, which is the honest answer to a
+    // question the data cannot answer more precisely.
+    if (last == first) {
+        if (first > 0) return (first - 1)..last
+        if (last < pts.lastIndex) return first..(last + 1)
+    }
     return first..last
 }
 
