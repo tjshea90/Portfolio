@@ -467,7 +467,20 @@ internal fun carryEtfExplanations(
             (it.why.isNotBlank() || it.catalyst.isNotBlank())
     }
     if (addedByClaude.isEmpty()) return carried
-    return (carried + addedByClaude).sortedByDescending { it.score }
+    // ---- HOW AN ADDED ROW IS PLACED (Round 66 audit, R1).
+    //
+    // The app's own `score` first, then Claude's `conviction` among the rows the app never
+    // scored. So a fund the app measured always outranks one it did not, and a suggestion
+    // can never take the top of a list TJ is buying from on the strength of a number a
+    // language model chose for itself. Within the suggestions, conviction is the only
+    // ordering there is, and it is the honest one.
+    //
+    // This is a deliberate step back from what the code did before, which was to write
+    // `conviction * 10` into `score` and sort on that - putting a fund with no facts grid,
+    // no reason lines and no numbers at row 1 showing "SCORE 100".
+    return (carried + addedByClaude)
+        .sortedWith(compareByDescending<com.tj.portfolio.data.ResearchRow> { it.score }
+            .thenByDescending { it.conviction })
 }
 
 
@@ -5030,15 +5043,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val merged = cur.copy(
             trending = com.tj.portfolio.net.ResearchBridge.merge(cur.trending, parsed.trending),
             best = com.tj.portfolio.net.ResearchBridge.merge(cur.best, parsed.best),
-            // RE-SORTED, unlike the other three. Claude is asked to ADD funds the app's
+            // RE-SORTED, unlike the stock lists. Claude is asked to ADD funds the app's
             // screener universe cannot see - which is the whole point of researching this
-            // list online - and an added fund appended to the end of a ranked list would sit
-            // below forty rows it may well beat. `merge` puts additions last; the app's own
-            // score orders the rows it screened, and Claude's conviction (x10, set by the
-            // parser) orders the ones it did not.
+            // list online - and `merge` puts additions last.
+            //
+            // The app's own score orders the rows it screened; conviction orders the ones it
+            // did not, BELOW them. See [ResearchRow.conviction] for why a model's number is
+            // no longer allowed to sort itself into the top of this list.
             etfs = com.tj.portfolio.net.ResearchBridge
                 .merge(cur.etfs, parsed.etfs)
-                .sortedByDescending { it.score },
+                .sortedWith(compareByDescending<com.tj.portfolio.data.ResearchRow> { it.score }
+                    .thenByDescending { it.conviction }),
             explained = System.currentTimeMillis(),
             explainedBy = via,
             // MERGED, not overwritten - every other field in this copy is. A second reply

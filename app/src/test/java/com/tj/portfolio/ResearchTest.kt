@@ -182,6 +182,46 @@ class ResearchTest {
         assertTrue("the reasons should name the earnings growth: $why", why.contains("earnings"))
     }
 
+    /**
+     * ROUND 66 AUDIT (R3 and R4). Two reason lines that asserted things the arithmetic had
+     * refused to credit - the class of defect this file's header exists to prevent, because
+     * a plausible wrong sentence is worse than no sentence.
+     */
+    @Test fun `a low multiple on shrinking earnings is not called cheap for that growth`() {
+        val shrinking = goodStock().copy(
+            epsTtm = 5.0, epsForward = 4.0,     // earnings falling 20%
+            forwardPe = 11.0
+        )
+        val why = ResearchScore.best(shrinking).reasons.joinToString(" ")
+        assertTrue("the P/E line should still appear: $why", why.contains("Forward P/E"))
+        assertFalse(
+            "the growth term scored zero, so nothing may claim growth: $why",
+            why.contains("for that growth")
+        )
+        assertTrue("and it should say so plainly: $why", why.contains("not growing"))
+        // A company that IS growing keeps the original wording.
+        val growing = goodStock().copy(epsTtm = 4.0, epsForward = 6.0, forwardPe = 11.0)
+        assertTrue(ResearchScore.best(growing).reasons.joinToString(" ").contains("for that growth"))
+    }
+
+    @Test fun `a bearish screen is never listed among the reasons to buy`() {
+        val onlyBearish = goodStock().copy(
+            lists = setOf(Screener.Lists.DAY_LOSERS, Screener.Lists.MOST_SHORTED)
+        )
+        val why = ResearchScore.best(onlyBearish).reasons.joinToString(" ").lowercase()
+        assertFalse(
+            "heavy short interest read as a reason to buy: $why",
+            why.contains("most shorted")
+        )
+        assertFalse("nor a day-losers listing: $why", why.contains("day losers"))
+        // A screen that actually scores is still named.
+        val scoring = goodStock().copy(lists = setOf(Screener.Lists.UNDERVALUED_GROWTH))
+        assertTrue(
+            ResearchScore.best(scoring).reasons.joinToString(" ").lowercase()
+                .contains("undervalued growth")
+        )
+    }
+
     @Test
     fun `a missing field scores zero for its component instead of being guessed`() {
         // Same company, but Yahoo reported nothing but the price. It must not out-rank a
@@ -284,7 +324,9 @@ Here is my read on your lists. I searched the web for the latest on each name.
         assertEquals("MU", p.trending[0].symbol)
         assertTrue(p.best[0].why.contains("14x forward"))
         assertEquals("VOO", p.etfs[0].symbol)
-        assertEquals(90, p.etfs[0].score)           // conviction 9 -> 0-100 scale
+        // ROUND 66 AUDIT (R1): conviction is its own field now, never the app's score.
+        assertEquals("the app scored nothing here", 0, p.etfs[0].score)
+        assertEquals(9, p.etfs[0].conviction)
         assertTrue("the category should land in the catalyst line",
             p.etfs[0].catalyst.contains("broad US equity index"))
         assertTrue(p.notes.contains("stale"))

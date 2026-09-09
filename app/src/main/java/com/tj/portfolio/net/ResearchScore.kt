@@ -60,6 +60,9 @@ object ResearchScore {
      * not already priced it in, and a price above both moving averages.
      */
     fun best(r: ScreenRow): Scored {
+        // Whether the growth term actually scored, so the valuation line below cannot claim
+        // growth the arithmetic refused to credit. See the note at its use (audit R3).
+        var grewThisRound = false
         val why = ArrayList<String>()
         var s = 0.0
         var have = 0
@@ -72,6 +75,7 @@ object ResearchScore {
             have++
             val pts = ramp(g * 100.0, 0.0, 40.0, 25.0)
             s += pts
+            if (pts > 0.0) grewThisRound = true
             if (g > 0.05) why.add(
                 "Earnings expected to grow ${pct(g * 100.0)} - forward EPS " +
                     "${Fmt.priceBare(r.epsForward)} vs ${Fmt.priceBare(r.epsTtm)} trailing"
@@ -79,6 +83,9 @@ object ResearchScore {
         } else if (r.epsForward > 0 && r.epsTtm <= 0) {
             have++
             s += 14.0
+            // A turnaround is a forward earnings improvement, so the valuation line may say
+            // "for that growth" - it is the same claim the 14 points were awarded for.
+            grewThisRound = true
             why.add(
                 "Turning profitable: forward EPS ${Fmt.priceBare(r.epsForward)} against a " +
                     "trailing loss"
@@ -92,10 +99,23 @@ object ResearchScore {
             // 8x is a full score, 45x is none; anything above that is priced for perfection.
             val pts = ramp(-r.forwardPe, -45.0, -8.0, 20.0)
             s += pts
-            if (r.forwardPe <= 25) why.add(
-                "Forward P/E ${Fmt.priceBare(r.forwardPe)} - " +
-                    (if (r.forwardPe <= 12) "cheap" else "reasonable") + " for that growth"
-            )
+            if (r.forwardPe <= 25) {
+                // ---- "FOR THAT GROWTH" ONLY IF THERE WAS GROWTH (Round 66 audit, R3).
+                //
+                // THE BUG THIS FIXES. The phrase was unconditional. A company whose forward
+                // EPS is BELOW its trailing EPS scores zero on the growth term - `ramp` of a
+                // negative is zero and no growth reason line is written - and then its top
+                // reason line read "Forward P/E 11.00 - cheap for that growth", asserting the
+                // one thing the arithmetic had just refused to credit. A low multiple on
+                // SHRINKING earnings is not cheap; it is usually the market pricing the
+                // shrinkage.
+                why.add(
+                    "Forward P/E ${Fmt.priceBare(r.forwardPe)} - " +
+                        (if (r.forwardPe <= 12) "cheap" else "reasonable") +
+                        (if (grewThisRound) " for that growth"
+                        else " - but earnings are not growing")
+                )
+            }
         }
 
         // --- price trend (0-20)
@@ -145,9 +165,20 @@ object ResearchScore {
         if (Screener.Lists.UNDERVALUED_LARGE in r.lists) listPts += 3.0
         if (Screener.Lists.MOST_ACTIVE in r.lists) listPts += 2.0
         s += min(listPts, 10.0)
-        val screens = r.lists.filter { it != Screener.Lists.DAY_GAINERS }
-        if (screens.isNotEmpty()) why.add(
-            "On Yahoo's " + screens.joinToString(" and ") { Screener.label(it) } + " screen"
+        // ---- NAME ONLY THE SCREENS THAT ACTUALLY SCORED (Round 66 audit, R4).
+        //
+        // THE BUG THIS FIXES. The sentence was built from every list the symbol appeared on
+        // except day-gainers - so a stock that turned up only in `day_losers` and
+        // `most_shorted_stocks`, which score nothing here, printed "On Yahoo's day losers and
+        // most shorted screen" among the reasons the app rates it a GOOD BUY. Heavy short
+        // interest read as a bullish reason is exactly the kind of confident, plausible,
+        // wrong line this file's header exists to prevent.
+        val scoringScreens = listOf(
+            Screener.Lists.UNDERVALUED_GROWTH, Screener.Lists.GROWTH_TECH,
+            Screener.Lists.UNDERVALUED_LARGE, Screener.Lists.MOST_ACTIVE
+        ).filter { it in r.lists }
+        if (scoringScreens.isNotEmpty()) why.add(
+            "On Yahoo's " + scoringScreens.joinToString(" and ") { Screener.label(it) } + " screen"
         )
 
         // --- book value sanity: a negative one is a red flag even in the BEST list

@@ -144,6 +144,23 @@ data class ResearchRow(
     // --- best
     val consensus: Consensus2? = null,
     val catalyst: String = "",
+    /**
+     * CLAUDE'S CONVICTION, 1-10, KEPT OUT OF [score] (Round 66 audit, R1).
+     *
+     * THE BUG THIS FIXES. The bridge used to write `conviction * 10` straight into `score`,
+     * and the card draws `score` inside a circle labelled SCORE with the accessibility text
+     * "Score N out of 100". So a fund Claude ADDED - one the app never screened and has no
+     * numbers for - could arrive as row 1 of the ETF list showing SCORE 100, above every fund
+     * the app actually measured, with no facts grid and no reason lines. Nothing on screen
+     * separated a 100 computed from a five-year NAV return and an expense ratio from a 100 a
+     * language model asserted. That is the one thing this app's design note says must never
+     * happen, on the list TJ said he is going to buy from.
+     *
+     * `score` is now the app's arithmetic and nothing else - zero for a row the app did not
+     * score. This orders those rows among themselves, and the card shows it as "CLAUDE n/10",
+     * which is visibly a different scale from a different source.
+     */
+    val conviction: Int = 0,
     /** True when the user already holds or watches this symbol - shown as a chip. */
     val followed: Boolean = false,
     /**
@@ -183,6 +200,7 @@ data class ResearchRow(
             )
         }
         if (catalyst.isNotBlank()) put("catalyst", catalyst)
+        if (conviction > 0) put("conviction", conviction)
         etf?.let { if (!it.isEmpty || it.dollarVolume > 0 || it.inceptionMs > 0) put("etf", it.toJson()) }
     }
 
@@ -220,6 +238,7 @@ data class ResearchRow(
                     target = an.optDouble("target", 0.0).orZero()
                 ),
                 catalyst = o.text("catalyst"),
+                conviction = o.optInt("conviction", 0).coerceIn(0, 10),
                 etf = EtfFacts.fromJson(o.optJSONObject("etf"))
             )
         }

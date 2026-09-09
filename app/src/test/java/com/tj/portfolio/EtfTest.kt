@@ -467,7 +467,12 @@ class EtfTest {
         // `category` is read into the same field `catalyst` uses, so one card layout serves
         // all four sections.
         assertEquals("broad US equity index", vti.catalyst)
-        assertEquals(90, vti.score)
+        // ROUND 66 AUDIT (R1). Conviction is NOT the app's score. It used to be written in as
+        // `conviction * 10`, so a fund the app never screened arrived showing "SCORE 90" in
+        // the same circle, in the same type, as a fund measured from a five-year NAV return
+        // and an expense ratio.
+        assertEquals("the app scored nothing here", 0, vti.score)
+        assertEquals(9, vti.conviction)
         assertEquals("Your list is missing the broad-market funds.", p.notes)
     }
 
@@ -492,6 +497,29 @@ class EtfTest {
         val vti = merged.first { it.symbol == "VTI" }
         assertEquals(90, vti.score)
         assertNull("a fund Claude added has no screener facts", vti.etf)
+    }
+
+    /**
+     * ROUND 66 AUDIT (R1). A fund the app measured always outranks one it did not.
+     *
+     * The bridge used to write `conviction * 10` into `score` and the ETF list sorted on that,
+     * so a fund Claude asserted a 10 for landed at row 1 - above every fund the app actually
+     * screened, with no facts grid and no reason lines - on the list TJ said he is going to
+     * buy from.
+     */
+    @Test fun `a suggested fund cannot outrank one the app scored`() {
+        val rows = listOf(
+            ResearchRow(symbol = "SUGGESTED", conviction = 10, why = "Claude likes it."),
+            ResearchRow(symbol = "SCREENED", score = 62, reasons = listOf("app reason")),
+            ResearchRow(symbol = "ALSO_SUGGESTED", conviction = 7, why = "And this one.")
+        )
+        val ordered = rows.sortedWith(
+            compareByDescending<ResearchRow> { it.score }.thenByDescending { it.conviction }
+        )
+        assertEquals(
+            listOf("SCREENED", "SUGGESTED", "ALSO_SUGGESTED"),
+            ordered.map { it.symbol }
+        )
     }
 
     @Test fun `a reply naming the same fund twice cannot duplicate a list key`() {

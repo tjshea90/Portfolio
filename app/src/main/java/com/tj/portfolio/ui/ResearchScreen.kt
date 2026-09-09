@@ -574,19 +574,33 @@ private fun ResearchCard(
                 // says the whole thing regardless, which is the part that a screen reader -
                 // and the accessibility case - actually needed.
                 val labelFits = LocalDensity.current.fontScale <= 1.15f
+                // ---- WHOSE NUMBER IS THIS? (Round 66 audit, R1.)
+                //
+                // A row the app screened carries its own score out of 100. A row Claude ADDED
+                // has no app arithmetic at all - no facts grid, no reason lines - and used to
+                // borrow the same circle, drawn as "SCORE 100" from a conviction of 10. Two
+                // completely different kinds of claim, in identical type, on the list TJ is
+                // buying from. The badge now says which it is, and the scale says it too:
+                // out of 100 is measured, out of 10 is asserted.
+                val fromClaude = r.score <= 0 && r.conviction > 0
+                val badge = if (fromClaude) "CLAUDE" else "SCORE"
+                val shown = if (fromClaude) "${r.conviction}/10" else "${r.score}"
                 Column(
                     Modifier
                         .size(46.dp)
                         .background(c.copy(alpha = 0.16f), CircleShape)
                         .semantics(mergeDescendants = true) {
-                            contentDescription = "Score ${r.score} out of 100"
+                            contentDescription = if (fromClaude)
+                                "Claude's conviction ${r.conviction} out of 10; " +
+                                    "this fund was not scored by the app"
+                            else "Score ${r.score} out of 100"
                         },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     if (labelFits) {
                         Text(
-                            "SCORE",
+                            badge,
                             color = c,
                             fontWeight = FontWeight.Bold,
                             fontSize = 7.sp,
@@ -595,7 +609,7 @@ private fun ResearchCard(
                         )
                     }
                     AutoFitNumber(
-                        "${r.score}",
+                        shown,
                         color = c,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontSize = 16.sp, lineHeight = 18.sp

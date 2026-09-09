@@ -375,7 +375,10 @@ $SHAPE
                 ResearchRow(
                     symbol = sym,
                     why = why,
-                    score = o.optInt("conviction", 0).coerceIn(0, 10) * 10,
+                    // NOT `score` (Round 66 audit, R1). `score` is the app's own arithmetic
+                    // and a language model's conviction is not that, however confident it is.
+                    // See [ResearchRow.conviction].
+                    conviction = o.optInt("conviction", 0).coerceIn(0, 10),
                     catalyst = listOf(catalyst, target, risk).filter { it.isNotBlank() }
                         .joinToString(" - ")
                 )
@@ -399,7 +402,9 @@ $SHAPE
             val c = byIncoming[row.symbol] ?: return@map row
             row.copy(
                 why = c.why.ifBlank { row.why },
-                catalyst = c.catalyst.ifBlank { row.catalyst }
+                catalyst = c.catalyst.ifBlank { row.catalyst },
+                // The app's own score survives untouched - see [ResearchRow.conviction].
+                conviction = if (c.conviction > 0) c.conviction else row.conviction
             )
         }
         val known = existing.map { it.symbol }.toSet()
