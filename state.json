@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 15:06:35 UTC",
+  "updated": "2026-09-09 15:06:37 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,7 +10,7 @@
     "next_code": 62
   },
   "now": {
-    "step": "T4: Stock research accuracy audit",
+    "step": "",
     "next": ""
   },
   "tasks": [
@@ -41,8 +41,8 @@
     {
       "id": "T4",
       "title": "Stock research accuracy audit",
-      "status": "doing",
-      "note": "research accuracy"
+      "status": "done",
+      "note": "research accuracy: the ETF ranking reworked and grounded in Schwab's and Saxo's own selection guidance; the Worst list removed rather than left inactionable; A06 restored the news blurbs the cache was discarding"
     },
     {
       "id": "T5",
@@ -665,6 +665,7 @@
     "2026-09-09 15:03:07 UTC  A12 fixed: money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed",
     "2026-09-09 15:06:32 UTC  A08 fixed: spinnerShouldShow gained a researchLoading term fed from _researchBusy, so the poll loop no longer retracts the pull indicator mid-build",
     "2026-09-09 15:06:34 UTC  A09 fixed: both KDocs corrected, and setForeground now starts a replacement wave when one was cancelled - so a flick away and back inside the grace window no longer leaves stale prices",
-    "2026-09-09 15:06:35 UTC  A10 fixed: restoreFromCache(fromInit = true) skips the duplicate quote-cache read on the launch path"
+    "2026-09-09 15:06:35 UTC  A10 fixed: restoreFromCache(fromInit = true) skips the duplicate quote-cache read on the launch path",
+    "2026-09-09 15:06:37 UTC  T4 -> done  research accuracy: the ETF ranking reworked and grounded in Schwab's and Saxo's own selection guidance; the Worst list removed rather than left inactionable; A06 restored the news blurbs the cache was discarding"
   ]
 }

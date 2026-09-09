@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:06:35 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:06:37 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,26 +27,26 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** T4: Stock research accuracy audit
+- **In flight:** (nothing in flight)
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 5/9 done
+## 4. Task ledger — 6/9 done
 
 - [x] T0  Baseline: v7.6 tree green in this container  — v7.6 tree green in this container
 - [x] T1  Thicker separator bars between stocks  — separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
 - [x] T2  ETF section: accurate, multi-source, healthy strong-buy funds ranked best-first  — ETF ranking: one fund per exposure (Schwab/Saxo both say comparison is only meaningful within an exposure group), youth no longer penalised twice with a three-year floor against performance-chasing, and the blurb now says what the feed cannot see
 - [x] T3  Worst section: keep only stocks with a buyable companion short vehicle, or delete the section  — Worst section deleted: tab, scorer, ShortVehicle, the inverse-ETF enrichment and its Claude prompt sections. Measured 16/20 momentum mega-caps have a US single-stock inverse fund vs 2/40 beaten-down names, one of those foreign-listed only
-- [>] T4  Stock research accuracy audit  — research accuracy
+- [x] T4  Stock research accuracy audit  — research accuracy: the ETF ranking reworked and grounded in Schwab's and Saxo's own selection guidance; the Worst list removed rather than left inactionable; A06 restored the news blurbs the cache was discarding
 - [x] T5  Cache and refresh policy: cache as big as needed, refresh liberally where it helps  — cache/refresh audit produced A02 (cadences never fired), A05 (quotes never pruned) and A07 (marks travelling in backups)
 - [ ] T6  Whole-app parallel review: bugs, efficiency, UI, features working as designed
 - [ ] T7  Fix every confirmed finding
 - [ ] T8  REGRESSION + ship v7.7
 
-**Resume at T4** (Stock research accuracy audit).
+**Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
 
 ## 5. Open findings — 0 still open, 12 fixed
 
@@ -72,7 +72,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 14:44:18 UTC  T5 -> done  cache/refresh audit produced A02 (cadences never fired), A05 (quotes never pruned) and A07 (marks travelling in backups)
 - 2026-09-09 14:53:27 UTC  T3 -> done  Worst section deleted: tab, scorer, ShortVehicle, the inverse-ETF enrichment and its Claude prompt sections. Measured 16/20 momentum mega-caps have a US single-stock inverse fund vs 2/40 beaten-down names, one of those foreign-listed only
 - 2026-09-09 15:00:12 UTC  T2 -> done  ETF ranking: one fund per exposure (Schwab/Saxo both say comparison is only meaningful within an exposure group), youth no longer penalised twice with a three-year floor against performance-chasing, and the blurb now says what the feed cannot see
 - 2026-09-09 15:00:13 UTC  T4 -> doing  research accuracy
@@ -84,4 +83,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 15:06:32 UTC  A08 fixed: spinnerShouldShow gained a researchLoading term fed from _researchBusy, so the poll loop no longer retracts the pull indicator mid-build
 - 2026-09-09 15:06:34 UTC  A09 fixed: both KDocs corrected, and setForeground now starts a replacement wave when one was cancelled - so a flick away and back inside the grace window no longer leaves stale prices
 - 2026-09-09 15:06:35 UTC  A10 fixed: restoreFromCache(fromInit = true) skips the duplicate quote-cache read on the launch path
+- 2026-09-09 15:06:37 UTC  T4 -> done  research accuracy: the ETF ranking reworked and grounded in Schwab's and Saxo's own selection guidance; the Worst list removed rather than left inactionable; A06 restored the news blurbs the cache was discarding
 
