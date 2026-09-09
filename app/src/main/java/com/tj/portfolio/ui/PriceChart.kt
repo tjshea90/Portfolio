@@ -288,8 +288,9 @@ fun PriceChart(
     // armed the hold while the pan callback was null and the drag scrubbed. That is M03 again,
     // approached from the other side: the caption and the gesture must be one predicate, and
     // the predicate has to include everything the gesture needs.
-    val canPanNow = remember(window, seriesWindowAll, onWindow) {
-        onWindow != null && window != null && seriesWindowAll != null &&
+    val canReportWindow = onWindow != null
+    val canPanNow = remember(window, seriesWindowAll, canReportWindow) {
+        canReportWindow && window != null && seriesWindowAll != null &&
             window.spanMs < seriesWindowAll.spanMs
     }
     val axisWindow = remember(drawnAll, window) {
@@ -883,8 +884,12 @@ fun PriceChart(
                     // the pan guard then refuses, and a caption that lies about the controls is
                     // worse than one that says nothing (review M03).
                     append("  -  pinch to zoom")
+                    // ONLY WHERE THE GESTURE CHANGED (sweep 3, N07). An unzoomed chart scrubs
+                    // on a drag exactly as it has since v7.4, so naming that here would add a
+                    // line of text to the screen TJ reads every day to tell him something he
+                    // already knows. A zoomed chart is where one finger acquired a second
+                    // meaning, and that is the only place worth spending the words.
                     if (canPanNow) append(", drag to move, hold to scrub")
-                    else append(", drag to scrub")
                 }
                 if (shown.truncated) {
                     // Said out loud rather than drawn as if it were the full window. A stock
