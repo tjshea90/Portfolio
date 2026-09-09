@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 19:31:58 UTC",
+  "updated": "2026-09-09 19:32:00 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -228,8 +228,8 @@
       "id": "E4",
       "text": "The ETF return normalisation gates on the sum of available weights, so a fund with a full three-year record but no YTD figure is capped at 16 of 34 points - and reporting a worthless YTD gains it eleven",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the return normalisation gates on the record rather than the weight sum; two tests pin the invariant"
     },
     {
       "id": "E5",
@@ -799,6 +799,7 @@
     "2026-09-09 19:25:29 UTC  finding R6: Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and",
     "2026-09-09 19:31:55 UTC  E1 fixed: fetchAll stops only on an empty page - one non-fund row no longer truncates the universe from 523 funds to 100",
     "2026-09-09 19:31:57 UTC  E2 fixed: region is tested before the US size ladder, regional size bands stay separate, miners never group with bullion, and a Treasury fund is only grouped when its name states a maturity band; five new tests",
-    "2026-09-09 19:31:58 UTC  E3 fixed: the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for"
+    "2026-09-09 19:31:58 UTC  E3 fixed: the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for",
+    "2026-09-09 19:32:00 UTC  E4 fixed: the return normalisation gates on the record rather than the weight sum; two tests pin the invariant"
   ]
 }
