@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:19:14 UTC)
+# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:20:35 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -62,7 +62,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 04:57:50 UTC  T1 -> done  TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested
 - 2026-09-09 04:57:51 UTC  T2 -> doing  one-finger pan + press-and-hold scrub in chartGestures
 - 2026-09-09 05:13:00 UTC  T2 -> done  one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in
 - 2026-09-09 05:13:02 UTC  T3 -> done  PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)
@@ -74,4 +73,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 05:19:13 UTC  N03 fixed: worst-case caption (zoomed + SPY overlay + 1.5x type) measured in the full-screen viewer
 - 2026-09-09 05:19:14 UTC  finding N04: The event-path hold test reused holdPossible, which was computed from the previo
 - 2026-09-09 05:19:14 UTC  N04 fixed: the event path now evaluates the full condition against the current frame
+- 2026-09-09 05:20:35 UTC  sweep 1: 4 findings (1 high), all closed
 

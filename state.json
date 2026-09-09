@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 05:19:14 UTC",
+  "updated": "2026-09-09 05:20:35 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -549,6 +549,7 @@
     "2026-09-09 05:19:11 UTC  N02 fixed: chartPinching and onZoomingChanged both describe a window gesture now, not two fingers",
     "2026-09-09 05:19:13 UTC  N03 fixed: worst-case caption (zoomed + SPY overlay + 1.5x type) measured in the full-screen viewer",
     "2026-09-09 05:19:14 UTC  finding N04: The event-path hold test reused holdPossible, which was computed from the previo",
-    "2026-09-09 05:19:14 UTC  N04 fixed: the event path now evaluates the full condition against the current frame"
+    "2026-09-09 05:19:14 UTC  N04 fixed: the event path now evaluates the full condition against the current frame",
+    "2026-09-09 05:20:35 UTC  sweep 1: 4 findings (1 high), all closed"
   ]
 }
