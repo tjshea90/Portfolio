@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:03:05 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:03:07 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T4** (Stock research accuracy audit).
 
-## 5. Open findings — 4 still open, 8 fixed
+## 5. Open findings — 3 still open, 9 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -61,7 +61,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] A09 (low) PortfolioViewModel.kt:762 two KDocs claim the quote wave survives backgrounding; it runs on fgScope and is cancelled
 - [ ] A10 (low) PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read on the launch path that provably cannot change anything
 - [x] A11 (low) PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list - the feed pass truncates 60 headlines to 40, removing stories the user is scrolling  — one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list
-- [ ] A12 (low) Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks and give three
+- [x] A12 (low) Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks and give three  — money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed
 
 ## 6. Version
 
@@ -72,7 +72,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 14:39:44 UTC  A01 fixed: createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - 2026-09-09 14:39:46 UTC  A03 fixed: TxnFields extracted from the dialog: seeds use Fmt.exact (round-trips through the editor's own parser) and Save shares one computation with the preview. Pure tests, no flaky dialog rendering
 - 2026-09-09 14:44:13 UTC  A02 fixed: feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
 - 2026-09-09 14:44:15 UTC  A07 fixed: AUTOSAVE_AT, AUTO_BACKUP_AT, DOWNLOADS_TIDIED and the new FILINGS_AT are excluded from backups, and restoreAsync forces a safety copy of what it just restored
@@ -84,4 +83,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 15:03:01 UTC  A05 fixed: Db.purgeQuotes, called with the other purges - the quotes table was the one unbounded cache, and it is parsed whole on the launch path
 - 2026-09-09 15:03:03 UTC  A06 fixed: loadNews writes the blurbs through with the stories, and cacheNews's conflict path updates the summary without ever erasing one; three tests
 - 2026-09-09 15:03:05 UTC  A11 fixed: one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list
+- 2026-09-09 15:03:07 UTC  A12 fixed: money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed
 
