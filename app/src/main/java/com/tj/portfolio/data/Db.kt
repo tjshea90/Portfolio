@@ -35,8 +35,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 source TEXT NOT NULL DEFAULT 'MANUAL'
             )"""
         )
-        db.execSQL("CREATE INDEX idx_txn_symbol ON txns(symbol)")
-        db.execSQL("CREATE INDEX idx_txn_date ON txns(date)")
+        createTxnIndexes(db)
         db.execSQL("CREATE TABLE settings(k TEXT PRIMARY KEY, v TEXT)")
         db.execSQL("CREATE TABLE overrides(symbol TEXT PRIMARY KEY, avg_cost REAL, shares REAL)")
         db.execSQL(
@@ -241,6 +240,34 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      * Rule for future versions: bump DB_VERSION, add another `if (oldV < n)` block that
      * only CREATEs or ALTER-TABLE-ADD-COLUMNs. Never DROP.
      */
+    /**
+     * THE TWO INDEXES THE TXNS TABLE CANNOT WORK WITHOUT (Round 66).
+     *
+     * ---- THE BUG THIS FIXES
+     *
+     * These were written inline in [onCreate] as plain `CREATE INDEX`, so a database created
+     * before they were added never got them - `onUpgrade` did not create them and the `onOpen`
+     * repair block did not either. Every install that has been upgraded rather than freshly
+     * created has therefore been running the txns table with NO indexes at all, and the code
+     * that leans on them says otherwise in its own comments: `findDuplicateId` runs once per
+     * incoming row on a restore or an import, and `deleteTxnsForSymbol` claims to be "one
+     * statement against `idx_txn_symbol`". Without the index both are full table scans - a
+     * 2,000-row backup merge is about four million row visits inside one transaction, which
+     * is the exact cost an earlier round's comment claims to have removed.
+     *
+     * ---- WHY IT IS SHAPED LIKE THIS
+     *
+     * `IF NOT EXISTS` and its own function, so it can be called from BOTH [onCreate] and the
+     * [onOpen] repair block. That heals every existing install on its next launch with no
+     * migration step and no version bump, and it cannot fail on a database that already has
+     * them. Creating an index on an existing table is a single pass over that table - a few
+     * milliseconds on a ledger of this size, once.
+     */
+    private fun createTxnIndexes(db: SQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_txn_symbol ON txns(symbol)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_txn_date ON txns(date)")
+    }
+
     override fun onUpgrade(db: SQLiteDatabase, oldV: Int, newV: Int) {
         if (oldV < 2) createImports(db)
         if (oldV < 3) addColumn(db, "quotes", "quote_time", "INTEGER NOT NULL DEFAULT 0")
@@ -266,6 +293,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         runCatching { createFundamentals(db) }
         runCatching { createHttpCache(db) }
         runCatching { createChartCache(db) }
+        // ROUND 66: and the txns indexes, which until now existed only on databases that were
+        // freshly created rather than upgraded. See [createTxnIndexes].
+        runCatching { createTxnIndexes(db) }
     }
 
     // ---------- HTTP response cache (Round 56) ----------

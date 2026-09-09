@@ -33,6 +33,77 @@ fun String.toNum(): Double =
     trim().replace(",", "").replace("$", "").toDoubleOrNull() ?: 0.0
 
 /**
+ * WHAT THE EDITOR PUTS IN ITS BOXES, AND WHAT SAVE MAKES OF THEM (Round 66).
+ *
+ * ---- WHY THIS IS NOT INSIDE THE COMPOSABLE
+ *
+ * It used to be: four `mutableStateOf(Fmt.something(...))` seeds and, forty lines further
+ * down, the arithmetic inside the Save button's `onClick`. Neither could be tested without
+ * rendering an `AlertDialog` in Robolectric, which is slow enough here to be flaky - so the
+ * single most consequential arithmetic in the app, the bit that decides what gets written to
+ * the ledger, had no test at all.
+ *
+ * Pulling it out costs nothing at the call site and buys an exact, fast test of the property
+ * that actually matters: **opening a transaction and pressing Save without touching anything
+ * must produce the identical transaction.** The dialog and the test now run the same code, so
+ * they cannot drift apart.
+ *
+ * ---- THE BUG THAT PROMPTED IT
+ *
+ * The boxes were seeded with the DISPLAY formatters - `Fmt.priceBare` (two or three decimals)
+ * and `Fmt.shares` (four). Prices here routinely carry more, because `Txn.unitPriceFromTotal`
+ * derives them from a net total: a 1,000-share buy for $1,559.50 is stored at 1.5595. Save
+ * parses the boxes back and `Txn.cashEffect` recomputes the cash from quantity x price -
+ * falling back to the stored total only when one of them is missing - so the rounded "1.560"
+ * became the new truth and the row was rewritten as $1,560.00. Fifty cents of drift in the
+ * cash balance, the cost basis and everything derived from them, from an edit nobody made.
+ *
+ * [Fmt.exact] is the fix: what is shown parses back to the identical double.
+ */
+object TxnFields {
+
+    fun qty(t: Txn?): String = if ((t?.quantity ?: 0.0) > 0) Fmt.exact(t!!.quantity) else ""
+
+    fun price(t: Txn?): String = if ((t?.price ?: 0.0) > 0) Fmt.exact(t!!.price) else ""
+
+    fun amount(t: Txn?): String =
+        if (t != null && t.amount != 0.0) Fmt.exact(kotlin.math.abs(t.amount)) else ""
+
+    fun fees(t: Txn?): String = if ((t?.fees ?: 0.0) > 0) Fmt.exact(t!!.fees) else ""
+
+    /**
+     * The three numbers Save actually records, from the four boxes as typed.
+     *
+     * Shared with the live "this will record ..." preview above the buttons, so the figure
+     * the user is shown before saving and the figure that is saved are the same computation
+     * rather than two copies of it.
+     */
+    data class Resolved(
+        val quantity: Double,
+        val price: Double,
+        val amount: Double,
+        val fees: Double
+    )
+
+    fun resolve(type: String, qty: String, price: String, amount: String, fees: String): Resolved {
+        val q = qty.toNum()
+        val f = fees.toNum()
+        var p = price.toNum()
+        var a = amount.toNum()
+        // The total is the NET cash that moved and already has the fee inside it, so the fee
+        // comes out before the division - otherwise cashEffect charges it again. See
+        // Txn.unitPriceFromTotal; a no-op on a zero-fee trade.
+        if (p <= 0 && q > 0 && a > 0) p = Txn.unitPriceFromTotal(type, q, a, f)
+        if (a <= 0 && q > 0 && p > 0) a = q * p
+        return Resolved(q, p, a, f)
+    }
+
+    /** The cash effect a Save would record, for the preview and for the write. */
+    fun cashOf(type: String, r: Resolved): Double =
+        Txn.cashEffect(type, r.quantity, r.price, r.amount, r.fees)
+}
+
+/**
  * One dialog for both adding and editing a transaction. Pass [existing] to edit;
  * pass null (with an optional [presetSymbol]) to add.
  */
@@ -48,21 +119,22 @@ fun TxnEditorDialog(
     var type by remember { mutableStateOf(existing?.type ?: presetType ?: TxnType.BUY) }
     var typeMenu by remember { mutableStateOf(false) }
     var symbol by remember { mutableStateOf(existing?.symbol ?: presetSymbol ?: "") }
-    var qty by remember {
-        mutableStateOf(if ((existing?.quantity ?: 0.0) > 0) Fmt.shares(existing!!.quantity) else "")
-    }
-    var price by remember {
-        mutableStateOf(if ((existing?.price ?: 0.0) > 0) Fmt.priceBare(existing!!.price) else "")
-    }
-    var amount by remember {
-        mutableStateOf(
-            if (existing != null && existing.amount != 0.0)
-                Fmt.priceBare(kotlin.math.abs(existing.amount)) else ""
-        )
-    }
-    var fees by remember {
-        mutableStateOf(if ((existing?.fees ?: 0.0) > 0) Fmt.priceBare(existing!!.fees) else "")
-    }
+    // ---- SEEDED FROM THE STORED VALUES, NOT FROM A DISPLAY FORMATTER (Round 66).
+    //
+    // THE BUG THIS FIXES. These four boxes used to be filled by `Fmt.shares` and
+    // `Fmt.priceBare`, which round to four and to two-or-three decimals. Save then parses the
+    // boxes back and `Txn.cashEffect` recomputes the cash from quantity x price whenever both
+    // are present - it only falls back to the stored total when one of them is missing. So a
+    // 1,000-share buy stored at 1.5595 (derived from a $1,559.50 net total, which is how every
+    // imported trade is priced) displayed as "1.560", and opening it and pressing Save with
+    // nothing changed rewrote the row as $1,560.00.
+    //
+    // Fifty cents, silently, on a screen whose whole job is to be the record. `Fmt.exact`
+    // round-trips: what is shown parses back to the identical double. See its note.
+    var qty by remember { mutableStateOf(TxnFields.qty(existing)) }
+    var price by remember { mutableStateOf(TxnFields.price(existing)) }
+    var amount by remember { mutableStateOf(TxnFields.amount(existing)) }
+    var fees by remember { mutableStateOf(TxnFields.fees(existing)) }
     // Once the user types in the Fees box themselves, the app stops filling it in. Editing
     // an existing transaction counts as already-decided, so an import is never overwritten.
     var feesTouched by remember { mutableStateOf(existing != null) }
@@ -103,13 +175,7 @@ fun TxnEditorDialog(
      * rules in prose nobody reads, the dialog just shows the answer, so a wrong entry is
      * visible while it can still be corrected.
      */
-    val previewCash = run {
-        var p = pNum
-        var a = aNum
-        if (p <= 0 && qNum > 0 && a > 0) p = Txn.unitPriceFromTotal(type, qNum, a, feeNum)
-        if (a <= 0 && qNum > 0 && p > 0) a = qNum * p
-        Txn.cashEffect(type, qNum, p, a, feeNum)
-    }
+    val previewCash = TxnFields.cashOf(type, TxnFields.resolve(type, qty, price, amount, fees))
 
     val problem: String? = when {
         parsedDate == null -> "Enter the date as yyyy-MM-dd (e.g. ${Fmt.iso(Fmt.todayMs())})"
@@ -202,24 +268,17 @@ fun TxnEditorDialog(
         },
         confirmButton = {
             TextButton(enabled = problem == null, onClick = {
-                val q = qNum
-                var p = pNum
-                var a = aNum
-                // The total is the NET cash that moved and already has the fee inside it,
-                // so the fee comes out before the division - otherwise cashEffect charges
-                // it again. See Txn.unitPriceFromTotal; a no-op on a zero-fee trade.
-                if (p <= 0 && q > 0 && a > 0) p = Txn.unitPriceFromTotal(type, q, a, feeNum)
-                if (a <= 0 && q > 0 && p > 0) a = q * p
-                val f = feeNum
+                // ONE COMPUTATION, shared with the preview above - see [TxnFields].
+                val r = TxnFields.resolve(type, qty, price, amount, fees)
                 onSave(
                     Txn(
                         id = existing?.id ?: 0L,
                         type = type,
                         symbol = symbol.trim().uppercase().ifBlank { null },
-                        quantity = q,
-                        price = p,
-                        amount = Txn.cashEffect(type, q, p, a, f),
-                        fees = f,
+                        quantity = r.quantity,
+                        price = r.price,
+                        amount = TxnFields.cashOf(type, r),
+                        fees = r.fees,
                         date = parsedDate ?: Fmt.todayMs(),
                         note = note.trim().ifBlank { null },
                         source = existing?.source ?: "MANUAL"

@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:21:57 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:39:44 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,9 +48,9 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T3** (Worst section: keep only stocks with a buyable companion short vehicle, or delete the section).
 
-## 5. Open findings — 12 still open, 0 fixed
+## 5. Open findings — 11 still open, 1 fixed
 
-- [ ] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row
+- [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [ ] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds
 - [ ] A03 (high) TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a transaction and pressing Save with no edit re-rounds it and silently changes the recorded cash
 - [ ] A04 (med) PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so the Form 4 section is blank for up to 30 minutes after a memory trim even though the filings are still in memory and on disk
@@ -72,7 +72,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 14:21:57 UTC  finding A01: Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so
 - 2026-09-09 14:21:57 UTC  finding A02: PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the po
 - 2026-09-09 14:21:57 UTC  finding A03: TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a t
 - 2026-09-09 14:21:57 UTC  finding A04: PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so th
@@ -84,4 +83,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 14:21:57 UTC  finding A10: PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read
 - 2026-09-09 14:21:57 UTC  finding A11: PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list 
 - 2026-09-09 14:21:57 UTC  finding A12: Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks 
+- 2026-09-09 14:39:44 UTC  A01 fixed: createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 

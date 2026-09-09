@@ -82,6 +82,38 @@ object Fmt {
 
     fun shares(v: Double): String = qty.format(v)
 
+    /**
+     * THE VALUE ITSELF, AS TEXT, WITH NOTHING ROUNDED AWAY (Round 66).
+     *
+     * ---- WHAT THIS IS FOR, AND THE BUG IT FIXES
+     *
+     * Every other formatter here is for READING. This one is for a text field the user can
+     * edit and save back, where a display rounding becomes a permanent change to the ledger.
+     *
+     * The transaction editor used to seed its Price box with [priceBare], which gives two or
+     * three decimals. Prices in this app routinely carry four: [Txn.unitPriceFromTotal]
+     * derives them from a net total, so a 1,000-share buy for $1,559.50 is stored at 1.5595.
+     * The editor showed "1.560", and `Txn.cashEffect` recomputes the cash from quantity x
+     * price whenever both are present - so opening that transaction and pressing Save with
+     * NOTHING CHANGED rewrote it as $1,560.00. Fifty cents of drift in the cash balance, the
+     * cost basis and every figure derived from them, with no edit made and nothing on screen
+     * saying so.
+     *
+     * ---- WHY `BigDecimal.valueOf` AND NOT `toBigDecimal()`
+     *
+     * `Double.toBigDecimal()` takes the EXACT binary value, so 230.115 comes back as
+     * 230.11500000000000909494701772928237915039062500 - unreadable, and worse in a text box
+     * than the rounding it replaced. `BigDecimal.valueOf(d)` goes through `Double.toString`,
+     * which produces the shortest decimal that reads back as the same double: "230.115".
+     * `stripTrailingZeros` then removes the "5.0" tail, and `toPlainString` keeps a very
+     * small or very large number out of scientific notation, which no parser here accepts.
+     */
+    fun exact(v: Double): String {
+        if (v == 0.0) return "0"
+        if (!v.isFinite()) return ""
+        return java.math.BigDecimal.valueOf(v).stripTrailingZeros().toPlainString()
+    }
+
     fun compact(v: Double): String {
         val a = abs(v)
         return when {

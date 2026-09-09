@@ -233,6 +233,61 @@ class DbTest {
      * A REAL v1 database, built with the schema v1.0 actually shipped, then opened by
      * today's Db so onUpgrade runs for real. Previous rounds simulated this in Python.
      */
+    /**
+     * ROUND 66. The two txns indexes were written inline in `onCreate` as plain
+     * `CREATE INDEX`, so a database that was UPGRADED rather than freshly created never had
+     * them - `onUpgrade` did not make them and the `onOpen` repair block did not either.
+     *
+     * That is not cosmetic. `findDuplicateId` runs once per incoming row on a restore or a
+     * screenshot import and `deleteTxnsForSymbol` runs on every position deletion; both have
+     * comments claiming they use `idx_txn_symbol`, and on every upgraded install they were
+     * full table scans instead. This fixture is the exact shape TJ's phone has: the schema
+     * v1.0 actually shipped, with no indexes on txns at all.
+     */
+    @Test fun `an upgraded database gets the txns indexes it never had`() {
+        ctx.deleteDatabase(Db.DB_NAME)
+        buildLegacyV1(Db.DB_NAME)
+
+        // Prove the fixture really is the un-indexed shape, or the test proves nothing.
+        val bare = SQLiteDatabase.openOrCreateDatabase(ctx.getDatabasePath(Db.DB_NAME), null)
+        val before = indexNames(bare, "txns")
+        bare.close()
+        assertTrue("the fixture already had indexes - it cannot show the fix", before.isEmpty())
+
+        val upgraded = Db(ctx)
+        upgraded.allTxns()          // force the helper to open and run onUpgrade/onOpen
+        val after = indexNames(upgraded.writableDatabase, "txns")
+        assertTrue(
+            "idx_txn_symbol is still missing after the upgrade - findDuplicateId is a full " +
+                "table scan on every imported row. Found: $after",
+            "idx_txn_symbol" in after
+        )
+        assertTrue("idx_txn_date is still missing after the upgrade. Found: $after",
+            "idx_txn_date" in after)
+        // And the data survived the extra statements.
+        assertEquals(12, upgraded.allTxns().size)
+        upgraded.close()
+    }
+
+    @Test fun `creating the indexes twice is harmless`() {
+        // `onOpen` runs on EVERY open, so the second launch re-runs the same statements.
+        ctx.deleteDatabase(Db.DB_NAME)
+        Db(ctx).also { it.allTxns(); it.close() }
+        val second = Db(ctx)
+        assertTrue("idx_txn_symbol", "idx_txn_symbol" in indexNames(second.writableDatabase, "txns"))
+        assertEquals(0, second.allTxns().size)
+        second.close()
+    }
+
+    /** The user-defined index names on one table, straight out of sqlite_master. */
+    private fun indexNames(db: SQLiteDatabase, table: String): Set<String> {
+        val out = HashSet<String>()
+        db.rawQuery(
+            "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name=?", arrayOf(table)
+        ).use { c -> while (c.moveToNext()) out.add(c.getString(0)) }
+        return out
+    }
+
     private fun buildLegacyV1(name: String): Long {
         val f = ctx.getDatabasePath(name)
         f.parentFile?.mkdirs()
