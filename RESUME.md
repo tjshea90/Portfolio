@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:39:46 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:44:13 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,10 +48,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T3** (Worst section: keep only stocks with a buyable companion short vehicle, or delete the section).
 
-## 5. Open findings — 10 still open, 2 fixed
+## 5. Open findings — 9 still open, 3 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
-- [ ] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds
+- [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
 - [x] A03 (high) TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a transaction and pressing Save with no edit re-rounds it and silently changes the recorded cash  — TxnFields extracted from the dialog: seeds use Fmt.exact (round-trips through the editor's own parser) and Save shares one computation with the preview. Pure tests, no flaky dialog rendering
 - [ ] A04 (med) PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so the Form 4 section is blank for up to 30 minutes after a memory trim even though the filings are still in memory and on disk
 - [ ] A05 (med) Db.kt:1007 the quotes table is never pruned and is read whole, parsing every spark blob, synchronously on the main thread at launch
@@ -72,7 +72,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 14:21:57 UTC  finding A03: TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a t
 - 2026-09-09 14:21:57 UTC  finding A04: PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so th
 - 2026-09-09 14:21:57 UTC  finding A05: Db.kt:1007 the quotes table is never pruned and is read whole, parsing every spa
 - 2026-09-09 14:21:57 UTC  finding A06: PortfolioViewModel.kt:2455 a headline's summary is dropped when the story is cac
@@ -84,4 +83,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 14:21:57 UTC  finding A12: Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks 
 - 2026-09-09 14:39:44 UTC  A01 fixed: createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - 2026-09-09 14:39:46 UTC  A03 fixed: TxnFields extracted from the dialog: seeds use Fmt.exact (round-trips through the editor's own parser) and Save shares one computation with the preview. Pure tests, no flaky dialog rendering
+- 2026-09-09 14:44:13 UTC  A02 fixed: feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
 

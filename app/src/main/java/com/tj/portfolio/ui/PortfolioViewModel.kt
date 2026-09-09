@@ -658,6 +658,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     val feedAt: StateFlow<Long> = _feedAt.asStateFlow()
 
     /**
+     * When SEC filings were last pulled on this device (Round 66).
+     *
+     * A FIELD, not a counter inside the polling coroutine - see the note in [startAuto] for
+     * what that cost. Restored from [Keys.FILINGS_AT] at launch and stamped whenever a pass
+     * actually runs, so it survives both a return to the foreground and a process death.
+     *
+     * Not a StateFlow: nothing on screen shows it, and a flow would cost a recomposition for
+     * a value no composable reads.
+     */
+    private var lastFilingsAt = 0L
+
+    /**
      * Form 4 filings for ONE stock, for its own detail screen.
      *
      * Now holds parsed [InsiderFiling]s rather than the generic feed row it used to. The old
@@ -1354,6 +1366,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         loadCachedInsider()
         restoreFromCache()
         db.get(Keys.FEED_AT).toLongOrNull()?.takeIf { it > 0 }?.let { _feedAt.value = it }
+        db.get(Keys.FILINGS_AT).toLongOrNull()?.takeIf { it > 0 }?.let { lastFilingsAt = it }
         purgeOldNewsOnce()
         refresh()
         startAuto()
@@ -2275,12 +2288,60 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * timestamps stop advancing during nominal market hours, the tape is treated as closed.
      * On a normal weekday that is around a 70% cut, and over a weekend closer to 98%.
      */
+    /** What the automatic pass should do this tick. See [passDue]. */
+    internal data class DuePass(val feed: Boolean, val filings: Boolean) {
+        val anything: Boolean get() = feed || filings
+    }
+
+    /**
+     * IS EITHER SLOW PASS DUE? Pure, so it can be tested (Round 66).
+     *
+     * ---- WHY IT IS "OR", NOT "AND"
+     *
+     * SEC filings ride INSIDE the feed pass, which reads as though filings should only be
+     * considered when the feed is already going. They must not be, and the reason is that the
+     * feed's mark is stamped from more than one place: opening the Feed tab fires its own
+     * pass through `setNewsVisible(true)`. Gate filings on "the feed happens to be due" and a
+     * user who checks the Feed regularly keeps `_feedAt` permanently fresh out of band, so
+     * the filings branch never gets a turn - which is exactly the bug this function exists to
+     * fix, arriving through a different door.
+     *
+     * Both arms are wall-clock comparisons against persisted marks rather than counters, so
+     * neither is reset by the app being backgrounded, by the polling coroutine being
+     * relaunched, or by the process being killed.
+     */
+    internal fun passDue(
+        now: Long,
+        feedAt: Long,
+        filingsAt: Long,
+        feedIntervalSecs: Int
+    ): DuePass = DuePass(
+        feed = feedIntervalSecs > 0 && now - feedAt >= feedIntervalSecs * 1000L,
+        filings = now - filingsAt >= INSIDER_REFRESH_SECS * 1000L
+    )
+
     private fun startAuto() {
         autoJob?.cancel()
         if (refreshSecs() <= 0 || !foreground) return
+        // ---- NO COUNTERS IN HERE (Round 66).
+        //
+        // THE BUG THIS FIXES. The feed and filings cadences used to be `var sinceFeedRefresh`
+        // and `var sinceFilings` declared INSIDE this coroutine. `startAuto()` cancels and
+        // relaunches it, and `setForeground(true)` calls `startAuto()` - so both counters
+        // restarted at zero every single time the user came back to the app. They were not
+        // measuring elapsed time; they were measuring UNINTERRUPTED FOREGROUND SECONDS.
+        //
+        // For the feed (three minutes with the market open) that mostly still fired. For SEC
+        // filings it did not: `INSIDER_REFRESH_SECS` is half an hour, and half an hour of one
+        // continuous foreground session is not how a phone is used. On TJ's phone the Insider
+        // tab therefore never refreshed itself at all - it kept whatever the cache restored,
+        // aged rows out of its own 30-day window on each launch, and only ever gained a filing
+        // if he happened to open the tab while it was completely empty (`refreshInsidersIfEmpty`
+        // fires only on empty). Data that was free to refresh, and never was.
+        //
+        // Both cadences are now wall-clock marks that survive the relaunch, and both are
+        // persisted, so they also survive the process. See [Keys.FEED_AT], [Keys.FILINGS_AT].
         autoJob = viewModelScope.launch {
-            var sinceFeedRefresh = 0
-            var sinceFilings = 0
             while (true) {
                 val secs = currentQuoteIntervalSecs()
                 if (secs <= 0) break                       // auto-refresh switched off
@@ -2308,22 +2369,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     refresh()
                 }
 
-                sinceFeedRefresh += secs
-                sinceFilings += secs
                 // The feed is gated on the network for the same reason the quotes are: with
                 // no signal every feed request fails, and three failures to the same host arm
-                // a cooldown that outlives the dead spot by minutes. The counters above still
-                // advance, so the pass runs as soon as there is a network again rather than
-                // waiting out another full interval.
-                if (haveNetwork && sinceFeedRefresh >= MarketClock.feedIntervalSecs()) {
-                    sinceFeedRefresh = 0
-                    // refreshFeed() pulls the same headlines and writes them into the
-                    // per-symbol news map too, so calling refreshAllNews() here as well
-                    // would fetch everything twice. Insider filings are legally up to two
-                    // business days behind, so they ride a much slower cadence.
-                    val withFilings = sinceFilings >= INSIDER_REFRESH_SECS
-                    if (withFilings) sinceFilings = 0
-                    refreshFeed(includeInsider = withFilings)
+                // a cooldown that outlives the dead spot by minutes. Because the marks below
+                // are wall-clock, a dead spot costs nothing - the pass runs on the first tick
+                // with a signal rather than restarting a countdown.
+                if (haveNetwork) {
+                    val due = passDue(
+                        now = System.currentTimeMillis(),
+                        feedAt = _feedAt.value,
+                        filingsAt = lastFilingsAt,
+                        feedIntervalSecs = MarketClock.feedIntervalSecs()
+                    )
+                    if (due.anything) {
+                        // refreshFeed() pulls the same headlines and writes them into the
+                        // per-symbol news map too, so calling refreshAllNews() here as well
+                        // would fetch everything twice. It does its own gating on the
+                        // market-wide half, so a filings-only pass is cheap.
+                        refreshFeed(includeInsider = due.filings)
+                    }
                 }
             }
         }
@@ -3161,6 +3225,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun refreshInsiders(symbols: List<String>, owned: Set<String>) {
         if (symbols.isEmpty()) return
         _insiderLoading.value = true
+        // STAMPED AT THE START OF A REAL ATTEMPT, not on success (Round 66). The mark means
+        // "this device tried EDGAR at this time", which is what the cadence in `startAuto`
+        // needs to know. Stamping only on success would turn an EDGAR outage into a request
+        // on every single tick for as long as it lasted - the exact burst shape that gets a
+        // free provider to start refusing, and SEC.gov is the one host in this app with a
+        // published fair-use policy.
+        stampFilingsAt()
         try {
             val known = snapshotInsiderDocs()
             val filings = withContext(Dispatchers.IO) {
@@ -3876,6 +3947,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val now = System.currentTimeMillis()
         _feedAt.value = now
         viewModelScope.launch(Dispatchers.IO) { runCatching { db.set(Keys.FEED_AT, now.toString()) } }
+    }
+
+    /** The same, for the SEC filings cadence. See [lastFilingsAt]. */
+    private fun stampFilingsAt() {
+        val now = System.currentTimeMillis()
+        lastFilingsAt = now
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { db.set(Keys.FILINGS_AT, now.toString()) }
+        }
     }
 
     /**
@@ -5266,6 +5346,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 _lastImport.value = withContext(Dispatchers.IO) { db.lastImport() }
                 recompute()
                 refresh()
+                // ---- AND TAKE A SAFETY COPY OF WHAT WAS JUST RESTORED (Round 66).
+                //
+                // A restore is the moment the ledger is both most valuable and least
+                // protected: this device has a full set of transactions and no snapshot of
+                // its own. `force = true` because the ordinary 24-hour gate reads
+                // `AUTOSAVE_AT` / `AUTO_BACKUP_AT`, and before this round a restore imported
+                // the SOURCE phone's copies of those - so a transfer at 9am, restoring a file
+                // written at 8am, left the new phone with no backup for the rest of the day.
+                // Those keys are excluded from backups now, but forcing here is what makes
+                // the guarantee unconditional rather than a consequence of another fix.
+                autoBackupIfDue(force = true)
             }
             onDone(r)
         }

@@ -1455,15 +1455,35 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
 
     private fun isSecret(k: String) = k.contains("key", true)
 
-    /** Market data the app can rebuild from the network; never worth a byte of a backup. */
+    /**
+     * Market data the app can rebuild from the network, and "when did THIS phone last do X"
+     * marks. Never worth a byte of a backup, and actively harmful inside one.
+     *
+     * ---- THE TWO KINDS, AND WHY BOTH ARE EXCLUDED
+     *
+     * The caches are simply not worth carrying: the Research payload alone is a couple of
+     * hundred KB of screener output that is stale within the hour and rebuilt with one pull.
+     *
+     * THE TIMESTAMPS ARE THE DANGEROUS ONES. Every one of them answers "how long since this
+     * device did something", and the code that reads them treats a recent value as "no need
+     * to do it again". Carried into a backup and restored onto a NEW phone, they are a lie
+     * that suppresses exactly the work the new phone most needs to do:
+     *
+     *   * `FEED_AT` - the header reads "Updated 3 minutes ago" over a feed this device has
+     *     never fetched, and the refresh-on-open rule stays suppressed until it ages out.
+     *   * `FILINGS_AT` - the same for SEC filings (Round 66).
+     *   * `AUTOSAVE_AT` / `AUTO_BACKUP_AT` - `autoBackupIfDue` takes the newer of the two and
+     *     returns without writing if it is under 24h old. So restoring this morning's autosave
+     *     onto a new phone left that phone with NO private snapshot and no uninstall-proof
+     *     copy in Downloads for a full day - at the one moment the ledger is least protected
+     *     (Round 66).
+     *   * `DOWNLOADS_TIDIED` - restored as done, so `tidyDownloadsOnce` never runs on the new
+     *     device at all (Round 66).
+     */
     private fun isDerivedCache(k: String) =
         k == Keys.RESEARCH_CACHE || k == Keys.INSIDER_CACHE || k == Keys.INSIDER_SKIP ||
-            // WHEN THE FEED WAS LAST PULLED is a fact about THIS device's last few minutes,
-            // not a preference. Carried in a backup it lets a device transfer import another
-            // phone's timestamp - so the header reads "Updated 3 minutes ago" over a feed this
-            // device has never fetched, and the refresh-on-open rule that reads it is
-            // suppressed until it ages out.
-            k == Keys.FEED_AT
+            k == Keys.FEED_AT || k == Keys.FILINGS_AT ||
+            k == Keys.AUTOSAVE_AT || k == Keys.AUTO_BACKUP_AT || k == Keys.DOWNLOADS_TIDIED
 
     private fun appVersionName(): String = try {
         ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
@@ -1573,6 +1593,17 @@ object Keys {
 
     /** When the feed last completed a NETWORK pass, so the header survives a restart. */
     const val FEED_AT = "feed_at"
+
+    /**
+     * When SEC Form 4 filings were last pulled, on THIS device (Round 66).
+     *
+     * A real field rather than a counter inside the polling coroutine, which is what it used
+     * to be. `startAuto()` relaunches that coroutine on every return to the foreground, so the
+     * counter restarted at zero every time - meaning the half-hour filings cadence needed half
+     * an hour of UNINTERRUPTED foreground and, on a phone used in normal bursts, never fired
+     * at all. Excluded from backups for the same reason as [FEED_AT].
+     */
+    const val FILINGS_AT = "filings_at"
 
     /**
      * How many transactions were on file the last time the ledger was replayed successfully.
