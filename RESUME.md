@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 06:18:04 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 06:18:05 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,10 +34,10 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 1/9 done
+## 4. Task ledger — 2/9 done
 
 - [x] T0  Baseline: v7.6 tree green in this container  — v7.6 tree green in this container
-- [ ] T1  Thicker separator bars between stocks
+- [x] T1  Thicker separator bars between stocks  — separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
 - [ ] T2  ETF section: accurate, multi-source, healthy strong-buy funds ranked best-first
 - [ ] T3  Worst section: keep only stocks with a buyable companion short vehicle, or delete the section
 - [ ] T4  Stock research accuracy audit
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T7  Fix every confirmed finding
 - [ ] T8  REGRESSION + ship v7.7
 
-**Resume at T1** (Thicker separator bars between stocks).
+**Resume at T2** (ETF section: accurate, multi-source, healthy strong-buy funds ranked best-first).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 05:27:11 UTC  finding N06: canPanNow is remembered on the onWindow LAMBDA, and DetailScreen builds a fresh 
 - 2026-09-09 05:27:11 UTC  finding N07: The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one 
 - 2026-09-09 05:27:11 UTC  N06 fixed: keyed on whether onWindow is null, not on the lambda instance
 - 2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 06:05:20 UTC  round 66 started
 - 2026-09-09 06:05:20 UTC  T0 -> doing  surveying the app
 - 2026-09-09 06:18:04 UTC  T0 -> done  v7.6 tree green in this container
+- 2026-09-09 06:18:05 UTC  T1 -> done  separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
 
