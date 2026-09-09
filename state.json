@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 05:32:16 UTC",
+  "updated": "2026-09-09 05:32:17 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -53,8 +53,8 @@
     {
       "id": "T6",
       "title": "Ship v7.6 (versionCode 63) + final checkpoint",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "v7.6 (versionCode 63) built and signed with the same cert as v7.5; 679 tests green, lint vital clean, checkinit ok"
     }
   ],
   "findings": [
@@ -590,6 +590,7 @@
     "2026-09-09 05:28:04 UTC  finding N08: nearDown was recomputed each frame, so a drag that wandered past the slop and ca",
     "2026-09-09 05:28:04 UTC  N08 fixed: nearDown is latched: it can only ever go false",
     "2026-09-09 05:32:16 UTC  sweep 3: 2 findings (N06 low, N07 med), closed. sweep 4: 1 finding (N08 low), closed",
-    "2026-09-09 05:32:16 UTC  T5 -> done  4 sweeps: 8 findings (1 high, 3 med, 4 low), all closed; sweep 4 found one low"
+    "2026-09-09 05:32:16 UTC  T5 -> done  4 sweeps: 8 findings (1 high, 3 med, 4 low), all closed; sweep 4 found one low",
+    "2026-09-09 05:32:17 UTC  T6 -> done  v7.6 (versionCode 63) built and signed with the same cert as v7.5; 679 tests green, lint vital clean, checkinit ok"
   ]
 }
