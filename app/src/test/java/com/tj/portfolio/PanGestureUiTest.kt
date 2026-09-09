@@ -312,6 +312,49 @@ class PanGestureUiTest {
         )
     }
 
+    /**
+     * SWEEP 2, N05. `window` and `onWindow` are independent optional parameters, so a chart can
+     * be given a window it has nowhere to report a change to. The caption and the gesture read
+     * ONE predicate, and that predicate has to include everything the gesture needs - otherwise
+     * a chart in this shape offers a pan whose callback does not exist.
+     */
+    @Test fun `a zoomed chart with nowhere to report a window offers no pan`() {
+        rule.setContent {
+            PortfolioTheme(dark = false) {
+                Box(Modifier.fillMaxSize()) {
+                    PriceChart(
+                        series = series(),
+                        range = ChartRange.M6,
+                        loading = false,
+                        window = zoomed,
+                        windowBounds = whole,
+                        onZoom = { },
+                        onWindow = null
+                    )
+                }
+            }
+        }
+        rule.waitForIdle()
+        val caption = texts().firstOrNull { it.contains("pinch to zoom") }
+        assertTrue("the gesture caption is missing entirely", caption != null)
+        assertTrue(
+            "the caption offers a pan on a chart that cannot report one: \"$caption\"",
+            !caption!!.contains("drag to move")
+        )
+
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
+            down(Offset(width * 0.75f, height * 0.5f))
+            moveTo(Offset(width * 0.25f, height * 0.5f))
+        }
+        rule.waitForIdle()
+        assertTrue(
+            "the drag scrubbed nothing on a chart whose only one-finger gesture is a scrub:\n" +
+                texts().joinToString("\n"),
+            scrubbing()
+        )
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { up() }
+    }
+
     // ---------------------------------------------------------- the rest of the review
 
     /**

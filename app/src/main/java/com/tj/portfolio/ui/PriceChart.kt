@@ -282,8 +282,15 @@ fun PriceChart(
     //
     // There is one definition now and everything reads it: the caption, the choice between
     // panning and scrubbing, and the pan guard itself.
-    val canPanNow = remember(window, seriesWindowAll) {
-        window != null && seriesWindowAll != null && window.spanMs < seriesWindowAll.spanMs
+    // `onWindow != null` IS PART OF THE TEST (sweep 2, N05). Both `window` and `onWindow` are
+    // optional parameters, so a caller can legally hand this chart a window with nowhere to
+    // report a new one - and without this clause such a chart captioned "drag to move" and
+    // armed the hold while the pan callback was null and the drag scrubbed. That is M03 again,
+    // approached from the other side: the caption and the gesture must be one predicate, and
+    // the predicate has to include everything the gesture needs.
+    val canPanNow = remember(window, seriesWindowAll, onWindow) {
+        onWindow != null && window != null && seriesWindowAll != null &&
+            window.spanMs < seriesWindowAll.spanMs
     }
     val axisWindow = remember(drawnAll, window) {
         window ?: drawnAll?.let { ChartWindow(it.startMs, it.endMs) }
