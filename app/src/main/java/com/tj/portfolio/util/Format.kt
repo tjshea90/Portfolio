@@ -24,6 +24,22 @@ object Fmt {
 
     private val moneyTl = dec("#,##0.00")
     private val money3Tl = dec("#,##0.000")
+
+    /**
+     * FOUR DECIMALS, for a price CHANGE on a sub-dollar stock only (Round 66).
+     *
+     * `changeFor` and `changeMoney` both claimed in their own KDoc that "sub-dollar stocks
+     * still get four decimals, where they matter", and `changeMoney`'s worked example was
+     * "-$0.0135" - but both took the three-decimal branch, so that exact move printed as
+     * "-$0.014". Two comments describing a precision the code did not have, on the one class
+     * of holding where the missing digit is the whole move: a stock at $0.42 trades in
+     * hundredths of a cent, and rounding its change to a tenth of a cent can round a real
+     * move to zero.
+     *
+     * Deliberately NOT used by [price]: a sub-dollar PRICE at three decimals is right, and
+     * that formatter's own comment already matches its code.
+     */
+    private val money4Tl = dec("#,##0.0000")
     /**
      * Two decimals minimum, three when the value actually has a half-cent in it.
      *
@@ -41,6 +57,7 @@ object Fmt {
 
     private val money: java.text.DecimalFormat get() = moneyTl.get()!!
     private val money3: java.text.DecimalFormat get() = money3Tl.get()!!
+    private val money4: java.text.DecimalFormat get() = money4Tl.get()!!
     private val priceFmt: java.text.DecimalFormat get() = priceTl.get()!!
     private val qty: java.text.DecimalFormat get() = qtyTl.get()!!
 
@@ -70,7 +87,7 @@ object Fmt {
      */
     fun changeFor(price: Double, v: Double): String =
         (if (v >= 0) "+" else "-") +
-            (if (price > 0 && price < 1.0) money3 else priceFmt).format(abs(v))
+            (if (price > 0 && price < 1.0) money4 else priceFmt).format(abs(v))
 
     /**
      * Same digits as [changeFor], written as money: "+$1.24", "-$0.0135". Used where the
@@ -78,7 +95,7 @@ object Fmt {
      */
     fun changeMoney(price: Double, v: Double): String =
         (if (v >= 0) "+$" else "-$") +
-            (if (price > 0 && price < 1.0) money3 else priceFmt).format(abs(v))
+            (if (price > 0 && price < 1.0) money4 else priceFmt).format(abs(v))
 
     fun shares(v: Double): String = qty.format(v)
 

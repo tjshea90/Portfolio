@@ -156,7 +156,13 @@ class StorageCrashLogTest {
         assertEquals("$0.423", Fmt.price(0.4231))
         // a change is sized by the STOCK price, not by the change
         assertEquals("+0.13", Fmt.changeFor(89.0, 0.13))
-        assertEquals("+0.130", Fmt.changeFor(0.89, 0.13))
+        // ROUND 66: four decimals on a sub-dollar stock, which is what both KDocs always
+        // claimed and neither did. A stock at 42c trades in hundredths of a cent, and the
+        // missing digit was rounding real moves away.
+        assertEquals("+0.1300", Fmt.changeFor(0.89, 0.13))
+        assertEquals("-$0.0135", Fmt.changeMoney(0.42, -0.0135))
+        // ...and nothing changes for an ordinary price.
+        assertEquals("+0.13", Fmt.changeFor(89.0, 0.13))
         assertEquals("-$1.24", Fmt.changeMoney(268.0, -1.24))
     }
 

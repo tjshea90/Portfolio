@@ -328,7 +328,16 @@ private const val TRIM_MODERATE = 60
  */
 private const val MAX_FEED_ITEMS = 400
 
-/** Per-stock news list cap, for the same reason [MAX_FEED_ITEMS] exists. */
+/**
+ * Per-stock news list cap, for the same reason [MAX_FEED_ITEMS] exists.
+ *
+ * ONE CONSTANT, NOT TWO (Round 66). There used to be a second one - `MAX_NEWS_PER_SYMBOL`,
+ * 40 - applied by `mergeNews` to the same `_news[symbol]` entry, with a KDoc describing the
+ * same thing in the same words. The smaller number therefore won by accident: open a stock,
+ * get up to 60 headlines from the deep multi-source pull, and one feed interval later the
+ * merge pass silently removed the bottom 20 from the list being scrolled. A pass whose whole
+ * purpose is to ADD stories was deleting them.
+ */
 private const val MAX_SYMBOL_NEWS = 60
 
 /**
@@ -393,9 +402,6 @@ private const val MAX_INSIDER_SKIP = 4000
 
 /** How long a full multi-source pull for one stock counts as current. */
 private const val DEEP_NEWS_TTL_MS = 5 * 60 * 1000L
-
-/** Headlines kept per symbol. Enough to scroll, bounded so a long session cannot grow. */
-private const val MAX_NEWS_PER_SYMBOL = 40
 
 /** The one fixed file in Downloads that survives the app being uninstalled. */
 private const val AUTOSAVE_FILE = "portfolio-autosave.json"
@@ -1084,6 +1090,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         com.tj.portfolio.net.SymbolSearch.clearMemo()
         _news.value = emptyMap()
         _insider.value = emptyMap()
+        // ---- AND ITS FETCH MARKS, for exactly the reason the two below say (Round 66).
+        //
+        // THE BUG THIS FIXES. `insiderAt` was added after this block and was not added to it.
+        // `loadInsider`'s guard is "the map already has this symbol, or it was fetched inside
+        // the TTL" - so after a trim the first test failed (map cleared) and the second one
+        // fired, returning BEFORE the launch that would have repainted the section from
+        // `_insiderFilings`, which this handler does not clear. Background the app, let the
+        // system trim it, come back to an open stock, and its Form 4 section was blank for up
+        // to half an hour with the filings sitting in memory the whole time.
+        insiderAt.clear()
         // Same reasoning as the headlines: these are on disk as of v5, so dropping them
         // frees the heap without losing anything - loadFundamentals paints them straight
         // back from SQLite when the user reopens a stock. The fetch marks are cleared with
@@ -2434,7 +2450,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             out[sym] = (fresh + existing)
                 .distinctBy { News.dedupeKey(it) }
                 .sortedByDescending { it.published }
-                .take(MAX_NEWS_PER_SYMBOL)
+                .take(MAX_SYMBOL_NEWS)
         }
         return out
     }
@@ -2493,20 +2509,35 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     // Written through so the next open starts from these rather than from
                     // nothing, and so the month's retention applies to them too.
                     val owned = _ui.value.rows.any { it.symbol == symbol && !it.watchOnly }
+                    // ---- THE BLURB IS WRITTEN THROUGH WITH THE STORY (Round 66).
+                    //
+                    // THE BUG THIS FIXES. `summaries = emptyMap()` threw away the
+                    // `NewsItem.summary` this pass had just fetched, and this is the only
+                    // place one could ever be supplied - so the `summary` column added for it
+                    // was written as '' for every row ever stored. `DetailScreen` only draws
+                    // the blurb when it is non-blank, so: open a stock and see headlines with
+                    // their one-line summaries; leave, come back, and the list repaints from
+                    // cache with every blurb gone until a fetch lands - and stories that have
+                    // since fallen out of the source's window never get one back. The comment
+                    // below says the write-through exists "so the next open starts from
+                    // these"; it was starting from a degraded copy.
+                    //
+                    // Built ONCE and zipped by id, rather than mapping twice: the FeedItem's
+                    // id is derived, so a second pass to build the map would have to
+                    // reproduce that derivation and could drift from it.
+                    val rows = items.map {
+                        com.tj.portfolio.data.FeedItem(
+                            kind = com.tj.portfolio.data.FeedItem.NEWS,
+                            symbol = symbol, title = it.title, url = it.url,
+                            source = it.source, published = it.published,
+                            owned = owned
+                        )
+                    }
+                    val blurbs = rows.indices
+                        .filter { items[it].summary.isNotBlank() }
+                        .associate { rows[it].id to items[it].summary }
                     viewModelScope.launch(Dispatchers.IO) {
-                        runCatching {
-                            db.cacheNews(
-                                items.map {
-                                    com.tj.portfolio.data.FeedItem(
-                                        kind = com.tj.portfolio.data.FeedItem.NEWS,
-                                        symbol = symbol, title = it.title, url = it.url,
-                                        source = it.source, published = it.published,
-                                        owned = owned
-                                    )
-                                },
-                                summaries = emptyMap()
-                            )
-                        }
+                        runCatching { db.cacheNews(rows, summaries = blurbs) }
                     }
                 }
             } finally {
@@ -3972,6 +4003,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // every chart the user looked at, to enforce a bound that cannot be reached in
             // one session anyway. Every other cache in this app purges here; so does this one.
             runCatching { db.purgeChartCache() }
+            // ROUND 66: and the quotes table, which was the one cache in the app that grew
+            // without bound. See [Db.purgeQuotes] - every stock ever opened from search, the
+            // Research lists or a headline leaves a row behind, with an intraday spark series
+            // in it, and `cachedQuotes()` parses every one of them on the launch path.
+            runCatching { db.purgeQuotes() }
         }
     }
 

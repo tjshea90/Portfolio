@@ -480,6 +480,38 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         )
     }.getOrDefault(0)
 
+    /**
+     * QUOTES THE USER HAS NOT LOOKED AT IN A MONTH (Round 66).
+     *
+     * ---- THE BUG THIS FIXES
+     *
+     * Every cache in this app was pruned except this one. There was no `purgeQuotes`, no
+     * retention constant and no `DELETE FROM quotes` anywhere - but rows are written for far
+     * more than the tracked set: opening any stock from search, from the Research lists or
+     * from a headline quotes it and persists it, and `adoptAsSparkline` then writes a full
+     * intraday series into that row's `spark` column. Each one is a permanent ~1KB JSON array
+     * for a symbol looked at once.
+     *
+     * That is paid TWICE on the launch path. `cachedQuotes()` reads every row and JSON-parses
+     * every spark array, and it runs synchronously from the ViewModel's `init` - so a few
+     * months of browsing turns into hundreds of parsed arrays before the first frame - and the
+     * resulting map is then held in memory for the life of the process.
+     *
+     * ---- WHY A MONTH IS SAFE
+     *
+     * `updated` is stamped on every quote pass, and everything the user actually holds or
+     * watches is re-quoted every few seconds while the app is open. A row can only age out by
+     * not being tracked, which is exactly the row worth dropping. If one is dropped and the
+     * symbol is opened again, it costs a single quote request that was going to be made
+     * anyway.
+     */
+    fun purgeQuotes(olderThanMs: Long = 30L * 86_400_000L): Int = runCatching {
+        writableDatabase.delete(
+            "quotes", "updated < ?",
+            arrayOf((System.currentTimeMillis() - olderThanMs).toString())
+        )
+    }.getOrDefault(0)
+
     /** Row count and total payload size, for the Settings diagnostics card. */
     fun fundamentalsCacheStats(): Pair<Int, Long> = runCatching {
         readableDatabase.rawQuery(
@@ -892,7 +924,17 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                     "(id,kind,symbol,title,detail,url,source,published,owned,uid,summary,first_seen)" +
                     " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
             )
-            val upd = db.compileStatement("UPDATE news_cache SET owned=? WHERE id=?")
+            // ---- THE UPDATE CARRIES THE SUMMARY TOO (Round 66).
+            //
+            // It set `owned` and nothing else, so a row already on file could never GAIN a
+            // blurb - and since `loadNews` was passing an empty summaries map, every row was
+            // already on file with a blank one. `COALESCE(NULLIF(?, ''), summary)` writes the
+            // new summary only when there is one, so a later pass from a source that supplies
+            // no blurb cannot erase a blurb an earlier pass found.
+            val upd = db.compileStatement(
+                "UPDATE news_cache SET owned=?, summary=COALESCE(NULLIF(?, ''), summary) " +
+                    "WHERE id=?"
+            )
             for (it in items) {
                 if (it.title.isBlank()) continue
                 ins.clearBindings()
@@ -911,7 +953,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 if (ins.executeInsert() > 0) added++ else {
                     upd.clearBindings()
                     upd.bindLong(1, if (it.owned) 1L else 0L)
-                    upd.bindString(2, it.id)
+                    upd.bindString(2, summaries[it.id].orEmpty())
+                    upd.bindString(3, it.id)
                     upd.executeUpdateDelete()
                 }
             }
