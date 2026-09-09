@@ -685,3 +685,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-09 19:38:44 UTC  checkpoint 66  commit 148277a  fix H4
 2026-09-09 19:42:37 UTC  checkpoint 66  commit f090f3d  all recovered audit findings fixed: E1-E5, R1/R3/R4, H1-H4
 2026-09-09 19:48:12 UTC  checkpoint 66  commit e7f89e8  fix R2
+2026-09-09 19:48:14 UTC  checkpoint 66  commit b7f16f6  R2 fixed: priceless research rows filled on rebuild (+8 tests)
