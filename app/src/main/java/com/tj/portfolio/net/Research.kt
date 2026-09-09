@@ -118,7 +118,7 @@ object Research {
         // ---------------------------------------------------------------- trending
         val trending = buildTrending(social, yahooTrending, headlines, universe)
 
-        // ------------------------------------------------------------ best / worst
+        // ------------------------------------------------------------------ best
         val best = tradable
             .asSequence()
             .filter { it.epsForward != 0.0 || it.forwardPe > 0 }
@@ -129,19 +129,9 @@ object Research {
             .map { (row, sc) -> toRow(row, sc, headlines) }
             .toList()
 
-        val worst = tradable
-            .asSequence()
-            .map { it to ResearchScore.worst(it) }
-            .filter { it.second.score >= 25 && it.second.confidence >= 50 }
-            .sortedByDescending { it.second.score }
-            .take(BUFFER)
-            .map { (row, sc) -> toRow(row, sc, headlines) }
-            .toList()
-
         ResearchSet(
             trending = trending,
             best = best,
-            worst = worst,
             generated = System.currentTimeMillis(),
             sources = SOURCES,
             warnings = warnings
@@ -433,7 +423,6 @@ object Research {
      */
     suspend fun enrichAnalyst(
         rows: List<ResearchRow>,
-        bullish: Boolean,
         alreadyDone: Set<String> = emptySet()
     ): List<ResearchRow> = coroutineScope {
         val gate = Semaphore(3)
@@ -443,36 +432,8 @@ object Research {
                 gate.withPermit {
                     val c = runCatching { consensus(row.symbol) }.getOrNull() ?: return@withPermit row
                     val base = ResearchScore.Scored(row.score, row.reasons, 100)
-                    val blended = ResearchScore.withAnalyst(base, c, row.price, bullish)
+                    val blended = ResearchScore.withAnalyst(base, c, row.price)
                     row.copy(score = blended.score, reasons = blended.reasons, consensus = c)
-                }
-            }
-        }.map { it.await() }
-    }
-
-    /**
-     * The inverse-ETF lookup, kept apart from the analyst pass ON PURPOSE.
-     *
-     * Each one costs up to two Yahoo search calls, so it runs for the ten rows the user can
-     * see AFTER analyst coverage has settled the ranking - never for the wider window the
-     * ranking is chosen from. Doing both in one pass would have quadrupled the request count
-     * for rows that then fell off the page.
-     */
-    suspend fun enrichShortVehicles(
-        rows: List<ResearchRow>,
-        alreadyDone: Set<String> = emptySet()
-    ): List<ResearchRow> = coroutineScope {
-        val gate = Semaphore(2)
-        rows.map { row ->
-            async {
-                if (row.symbol in alreadyDone) return@async row
-                if (row.shortVehicle.isNotBlank() || row.shortVehicleNote.isNotBlank()) return@async row
-                gate.withPermit {
-                    val v = runCatching { ShortVehicle.forSymbol(row.symbol) }.getOrNull()
-                    if (v != null) row.copy(shortVehicle = v.ticker, shortVehicleNote = v.name)
-                    else row.copy(
-                        shortVehicleNote = "No listed fund shorts this stock on its own"
-                    )
                 }
             }
         }.map { it.await() }

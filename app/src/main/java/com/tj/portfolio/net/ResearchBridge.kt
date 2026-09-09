@@ -57,17 +57,6 @@ object ResearchBridge {
       }
       ... one per stock in the best list below
     ],
-    "worst": [
-      {
-        "symbol": <string - ticker, uppercase>,
-        "why": <string - 2-4 sentences: what is actually going wrong at this company and why the price is likely to keep falling>,
-        "risk": <string - the main way this call goes wrong, e.g. a short squeeze or a buyout, or "">,
-        "shortVehicle": <string - the ticker of an inverse ETF on THIS stock if one is listed, else "">,
-        "shortVehicleNote": <string - the fund's full name and its leverage, or how else to bet against it, or "">,
-        "conviction": <integer 1-10, 10 = strongest case that it falls further>
-      }
-      ... one per stock in the worst list below
-    ],
     "etfs": [
       {
         "symbol": <string - ticker, uppercase>,
@@ -124,10 +113,7 @@ see exactly what the app based its ranking on.
    that the metric is high or low.
 2. **Search the web** for what has happened to these companies in the last few days, and
    correct the app where its data is stale or wrong - say so in `notes`.
-3. For the **worst** list, name the listed inverse ETF on that specific stock if one exists
-   (Direxion "Bear 1X", GraniteShares "2x Short", Tradr, T-Rex "2X Inverse" and similar). If
-   none exists, say so plainly rather than substituting a sector fund without saying it is one.
-4. If a stock genuinely belongs in one of these lists and the app missed it, ADD it - a new
+3. If a stock genuinely belongs in one of these lists and the app missed it, ADD it - a new
    object with a symbol not in my data is fine and the app will pick it up.
 
 ### The ETF list needs real research, not just explanation
@@ -208,7 +194,6 @@ $bundle
                             if (c.target > 0) put("averageTarget", round2(c.target))
                         })
                     }
-                    if (r.shortVehicle.isNotBlank()) put("appFoundInverseEtf", r.shortVehicle)
                     r.etf?.let { e ->
                         put("fund", JSONObject().apply {
                             if (e.expenseRatio > 0) put("expenseRatioPct", e.expenseRatio)
@@ -251,7 +236,6 @@ $bundle
             if (watchlist.isNotEmpty()) put("onMyWatchlist", JSONArray(watchlist))
             put("trending", rows(set.trending))
             put("best", rows(set.best))
-            put("worst", rows(set.worst))
             put("etfs", rows(set.etfs))
             put("etfUniverse", Research.ETF_SOURCES)
             // SAID OUT LOUD, in the data as well as in the prose, because it is the single
@@ -283,8 +267,6 @@ own arithmetic; it cannot explain them and it cannot search the web.
   how often each name appears in today's market headlines.
 - "best" - the app's screen rates these good buys: forward earnings growth, an undemanding
   forward multiple, price above the 50- and 200-day averages, adequate size and liquidity.
-- "worst" - the app's screen rates these failing: losing money with no forward turn, below
-  both moving averages, deep into a 52-week decline, heavily shorted, small.
 - "etfs" - funds ranked on five- and three-year annualised NAV returns (weighted above
   anything recent), expense ratio, net assets, dollar volume, fund age and trend. Leveraged
   and inverse funds are excluded. The universe is Yahoo's own ETF screens and it OMITS
@@ -299,11 +281,9 @@ $bundleJson
 
 ${if (useWebSearch) "Search the web for what has happened to these companies in the last few days before you write anything, and correct the app's data where it is stale - say so in \"notes\".\n" else ""}
 For every row, write one plain-English explanation: what is actually happening at the
-company, not that a metric is high or low. For the worst list, name the listed inverse ETF on
-that specific stock if one exists (Direxion "Bear 1X", GraniteShares "2x Short", Tradr,
-T-Rex "2X Inverse" and similar); if none exists say so rather than substituting a sector fund
-without saying it is one. If a stock belongs in a list and the app missed it, add it. Be
-candid - if a row on the "best" list does not deserve to be there, say so in its "why".
+company, not that a metric is high or low. If a stock belongs in a list and the app missed it,
+add it. Be candid - if a row on the "best" list does not deserve to be there, say so in its
+"why".
 
 Return ONLY a JSON object, no markdown fences. The block below is a SCHEMA, not an example
 answer: replace every <...> with your own real value. The output must be valid JSON with no
@@ -317,13 +297,12 @@ $SHAPE
     data class Parsed(
         val trending: List<ResearchRow> = emptyList(),
         val best: List<ResearchRow> = emptyList(),
-        val worst: List<ResearchRow> = emptyList(),
         val etfs: List<ResearchRow> = emptyList(),
         val notes: String = "",
         val error: String? = null
     ) {
         val isEmpty: Boolean
-            get() = trending.isEmpty() && best.isEmpty() && worst.isEmpty() && etfs.isEmpty()
+            get() = trending.isEmpty() && best.isEmpty() && etfs.isEmpty()
     }
 
     /** True when this text carries a research payload at all - used to route an import. */
@@ -350,8 +329,7 @@ $SHAPE
             )
         // A reply that skipped the wrapper and returned the three arrays at the top level is
         // still a valid answer - accept it rather than making the user re-ask.
-        val bare = root.has("trending") || root.has("best") || root.has("worst") ||
-            root.has("etfs")
+        val bare = root.has("trending") || root.has("best") || root.has("etfs")
         val res = root.optJSONObject("research") ?: (if (bare) root else null)
         if (res == null) return Parsed(
             error = "That file has JSON in it, but no \"research\" block. It may be the " +
@@ -361,7 +339,6 @@ $SHAPE
         val out = Parsed(
             trending = section(res, "trending"),
             best = section(res, "best"),
-            worst = section(res, "worst"),
             etfs = section(res, "etfs"),
             notes = ClaudeBridge.scrub(res.text("notes"))
         )
@@ -389,19 +366,14 @@ $SHAPE
             )
             val risk = ClaudeBridge.scrub(o.text("risk"))
             val target = ClaudeBridge.scrub(o.text("target"))
-            val vehicle = o.text("shortVehicle").uppercase().trim()
-            val note = ClaudeBridge.scrub(o.text("shortVehicleNote"))
             // A row with nothing but a ticker adds nothing and would blank a good app row.
-            if (why.isBlank() && catalyst.isBlank() && risk.isBlank() && vehicle.isBlank()) continue
+            if (why.isBlank() && catalyst.isBlank() && risk.isBlank()) continue
             out.add(
                 ResearchRow(
                     symbol = sym,
                     why = why,
                     score = o.optInt("conviction", 0).coerceIn(0, 10) * 10,
-                    catalyst = listOf(catalyst, target).filter { it.isNotBlank() }
-                        .joinToString(" - "),
-                    shortVehicle = if (vehicle.length in 2..6) vehicle else "",
-                    shortVehicleNote = listOf(note, risk).filter { it.isNotBlank() }
+                    catalyst = listOf(catalyst, target, risk).filter { it.isNotBlank() }
                         .joinToString(" - ")
                 )
             )
@@ -415,7 +387,7 @@ $SHAPE
      * The app's score and reasons SURVIVE - they are reproducible arithmetic and Claude's
      * conviction number is not, so a returned `conviction` never overwrites a computed score;
      * it only orders rows Claude added that the app had no score for. Everything Claude is
-     * uniquely good at - the explanation, the catalyst, the inverse ETF - is merged in.
+     * uniquely good at - the explanation and the catalyst - is merged in.
      */
     fun merge(existing: List<ResearchRow>, incoming: List<ResearchRow>): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
@@ -424,9 +396,7 @@ $SHAPE
             val c = byIncoming[row.symbol] ?: return@map row
             row.copy(
                 why = c.why.ifBlank { row.why },
-                catalyst = c.catalyst.ifBlank { row.catalyst },
-                shortVehicle = c.shortVehicle.ifBlank { row.shortVehicle },
-                shortVehicleNote = c.shortVehicleNote.ifBlank { row.shortVehicleNote }
+                catalyst = c.catalyst.ifBlank { row.catalyst }
             )
         }
         val known = existing.map { it.symbol }.toSet()

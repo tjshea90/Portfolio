@@ -9,7 +9,6 @@ import com.tj.portfolio.net.Research
 import com.tj.portfolio.net.ResearchBridge
 import com.tj.portfolio.net.ResearchScore
 import com.tj.portfolio.net.Screener
-import com.tj.portfolio.net.ShortVehicle
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -169,25 +168,18 @@ class ResearchTest {
     )
 
     @Test
-    fun `the good stock outscores the bad one on the best list, and the reverse on worst`() {
+    fun `the good stock outscores the bad one on the best list`() {
         val good = ResearchScore.best(goodStock())
         val bad = ResearchScore.best(badStock())
         assertTrue("good=${good.score} bad=${bad.score}", good.score > bad.score + 30)
-
-        val goodW = ResearchScore.worst(goodStock())
-        val badW = ResearchScore.worst(badStock())
-        assertTrue("goodW=${goodW.score} badW=${badW.score}", badW.score > goodW.score + 40)
     }
 
     @Test
     fun `every score carries the reasons behind it`() {
         assertTrue(ResearchScore.best(goodStock()).reasons.isNotEmpty())
-        assertTrue(ResearchScore.worst(badStock()).reasons.isNotEmpty())
         // The specific claims the UI will print have to be real, not generic filler.
-        val why = ResearchScore.worst(badStock()).reasons.joinToString(" ").lowercase()
-        assertTrue(why.contains("loss-making"))
-        assertTrue(why.contains("downtrend"))
-        assertTrue(why.contains("most-shorted"))
+        val why = ResearchScore.best(goodStock()).reasons.joinToString(" ").lowercase()
+        assertTrue("the reasons should name the earnings growth: $why", why.contains("earnings"))
     }
 
     @Test
@@ -211,25 +203,21 @@ class ResearchTest {
     }
 
     @Test
-    fun `analyst coverage moves a score in the right direction for each list`() {
+    fun `analyst coverage moves a score in the right direction`() {
         val base = ResearchScore.Scored(60, listOf("base"), 100)
         val strongBuy = Consensus2(buy = 20, hold = 2, sell = 0, target = 150.0)
         val strongSell = Consensus2(buy = 0, hold = 3, sell = 12, target = 60.0)
 
-        // BEST: a strong buy with 50% upside should raise it; a strong sell should lower it.
-        assertTrue(ResearchScore.withAnalyst(base, strongBuy, 100.0, true).score > 60)
-        assertTrue(ResearchScore.withAnalyst(base, strongSell, 100.0, true).score < 60)
-
-        // WORST: the SAME strong-sell consensus is confirming evidence and must raise it.
-        assertTrue(ResearchScore.withAnalyst(base, strongSell, 100.0, false).score > 60)
-        assertTrue(ResearchScore.withAnalyst(base, strongBuy, 100.0, false).score < 60)
+        // A strong buy with 50% upside raises it; a strong sell with 40% downside lowers it.
+        assertTrue(ResearchScore.withAnalyst(base, strongBuy, 100.0).score > 60)
+        assertTrue(ResearchScore.withAnalyst(base, strongSell, 100.0).score < 60)
     }
 
     @Test
     fun `no analyst coverage leaves the score exactly as it was`() {
         val base = ResearchScore.Scored(72, listOf("base"), 90)
-        assertEquals(72, ResearchScore.withAnalyst(base, null, 100.0, true).score)
-        assertEquals(72, ResearchScore.withAnalyst(base, Consensus2(), 100.0, true).score)
+        assertEquals(72, ResearchScore.withAnalyst(base, null, 100.0).score)
+        assertEquals(72, ResearchScore.withAnalyst(base, Consensus2(), 100.0).score)
     }
 
     @Test
@@ -254,50 +242,19 @@ class ResearchTest {
         assertTrue(quietDay > loudDay)
     }
 
-    // ============================================================ short vehicle
-
-    @Test
-    fun `the inverse fund search finds the real funds and rejects the income fund`() {
-        val hits = ShortVehicle.parse(res("yahoo_search_short_nvda.json"))
-        assertTrue(hits.any { it.ticker == "NVD" })
-        assertTrue(hits.any { it.ticker == "NVDS" })
-
-        val targeting = hits.filter { ShortVehicle.nameTargets(it.name, "NVDA") }
-        val tickers = targeting.map { it.ticker }.toSet()
-        assertTrue("GraniteShares 2x Short NVDA is an inverse fund", "NVD" in tickers)
-        assertTrue("Tradr 1.5X Short NVDA is an inverse fund", "NVDS" in tickers)
-        // DIPS is "YieldMax Short NVDA Option Income Strategy" - it sells calls, it is not a
-        // short. Presenting it as one would be the single most misleading thing this screen
-        // could do.
-        assertFalse("DIPS is an option-income fund, not an inverse fund", "DIPS" in tickers)
-    }
-
-    @Test
-    fun `a fund is only matched when it names the ticker AND bets against it`() {
-        assertTrue(ShortVehicle.nameTargets("Direxion Daily TSLA Bear 1X ETF", "TSLA"))
-        assertTrue(ShortVehicle.nameTargets("GraniteShares 2x Short NVDA Daily ETF", "NVDA"))
-        assertTrue(ShortVehicle.nameTargets("T-REX 2X Inverse CRWV Daily Target ETF", "CRWV"))
-        // The bull fund on the same stock - the dangerous false positive.
-        assertFalse(ShortVehicle.nameTargets("Direxion Daily NVDA Bull 2X Shares", "NVDA"))
-        // An inverse fund on something else entirely.
-        assertFalse(ShortVehicle.nameTargets("Direxion Daily Semiconductor Bear 3X Shares", "NVDA"))
-        // Ticker as a substring of a longer word must not count.
-        assertFalse(ShortVehicle.nameTargets("Direxion Daily NVDAX Bear 1X ETF", "NVDA"))
-    }
-
-    @Test
-    fun `the least leveraged fund is preferred`() {
-        assertEquals(1.0, ShortVehicle.leverageOf("Direxion Daily TSLA Bear 1X ETF"), 0.001)
-        assertEquals(1.5, ShortVehicle.leverageOf("Tradr 1.5X Short NVDA Daily ETF"), 0.001)
-        assertEquals(2.0, ShortVehicle.leverageOf("GraniteShares 2x Short NVDA Daily ETF"), 0.001)
-        // Unknown sorts last so a named leverage always wins the minBy.
-        assertTrue(ShortVehicle.leverageOf("Some Inverse Fund") > 2.0)
-    }
+    // ---- THE SHORT-VEHICLE TESTS WENT WITH THE FEATURE IN ROUND 66.
+    //
+    // They covered `ShortVehicle`, which resolved "what can I buy that shorts this company"
+    // live from Yahoo's fund search. The Worst section it served is gone - measured against
+    // Yahoo in September 2026, 16 of 20 high-momentum mega-caps have a US single-stock
+    // inverse fund and 2 of 40 beaten-down names do, one of those only on foreign listings -
+    // so the matcher, its two searches per visible row, and these tests are all deleted
+    // rather than left maintaining something nothing calls.
 
     // ================================================================== bridge
 
     private val realReply = """
-Here is my read on your three lists. I searched the web for the latest on each name.
+Here is my read on your lists. I searched the web for the latest on each name.
 
 ```json
 {
@@ -310,10 +267,10 @@ Here is my read on your three lists. I searched the web for the latest on each n
     "best": [
       {"symbol": "GOOD", "why": "Steady operator trading at 14x forward with mid-teens earnings growth.", "catalyst": "Q3 earnings 12 Oct", "target": "\${'$'}125 on 17x forward", "conviction": 8}
     ],
-    "worst": [
-      {"symbol": "BAD", "why": "Cash burn with no path to profitability and a going-concern flag in the last 10-Q.", "risk": "Heavily shorted, so any financing news squeezes it", "shortVehicle": "BADZ", "shortVehicleNote": "Example Daily BAD Bear 1X", "conviction": 9}
+    "etfs": [
+      {"symbol": "VOO", "why": "The cheapest broad US index fund at 3bp, and the default first holding for most people.", "category": "broad US equity index", "conviction": 9}
     ],
-    "notes": "The app's price for BAD is about 40 minutes stale."
+    "notes": "The app's price for VOO is about 40 minutes stale."
   }
 }
 ```
@@ -326,8 +283,10 @@ Here is my read on your three lists. I searched the web for the latest on each n
         assertEquals(1, p.trending.size)
         assertEquals("MU", p.trending[0].symbol)
         assertTrue(p.best[0].why.contains("14x forward"))
-        assertEquals("BADZ", p.worst[0].shortVehicle)
-        assertEquals(90, p.worst[0].score)          // conviction 9 -> 0-100 scale
+        assertEquals("VOO", p.etfs[0].symbol)
+        assertEquals(90, p.etfs[0].score)           // conviction 9 -> 0-100 scale
+        assertTrue("the category should land in the catalyst line",
+            p.etfs[0].catalyst.contains("broad US equity index"))
         assertTrue(p.notes.contains("stale"))
         assertTrue(ResearchBridge.looksLikeResearch(realReply))
     }
@@ -356,14 +315,14 @@ Here is my read on your three lists. I searched the web for the latest on each n
             ),
             best = listOf(ResearchRow(symbol = "GOOD", price = 100.0, score = 71,
                 reasons = listOf("Forward P/E 14.00 - cheap for that growth"))),
-            worst = listOf(ResearchRow(symbol = "BAD", price = 2.0, score = 83)),
+            etfs = listOf(ResearchRow(symbol = "VOO", price = 500.0, score = 83)),
             generated = System.currentTimeMillis(),
             sources = "test"
         )
         val text = ResearchBridge.prompt(set, listOf("AAPL"), listOf("TSLA"))
         // The whole promise of the offline path is "no explanation from me", so the numbers
         // on screen have to be inside the file.
-        listOf("MU", "Micron", "210.5", "248", "GOOD", "BAD", "AAPL", "TSLA")
+        listOf("MU", "Micron", "210.5", "248", "GOOD", "VOO", "AAPL", "TSLA")
             .forEach { assertTrue("prompt file is missing $it", text.contains(it)) }
         // The app's reason lines travel with the rows.
         assertTrue(text.contains("cheap for that growth"))
@@ -447,12 +406,7 @@ Here is my read on your three lists. I searched the web for the latest on each n
                     consensus = Consensus2(16, 9, 4, 337.55), catalyst = "Earnings in 9 days"
                 )
             ),
-            worst = listOf(
-                ResearchRow(
-                    symbol = "BAD", price = 2.0, score = 83,
-                    shortVehicle = "BADZ", shortVehicleNote = "Example Bear 1X"
-                )
-            ),
+            etfs = listOf(ResearchRow(symbol = "VOO", price = 500.0, score = 83)),
             generated = 1_757_000_000_000L,
             sources = "test sources",
             warnings = listOf("one feed was quiet"),
@@ -463,7 +417,7 @@ Here is my read on your three lists. I searched the web for the latest on each n
         val back = ResearchSet.fromJson(JSONObject(original.toJson().toString()))
         assertEquals(original.toJson().toString(), back.toJson().toString())
         assertEquals(337.55, back.best[0].consensus!!.target, 0.001)
-        assertEquals("BADZ", back.worst[0].shortVehicle)
+        assertEquals("VOO", back.etfs[0].symbol)
         assertEquals(listOf("one feed was quiet"), back.warnings)
     }
 

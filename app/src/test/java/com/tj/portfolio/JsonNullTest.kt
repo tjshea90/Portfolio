@@ -68,21 +68,18 @@ class JsonNullTest {
 
     @Test fun `a reply with null optional fields does not paint the word null`() {
         val reply = """
-            {"portfolioAppResponse":1,"research":{"worst":[
-              {"symbol":"XYZ","why":"The business is shrinking.",
-               "catalyst":null,"target":null,"risk":null,
-               "shortVehicle":null,"shortVehicleNote":null}
+            {"portfolioAppResponse":1,"research":{"best":[
+              {"symbol":"XYZ","why":"The business is growing.",
+               "catalyst":null,"target":null,"risk":null}
             ],"notes":null}}
         """.trimIndent()
         val p = ResearchBridge.parse(reply)
         assertNull(p.error)
-        assertEquals(1, p.worst.size)
-        val row = p.worst.first()
+        assertEquals(1, p.best.size)
+        val row = p.best.first()
         assertEquals("XYZ", row.symbol)
-        assertEquals("The business is shrinking.", row.why)
+        assertEquals("The business is growing.", row.why)
         assertEquals("a null catalyst was painted under the card", "", row.catalyst)
-        assertEquals("a null vehicle became a red NULL chip", "", row.shortVehicle)
-        assertEquals("", row.shortVehicleNote)
         assertEquals("", p.notes)
     }
 

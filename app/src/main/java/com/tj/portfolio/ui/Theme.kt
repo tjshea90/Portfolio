@@ -93,28 +93,28 @@ val accentText: Color
     @Composable get() = if (LocalDarkTheme.current) AccentTextDark else Accent
 
 /**
- * The Research card's score colour, by tier and direction - and legible in both themes.
+ * The Research card's score colour, by tier - and legible in both themes.
  *
  * The three tiers were a single set of literals, tuned against the dark theme like the rest of
  * the palette. On white the middling amber measured 2.46:1, which is worse than the green this
  * sweep started from and it was carrying the actual number. Each tier now has a light-theme
  * value and a dark-theme one; every combination is above 4.5:1 against its own background.
  *
- * [bullish] is what the SECTION means, not what the number says: a 90 on the Worst list is a
- * strong finding about a bad company, so painting it green because the score is high would be
- * exactly wrong.
+ * NO `bullish` PARAMETER SINCE ROUND 66. It said what the SECTION meant rather than what the
+ * number said, because a 90 on the "Worst" list was a strong finding about a bad company and
+ * painting it green would have been exactly wrong. That section is gone, every remaining
+ * caller passed `true`, and the bearish half of each tier was unreachable.
  */
 @Composable
-fun scoreColor(score: Int, bullish: Boolean): Color {
+fun scoreColor(score: Int): Color {
     val dark = LocalDarkTheme.current
     return when {
-        score >= 70 -> if (bullish) greenText else redText
-        score >= 50 ->
-            if (bullish) (if (dark) Color(0xFF3D9A5B) else Color(0xFF2F7A46))
-            else (if (dark) Color(0xFFD0554A) else Color(0xFFB8483E))
+        score >= 70 -> greenText
+        score >= 50 -> if (dark) Color(0xFF3D9A5B) else Color(0xFF2F7A46)
         else -> if (dark) Color(0xFFD79A2B) else Color(0xFF8A6410)
     }
 }
+
 
 /**
  * ---- THE SAME GREEN IS NOT LEGIBLE ON BOTH BACKGROUNDS (Round 63 sweep).

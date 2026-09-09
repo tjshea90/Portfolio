@@ -141,12 +141,9 @@ data class ResearchRow(
     val headlineUrl: String = "",
     val headlineSource: String = "",
     val onYahooTrending: Boolean = false,
-    // --- best / worst
+    // --- best
     val consensus: Consensus2? = null,
     val catalyst: String = "",
-    /** The listed way to bet against this name, when one exists. Worst section only. */
-    val shortVehicle: String = "",
-    val shortVehicleNote: String = "",
     /** True when the user already holds or watches this symbol - shown as a chip. */
     val followed: Boolean = false,
     /**
@@ -186,8 +183,6 @@ data class ResearchRow(
             )
         }
         if (catalyst.isNotBlank()) put("catalyst", catalyst)
-        if (shortVehicle.isNotBlank()) put("shortVehicle", shortVehicle)
-        if (shortVehicleNote.isNotBlank()) put("shortVehicleNote", shortVehicleNote)
         etf?.let { if (!it.isEmpty || it.dollarVolume > 0 || it.inceptionMs > 0) put("etf", it.toJson()) }
     }
 
@@ -225,8 +220,6 @@ data class ResearchRow(
                     target = an.optDouble("target", 0.0).orZero()
                 ),
                 catalyst = o.text("catalyst"),
-                shortVehicle = o.text("shortVehicle"),
-                shortVehicleNote = o.text("shortVehicleNote"),
                 etf = EtfFacts.fromJson(o.optJSONObject("etf"))
             )
         }
@@ -238,7 +231,7 @@ data class ResearchRow(
 /**
  * A complete Research payload: three ranked lists plus provenance.
  *
- * [trending], [best] and [worst] hold MORE than the ten rows the screen shows. The screen
+ * [trending] and [best] hold MORE than the ten rows the screen shows. The screen
  * reveals ten at a time from what is already here, so "Load more" costs nothing on the wire -
  * TJ's rule was that nothing beyond ten is loaded unless he asks, and the expensive per-symbol
  * work (analyst consensus, the short vehicle lookup) is done for the visible ten only.
@@ -246,7 +239,6 @@ data class ResearchRow(
 data class ResearchSet(
     val trending: List<ResearchRow> = emptyList(),
     val best: List<ResearchRow> = emptyList(),
-    val worst: List<ResearchRow> = emptyList(),
     /**
      * BEST ETFS (Round 63) - ranked funds, and the one section with its own clock.
      *
@@ -281,22 +273,26 @@ data class ResearchSet(
      * list in would make a populated ETF tab suppress the stock rebuild that fills the other
      * three. [isFullyEmpty] is the one for "is there anything on this screen at all".
      */
-    val isEmpty: Boolean get() = trending.isEmpty() && best.isEmpty() && worst.isEmpty()
+    val isEmpty: Boolean get() = trending.isEmpty() && best.isEmpty()
 
     val isFullyEmpty: Boolean get() = isEmpty && etfs.isEmpty()
 
+    // EXHAUSTIVE, with no `else` (Round 66). The fallback used to be `worst`, so an unknown
+    // section name silently returned the wrong list rather than an empty one - and when that
+    // section was removed the fallback would have started returning Best's rows to anybody
+    // asking for something that no longer exists.
     fun section(name: String): List<ResearchRow> = when (name) {
         SECTION_TRENDING -> trending
         SECTION_BEST -> best
         SECTION_ETF -> etfs
-        else -> worst
+        else -> emptyList()
     }
 
     fun withSection(name: String, rows: List<ResearchRow>): ResearchSet = when (name) {
         SECTION_TRENDING -> copy(trending = rows)
         SECTION_BEST -> copy(best = rows)
         SECTION_ETF -> copy(etfs = rows)
-        else -> copy(worst = rows)
+        else -> this
     }
 
     fun toJson(): JSONObject = JSONObject().apply {
@@ -310,7 +306,6 @@ data class ResearchSet(
         if (notes.isNotBlank()) put("notes", notes)
         put("trending", JSONArray().also { a -> trending.forEach { a.put(it.toJson()) } })
         put("best", JSONArray().also { a -> best.forEach { a.put(it.toJson()) } })
-        put("worst", JSONArray().also { a -> worst.forEach { a.put(it.toJson()) } })
         put("etfs", JSONArray().also { a -> etfs.forEach { a.put(it.toJson()) } })
         if (etfGenerated > 0) put("etfGenerated", etfGenerated)
         if (etfWarnings.isNotEmpty()) put("etfWarnings", JSONArray(etfWarnings))
@@ -319,9 +314,8 @@ data class ResearchSet(
     companion object {
         const val SECTION_TRENDING = "TRENDING"
         const val SECTION_BEST = "BEST"
-        const val SECTION_WORST = "WORST"
         const val SECTION_ETF = "ETF"
-        val SECTIONS = listOf(SECTION_TRENDING, SECTION_BEST, SECTION_WORST, SECTION_ETF)
+        val SECTIONS = listOf(SECTION_TRENDING, SECTION_BEST, SECTION_ETF)
 
         /** How many rows one page of a section shows. */
         const val PAGE = 10
@@ -350,7 +344,6 @@ data class ResearchSet(
             return ResearchSet(
                 trending = rows("trending"),
                 best = rows("best"),
-                worst = rows("worst"),
                 etfs = rows("etfs"),
                 etfGenerated = o.optLong("etfGenerated", 0L),
                 etfWarnings = etfWarn,

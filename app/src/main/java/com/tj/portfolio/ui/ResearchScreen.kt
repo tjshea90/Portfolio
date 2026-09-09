@@ -51,48 +51,43 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tj.portfolio.data.ResearchRow
 import com.tj.portfolio.data.ResearchSet
-import com.tj.portfolio.net.ShortVehicle
 import com.tj.portfolio.util.Fmt
 
 /**
  * One of the three lists, as a tab.
  *
- * ROUND 56: they used to be three sections stacked in one scroll. Reaching Worst meant
- * scrolling past a header, ten Trending cards and ten Best cards - and each card is tall,
- * because it carries its own reason lines and often a Claude paragraph. Tabs make each list
- * one gesture away and keep the scroll position of the one you were reading.
+ * ROUND 56: they used to be stacked in one scroll, and reaching the last one meant scrolling
+ * past a header and twenty tall cards - each carries its own reason lines and often a Claude
+ * paragraph. Tabs make each list one gesture away and keep the scroll position of the one you
+ * were reading.
  *
- * The data layer is untouched: all three lists are still built by the same single pass, and
- * `PAGE` rows of each are still the only ones that cost per-row requests. Switching tabs
- * costs nothing.
+ * ROUND 66 REMOVED THE "WORST" TAB. Its premise was that a failing company could be paired
+ * with something buyable that shorts it. Measured against Yahoo in September 2026: 16 of 20
+ * high-momentum mega-caps have a US single-stock inverse fund, and 2 of 40 beaten-down names
+ * do - one of those two only on London and Milan listings a US account cannot buy. Issuers
+ * launch these products on whatever retail trades heavily, not on companies in trouble, so
+ * the section could not be made actionable and is gone rather than misleading.
+ *
+ * The data layer is otherwise untouched: the remaining lists are still built by the same
+ * single pass, and `PAGE` rows of each are still the only ones that cost per-row requests.
  */
 private enum class Section(
     val key: String,
     val tab: String,
-    val blurb: String,
-    val bullish: Boolean
+    val blurb: String
 ) {
     TRENDING(
         ResearchSet.SECTION_TRENDING, "Trending",
         "r/wallstreetbets mentions blended with how often each name appears in today's " +
-            "market headlines.",
-        true
+            "market headlines."
     ),
     BEST(
         ResearchSet.SECTION_BEST, "Best",
         "Forward earnings growth, a forward multiple that has not priced it in, price above " +
-            "the 50- and 200-day averages, and analyst consensus.",
-        true
+            "the 50- and 200-day averages, and analyst consensus."
     ),
-    WORST(
-        ResearchSet.SECTION_WORST, "Worst",
-        "Losing money with no forward turn, below both moving averages, deep into a 52-week " +
-            "decline, heavily shorted, small.",
-        false
-    ),
-
     /**
-     * BEST ETFS (Round 63). The fourth list, and the only one built on its own clock.
+     * BEST ETFS (Round 63). The third list, and the only one built on its own clock.
      *
      * Its blurb leads with what it is RANKED ON rather than with what it contains, because
      * the honest headline for a fund list is the weighting: five- and three-year annualised
@@ -102,14 +97,12 @@ private enum class Section(
         ResearchSet.SECTION_ETF, "ETFs",
         "Funds ranked on five- and three-year annualised returns, weighted above anything " +
             "recent, then expense ratio, fund size, dollar volume, how long it has existed " +
-            "and its trend. Leveraged and inverse funds are left out.",
-        true
+            "and its trend. Leveraged and inverse funds are left out."
     );
 
     fun rowsIn(set: ResearchSet): List<ResearchRow> = when (this) {
         TRENDING -> set.trending
         BEST -> set.best
-        WORST -> set.worst
         ETFS -> set.etfs
     }
 }
@@ -335,12 +328,10 @@ fun ResearchScreen(
             // `LazyListState()` objects looks equivalent and silently loses all three.
             val trendingState = androidx.compose.foundation.lazy.rememberLazyListState()
             val bestState = androidx.compose.foundation.lazy.rememberLazyListState()
-            val worstState = androidx.compose.foundation.lazy.rememberLazyListState()
             val etfState = androidx.compose.foundation.lazy.rememberLazyListState()
             val listState = when (section) {
                 Section.TRENDING -> trendingState
                 Section.BEST -> bestState
-                Section.WORST -> worstState
                 Section.ETFS -> etfState
             }
             LazyColumn(
@@ -356,14 +347,6 @@ fun ResearchScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (section == Section.WORST) {
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                ShortVehicle.WARNING,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Red
-                            )
-                        }
                     }
                 }
 
@@ -398,7 +381,7 @@ fun ResearchScreen(
                         rows.take(visibleCount),
                         key = { "${section.key}_${it.symbol}" }
                     ) { r ->
-                        ResearchCard(r, section.bullish, r.symbol in watched, onOpen, onOpenUrl)
+                        ResearchCard(r, r.symbol in watched, onOpen, onOpenUrl)
                     }
                     item(key = "more") {
                         Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
@@ -555,17 +538,15 @@ fun ResearchScreen(
 @Composable
 private fun ResearchCard(
     r: ResearchRow,
-    bullish: Boolean,
     followed: Boolean,
     onOpen: (String) -> Unit,
     onOpenUrl: (String, String) -> Unit
 ) {
-    // Colour is by score AND direction: a 90 on the Worst list is a strong finding about a
-    // bad company, so painting it green because the number is high would be exactly wrong.
-    // See `scoreColor`: this colour is printed as the score itself, on a 16%-alpha tint that
+    // Colour is by score. See `scoreColor`, and the note there about why it no longer takes
+    // a direction. This colour is printed as the score itself, on a 16%-alpha tint that
     // is nearly the card's own background - so it is read against white in the light theme,
     // where the old literals measured as low as 2.46:1.
-    val c = scoreColor(r.score, bullish)
+    val c = scoreColor(r.score)
     Box(Modifier.padding(horizontal = 16.dp, vertical = 5.dp)) {
         StatCard(modifier = Modifier.clickable { onOpen(r.symbol) }) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -704,22 +685,6 @@ private fun ResearchCard(
                     )
                     Spacer(Modifier.height(3.dp))
                     Text(r.why, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-
-            // --- the way to bet against it
-            if (!bullish && (r.shortVehicle.isNotBlank() || r.shortVehicleNote.isNotBlank())) {
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (r.shortVehicle.isNotBlank()) {
-                        Chip(r.shortVehicle, Red)
-                        Spacer(Modifier.width(8.dp))
-                    }
-                    Text(
-                        r.shortVehicleNote.ifBlank { "inverse ETF on this stock" },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
 

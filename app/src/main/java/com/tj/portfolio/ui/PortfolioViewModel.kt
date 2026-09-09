@@ -478,28 +478,17 @@ internal fun carryExplanations(
         )
     }
     if (old.isEmpty) return keepEtfs(fresh)
-    val prior = (old.trending + old.best + old.worst).associateBy { it.symbol }
+    val prior = (old.trending + old.best).associateBy { it.symbol }
     if (prior.isEmpty()) return keepEtfs(fresh)
     fun carry(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
         val p = prior[r.symbol] ?: return@map r
-        // THE INVERSE-ETF MAPPING IS CARRIED TOO, SINCE ROUND 57.
-        //
-        // Only `why` used to survive a rebuild. `shortVehicle` did not, so every fresh
-        // row came back blank, `vehicleDone` was cleared at the same moment, and the
-        // early-out in `Research.enrichShortVehicles` never fired - meaning up to twenty
-        // Yahoo search requests every thirty minutes, indefinitely, to re-derive that
-        // TSLA's inverse ETF is TSLS. That mapping changes perhaps twice a year.
-        r.copy(
-            why = if (p.why.isNotBlank()) p.why else r.why,
-            shortVehicle = if (r.shortVehicle.isBlank()) p.shortVehicle else r.shortVehicle,
-            shortVehicleNote =
-                if (r.shortVehicleNote.isBlank()) p.shortVehicleNote else r.shortVehicleNote
-        )
+        // Claude's explanation survives a rebuild; the app's own score and reasons are
+        // recomputed from fresh screener data every time, which is the point of a rebuild.
+        r.copy(why = if (p.why.isNotBlank()) p.why else r.why)
     }
     return fresh.copy(
         trending = carry(fresh.trending),
         best = carry(fresh.best),
-        worst = carry(fresh.worst),
         // ---- THE FUND LIST AND ITS OWN CLOCK, CARRIED ACROSS EXPLICITLY.
         //
         // `fresh` comes from `Research.build`, which builds the three STOCK lists and
@@ -1207,7 +1196,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** "BEST:NVDA" - so a second pass over the same row never re-fetches it. */
     private val analystDone = java.util.Collections.synchronizedSet(HashSet<String>())
-    private val vehicleDone = java.util.Collections.synchronizedSet(HashSet<String>())
     private var researchJob: Job? = null
 
     /**
@@ -4702,7 +4690,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     researchRetry.success(RETRY_STOCKS)
                     analystDone.clear()
-                    vehicleDone.clear()
                     // A rebuild carries forward the explanations already on file for the same
                     // symbols - Claude's paragraph about NVDA does not go stale in 30 minutes,
                     // and re-earning it would mean another API call or another file round trip.
@@ -4723,16 +4710,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (cur >= total) return
         _researchShown.value = _researchShown.value +
             (section to (cur + com.tj.portfolio.data.ResearchSet.PAGE).coerceAtMost(total))
-        // ONLY WHERE THERE IS A PER-ROW LOOKUP TO PAY FOR. `enrichPass` walks Best and Worst
-        // and nothing else - a fund's expense ratio and its returns arrived with the screener
-        // row, so an ETF page has no second stage at all. Calling it anyway flipped the busy
-        // indicator and ran an analyst sweep over two unrelated lists every time ten more
-        // funds were revealed.
-        if (section == com.tj.portfolio.data.ResearchSet.SECTION_BEST ||
-            section == com.tj.portfolio.data.ResearchSet.SECTION_WORST
-        ) {
-            enrichVisible()
-        }
+        // ONLY WHERE THERE IS A PER-ROW LOOKUP TO PAY FOR. `enrichPass` walks Best and
+        // nothing else - a fund's expense ratio and its returns arrived with the screener row,
+        // so an ETF page has no second stage at all, and Trending has no analyst pass. Calling
+        // it anyway flipped the busy indicator and ran an analyst sweep over an unrelated list
+        // every time ten more funds were revealed.
+        if (section == com.tj.portfolio.data.ResearchSet.SECTION_BEST) enrichVisible()
     }
 
     fun resetResearchPaging() {
@@ -4786,11 +4769,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** One sweep over the visible windows. Returns true if it fetched anything. */
     private suspend fun enrichPass(): Boolean {
         var did = false
-        for (name in listOf(
-            com.tj.portfolio.data.ResearchSet.SECTION_BEST,
-            com.tj.portfolio.data.ResearchSet.SECTION_WORST
-        )) {
-            val bullish = name == com.tj.portfolio.data.ResearchSet.SECTION_BEST
+        // ONE SECTION HAS A SECOND STAGE. Trending is ranked on chatter, not on
+        // fundamentals, and an ETF's numbers all arrived with its screener row.
+        for (name in listOf(com.tj.portfolio.data.ResearchSet.SECTION_BEST)) {
             val rows = _research.value.section(name)
             if (rows.isEmpty()) continue
             val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
@@ -4803,7 +4784,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 did = true
                 val enriched = withContext(Dispatchers.IO) {
                     com.tj.portfolio.net.Research.enrichAnalyst(
-                        head, bullish,
+                        head,
                         alreadyDone = head.map { it.symbol }
                             .filter { "$name:$it" in done }.toSet()
                     )
@@ -4832,20 +4813,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 _research.value = _research.value.withSection(name, ranked + tail)
             }
 
-            // Stage two: the short vehicle, page only, after the ranking has settled.
-            if (!bullish) {
-                val page = _research.value.section(name).take(shown)
-                val vdone = vehicleDone.toSet()
-                if (page.any { it.symbol !in vdone }) {
-                    did = true
-                    val withVehicles = withContext(Dispatchers.IO) {
-                        com.tj.portfolio.net.Research.enrichShortVehicles(page, alreadyDone = vdone)
-                    }
-                    page.forEach { vehicleDone.add(it.symbol) }
-                    val rest = _research.value.section(name).drop(shown)
-                    _research.value = _research.value.withSection(name, withVehicles + rest)
-                }
-            }
         }
         return did
     }
@@ -4860,7 +4827,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         return s.copy(
             trending = cut(com.tj.portfolio.data.ResearchSet.SECTION_TRENDING),
             best = cut(com.tj.portfolio.data.ResearchSet.SECTION_BEST),
-            worst = cut(com.tj.portfolio.data.ResearchSet.SECTION_WORST),
             etfs = cut(com.tj.portfolio.data.ResearchSet.SECTION_ETF)
         )
     }
@@ -4975,7 +4941,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val merged = cur.copy(
             trending = com.tj.portfolio.net.ResearchBridge.merge(cur.trending, parsed.trending),
             best = com.tj.portfolio.net.ResearchBridge.merge(cur.best, parsed.best),
-            worst = com.tj.portfolio.net.ResearchBridge.merge(cur.worst, parsed.worst),
             // RE-SORTED, unlike the other three. Claude is asked to ADD funds the app's
             // screener universe cannot see - which is the whole point of researching this
             // list online - and an added fund appended to the end of a ranked list would sit
@@ -4990,22 +4955,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // MERGED, not overwritten - every other field in this copy is. A second reply
             // that simply omits `notes` used to erase the first one's paragraph.
             notes = parsed.notes.ifBlank { cur.notes },
-            // Claude may have named the inverse ETF the app could not find, and that answer
-            // must not be overwritten by a later "no listed fund shorts this" lookup.
+            // The rebuild clock is NOT advanced by an explanation pass: Claude wrote prose
+            // about rows the screener produced, it did not re-screen anything.
             generated = cur.generated
         )
         cacheResearch(merged)
-        parsed.worst.filter { it.shortVehicle.isNotBlank() }.forEach { vehicleDone.add(it.symbol) }
         _researchError.value = null
-        val known = (cur.trending + cur.best + cur.worst + cur.etfs).map { r -> r.symbol }.toSet()
-        val added = (parsed.trending + parsed.best + parsed.worst + parsed.etfs)
+        val known = (cur.trending + cur.best + cur.etfs).map { r -> r.symbol }.toSet()
+        val added = (parsed.trending + parsed.best + parsed.etfs)
             .map { it.symbol }.distinct().count { it !in known }
         // Anything Claude ADDED has no price yet - fetch those quotes so the new rows are
         // not the only ones on screen without a number beside them.
-        val newSymbols = (merged.trending + merged.best + merged.worst + merged.etfs)
+        val newSymbols = (merged.trending + merged.best + merged.etfs)
             .filter { it.price <= 0.0 }.map { it.symbol }.distinct().take(20)
         if (newSymbols.isNotEmpty()) fillResearchPrices(newSymbols)
-        val n = parsed.trending.size + parsed.best.size + parsed.worst.size + parsed.etfs.size
+        val n = parsed.trending.size + parsed.best.size + parsed.etfs.size
         return "Research updated - $n explained" + (if (added > 0) ", $added added" else "")
     }
 
@@ -5040,8 +5004,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // re-spent it on the next import because the row still had no price.
             cacheResearch(
                 s.copy(
-                    trending = fill(s.trending), best = fill(s.best), worst = fill(s.worst),
-                    etfs = fill(s.etfs)
+                    trending = fill(s.trending), best = fill(s.best), etfs = fill(s.etfs)
                 )
             )
         }

@@ -159,107 +159,17 @@ object ResearchScore {
         return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
     }
 
-    // -------------------------------------------------------------------- WORST
-
-    /**
-     * "Failing and likely to fall further" as the numbers can define it: losing money with
-     * no forward turn, below both moving averages, deep into a 52-week decline, heavily
-     * shorted, and small enough that none of that is cushioned.
-     *
-     * A high score here is NOT a short recommendation. Heavily shorted names are exactly the
-     * ones that squeeze, and the UI says so next to the short vehicle.
-     */
-    fun worst(r: ScreenRow): Scored {
-        val why = ArrayList<String>()
-        var s = 0.0
-        var have = 0
-        var want = 0
-
-        // --- losing money (0-25)
-        want++
-        if (r.epsTtm != 0.0 || r.epsForward != 0.0) {
-            have++
-            if (r.epsTtm < 0) {
-                s += 15.0
-                if (r.epsForward < 0) {
-                    s += 10.0
-                    why.add(
-                        "Loss-making now (${Fmt.priceBare(r.epsTtm)}/share) and still " +
-                            "forecast to lose money (${Fmt.priceBare(r.epsForward)}/share)"
-                    )
-                } else {
-                    why.add("Loss-making: trailing EPS ${Fmt.priceBare(r.epsTtm)}")
-                }
-            } else if (r.epsForward in 0.0..r.epsTtm && r.epsTtm > 0.01) {
-                val shrink = (r.epsTtm - r.epsForward) / r.epsTtm
-                s += ramp(shrink * 100.0, 0.0, 50.0, 15.0)
-                if (shrink > 0.10) why.add(
-                    "Earnings shrinking - forward EPS ${Fmt.priceBare(r.epsForward)} " +
-                        "below ${Fmt.priceBare(r.epsTtm)} trailing"
-                )
-            }
-        }
-
-        // --- downtrend (0-25)
-        want++
-        if (r.price > 0 && r.fiftyDayAvg > 0 && r.twoHundredDayAvg > 0) {
-            have++
-            var t = 0.0
-            if (r.price < r.fiftyDayAvg) t += 10.0
-            if (r.fiftyDayAvg < r.twoHundredDayAvg) t += 10.0
-            if (r.price < r.twoHundredDayAvg) t += 5.0
-            s += t
-            if (t >= 25.0) why.add("In a clear downtrend - below the 50-day and the 200-day, with the 50-day falling through the 200-day")
-            else if (t > 0) why.add("Below at least one of its moving averages")
-        }
-
-        // --- a year of damage (0-20)
-        want++
-        if (r.fiftyTwoWeekChangePct != 0.0) {
-            have++
-            s += ramp(-r.fiftyTwoWeekChangePct, 10.0, 65.0, 20.0)
-            if (r.fiftyTwoWeekChangePct <= -20) why.add(
-                "Down ${pct(abs(r.fiftyTwoWeekChangePct))} over the past year"
-            )
-        }
-
-        // --- sitting on the 52-week low (0-10)
-        want++
-        val pos = r.rangePos
-        if (pos >= 0) {
-            have++
-            s += ramp(-pos, -0.35, -0.02, 10.0)
-            if (pos <= 0.12) why.add("Trading near its 52-week low of ${Fmt.price(r.fiftyTwoWeekLow)}")
-        }
-
-        // --- crowded short (0-10)
-        if (Screener.Lists.MOST_SHORTED in r.lists) {
-            s += 10.0
-            why.add("On Yahoo's most-shorted list - the market is already betting against it")
-        }
-
-        // --- valuation that cannot be defended (0-10)
-        var v = 0.0
-        if (r.forwardPe > 80) { v += 6.0; why.add("Forward P/E of ${Fmt.priceBare(r.forwardPe)} leaves no room for a miss") }
-        if (r.priceToBook < 0) { v += 5.0; why.add("Negative book value - liabilities exceed assets") }
-        else if (r.priceToBook > 15) v += 3.0
-        s += min(v, 10.0)
-
-        // --- fragility (0-10)
-        want++
-        if (r.marketCap > 0) {
-            have++
-            s += ramp(-r.marketCap, -2e9, -1e8, 10.0)
-            if (r.marketCap < 5e8) why.add(
-                "Small company (${Fmt.compact(r.marketCap)}) - little cushion and a thin market in the shares"
-            )
-        }
-
-        // A stock that is DOWN today on top of everything else is confirming, not causing.
-        if (r.changePct <= -4.0) why.add("Down ${pct(abs(r.changePct))} today")
-
-        return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
-    }
+    // ---- THE "WORST" SCORER WAS REMOVED IN ROUND 66.
+    //
+    // It ranked companies the screen rated as failing, for a section whose point was that
+    // each name could be paired with something buyable that shorts it. Measured against
+    // Yahoo in September 2026: 16 of 20 high-momentum mega-caps have a US single-stock
+    // inverse fund; 2 of 40 beaten-down names do, and one of those two only on London and
+    // Milan listings a US account cannot buy. Issuers launch these products on whatever
+    // retail trades heavily, not on companies in trouble - so the section could not be made
+    // actionable, and a list of failing companies with no way to act on it is not what the
+    // app is for. The section, its scorer, the inverse-ETF lookup and its two Yahoo searches
+    // per visible row all went together.
 
     // ----------------------------------------------------------------- TRENDING
 
@@ -338,7 +248,7 @@ object ResearchScore {
     /**
      * Fold analyst coverage into a score that was computed from price and earnings alone.
      *
-     * Kept SEPARATE from [best] / [worst] because the coverage arrives later: the screener
+     * Kept SEPARATE from [best] because the coverage arrives later: the screener
      * pass ranks a few hundred candidates with no extra requests, and only the ten rows the
      * user can actually see are then enriched with one Nasdaq call each. Blending rather
      * than adding keeps the result on the same 0-100 scale as an un-enriched row, so a
@@ -347,13 +257,20 @@ object ResearchScore {
      * 70/30 in favour of the app's own numbers. Analysts are a real signal and a lagging,
      * herd-prone one; they get a third of the vote, not a veto.
      */
-    fun withAnalyst(base: Scored, c: Consensus2?, price: Double, bullish: Boolean): Scored {
+    // ---- NO `bullish` PARAMETER SINCE ROUND 66.
+    //
+    // It existed to serve the "Worst" list, where a strong-SELL consensus and a price target
+    // BELOW the market were confirming evidence rather than a warning. That list is gone (see
+    // the note where its scorer used to be), so every caller passed `true` and both branches
+    // of every `if (bullish)` in here were dead on one side. Reading the bullish arithmetic
+    // straight is clearer than reading a conditional that can only go one way.
+    fun withAnalyst(base: Scored, c: Consensus2?, price: Double): Scored {
         if (c == null || (c.total == 0 && c.target <= 0)) return base
         val why = ArrayList(base.reasons)
         var a = 50.0
 
         if (c.total > 0) {
-            val share = if (bullish) c.buyShare else c.sellShare + c.hold.toDouble() / c.total * 0.35
+            val share = c.buyShare
             a = 20.0 + share.coerceIn(0.0, 1.0) * 60.0
             val lab = c.label()
             why.add(
@@ -364,9 +281,7 @@ object ResearchScore {
 
         val up = c.upsidePct(price)
         if (!up.isNaN()) {
-            // For the BEST list upside is good; for the WORST list downside is the signal.
-            val signed = if (bullish) up else -up
-            a += ramp(signed, -20.0, 40.0, 30.0) - 12.0
+            a += ramp(up, -20.0, 40.0, 30.0) - 12.0
             why.add(
                 if (up >= 0)
                     "Average price target ${Fmt.price(c.target)} - ${pct(up)} above today"
@@ -388,10 +303,10 @@ object ResearchScore {
         if (want <= 0) 0 else (have * 100 / max(1, want)).coerceIn(0, 100)
 
     /** One-line verdict for the score, used as the row's headline label. */
-    fun grade(score: Int, bullish: Boolean): String = when {
-        score >= 75 -> if (bullish) "Strong" else "Severe"
-        score >= 60 -> if (bullish) "Good" else "Weak"
-        score >= 45 -> if (bullish) "Fair" else "Shaky"
-        else -> if (bullish) "Marginal" else "Mild"
+    fun grade(score: Int): String = when {
+        score >= 75 -> "Strong"
+        score >= 60 -> "Good"
+        score >= 45 -> "Fair"
+        else -> "Marginal"
     }
 }

@@ -25,8 +25,8 @@ import org.junit.Test
  */
 class ResearchCarryTest {
 
-    private fun stock(sym: String, why: String = "", vehicle: String = "") =
-        ResearchRow(symbol = sym, score = 70, why = why, shortVehicle = vehicle)
+    private fun stock(sym: String, why: String = "") =
+        ResearchRow(symbol = sym, score = 70, why = why)
 
     private fun fund(sym: String, why: String = "", category: String = "") = ResearchRow(
         symbol = sym, score = 80, why = why, catalyst = category,
@@ -88,11 +88,16 @@ class ResearchCarryTest {
         assertEquals(listOf("VOO"), out.etfs.map { it.symbol })
     }
 
-    @Test fun `the inverse-ETF mapping still survives, as it did before`() {
-        val old = ResearchSet(worst = listOf(stock("XYZ", why = "w", vehicle = "XYZS")))
-        val out = carryExplanations(old, ResearchSet(worst = listOf(stock("XYZ"))))
-        assertEquals("XYZS", out.worst.first().shortVehicle)
-        assertEquals("w", out.worst.first().why)
+    /**
+     * ROUND 66 replaced the inverse-ETF version of this test. That mapping went with the
+     * Worst section; what still has to survive a rebuild is Claude's explanation, which is
+     * the expensive part - it costs an API call or a file round trip, and a company's story
+     * does not go stale in the thirty minutes between screener rebuilds.
+     */
+    @Test fun `an explanation survives a rebuild of the same symbol`() {
+        val old = ResearchSet(best = listOf(stock("XYZ", why = "w")))
+        val out = carryExplanations(old, ResearchSet(best = listOf(stock("XYZ"))))
+        assertEquals("w", out.best.first().why)
     }
 
     // ------------------------------------------------- the fund list's own rebuild
