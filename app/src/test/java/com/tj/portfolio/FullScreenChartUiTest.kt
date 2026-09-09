@@ -18,6 +18,7 @@ import com.tj.portfolio.data.ChartPoint
 import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.ChartWindow
+import androidx.compose.ui.semantics.getOrNull
 import com.tj.portfolio.ui.CHART_TEST_TAG
 import com.tj.portfolio.ui.EXPAND_TEST_TAG
 import com.tj.portfolio.ui.FULLSCREEN_CLOSE_TAG
@@ -65,10 +66,16 @@ class FullScreenChartUiTest {
 
     private var closed = 0
 
-    private fun show(open: Boolean = true) {
+    private fun show(
+        open: Boolean = true,
+        fontScale: Float = 1f,
+        compare: ChartSeries? = null
+    ) {
         rule.setContent {
             val base = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(base.density, 1f)) {
+            CompositionLocalProvider(
+                LocalDensity provides Density(base.density, fontScale)
+            ) {
                 PortfolioTheme(dark = false) {
                     var showing by remember { mutableStateOf(open) }
                     if (showing) {
@@ -86,7 +93,8 @@ class FullScreenChartUiTest {
                             windowBounds = ChartWindow(series().startMs, series().endMs),
                             onWindow = {},
                             onResetWindow = {},
-                            compare = null,
+                            onZoomingChanged = {},
+                            compare = compare,
                             compareLabel = "SPY",
                             compareLivePrice = 0.0,
                             onClose = { closed++; showing = false }
@@ -140,6 +148,40 @@ class FullScreenChartUiTest {
         rule.waitForIdle()
         assertEquals("close did not fire", 1, closed)
         rule.onNodeWithTag(FULLSCREEN_TAG).assertDoesNotExist()
+    }
+
+
+    @Test fun `the caption survives the SPY overlay and a large font`() {
+        // THE REGRESSION THIS PROVES FIXED. The drawn area used to be "the window minus a
+        // fixed 150dp", an allowance with no slack in it: turning the overlay on added a
+        // legend row and pushed the caption off the bottom, and every part of that allowance
+        // is text in sp, so any font scale above 1.0 overflowed as well. The chart now takes
+        // whatever is left after the rest of the column has measured itself.
+        val bench = ChartSeries(
+            symbol = "SPY", range = ChartRange.M6,
+            points = (0 until 180).map {
+                ChartPoint(1_740_000_000L + it * 86_400L, 400.0 + it * 0.5)
+            },
+            baseline = 400.0, fetched = System.currentTimeMillis()
+        )
+        show(fontScale = 1.5f, compare = bench)
+        val d = rule.density.density
+        val root = rule.onNodeWithTag(FULLSCREEN_TAG).fetchSemanticsNode().boundsInRoot
+        val caption = rule.onAllNodes(
+            androidx.compose.ui.test.SemanticsMatcher("the caption") {
+                it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)
+                    ?.joinToString(" ")?.contains("daily closes") == true
+            },
+            useUnmergedTree = true
+        ).fetchSemanticsNodes().firstOrNull()
+        assertTrue("the caption is not on screen at all", caption != null)
+        assertTrue(
+            "the caption is cut off at the bottom " +
+                "(${caption!!.boundsInRoot.bottom / d}dp of ${root.bottom / d}dp)",
+            caption.boundsInRoot.bottom <= root.bottom + 1f
+        )
+        val h = chartHeightDp()
+        assertTrue("the chart collapsed to ${h}dp making room", h >= 200f)
     }
 
     @Test fun `the phone is allowed to turn while it is open`() {

@@ -94,12 +94,10 @@ fun StockRowItem(
                 // between them. That blank strip is what TJ is pointing at.
                 //
                 // TWO WEIGHTS INSTEAD OF ONE, so there is no unclaimed space left to be
-                // blank: 1.4 to 1 hands the text about 190dp and the chart about 135dp on a
+                // blank: 1.6 to 1 hands the text about 200dp and the chart about 125dp on a
                 // 411dp phone, and stays in proportion on a narrower or wider one - which a
-                // fixed width cannot do. 1.4 is the smallest ratio at which the widest
-                // realistic holdings line ("1,234.5678 shares - avg $1,234.56") still fits
-                // without ellipsis at the default font scale; `SparklineSizeUiTest` measures
-                // that rather than trusting the arithmetic.
+                // fixed width cannot do. `SparklineSizeUiTest` renders the row and measures
+                // both halves rather than trusting that arithmetic.
                 //
                 // AND TALLER: 34dp -> 48dp. The row is not made taller by it - the avatar and
                 // two text lines already stand 46dp - so the height was free all along.
@@ -110,23 +108,41 @@ fun StockRowItem(
                         fontSize = 18.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    // ---- THE HOLDINGS LINE, WHICH NOW SHRINKS BEFORE IT CUTS.
+                    // ---- FIGURES SHRINK; NAMES ELLIPSISE.
                     //
-                    // The chart beside it took real width in this round, and a big position
+                    // The chart beside this took real width in this round, and a big position
                     // ("1,234.5678 shares - avg $1,234.56") is a third longer than TJ's own -
-                    // so at a fixed 14sp the widest lines would have started ellipsising where
-                    // they used to fit. The same auto-fit the money cells already use answers
-                    // it: the line steps down a point at a time, to a floor of 11dp of type,
-                    // and only cuts if it still does not fit at that size. A slightly smaller
-                    // holdings line is a far better trade than a hidden average cost.
-                    AutoFitNumber(
-                        text = if (row.watchOnly) row.name.ifBlank { "Watching" }
-                        else "${Fmt.shares(row.shares)} shares - avg ${Fmt.price(row.avgCost)}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Normal,
-                        minSp = 11
-                    )
+                    // so at a fixed 14sp the widest lines would have started cutting off where
+                    // they used to fit. For FIGURES the auto-fit the money cells already use
+                    // is the right answer: a truncated average cost is not obviously truncated
+                    // and reads as a real, wrong number, so the line steps down a point at a
+                    // time instead.
+                    //
+                    // A WATCHLIST NAME IS NOT A FIGURE, and the same widget is wrong for it
+                    // (Round 64 sweep 3). Its floor is a PHYSICAL size that deliberately
+                    // ignores the font-scale setting - which is the point for a dollar amount
+                    // in a fixed cell and an accessibility regression for prose: at the
+                    // Largest setting "Taiwan Semiconductor Manufacturing Company Limited"
+                    // would have rendered SMALLER than at the default and still been cut. A
+                    // clipped company name is harmless; an illegible one is not.
+                    if (row.watchOnly) {
+                        Text(
+                            row.name.ifBlank { "Watching" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    } else {
+                        AutoFitNumber(
+                            text = "${Fmt.shares(row.shares)} shares - " +
+                                "avg ${Fmt.price(row.avgCost)}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Normal,
+                            minSp = 11
+                        )
+                    }
                 }
 
                 Spacer(Modifier.width(8.dp))

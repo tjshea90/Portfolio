@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-08 22:46:27 UTC",
+  "updated": "2026-09-09 01:27:19 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -194,6 +194,97 @@
       "text": "Re-anchoring the window did not re-evaluate which range should draw it",
       "sev": "med",
       "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "H01",
+      "text": "Comparison chart drawn with cmp (padded, rebased one candle earlier) against yBounds from cmpInside: both lines shifted vertically off their own axis on a zoomed 5Y/MAX compare chart",
+      "sev": "high",
+      "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "H02",
+      "text": "cmp non-null with cmpInside null draws percentages against a dollar axis: lines land far off-canvas and the plot area shows gridlines only",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H03",
+      "text": "Full-screen viewer sets decorFitsSystemWindows=false but consumes no insets: title, chips and close button sit behind the status bar",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H04",
+      "text": "RESERVED=150 in the full-screen viewer has zero slack: the SPY legend row and any font scale above 1.0 push the caption and x-axis off the bottom",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H05",
+      "text": "Expand button is a 34dp target with no content description and overlaps the high-price label from ~1.15x font scale; the reset chip covers it from ~1.3x",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H06",
+      "text": "uiMode in configChanges leaves the status bar icons stale after a dark-mode toggle (enableEdgeToEdge only runs in onCreate)",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H07",
+      "text": "AutoFitNumber applied to the watchlist company name defeats the font-scale setting: a long name renders at 11dp at the Largest setting",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H08",
+      "text": "configChanges omits fontWeightAdjustment, so toggling accessibility Bold text still destroys the nav stack",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H09",
+      "text": "Re-anchor effect leaves a permanently-wider-than-data window on recently listed stocks (monthly candle lag exceeds the 1.03 guard)",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H10",
+      "text": "Re-anchor effect can null the window mid-pinch while WindowHold still holds it: one-frame pop-out",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H11",
+      "text": "Pan guard falls back to the optimistic 40-year bounds while the series is loading",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H12",
+      "text": "Reset chip does not clear zoomSettling, unlike the range chip handler",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H13",
+      "text": "StockRow comment still argues for weight 1.4 while the code is 1.6; SparklineSizeUiTest asserts !hasVisualOverflow on a widget whose job is to shrink until that is true",
+      "sev": "low",
+      "status": "open",
       "note": ""
     }
   ],
@@ -582,6 +673,20 @@
     "2026-09-08 22:38:26 UTC  G08 fixed",
     "2026-09-08 22:38:27 UTC  G09 fixed",
     "2026-09-08 22:38:28 UTC  sweep 2: 9 findings on sweep 1's own fixes, all closed",
-    "2026-09-08 22:46:27 UTC  T7 -> doing  sweep 2 closed; sweep 3 next"
+    "2026-09-08 22:46:27 UTC  T7 -> doing  sweep 2 closed; sweep 3 next",
+    "2026-09-09 01:00:38 UTC  finding H01: Comparison chart drawn with cmp (padded, rebased one candle earlier) against yBo",
+    "2026-09-09 01:00:38 UTC  finding H02: cmp non-null with cmpInside null draws percentages against a dollar axis: lines ",
+    "2026-09-09 01:00:38 UTC  finding H03: Full-screen viewer sets decorFitsSystemWindows=false but consumes no insets: tit",
+    "2026-09-09 01:00:38 UTC  finding H04: RESERVED=150 in the full-screen viewer has zero slack: the SPY legend row and an",
+    "2026-09-09 01:00:38 UTC  finding H05: Expand button is a 34dp target with no content description and overlaps the high",
+    "2026-09-09 01:00:39 UTC  finding H06: uiMode in configChanges leaves the status bar icons stale after a dark-mode togg",
+    "2026-09-09 01:00:39 UTC  finding H07: AutoFitNumber applied to the watchlist company name defeats the font-scale setti",
+    "2026-09-09 01:00:39 UTC  finding H08: configChanges omits fontWeightAdjustment, so toggling accessibility Bold text st",
+    "2026-09-09 01:00:39 UTC  finding H09: Re-anchor effect leaves a permanently-wider-than-data window on recently listed ",
+    "2026-09-09 01:00:39 UTC  finding H10: Re-anchor effect can null the window mid-pinch while WindowHold still holds it: ",
+    "2026-09-09 01:00:39 UTC  finding H11: Pan guard falls back to the optimistic 40-year bounds while the series is loadin",
+    "2026-09-09 01:00:39 UTC  finding H12: Reset chip does not clear zoomSettling, unlike the range chip handler",
+    "2026-09-09 01:00:39 UTC  finding H13: StockRow comment still argues for weight 1.4 while the code is 1.6; SparklineSiz",
+    "2026-09-09 01:27:19 UTC  H01 fixed"
   ]
 }

@@ -402,6 +402,11 @@ fun DetailScreen(
     // it forces the sensor orientation while it is open.
     var chartExpanded by remember(symbol) { mutableStateOf(false) }
 
+    // True while two fingers are on a chart. The re-anchor below stands back until they lift:
+    // a fetch landing mid-pinch would otherwise reset the window under the user's fingers for
+    // a frame before the gesture wrote it again.
+    var chartPinching by remember(symbol) { mutableStateOf(false) }
+
 
     // How far a zoom may go, from EVERY series the app is holding for this symbol rather than
     // from the one on screen - so pinching out past the end of a one-month chart continues
@@ -463,7 +468,8 @@ fun DetailScreen(
     // it already was. And a window that now covers everything stops being a zoom at all - it
     // is set back to null, which is what the chart draws when nothing has been pinched, and
     // is what stops the "Reset zoom" chip appearing over an unzoomed chart.
-    LaunchedEffect(chartBounds, chart) {
+    LaunchedEffect(chartBounds, chart, chartPinching) {
+        if (chartPinching) return@LaunchedEffect
         val b = chartBounds ?: return@LaunchedEffect
         val w = chartWindow ?: return@LaunchedEffect
         val pinned = com.tj.portfolio.data.ChartWindow.atRightEdge(w, b)
@@ -478,10 +484,16 @@ fun DetailScreen(
         // could never be "the whole chart" and the screen stayed permanently in its zoomed
         // state: caption, span label and a "Reset zoom" chip over a chart that looked exactly
         // as it started.
+        // ONE CANDLE OF SLACK ON TOP, not a flat three percent (Round 64 sweep 3). A candle
+        // is stamped at its open, so a monthly series' last point can be a month behind the
+        // newest data - and on a stock listed only a couple of years ago that excess is more
+        // than three percent of the whole chart. The window was then never recognised as the
+        // whole of it, and the screen kept an axis a few percent wider than the line for good:
+        // an empty gutter at the right and an end-date label naming a date past the last point.
         val series = com.tj.portfolio.data.ChartWindow.of(chart)
         if (series != null &&
             com.tj.portfolio.data.ChartWindow.isWhole(next, series) &&
-            next.spanMs <= (series.spanMs * 1.03).toLong()
+            next.spanMs <= series.spanMs + chartRange.candleMs
         ) {
             chartWindow = null
             return@LaunchedEffect
@@ -678,8 +690,9 @@ fun DetailScreen(
                     chartWindow = chartWindow,
                     chartBounds = chartBounds,
                     onChartWindow = onChartWindow,
-                    onResetChartWindow = { chartWindow = null },
+                    onResetChartWindow = { zoomSettling = false; chartWindow = null },
                     onExpandChart = { chartExpanded = true },
+                    onChartPinching = { chartPinching = it },
                     compare = compareSeries,
                     compareLive = liveEdgePrice(benchmarkQuote, chartRange),
                     compareOn = compareOn && !isBenchmark,
@@ -765,7 +778,8 @@ fun DetailScreen(
             window = chartWindow,
             windowBounds = chartBounds,
             onWindow = onChartWindow,
-            onResetWindow = { chartWindow = null },
+            onResetWindow = { zoomSettling = false; chartWindow = null },
+            onZoomingChanged = { chartPinching = it },
             compare = if (compareOn && !isBenchmark) compareSeries else null,
             compareLabel = BENCHMARK_SYMBOL,
             compareLivePrice = liveEdgePrice(benchmarkQuote, chartRange),
@@ -861,6 +875,8 @@ private fun OverviewTab(
     onResetChartWindow: () -> Unit,
     /** Opens the chart full screen. See [FullScreenChart]. */
     onExpandChart: () -> Unit,
+    /** True while a pinch is in progress, so the screen can stop re-anchoring the window. */
+    onChartPinching: (Boolean) -> Unit,
     /** The benchmark series for this range, or null when the overlay is off or unloaded. */
     compare: com.tj.portfolio.data.ChartSeries?,
     /** The benchmark's live price, so both lines end at the same instant. */
@@ -965,6 +981,7 @@ private fun OverviewTab(
                     onWindow = onChartWindow,
                     onResetWindow = onResetChartWindow,
                     onExpand = onExpandChart,
+                    onZoomingChanged = onChartPinching,
                     compare = compare,
                     compareLabel = BENCHMARK_SYMBOL,
                     compareLivePrice = compareLive

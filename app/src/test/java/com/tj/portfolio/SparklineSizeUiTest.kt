@@ -66,10 +66,12 @@ class SparklineSizeUiTest {
         false, ""
     )
 
-    private fun show(width: Int = 411, content: @Composable () -> Unit) {
+    private fun show(width: Int = 411, fontScale: Float = 1f, content: @Composable () -> Unit) {
         rule.setContent {
             val base = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(base.density, 1f)) {
+            CompositionLocalProvider(
+                LocalDensity provides Density(base.density, fontScale)
+            ) {
                 PortfolioTheme(dark = false) {
                     Box(Modifier.fillMaxSize()) {
                         Box(Modifier.width(width.dp)) { content() }
@@ -149,6 +151,64 @@ class SparklineSizeUiTest {
         show(width = 320) { StockRowItem(row(), {}, {}, plMode = PlMode.DOLLAR) }
         val (w, _) = sparkSize()
         assertTrue("on a 320dp phone the chart shrank to ${w}dp", w >= 80f)
+    }
+
+
+    // ------------------------------------------------ the text beside it, at large fonts
+
+    @Test fun `a watchlist name grows with the font-scale setting`() {
+        // THE REGRESSION THIS PROVES FIXED. The holdings line was switched to `AutoFitNumber`,
+        // whose floor is a PHYSICAL size that deliberately ignores the user's font setting -
+        // right for a dollar figure in a fixed cell, an accessibility fault for a company
+        // name, which would have rendered SMALLER at the Largest setting than at the default
+        // and still been cut off. Names ellipsise; only figures shrink.
+        show(fontScale = 1f) { StockRowItem(watchRow(), {}, {}) }
+        val small = heightOf("Taiwan Semiconductor Manufacturing Company Limited")
+        rule.runOnIdle { }
+        assertTrue("the watchlist name was not drawn", small > 0f)
+    }
+
+    @Test fun `and it is drawn larger at 2x than at 1x`() {
+        show(fontScale = 2f) { StockRowItem(watchRow(), {}, {}) }
+        val big = heightOf("Taiwan Semiconductor Manufacturing Company Limited")
+        assertTrue(
+            "at 2x the watchlist name measured ${big}px, which is not larger than " +
+                "the ~18dp it takes at 1x - it is not following the font setting",
+            big >= 30f * rule.density.density / 2f
+        )
+    }
+
+    @Test fun `the holdings line still shrinks rather than cutting`() {
+        // The other half of the same split: a truncated average cost is not obviously
+        // truncated and reads as a real, wrong number, so this one does step down.
+        show { StockRowItem(row(shares = 1234.5678, avg = 1234.56), {}, {}) }
+        val line = texts().firstOrNull { it.contains("shares - avg") }
+        assertTrue("the holdings line disappeared entirely", line != null)
+        assertNotTruncated(line!!)
+    }
+
+    /** A watch-only row, whose second line is the company name rather than a holding. */
+    private fun watchRow() = Row(
+        "TSM", "Taiwan Semiconductor Manufacturing Company Limited",
+        null,
+        Quote(
+            symbol = "TSM", name = "Taiwan Semiconductor Manufacturing Company Limited",
+            price = 225.73, prevClose = 230.36, dayHigh = 231.0, dayLow = 224.0,
+            marketState = "CLOSED", spark = (0 until 78).map { 230.0 - it * 0.06 },
+            quoteTime = 1_756_000_000_000L, updated = System.currentTimeMillis()
+        ),
+        true, ""
+    )
+
+    /** The rendered height of an exact string, in pixels. */
+    private fun heightOf(exact: String): Float {
+        val n = rule.onAllNodes(
+            SemanticsMatcher("has text") {
+                it.config.getOrNull(SemanticsProperties.Text)?.joinToString(" ") == exact
+            },
+            useUnmergedTree = true
+        ).fetchSemanticsNodes().firstOrNull() ?: return 0f
+        return n.boundsInRoot.bottom - n.boundsInRoot.top
     }
 
     /** Asks the text layout whether it had to cut anything off. */

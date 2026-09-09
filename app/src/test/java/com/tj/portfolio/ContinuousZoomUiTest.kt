@@ -37,6 +37,9 @@ import com.tj.portfolio.ui.PortfolioTheme
 import com.tj.portfolio.ui.PriceChart
 import com.tj.portfolio.ui.RESET_ZOOM_TAG
 import com.tj.portfolio.ui.clipToWindow
+import com.tj.portfolio.ui.comparePercents
+import com.tj.portfolio.ui.insideIndices
+import com.tj.portfolio.ui.primaryPercents
 import com.tj.portfolio.ui.priceBounds
 import com.tj.portfolio.ui.windowBounds
 import com.tj.portfolio.util.Fmt
@@ -388,8 +391,13 @@ class ContinuousZoomUiTest {
         show { ZoomableChart(chartBounds = optimisticBounds) }
         spread(steps = 10, perStep = 1.25f)
         val w = reported.last()
-        val inside = clipToWindow(series(), w, pad = false)!!
+        // The zoomed chart measures from the first point ON SCREEN, and drops the previous
+        // close as a baseline - it is outside the window, and widening the axis to reach it
+        // would put a price on the corner that the line never goes near. So the expected
+        // labels are the plain high and low of the points inside the window.
+        val inside = clipToWindow(series(), w, pad = false)!!.copy(baseline = 0.0)
         val b = priceBounds(inside)
+        val closes = inside.points.map { it.close }
         val shown = texts()
         assertTrue(
             "the top label does not name the high of what is on screen " +
@@ -400,6 +408,12 @@ class ContinuousZoomUiTest {
             "the bottom label does not name the low of what is on screen " +
                 "(${Fmt.price(b[0])}):\n" + shown.joinToString("\n"),
             shown.contains(Fmt.price(b[0]))
+        )
+        // AND THE PROPERTY BEHIND BOTH: every corner label is a price the line reaches.
+        assertTrue(
+            "the axis labels ${b.toList()} fall outside the drawn prices " +
+                "${closes.min()}..${closes.max()}",
+            b[0] >= closes.min() - 1e-9 && b[1] <= closes.max() + 1e-9
         )
     }
 
@@ -419,6 +433,124 @@ class ContinuousZoomUiTest {
                 shown.joinToString("\n"),
             shown.any { it.startsWith("over ") }
         )
+    }
+
+
+    // ------------------------------------------------ the comparison, once zoomed
+
+    /** A benchmark line covering the same window, so the overlay can be drawn. */
+    private fun benchmark() = ChartSeries(
+        symbol = "SPY", range = ChartRange.M6,
+        points = (0 until 180).map { ChartPoint(1_740_000_000L + it * 86_400L, 400.0 + it * 0.5) },
+        baseline = 400.0, currency = "USD", fetched = System.currentTimeMillis()
+    )
+
+    @Composable
+    private fun ComparedChart() {
+        var w by remember { mutableStateOf<ChartWindow?>(null) }
+        PriceChart(
+            series = series(),
+            range = ChartRange.M6,
+            loading = false,
+            window = w,
+            windowBounds = optimisticBounds,
+            onWindow = { next -> w = next; reported.add(next) },
+            onResetWindow = { w = null },
+            compare = benchmark(),
+            compareLabel = "SPY"
+        )
+    }
+
+    @Test fun `a zoomed comparison chart keeps a percentage axis`() {
+        // THE REGRESSION THIS PROVES FIXED. The y-axis briefly took its VALUE from one
+        // comparison and its UNIT from another, and the two were computed independently - so a
+        // narrow zoom could print the stock's price in dollars with a percent sign after it,
+        // or draw two percentage lines against a dollar scale.
+        show { ComparedChart() }
+        spread(steps = 10, perStep = 1.25f)
+        val shown = texts()
+        val corners = shown.filter { it.matches(Regex("[+-]\\d+\\.\\d\\d%")) }
+        assertTrue(
+            "the axis labels are not percentages on a comparison chart:\n" +
+                shown.joinToString("\n"),
+            corners.size >= 2
+        )
+        val values = corners.map { it.removeSuffix("%").toDouble() }
+        assertTrue(
+            "a percentage axis label is the size of a share price: $values",
+            values.all { kotlin.math.abs(it) < 500.0 }
+        )
+    }
+
+    @Test fun `both lines of a zoomed comparison share one zero`() {
+        // Two percentage series on one axis must be rebased at the same moment. When they were
+        // not, both lines were drawn several percent off the scale printed beside them - on a
+        // weekly or monthly series, the whole return of the candle just off the left edge.
+        val s = series()
+        val b = benchmark()
+        val w = ChartWindow(
+            s.points[60].t * 1000L, s.points[120].t * 1000L
+        )
+        val drawn = clipToWindow(s, w, pad = true)!!
+        val range = insideIndices(drawn, w)
+        val baseT = drawn.points[range.first].t
+        val own = primaryPercents(drawn, range.first)!!
+        val other = comparePercents(drawn, b, Long.MAX_VALUE, baseT)!!
+        assertEquals(
+            "the stock's line does not start at zero in its own window",
+            0.0, own[range.first], 1e-9
+        )
+        assertEquals(
+            "the benchmark's line does not start at the same zero",
+            0.0, other[range.first], 1e-9
+        )
+    }
+
+
+    // ------------------------------------------------------- the affordances, measured
+
+    @Test fun `the expand button is a real tap target and is described out loud`() {
+        // It was 34dp - under this app's own measured 48dp minimum, a rule it took two rounds
+        // to learn on this very screen - and an unlabelled Canvas, which TalkBack announces as
+        // a nameless button.
+        var opened = 0
+        show { ZoomableChart(expand = { opened++ }) }
+        val d = rule.density.density
+        val n = rule.onNodeWithTag(EXPAND_TEST_TAG, useUnmergedTree = true).fetchSemanticsNode()
+        val b = n.boundsInRoot
+        assertTrue(
+            "the expand button measured ${(b.right - b.left) / d}x" +
+                "${(b.bottom - b.top) / d}dp, under the 48dp minimum",
+            (b.right - b.left) / d >= 47f && (b.bottom - b.top) / d >= 47f
+        )
+        assertTrue(
+            "the expand button has no content description for a screen reader",
+            n.config.getOrNull(SemanticsProperties.ContentDescription)?.isNotEmpty() == true
+        )
+    }
+
+    @Test fun `neither affordance sits on top of a price label`() {
+        // Both used to live in the top-right corner, which is where the high-price label is:
+        // they abutted at the default font scale and overlapped from about 1.15x upward.
+        show { ZoomableChart(expand = {}, chartBounds = optimisticBounds) }
+        spread(steps = 8, perStep = 1.3f)
+        val labels = rule.onAllNodes(
+            androidx.compose.ui.test.SemanticsMatcher("a price label") {
+                it.config.getOrNull(SemanticsProperties.Text)
+                    ?.joinToString(" ")?.startsWith("$") == true
+            },
+            useUnmergedTree = true
+        ).fetchSemanticsNodes().map { it.boundsInRoot }
+        assertTrue("no price labels were drawn", labels.isNotEmpty())
+        for (tag in listOf(EXPAND_TEST_TAG, RESET_ZOOM_TAG)) {
+            val b = rule.onNodeWithTag(tag, useUnmergedTree = true).fetchSemanticsNode()
+                .boundsInRoot
+            for (l in labels) {
+                val overlaps = b.left < l.right && l.left < b.right &&
+                    b.top < l.bottom && l.top < b.bottom
+                assertTrue("$tag is drawn over a price label ($b vs $l)", !overlaps)
+            }
+        }
     }
 
     private fun texts(): List<String> =

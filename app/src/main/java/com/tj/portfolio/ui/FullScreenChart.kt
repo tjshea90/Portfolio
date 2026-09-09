@@ -5,11 +5,12 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -84,6 +85,7 @@ fun FullScreenChart(
     windowBounds: ChartWindow?,
     onWindow: (ChartWindow) -> Unit,
     onResetWindow: () -> Unit,
+    onZoomingChanged: (Boolean) -> Unit,
     compare: ChartSeries?,
     compareLabel: String,
     compareLivePrice: Double,
@@ -121,17 +123,20 @@ fun FullScreenChart(
                 .testTag(FULLSCREEN_TAG),
             color = MaterialTheme.colorScheme.background
         ) {
-            BoxWithConstraints(Modifier.fillMaxSize()) {
-                // WHAT IS LEFT AFTER EVERYTHING ELSE. The header, the chips, the readout and
-                // the axis labels are all fixed heights; the chart gets the remainder, which
-                // is what makes landscape worth entering at all. The floor stops a very short
-                // window (a split-screen phone) from collapsing the drawn area to nothing.
-                val chartHeight = (maxHeight - RESERVED.dp).coerceAtLeast(140.dp)
-
+            Box(Modifier.fillMaxSize()) {
                 Column(
                     Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.background)
+                        // ---- THE SYSTEM BARS (Round 64 sweep 3).
+                        //
+                        // `decorFitsSystemWindows = false` is what lets this window be the
+                        // whole screen rather than an inset card, and it also means NOTHING
+                        // moves the content out from under the status bar, the navigation
+                        // pill or a display cutout unless this does. Without it the symbol,
+                        // the range chips and the close button sat behind the clock in
+                        // portrait and slid under the notch in landscape.
+                        .safeDrawingPadding()
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -167,17 +172,26 @@ fun FullScreenChart(
                         series = series,
                         range = range,
                         loading = loading,
-                        modifier = Modifier.fillMaxWidth(),
                         livePrice = livePrice,
                         liveEdge = liveEdge,
                         window = window,
                         windowBounds = windowBounds,
                         onWindow = onWindow,
                         onResetWindow = onResetWindow,
+                        onZoomingChanged = onZoomingChanged,
                         compare = compare,
                         compareLabel = compareLabel,
                         compareLivePrice = compareLivePrice,
-                        chartHeight = chartHeight
+                        // ---- MEASURED, NOT BUDGETED (Round 64 sweep 3).
+                        //
+                        // This used to subtract a fixed 150dp for the header, chips, readout,
+                        // axis and caption. That allowance had no slack in it: turning the SPY
+                        // overlay on added a legend row that pushed the caption off the
+                        // bottom, and every part of it is text in sp, so any font scale above
+                        // 1.0 overflowed too. The chart takes whatever is left after the rest
+                        // of the column has measured itself, which is right at every size.
+                        chartFillsHeight = true,
+                        modifier = Modifier.fillMaxWidth().weight(1f)
                         // NO `onExpand` HERE, deliberately: this IS the expanded view, and a
                         // button that opened a second copy of it is a trap rather than a
                         // feature.
@@ -188,16 +202,6 @@ fun FullScreenChart(
     }
 }
 
-/**
- * Everything above and below the drawn area, in dp.
- *
- * Measured from the pieces rather than guessed: the header row is 48, the readout 22 with its
- * 8dp gap, the axis labels about 19 with their 3dp gap, the caption about 34, and the vertical
- * padding 12. `FullScreenChartUiTest` renders the viewer at two window sizes and asserts the
- * chart is the taller thing on screen, so a change to any of those parts is caught here rather
- * than by TJ opening a chart and finding it cut off.
- */
-private const val RESERVED = 150
 
 /** The activity behind a composition's context, through however many wrappers. */
 internal fun Context.findActivity(): Activity? {

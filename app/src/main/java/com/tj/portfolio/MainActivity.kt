@@ -112,6 +112,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * THE STATUS BAR AFTER A DARK-MODE TOGGLE (Round 64 sweep 3).
+     *
+     * Round 64 added `uiMode` to the activity's `configChanges` so that turning dark mode on
+     * would stop destroying the navigation stack - and that is right, but it also stopped the
+     * one thing the recreation was quietly doing: re-running `enableEdgeToEdge`, which decides
+     * whether the status-bar clock and icons are drawn dark-on-light or light-on-dark from the
+     * configuration IN FORCE WHEN IT IS CALLED.
+     *
+     * Without this the app turned dark around a status bar still painted for a light one -
+     * dark icons on a dark bar, unreadable until the app was restarted. Compose re-reads the
+     * configuration for everything else on its own; the system bars are a window property and
+     * have to be told.
+     */
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        enableEdgeToEdge()
+    }
+
     // `onTrimMemory` / `onLowMemory` used to be overridden here and forwarded to
     // `MemoryTrim`. They are not any more: `installProcessWide` in `onCreate` registers the
     // same callbacks on the application context, which receives them for the whole life of

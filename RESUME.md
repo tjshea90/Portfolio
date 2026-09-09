@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-08 22:46:27 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 01:27:19 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 0 still open, 18 fixed
+## 5. Open findings — 12 still open, 19 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -68,6 +68,19 @@ commit, so `git log --oneline` is the history of this round and
 - [x] G07 (low) Zoomed caption for the after-hours range read oddly (no comma to splice)
 - [x] G08 (low) ChartWindow.clamped could throw IllegalArgumentException on degenerate bounds inside an effect
 - [x] G09 (med) Re-anchoring the window did not re-evaluate which range should draw it
+- [x] H01 (high) Comparison chart drawn with cmp (padded, rebased one candle earlier) against yBounds from cmpInside: both lines shifted vertically off their own axis on a zoomed 5Y/MAX compare chart
+- [ ] H02 (high) cmp non-null with cmpInside null draws percentages against a dollar axis: lines land far off-canvas and the plot area shows gridlines only
+- [ ] H03 (high) Full-screen viewer sets decorFitsSystemWindows=false but consumes no insets: title, chips and close button sit behind the status bar
+- [ ] H04 (high) RESERVED=150 in the full-screen viewer has zero slack: the SPY legend row and any font scale above 1.0 push the caption and x-axis off the bottom
+- [ ] H05 (med) Expand button is a 34dp target with no content description and overlaps the high-price label from ~1.15x font scale; the reset chip covers it from ~1.3x
+- [ ] H06 (med) uiMode in configChanges leaves the status bar icons stale after a dark-mode toggle (enableEdgeToEdge only runs in onCreate)
+- [ ] H07 (med) AutoFitNumber applied to the watchlist company name defeats the font-scale setting: a long name renders at 11dp at the Largest setting
+- [ ] H08 (med) configChanges omits fontWeightAdjustment, so toggling accessibility Bold text still destroys the nav stack
+- [ ] H09 (low) Re-anchor effect leaves a permanently-wider-than-data window on recently listed stocks (monthly candle lag exceeds the 1.03 guard)
+- [ ] H10 (low) Re-anchor effect can null the window mid-pinch while WindowHold still holds it: one-frame pop-out
+- [ ] H11 (low) Pan guard falls back to the optimistic 40-year bounds while the series is loading
+- [ ] H12 (low) Reset chip does not clear zoomSettling, unlike the range chip handler
+- [ ] H13 (low) StockRow comment still argues for weight 1.4 while the code is 1.6; SparklineSizeUiTest asserts !hasVisualOverflow on a widget whose job is to shrink until that is true
 
 ## 6. Version
 
@@ -78,16 +91,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-08 22:38:19 UTC  finding G09: Re-anchoring the window did not re-evaluate which range should draw it
-- 2026-09-08 22:38:19 UTC  G01 fixed
-- 2026-09-08 22:38:20 UTC  G02 fixed
-- 2026-09-08 22:38:21 UTC  G03 fixed
-- 2026-09-08 22:38:22 UTC  G04 fixed
-- 2026-09-08 22:38:23 UTC  G05 fixed
-- 2026-09-08 22:38:24 UTC  G06 fixed
-- 2026-09-08 22:38:25 UTC  G07 fixed
-- 2026-09-08 22:38:26 UTC  G08 fixed
-- 2026-09-08 22:38:27 UTC  G09 fixed
-- 2026-09-08 22:38:28 UTC  sweep 2: 9 findings on sweep 1's own fixes, all closed
-- 2026-09-08 22:46:27 UTC  T7 -> doing  sweep 2 closed; sweep 3 next
+- 2026-09-09 01:00:38 UTC  finding H03: Full-screen viewer sets decorFitsSystemWindows=false but consumes no insets: tit
+- 2026-09-09 01:00:38 UTC  finding H04: RESERVED=150 in the full-screen viewer has zero slack: the SPY legend row and an
+- 2026-09-09 01:00:38 UTC  finding H05: Expand button is a 34dp target with no content description and overlaps the high
+- 2026-09-09 01:00:39 UTC  finding H06: uiMode in configChanges leaves the status bar icons stale after a dark-mode togg
+- 2026-09-09 01:00:39 UTC  finding H07: AutoFitNumber applied to the watchlist company name defeats the font-scale setti
+- 2026-09-09 01:00:39 UTC  finding H08: configChanges omits fontWeightAdjustment, so toggling accessibility Bold text st
+- 2026-09-09 01:00:39 UTC  finding H09: Re-anchor effect leaves a permanently-wider-than-data window on recently listed 
+- 2026-09-09 01:00:39 UTC  finding H10: Re-anchor effect can null the window mid-pinch while WindowHold still holds it: 
+- 2026-09-09 01:00:39 UTC  finding H11: Pan guard falls back to the optimistic 40-year bounds while the series is loadin
+- 2026-09-09 01:00:39 UTC  finding H12: Reset chip does not clear zoomSettling, unlike the range chip handler
+- 2026-09-09 01:00:39 UTC  finding H13: StockRow comment still argues for weight 1.4 while the code is 1.6; SparklineSiz
+- 2026-09-09 01:27:19 UTC  H01 fixed
 

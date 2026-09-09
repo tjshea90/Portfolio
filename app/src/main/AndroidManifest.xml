@@ -27,13 +27,15 @@
           `screenSize` and `smallestScreenSize` are the two that actually matter for a
           rotation on a modern device; the rest are listed because each one left out is a
           different way to lose the screen (a font-scale change in Settings, dark mode
-          being toggled, a keyboard appearing).
+          being toggled, a keyboard appearing). `fontWeightAdjustment` is the accessibility
+          "Bold text" switch - left out of the first version of this line, and it destroyed
+          the navigation stack exactly like the others would have.
         -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:windowSoftInputMode="adjustResize"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode|density|fontScale|layoutDirection|locale"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode|density|fontScale|fontWeightAdjustment|colorMode|layoutDirection|locale"
             android:theme="@style/Theme.Portfolio">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
