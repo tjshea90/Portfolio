@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 15:03:03 UTC",
+  "updated": "2026-09-09 15:03:05 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -144,8 +144,8 @@
       "id": "A11",
       "text": "PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list - the feed pass truncates 60 headlines to 40, removing stories the user is scrolling",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list"
     },
     {
       "id": "A12",
@@ -660,6 +660,7 @@
     "2026-09-09 15:00:13 UTC  T4 -> doing  research accuracy",
     "2026-09-09 15:03:00 UTC  A04 fixed: insiderAt is cleared with _insider on a memory trim, matching coreFetchedAt and ratingsFetchedAt beside it",
     "2026-09-09 15:03:01 UTC  A05 fixed: Db.purgeQuotes, called with the other purges - the quotes table was the one unbounded cache, and it is parsed whole on the launch path",
-    "2026-09-09 15:03:03 UTC  A06 fixed: loadNews writes the blurbs through with the stories, and cacheNews's conflict path updates the summary without ever erasing one; three tests"
+    "2026-09-09 15:03:03 UTC  A06 fixed: loadNews writes the blurbs through with the stories, and cacheNews's conflict path updates the summary without ever erasing one; three tests",
+    "2026-09-09 15:03:05 UTC  A11 fixed: one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list"
   ]
 }
