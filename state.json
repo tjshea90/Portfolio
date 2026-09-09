@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 15:15:08 UTC",
+  "updated": "2026-09-09 19:25:29 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -167,6 +167,104 @@
       "sev": "high",
       "status": "fixed",
       "note": "stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later"
+    },
+    {
+      "id": "E1",
+      "text": "EtfScreener.fetchAll stops paging on the PARSED row count, so one non-fund row on a page truncates the whole universe to 100 - the ETF list TJ is buying from can be ~130 funds while the screen claims 850",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "E2",
+      "text": "EtfExposure checks the US size ladder before the region checks, so iShares MSCI EAFE Small-Cap merges with a US small-cap fund; gold bullion merges with gold miners; SGOV merges with TLT. My own new code, and exactly the over-grouping its KDoc says is the failure that matters",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R1",
+      "text": "Claude's conviction is written into the displayed SCORE and re-sorts the ETF list, so a fund a model asserted can sit at row 1 showing SCORE 100 above every fund the app actually screened",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H1",
+      "text": "A Yahoo cooldown makes MarketData fall back to per-symbol quotes for EVERY symbol, so a 20-stock portfolio sends ~80 requests a minute to Finnhub and then Stooq for the whole cooldown - the exact traffic shape the batch endpoint exists to remove",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H2",
+      "text": "Screener, EtfScreener and FundamentalsFeed abandon the whole call when query1 alone is cooling, so one 429 anywhere empties the Research and ETF tabs while query2 sits idle",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H3",
+      "text": "YahooAuth.invalidate zeroes mintedAt, so the MIN_INTERVAL guard that exists to stop a handshake loop is dead on every path that follows a 401",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "H4",
+      "text": "Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a burst of four concurrent requests jumps straight to a 4-minute backoff on the first rate-limit event",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "E3",
+      "text": "The 'Same exposure as ...' line is appended last and cut off by the card's six-reason limit, so on VOO - the case the feature was written for - it never renders",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "E4",
+      "text": "The ETF return normalisation gates on the sum of available weights, so a fund with a full three-year record but no YTD figure is capped at 16 of 34 points - and reporting a worthless YTD gains it eleven",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "E5",
+      "text": "The fund card's 1Y cell is a price-only 52-week change shown and scored beside 3Y and 5Y NAV TOTAL returns, so every income fund is marked down by its own yield",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R2",
+      "text": "Trending rows for symbols outside the nine equity screeners carry no price, name or day change, and nothing ever fills them",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R3",
+      "text": "'cheap for that growth' is printed for a company whose forward EPS is BELOW trailing, when the growth term scored zero",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R4",
+      "text": "'most shorted' and 'day losers' are printed among the reasons a stock is rated a good BUY, though neither screen scores anything",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "R6",
+      "text": "Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and EtfScreener still describe the Worst list, the short-vehicle lookup, a two-list ETF plan and a RESEARCH_TAB index that has moved",
+      "sev": "low",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -684,6 +782,20 @@
     "2026-09-09 15:11:34 UTC  finding B01: The Worst deletion left the offline Claude prompt still asking for a 'worst' lis",
     "2026-09-09 15:11:34 UTC  B01 fixed: both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions",
     "2026-09-09 15:15:08 UTC  finding B02: SELF-REVIEW: my own A02 fix stamped lastFilingsAt after refreshInsiders' symbols",
-    "2026-09-09 15:15:08 UTC  B02 fixed: stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later"
+    "2026-09-09 15:15:08 UTC  B02 fixed: stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later",
+    "2026-09-09 19:25:28 UTC  finding E1: EtfScreener.fetchAll stops paging on the PARSED row count, so one non-fund row o",
+    "2026-09-09 19:25:28 UTC  finding E2: EtfExposure checks the US size ladder before the region checks, so iShares MSCI ",
+    "2026-09-09 19:25:29 UTC  finding R1: Claude's conviction is written into the displayed SCORE and re-sorts the ETF lis",
+    "2026-09-09 19:25:29 UTC  finding H1: A Yahoo cooldown makes MarketData fall back to per-symbol quotes for EVERY symbo",
+    "2026-09-09 19:25:29 UTC  finding H2: Screener, EtfScreener and FundamentalsFeed abandon the whole call when query1 al",
+    "2026-09-09 19:25:29 UTC  finding H3: YahooAuth.invalidate zeroes mintedAt, so the MIN_INTERVAL guard that exists to s",
+    "2026-09-09 19:25:29 UTC  finding H4: Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a b",
+    "2026-09-09 19:25:29 UTC  finding E3: The 'Same exposure as ...' line is appended last and cut off by the card's six-r",
+    "2026-09-09 19:25:29 UTC  finding E4: The ETF return normalisation gates on the sum of available weights, so a fund wi",
+    "2026-09-09 19:25:29 UTC  finding E5: The fund card's 1Y cell is a price-only 52-week change shown and scored beside 3",
+    "2026-09-09 19:25:29 UTC  finding R2: Trending rows for symbols outside the nine equity screeners carry no price, name",
+    "2026-09-09 19:25:29 UTC  finding R3: 'cheap for that growth' is printed for a company whose forward EPS is BELOW trai",
+    "2026-09-09 19:25:29 UTC  finding R4: 'most shorted' and 'day losers' are printed among the reasons a stock is rated a",
+    "2026-09-09 19:25:29 UTC  finding R6: Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and"
   ]
 }

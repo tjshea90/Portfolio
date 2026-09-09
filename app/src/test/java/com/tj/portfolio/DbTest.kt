@@ -234,6 +234,38 @@ class DbTest {
      * today's Db so onUpgrade runs for real. Previous rounds simulated this in Python.
      */
     /**
+     * ROUND 66. The quotes table was the one cache in this app that was never pruned.
+     *
+     * There was no `purgeQuotes`, no retention constant and no `DELETE FROM quotes` anywhere -
+     * but rows are written for far more than the tracked set: every stock opened from search,
+     * from the Research lists or from a headline is quoted and persisted, and a full intraday
+     * spark series is written into its row. `cachedQuotes()` then reads every row and parses
+     * every one of those arrays, synchronously, on the launch path.
+     */
+    @Test fun `quotes older than the retention window are dropped`() {
+        val now = 1_800_000_000_000L
+        val month = 30L * 86_400_000L
+        db.cacheQuote(Quote(symbol = "HELD", price = 10.0, updated = now - 1_000L))
+        db.cacheQuote(Quote(symbol = "GLANCED", price = 20.0, updated = now - month - 1_000L))
+        assertEquals(2, db.cachedQuotes().size)
+
+        val removed = db.purgeQuotes(olderThanMs = month, now = now)
+        assertEquals(1, removed)
+        val left = db.cachedQuotes()
+        assertEquals("the tracked symbol was dropped", setOf("HELD"), left.keys)
+    }
+
+    @Test fun `an undateable quote is left alone rather than deleted`() {
+        // "Undateable" and "a month old" are different facts. A purge that treated them the
+        // same would silently delete a row written moments ago, and the cost - a re-fetch,
+        // not lost data - is exactly why nobody would notice.
+        val now = 1_800_000_000_000L
+        db.cacheQuote(Quote(symbol = "NOSTAMP", price = 5.0, updated = 0L))
+        assertEquals(0, db.purgeQuotes(olderThanMs = 30L * 86_400_000L, now = now))
+        assertEquals(setOf("NOSTAMP"), db.cachedQuotes().keys)
+    }
+
+    /**
      * ROUND 66. The two txns indexes were written inline in `onCreate` as plain
      * `CREATE INDEX`, so a database that was UPGRADED rather than freshly created never had
      * them - `onUpgrade` did not make them and the `onOpen` repair block did not either.

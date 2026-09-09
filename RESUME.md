@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:15:08 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:25:29 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
 
-## 5. Open findings — 0 still open, 14 fixed
+## 5. Open findings — 14 still open, 14 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -64,6 +64,20 @@ commit, so `git log --oneline` is the history of this round and
 - [x] A12 (low) Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks and give three  — money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed
 - [x] B01 (med) The Worst deletion left the offline Claude prompt still asking for a 'worst' list the app can no longer parse, plus a template phrase about inverse ETFs and several stale 'three lists' comments  — both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions
 - [x] B02 (high) SELF-REVIEW: my own A02 fix stamped lastFilingsAt after refreshInsiders' symbols.isEmpty() guard, so an empty portfolio or an already-running pass never advanced the mark and passDue reported filings due on EVERY tick - a full feed pass every 15 seconds  — stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later
+- [ ] E1 (high) EtfScreener.fetchAll stops paging on the PARSED row count, so one non-fund row on a page truncates the whole universe to 100 - the ETF list TJ is buying from can be ~130 funds while the screen claims 850
+- [ ] E2 (high) EtfExposure checks the US size ladder before the region checks, so iShares MSCI EAFE Small-Cap merges with a US small-cap fund; gold bullion merges with gold miners; SGOV merges with TLT. My own new code, and exactly the over-grouping its KDoc says is the failure that matters
+- [ ] R1 (high) Claude's conviction is written into the displayed SCORE and re-sorts the ETF list, so a fund a model asserted can sit at row 1 showing SCORE 100 above every fund the app actually screened
+- [ ] H1 (high) A Yahoo cooldown makes MarketData fall back to per-symbol quotes for EVERY symbol, so a 20-stock portfolio sends ~80 requests a minute to Finnhub and then Stooq for the whole cooldown - the exact traffic shape the batch endpoint exists to remove
+- [ ] H2 (high) Screener, EtfScreener and FundamentalsFeed abandon the whole call when query1 alone is cooling, so one 429 anywhere empties the Research and ETF tabs while query2 sits idle
+- [ ] H3 (high) YahooAuth.invalidate zeroes mintedAt, so the MIN_INTERVAL guard that exists to stop a handshake loop is dead on every path that follows a 401
+- [ ] H4 (med) Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a burst of four concurrent requests jumps straight to a 4-minute backoff on the first rate-limit event
+- [ ] E3 (med) The 'Same exposure as ...' line is appended last and cut off by the card's six-reason limit, so on VOO - the case the feature was written for - it never renders
+- [ ] E4 (med) The ETF return normalisation gates on the sum of available weights, so a fund with a full three-year record but no YTD figure is capped at 16 of 34 points - and reporting a worthless YTD gains it eleven
+- [ ] E5 (med) The fund card's 1Y cell is a price-only 52-week change shown and scored beside 3Y and 5Y NAV TOTAL returns, so every income fund is marked down by its own yield
+- [ ] R2 (med) Trending rows for symbols outside the nine equity screeners carry no price, name or day change, and nothing ever fills them
+- [ ] R3 (med) 'cheap for that growth' is printed for a company whose forward EPS is BELOW trailing, when the growth term scored zero
+- [ ] R4 (med) 'most shorted' and 'day losers' are printed among the reasons a stock is rated a good BUY, though neither screen scores anything
+- [ ] R6 (low) Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and EtfScreener still describe the Worst list, the short-vehicle lookup, a two-list ETF plan and a RESEARCH_TAB index that has moved
 
 ## 6. Version
 
@@ -74,16 +88,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 15:03:01 UTC  A05 fixed: Db.purgeQuotes, called with the other purges - the quotes table was the one unbounded cache, and it is parsed whole on the launch path
-- 2026-09-09 15:03:03 UTC  A06 fixed: loadNews writes the blurbs through with the stories, and cacheNews's conflict path updates the summary without ever erasing one; three tests
-- 2026-09-09 15:03:05 UTC  A11 fixed: one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list
-- 2026-09-09 15:03:07 UTC  A12 fixed: money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed
-- 2026-09-09 15:06:32 UTC  A08 fixed: spinnerShouldShow gained a researchLoading term fed from _researchBusy, so the poll loop no longer retracts the pull indicator mid-build
-- 2026-09-09 15:06:34 UTC  A09 fixed: both KDocs corrected, and setForeground now starts a replacement wave when one was cancelled - so a flick away and back inside the grace window no longer leaves stale prices
-- 2026-09-09 15:06:35 UTC  A10 fixed: restoreFromCache(fromInit = true) skips the duplicate quote-cache read on the launch path
-- 2026-09-09 15:06:37 UTC  T4 -> done  research accuracy: the ETF ranking reworked and grounded in Schwab's and Saxo's own selection guidance; the Worst list removed rather than left inactionable; A06 restored the news blurbs the cache was discarding
-- 2026-09-09 15:11:34 UTC  finding B01: The Worst deletion left the offline Claude prompt still asking for a 'worst' lis
-- 2026-09-09 15:11:34 UTC  B01 fixed: both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions
-- 2026-09-09 15:15:08 UTC  finding B02: SELF-REVIEW: my own A02 fix stamped lastFilingsAt after refreshInsiders' symbols
-- 2026-09-09 15:15:08 UTC  B02 fixed: stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later
+- 2026-09-09 19:25:29 UTC  finding R1: Claude's conviction is written into the displayed SCORE and re-sorts the ETF lis
+- 2026-09-09 19:25:29 UTC  finding H1: A Yahoo cooldown makes MarketData fall back to per-symbol quotes for EVERY symbo
+- 2026-09-09 19:25:29 UTC  finding H2: Screener, EtfScreener and FundamentalsFeed abandon the whole call when query1 al
+- 2026-09-09 19:25:29 UTC  finding H3: YahooAuth.invalidate zeroes mintedAt, so the MIN_INTERVAL guard that exists to s
+- 2026-09-09 19:25:29 UTC  finding H4: Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a b
+- 2026-09-09 19:25:29 UTC  finding E3: The 'Same exposure as ...' line is appended last and cut off by the card's six-r
+- 2026-09-09 19:25:29 UTC  finding E4: The ETF return normalisation gates on the sum of available weights, so a fund wi
+- 2026-09-09 19:25:29 UTC  finding E5: The fund card's 1Y cell is a price-only 52-week change shown and scored beside 3
+- 2026-09-09 19:25:29 UTC  finding R2: Trending rows for symbols outside the nine equity screeners carry no price, name
+- 2026-09-09 19:25:29 UTC  finding R3: 'cheap for that growth' is printed for a company whose forward EPS is BELOW trai
+- 2026-09-09 19:25:29 UTC  finding R4: 'most shorted' and 'day losers' are printed among the reasons a stock is rated a
+- 2026-09-09 19:25:29 UTC  finding R6: Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and
 

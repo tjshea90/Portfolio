@@ -505,10 +505,19 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      * symbol is opened again, it costs a single quote request that was going to be made
      * anyway.
      */
-    fun purgeQuotes(olderThanMs: Long = 30L * 86_400_000L): Int = runCatching {
+    fun purgeQuotes(
+        olderThanMs: Long = 30L * 86_400_000L,
+        now: Long = System.currentTimeMillis()
+    ): Int = runCatching {
+        // `updated > 0` as well as the age test. Every path that writes a quote stamps it, so
+        // a zero is not something this can produce - but "undateable" and "a month old" are
+        // different facts, and a purge that treats them the same would silently delete a row
+        // written moments ago the first time anything ever wrote one without a timestamp.
+        // Deleting the wrong quote costs a re-fetch rather than data, which is precisely why
+        // it is the kind of mistake that would go unnoticed.
         writableDatabase.delete(
-            "quotes", "updated < ?",
-            arrayOf((System.currentTimeMillis() - olderThanMs).toString())
+            "quotes", "updated > 0 AND updated < ?",
+            arrayOf((now - olderThanMs).toString())
         )
     }.getOrDefault(0)
 
