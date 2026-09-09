@@ -2037,7 +2037,12 @@ internal suspend fun PointerInputScope.chartGestures(
                     stillAt = change.position
                     stillSince = change.uptimeMillis
                 }
-                nearDown = (change.position - first.position).getDistance() <= slop
+                // LATCHED, NOT RECOMPUTED (sweep 4, N08). Once a finger has travelled past the
+                // slop this gesture is no longer a press, and a drag that wandered out and came
+                // back should not be able to buy the guarantee again by returning.
+                if (nearDown) {
+                    nearDown = (change.position - first.position).getDistance() <= slop
+                }
                 val stillFor = change.uptimeMillis - stillSince
                 wait = HOLD_SCRUB_MS - stillFor
 
