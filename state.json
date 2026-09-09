@@ -60,7 +60,7 @@
       "id": "T7",
       "title": "SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic",
       "status": "doing",
-      "note": "sweep 2 closed; sweep 3 next"
+      "note": "sweep 5: must come back clean"
     },
     {
       "id": "T8",
@@ -764,6 +764,7 @@
     "2026-09-09 02:01:29 UTC  J05 fixed",
     "2026-09-09 02:01:30 UTC  J06 fixed",
     "2026-09-09 02:01:32 UTC  J07 fixed",
-    "2026-09-09 02:01:33 UTC  sweep 4: 7 findings (1 high from sweep 3's own fix), all closed; 658 tests green"
+    "2026-09-09 02:01:33 UTC  sweep 4: 7 findings (1 high from sweep 3's own fix), all closed; 658 tests green",
+    "2026-09-09 02:01:33 UTC  T7 -> doing  sweep 5: must come back clean"
   ]
 }

@@ -43,7 +43,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T4  Tests for T1-T3: pure + rendered + measured  — ChartWindowTest 38, ContinuousZoomUiTest 12, SparklineSizeUiTest 6, FullScreenChartUiTest 7
 - [x] T5  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 632/632 green, lint vital clean, checkinit ok
 - [x] T6  SWEEP 1: adversarial bug hunt over the new code and the app  — 9 findings, all fixed, 640 tests green
-- [>] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic  — sweep 2 closed; sweep 3 next
+- [>] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic  — sweep 5: must come back clean
 - [ ] T8  Ship v7.5 (versionCode 62) + final checkpoint
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
@@ -98,7 +98,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 01:41:54 UTC  finding J04: The legend's 'pts vs SPY' still uses pairedIndex() over the padded list, so it r
 - 2026-09-09 01:41:54 UTC  finding J05: baseIndex==0 short-circuit gives the comparison overlay the previous-close rule 
 - 2026-09-09 01:41:55 UTC  finding J06: chartFillsHeight has no floor: when the fixed children out-measure a short lands
 - 2026-09-09 01:41:55 UTC  finding J07: Status-bar icon polarity in the full-screen dialog does not follow a dark-mode t
@@ -110,4 +109,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 02:01:30 UTC  J06 fixed
 - 2026-09-09 02:01:32 UTC  J07 fixed
 - 2026-09-09 02:01:33 UTC  sweep 4: 7 findings (1 high from sweep 3's own fix), all closed; 658 tests green
+- 2026-09-09 02:01:33 UTC  T7 -> doing  sweep 5: must come back clean
 
