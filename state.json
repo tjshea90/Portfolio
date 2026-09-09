@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-09 01:27:32 UTC",
+  "updated": "2026-09-09 01:27:33 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -263,7 +263,7 @@
       "id": "H10",
       "text": "Re-anchor effect can null the window mid-pinch while WindowHold still holds it: one-frame pop-out",
       "sev": "low",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     },
     {
@@ -695,6 +695,7 @@
     "2026-09-09 01:27:29 UTC  H06 fixed",
     "2026-09-09 01:27:30 UTC  H07 fixed",
     "2026-09-09 01:27:31 UTC  H08 fixed",
-    "2026-09-09 01:27:32 UTC  H09 fixed"
+    "2026-09-09 01:27:32 UTC  H09 fixed",
+    "2026-09-09 01:27:33 UTC  H10 fixed"
   ]
 }
