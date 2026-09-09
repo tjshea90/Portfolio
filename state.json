@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-09 02:37:28 UTC",
+  "updated": "2026-09-09 02:37:30 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -382,7 +382,7 @@
       "id": "L02",
       "text": "atRightEdge's comment says the slack is one candle, not a percentage; the code correctly uses the max of both",
       "sev": "low",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     }
   ],
@@ -828,6 +828,7 @@
     "2026-09-09 02:22:14 UTC  sweep 5: 5 findings, all closed; 663 tests green",
     "2026-09-09 02:32:27 UTC  finding L01: Full-screen empty/loading placeholder collapses to the 120dp floor instead of fi",
     "2026-09-09 02:32:27 UTC  finding L02: atRightEdge's comment says the slack is one candle, not a percentage; the code c",
-    "2026-09-09 02:37:28 UTC  L01 fixed"
+    "2026-09-09 02:37:28 UTC  L01 fixed",
+    "2026-09-09 02:37:30 UTC  L02 fixed"
   ]
 }

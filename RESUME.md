@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:37:28 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:37:30 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 1 still open, 44 fixed
+## 5. Open findings — 0 still open, 45 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -94,7 +94,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] K04 (med) The full-screen dialog corrects the status-bar polarity but not the navigation bar
 - [x] K05 (low) A window containing exactly one candle reports +0.00 over a visibly sloping line, with the same price in both y-axis corners
 - [x] L01 (low) Full-screen empty/loading placeholder collapses to the 120dp floor instead of filling, shrinking the gesture surface a pinch relies on
-- [ ] L02 (low) atRightEdge's comment says the slack is one candle, not a percentage; the code correctly uses the max of both
+- [x] L02 (low) atRightEdge's comment says the slack is one candle, not a percentage; the code correctly uses the max of both
 
 ## 6. Version
 
@@ -105,7 +105,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 02:16:10 UTC  finding K03: The re-anchor's reset test is span-only while isDefaultView is start-sensitive: 
 - 2026-09-09 02:16:10 UTC  finding K04: The full-screen dialog corrects the status-bar polarity but not the navigation b
 - 2026-09-09 02:16:10 UTC  finding K05: A window containing exactly one candle reports +0.00 over a visibly sloping line
 - 2026-09-09 02:22:06 UTC  K01 fixed
@@ -117,4 +116,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 02:32:27 UTC  finding L01: Full-screen empty/loading placeholder collapses to the 120dp floor instead of fi
 - 2026-09-09 02:32:27 UTC  finding L02: atRightEdge's comment says the slack is one candle, not a percentage; the code c
 - 2026-09-09 02:37:28 UTC  L01 fixed
+- 2026-09-09 02:37:30 UTC  L02 fixed
 
