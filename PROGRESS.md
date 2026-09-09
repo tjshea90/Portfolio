@@ -601,3 +601,4 @@ Tasks 9/9 done, findings 45/45 fixed
 2026-09-09 05:13:03 UTC  checkpoint 65  commit 971b144  T3 done
 2026-09-09 05:13:04 UTC  checkpoint 65  commit 1fb3465  T1-T3 done: measured row charts + one-finger pan/hold-scrub, 676 green
 2026-09-09 05:19:11 UTC  checkpoint 65  commit 87f0153  fix N01
+2026-09-09 05:19:12 UTC  checkpoint 65  commit 5e64df9  fix N02
