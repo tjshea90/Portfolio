@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:22:44 UTC)
+# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:23:26 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -46,13 +46,13 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T4** (REGRESSION: full suite, lint, checkinit).
 
-## 5. Open findings — 1 still open, 4 fixed
+## 5. Open findings — 0 still open, 5 fixed
 
 - [x] N01 (high) The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought nothing and made the chart start consuming before touch slop, so a press that paused then scrolled could stop the page - on the one chart shape that never needed the gesture  — hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did
 - [x] N02 (low) chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fingers'; a one-finger pan raises them now  — chartPinching and onZoomingChanged both describe a window gesture now, not two fingers
 - [x] N03 (med) The gesture caption grew by up to 27 characters, and the full-screen viewer divides a fixed height between the plot and the text under it - an extra wrapped line at a large font scale is exactly round 64's H04 coming back  — worst-case caption (zoomed + SPY overlay + 1.5x type) measured in the full-screen viewer
 - [x] N04 (low) The event-path hold test reused holdPossible, which was computed from the previous frame's nearDown - stale by one event  — the event path now evaluates the full condition against the current frame
-- [ ] N05 (med) canPanNow did not require onWindow: a chart given a window but no onWindow callback (both are optional parameters) would caption 'drag to move' and arm the hold, while pan() returns null and the drag scrubs - M03's fault from the other direction, and the same needless early consume as N01
+- [x] N05 (med) canPanNow did not require onWindow: a chart given a window but no onWindow callback (both are optional parameters) would caption 'drag to move' and arm the hold, while pan() returns null and the drag scrubs - M03's fault from the other direction, and the same needless early consume as N01  — canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window
 
 ## 6. Version
 
@@ -63,7 +63,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 05:13:00 UTC  T2 -> done  one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in
 - 2026-09-09 05:13:02 UTC  T3 -> done  PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)
 - 2026-09-09 05:17:24 UTC  finding N01: The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought no
 - 2026-09-09 05:17:24 UTC  finding N02: chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fi
@@ -75,4 +74,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 05:19:14 UTC  N04 fixed: the event path now evaluates the full condition against the current frame
 - 2026-09-09 05:20:35 UTC  sweep 1: 4 findings (1 high), all closed
 - 2026-09-09 05:22:44 UTC  finding N05: canPanNow did not require onWindow: a chart given a window but no onWindow callb
+- 2026-09-09 05:23:26 UTC  N05 fixed: canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window
 

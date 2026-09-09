@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 05:22:44 UTC",
+  "updated": "2026-09-09 05:23:26 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -90,8 +90,8 @@
       "id": "N05",
       "text": "canPanNow did not require onWindow: a chart given a window but no onWindow callback (both are optional parameters) would caption 'drag to move' and arm the hold, while pan() returns null and the drag scrubs - M03's fault from the other direction, and the same needless early consume as N01",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window"
     }
   ],
   "log": [
@@ -558,6 +558,7 @@
     "2026-09-09 05:19:14 UTC  finding N04: The event-path hold test reused holdPossible, which was computed from the previo",
     "2026-09-09 05:19:14 UTC  N04 fixed: the event path now evaluates the full condition against the current frame",
     "2026-09-09 05:20:35 UTC  sweep 1: 4 findings (1 high), all closed",
-    "2026-09-09 05:22:44 UTC  finding N05: canPanNow did not require onWindow: a chart given a window but no onWindow callb"
+    "2026-09-09 05:22:44 UTC  finding N05: canPanNow did not require onWindow: a chart given a window but no onWindow callb",
+    "2026-09-09 05:23:26 UTC  N05 fixed: canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window"
   ]
 }
