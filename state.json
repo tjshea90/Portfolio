@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-09 02:01:23 UTC",
+  "updated": "2026-09-09 02:01:25 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -298,7 +298,7 @@
       "id": "J02",
       "text": "Readout colour comes from the whole series while its value comes from the window: a negative change printed in green on a zoomed chart",
       "sev": "high",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     },
     {
@@ -757,6 +757,7 @@
     "2026-09-09 01:41:54 UTC  finding J05: baseIndex==0 short-circuit gives the comparison overlay the previous-close rule ",
     "2026-09-09 01:41:55 UTC  finding J06: chartFillsHeight has no floor: when the fixed children out-measure a short lands",
     "2026-09-09 01:41:55 UTC  finding J07: Status-bar icon polarity in the full-screen dialog does not follow a dark-mode t",
-    "2026-09-09 02:01:23 UTC  J01 fixed"
+    "2026-09-09 02:01:23 UTC  J01 fixed",
+    "2026-09-09 02:01:25 UTC  J02 fixed"
   ]
 }
