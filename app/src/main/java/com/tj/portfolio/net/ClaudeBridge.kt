@@ -231,7 +231,6 @@ Then save that reply as a `.txt` or `.md` file and import it in the app's Activi
         "why this is a good buy at today's price",
         "what is actually going wrong at this company",
         "the next dated event that could move it",
-        "the ticker of an inverse etf on this stock",
         "the main way this call goes wrong",
         "anything the app's numbers got wrong or missed"
     )

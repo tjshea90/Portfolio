@@ -14,8 +14,8 @@ import org.json.JSONObject
  * me", and an answer file he can import back that fills the Research section with current
  * data. So the prompt file has to be self-contained in three separate ways:
  *
- *  1. It says what the app is, what the three sections mean, and what Claude is being asked
- *     to do - because the chat it lands in has no history.
+ *  1. It says what the app is, what each section means, and what Claude is being asked to do
+ *     - because the chat it lands in has no history.
  *  2. It CARRIES THE LIVE DATA. Every candidate the app ranked, with its price, its score,
  *     and the reasons behind that score, is embedded as JSON. Claude does not have to guess
  *     what is on TJ's screen, and can explain the exact rows he is looking at.
@@ -84,19 +84,17 @@ object ResearchBridge {
 # Stock research request
 
 I am attaching live market data exported from my personal Android portfolio app. The app has
-already built three lists from free market feeds and scored them with its own arithmetic. It
+already built these lists from free market feeds and scored them with its own arithmetic. It
 cannot explain them in plain English, and it cannot search the web. That is what I need from
 you.
 
-## What the three lists are
+## What the lists are
 
 - **Trending** - stocks being talked about right now. The app blends r/wallstreetbets mention
   counts with how often each name appears in today's market headlines.
 - **Best** - stocks the app's screen rates as good buys: forward earnings growth, a forward
   multiple that has not already priced it in, price above its 50- and 200-day averages, and
   enough size and liquidity to be ownable.
-- **Worst** - companies the app's screen rates as failing: losing money with no forward turn,
-  below both moving averages, deep into a 52-week decline, heavily shorted, small.
 - **ETFs** - funds the app ranked on long-run return (five- and three-year annualised NAV
   returns weighted above anything recent), expense ratio, net assets, dollar volume, how long
   the fund has existed, and its position against its own 50- and 200-day averages. Leveraged
@@ -260,7 +258,7 @@ $bundle
      */
     fun apiPrompt(bundleJson: String, useWebSearch: Boolean): String = """
 You are a candid, numerate equity analyst. Below is live market data from a personal Android
-portfolio app. The app has built three lists from free market feeds and scored them with its
+portfolio app. The app has built these lists from free market feeds and scored them with its
 own arithmetic; it cannot explain them and it cannot search the web.
 
 - "trending" - stocks being talked about now: r/wallstreetbets mention counts blended with

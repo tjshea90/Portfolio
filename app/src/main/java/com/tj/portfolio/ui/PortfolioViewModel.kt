@@ -4501,10 +4501,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun setWatchSubTab(i: Int) = db.set(Keys.WATCH_SUBTAB, i.coerceIn(0, 1).toString())
 
     /** Which Research list was open last. Coerced, so a bad stored value cannot throw. */
-    // COERCED TO THE NUMBER OF SECTIONS THERE ACTUALLY ARE. This was 0..2 and became 0..3
-    // when the ETF tab was added in Round 63; a stored "3" read back through the old bound
-    // would have silently reopened on Worst. Derived from `SECTIONS` so the next section to
-    // be added cannot reintroduce the same off-by-one.
+    // COERCED TO THE NUMBER OF SECTIONS THERE ACTUALLY ARE. It has been a literal twice and
+    // been wrong twice - once when the ETF tab was added and again when the Worst tab was
+    // removed in Round 66, which left a stored index pointing past the end of the list.
+    // Derived from `SECTIONS` so neither adding nor removing a section can do it again.
     // A FUNCTION, NOT A PROPERTY, and `checkInitOrder` is the reason: this sits below the
     // init block, and the build guard - which exists because a property declared after init
     // does not exist yet while init runs - rightly refuses one there.
@@ -4735,7 +4735,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Build (or rebuild) all three sections.
+     * Build (or rebuild) the stock sections.
      *
      * Called when the Research sub-tab becomes visible and the cache is stale, and on a pull
      * to refresh. NEVER on a timer: this is ~18 requests across four providers, and the app's
@@ -4881,8 +4881,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // An earlier version of this round marked only rows that came back WITH a
                 // consensus, reasoning that a failed lookup should be retried. It made things
                 // much worse, because `Research.consensus` also returns null for a stock
-                // nobody covers - which is most small caps, and small caps are exactly what
-                // the Worst list is full of. An uncovered symbol could then never be marked,
+                // nobody covers - which is most small caps, and the screener universe is
+                // full of them. An uncovered symbol could then never be marked,
                 // so `enrichPass` kept reporting work left to do and `enrichVisible`'s loop
                 // ran its full seven passes, firing a fresh Nasdaq request for every
                 // uncovered symbol on each one. Twenty-one requests where three were

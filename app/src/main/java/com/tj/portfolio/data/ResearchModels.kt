@@ -151,8 +151,8 @@ data class ResearchRow(
      *
      * CARRIED ON THE SAME ROW TYPE rather than in a parallel model, so the ETF list gets the
      * cache, the Claude bridge, the merge, the de-duplication and the card layout that the
-     * other three sections already have - and so a change to any of those cannot fix three
-     * lists and forget the fourth.
+     * stock sections already have - and so a change to any of those cannot fix one list and
+     * forget another.
      */
     val etf: EtfFacts? = null
 ) {

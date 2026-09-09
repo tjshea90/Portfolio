@@ -205,7 +205,8 @@ object Research {
             EtfScreener.Lists.BOND to 3,
             EtfScreener.Lists.COMMODITY to 1
         )
-        // ONE LIST AT A TIME. `fetchAll` is already sequential within a list, and three lists
+        // ONE LIST AT A TIME. `fetchAll` is already sequential within a list, and three fund
+        // screens
         // firing their first pages simultaneously at one host is the burst shape that earns a
         // 429. This pass has a six-hour TTL - it does not need to be quick, it needs to land.
         val universe = LinkedHashMap<String, EtfRow>()
@@ -443,8 +444,7 @@ object Research {
     // ------------------------------------------------------------- enrichment
 
     /**
-     * Second stage: analyst coverage, and for the Worst list the listed way to bet against
-     * the name. Runs for the VISIBLE rows only.
+     * Second stage: analyst coverage. Runs for the VISIBLE rows only.
      *
      * [alreadyDone] lets the caller skip rows enriched on a previous page, so tapping
      * "Load more" costs exactly ten more lookups rather than re-doing the first ten.

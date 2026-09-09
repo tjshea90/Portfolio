@@ -54,7 +54,7 @@ import com.tj.portfolio.data.ResearchSet
 import com.tj.portfolio.util.Fmt
 
 /**
- * One of the three lists, as a tab.
+ * One of the lists, as a tab.
  *
  * ROUND 56: they used to be stacked in one scroll, and reaching the last one meant scrolling
  * past a header and twenty tall cards - each carries its own reason lines and often a Claude
@@ -113,11 +113,11 @@ private enum class Section(
 /**
  * THE RESEARCH SCREEN - the second half of the Watch tab (Round 54, retabbed in Round 56).
  *
- * Three lists, ten rows each, and a button under each that reveals ten more. Nothing beyond
+ * Three tabs, ten rows each, and a button under each that reveals ten more. Nothing beyond
  * ten is loaded until that button is pressed: the list itself is already in memory, but the
- * per-row lookups that cost requests - analyst consensus, the inverse-ETF search - are only
- * spent on rows that are actually on screen. That was TJ's explicit rule and it is enforced
- * in [PortfolioViewModel.showMoreResearch], not just in this layout.
+ * per-row lookup that costs requests - analyst consensus, on the Best list only - is spent
+ * on rows that are actually on screen. That was TJ's explicit rule and it is enforced in
+ * [PortfolioViewModel.showMoreResearch], not just in this layout.
  *
  * Every row shows the app's own score AND the reason lines behind it, before any Claude
  * involvement. Claude's paragraph, when it arrives, is drawn UNDER those lines and labelled,
@@ -160,10 +160,10 @@ fun ResearchScreen(
     // ---- BUILD WHAT IS BEING LOOKED AT, AND NOTHING ELSE (Round 63).
     //
     // This used to live in `WatchTab` as a single `loadResearch()` on first sight, which was
-    // right when there were three lists built by one pass. It is not any more: the ETF list
-    // is its own ten requests on its own six-hour clock, and someone who left the app on the
-    // ETFs tab would have paid eighteen stock requests on every launch to fill three lists
-    // they were not looking at - and still had no fund data.
+    // right when every list came from one pass. It is not any more: the ETF list is its own
+    // ten requests on its own six-hour clock, and someone who left the app on the ETFs tab
+    // would have paid eighteen stock requests on every launch to fill lists they were not
+    // looking at - and still had no fund data.
     //
     // Both calls are cheap when there is nothing to do: each returns immediately if its own
     // cache is inside its own TTL, so switching between tabs costs nothing at all.
@@ -320,10 +320,10 @@ fun ResearchScreen(
                 else vm.loadResearch(force = true)
             }
         ) {
-            // ONE SCROLL STATE PER SECTION, all three created unconditionally so each keeps
-            // its own position. Sharing a single state means switching from row 40 of Best
-            // into a Worst list of 12 rows lands somewhere arbitrary, and switching back
-            // loses the place entirely.
+            // ONE SCROLL STATE PER SECTION, all created unconditionally so each keeps its
+            // own position. Sharing a single state means switching from row 40 of Best into
+            // a Trending list of 12 rows lands somewhere arbitrary, and switching back loses
+            // the place entirely.
             //
             // `rememberLazyListState` rather than a hand-built `LazyListState` in a map:
             // only the remembered form carries a Saver, so these are the positions that

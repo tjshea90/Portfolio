@@ -97,10 +97,10 @@ fun WatchTab(
 
         if (subTab == WATCH_RESEARCH) {
             // Build on first sight, and only then - but WHICH list is built is decided inside
-            // `ResearchScreen`, by which of its four sections is showing (Round 63). The ETF
-            // list is ten requests on a six-hour clock and the other three are eighteen on a
+            // `ResearchScreen`, by which of its sections is showing (Round 63). The ETF list
+            // is ten requests on a six-hour clock and the stock lists are eighteen on a
             // thirty-minute one; firing the stock pass here regardless meant someone sitting
-            // on the ETFs tab paid for three lists they were not looking at. The rule itself
+            // on the ETFs tab paid for lists they were not looking at. The rule itself
             // is unchanged and is the Round 50 one: nothing is fetched for a screen nobody
             // has opened.
             ResearchScreen(vm, state, onOpen = onOpen, onOpenUrl = onOpenUrl)
