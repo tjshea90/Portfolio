@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 14:53:27 UTC",
+  "updated": "2026-09-09 15:00:12 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -29,8 +29,8 @@
     {
       "id": "T2",
       "title": "ETF section: accurate, multi-source, healthy strong-buy funds ranked best-first",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "ETF ranking: one fund per exposure (Schwab/Saxo both say comparison is only meaningful within an exposure group), youth no longer penalised twice with a three-year floor against performance-chasing, and the blurb now says what the feed cannot see"
     },
     {
       "id": "T3",
@@ -655,6 +655,7 @@
     "2026-09-09 14:44:13 UTC  A02 fixed: feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed",
     "2026-09-09 14:44:15 UTC  A07 fixed: AUTOSAVE_AT, AUTO_BACKUP_AT, DOWNLOADS_TIDIED and the new FILINGS_AT are excluded from backups, and restoreAsync forces a safety copy of what it just restored",
     "2026-09-09 14:44:18 UTC  T5 -> done  cache/refresh audit produced A02 (cadences never fired), A05 (quotes never pruned) and A07 (marks travelling in backups)",
-    "2026-09-09 14:53:27 UTC  T3 -> done  Worst section deleted: tab, scorer, ShortVehicle, the inverse-ETF enrichment and its Claude prompt sections. Measured 16/20 momentum mega-caps have a US single-stock inverse fund vs 2/40 beaten-down names, one of those foreign-listed only"
+    "2026-09-09 14:53:27 UTC  T3 -> done  Worst section deleted: tab, scorer, ShortVehicle, the inverse-ETF enrichment and its Claude prompt sections. Measured 16/20 momentum mega-caps have a US single-stock inverse fund vs 2/40 beaten-down names, one of those foreign-listed only",
+    "2026-09-09 15:00:12 UTC  T2 -> done  ETF ranking: one fund per exposure (Schwab/Saxo both say comparison is only meaningful within an exposure group), youth no longer penalised twice with a three-year floor against performance-chasing, and the blurb now says what the feed cannot see"
   ]
 }

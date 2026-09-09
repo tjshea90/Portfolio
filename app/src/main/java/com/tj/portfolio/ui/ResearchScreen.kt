@@ -97,7 +97,10 @@ private enum class Section(
         ResearchSet.SECTION_ETF, "ETFs",
         "Funds ranked on five- and three-year annualised returns, weighted above anything " +
             "recent, then expense ratio, fund size, dollar volume, how long it has existed " +
-            "and its trend. Leveraged and inverse funds are left out."
+            "and its trend. Leveraged and inverse funds are left out, and only the " +
+            "best-scoring fund of each exposure appears - the others are named on its card. " +
+            "What this cannot see is what a fund actually holds or how closely it tracks its " +
+            "index, so read the fund page before you buy."
     );
 
     fun rowsIn(set: ResearchSet): List<ResearchRow> = when (this) {

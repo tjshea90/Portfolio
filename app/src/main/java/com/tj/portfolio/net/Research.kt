@@ -16,12 +16,12 @@ import org.json.JSONObject
 /**
  * BUILDS THE RESEARCH TAB.
  *
- * One pass produces all three sections. The shape of the pass is dictated by the app's
+ * One pass produces both stock sections. The shape of the pass is dictated by the app's
  * standing rule that no provider may be hammered (Round 50, T3/T4), so it is deliberately
  * WIDE AND SHALLOW rather than deep:
  *
  *   * 9 Yahoo screener calls return roughly 450 fully-populated quote objects. That is the
- *     entire candidate universe for Best and Worst, for 9 requests.
+ *     entire candidate universe for Best and for Trending, for 9 requests.
  *   * 2 aggregator calls (Tradestie, ApeWisdom) give r/wallstreetbets mention counts.
  *   * 1 Yahoo trending call.
  *   * ~6 market-wide RSS feeds, already implemented in [News.market], give today's headlines
@@ -30,9 +30,12 @@ import org.json.JSONObject
  *     bug. No per-symbol news request is made at all.
  *
  * That is ~18 requests for the whole tab, cached for [TTL_MS]. The expensive per-symbol work
- * - one Nasdaq analyst call and, for the Worst list, one Yahoo fund search - happens ONLY for
- * the rows the user can actually see, which is TJ's ten-at-a-time rule enforced on the wire
- * and not just in the layout.
+ * - one Nasdaq analyst call per row - happens ONLY for the rows the user can actually see,
+ * which is TJ's ten-at-a-time rule enforced on the wire and not just in the layout.
+ *
+ * ROUND 66 REMOVED THE "WORST" SECTION and, with it, a second per-row stage that cost up to
+ * two Yahoo searches for every visible row. See the note where its scorer used to be in
+ * [ResearchScore].
  */
 object Research {
 
@@ -56,7 +59,7 @@ object Research {
 
     /**
      * A stock too small or too thinly traded to research is not an opportunity, it is a
-     * spread. Applies to BOTH lists: a $12m shell at the top of the Worst list is not news.
+     * spread.
      */
     private const val MIN_MARKET_CAP = 5e7
     private const val MIN_PRICE = 1.0
@@ -238,9 +241,22 @@ object Research {
             .map { it to EtfScore.best(it) }
             .filter { it.second.confidence >= MIN_ETF_CONFIDENCE }
             .sortedByDescending { it.second.score }
-            .take(ETF_BUFFER)
-            .map { (row, sc) -> toEtfRow(row, sc) }
             .toList()
+            // ---- ONE FUND PER EXPOSURE (Round 66).
+            //
+            // Applied AFTER the ranking and BEFORE the buffer is cut, which is the only order
+            // that works: dedupe first and the winner of each group would be chosen before it
+            // was scored, cut first and a page of ten could still be five decisions wearing
+            // ten tickers. VOO, IVV and SPLG are the same index, the same holdings and within
+            // a basis point of each other, so they score within a point or two and arrive as
+            // three consecutive rows - pushing out the five funds that would have been the
+            // rest of the page. See [EtfExposure] for why grouping is read off the name and
+            // why it errs toward leaving funds alone.
+            .let { ranked ->
+                EtfExposure.dedupe(ranked, name = { it.first.name }, symbol = { it.first.symbol })
+            }
+            .take(ETF_BUFFER)
+            .map { (pair, also) -> toEtfRow(pair.first, pair.second, also) }
 
         if (ranked.isEmpty()) warnings.add("No fund carried enough published data to rank")
 
@@ -256,16 +272,28 @@ object Research {
             "each arriving with its expense ratio, net assets, three- and five-year " +
             "annualised NAV returns, yield and average volume. Scores are computed on the " +
             "phone from those numbers, weighted toward the long run. Leveraged and inverse " +
-            "funds are excluded. Yahoo's lists do not cover every US ETF, so anything Claude " +
-            "adds through web research is added to this list too."
+            "funds are excluded, and where several funds track the same thing only the " +
+            "best-scoring one takes a place - the rest are named on its card. Two things " +
+            "these feeds do not carry are tracking difference and the actual holdings, which " +
+            "is why the fund's own page is still worth opening. Yahoo's lists do not cover " +
+            "every US ETF, so anything Claude adds through web research is added here too."
 
-    private fun toEtfRow(r: EtfRow, sc: ResearchScore.Scored): ResearchRow = ResearchRow(
+    private fun toEtfRow(
+        r: EtfRow,
+        sc: ResearchScore.Scored,
+        alsoTracking: List<String> = emptyList()
+    ): ResearchRow = ResearchRow(
         symbol = r.symbol,
         name = r.name,
         price = r.price,
         changePct = r.changePct,
         score = sc.score,
-        reasons = sc.reasons,
+        // NAMED, NOT SILENTLY DROPPED. A fund removed from the page because something else
+        // holds the same thing is still a fund TJ might prefer - a different issuer, a
+        // different broker's commission-free list - so the row it lost to says so.
+        reasons = if (alsoTracking.isEmpty()) sc.reasons
+        else sc.reasons + ("Same exposure as " + alsoTracking.joinToString(", ") +
+            " - this one scored highest of them"),
         etf = com.tj.portfolio.data.EtfFacts(
             expenseRatio = r.expenseRatio,
             netAssets = r.netAssets,

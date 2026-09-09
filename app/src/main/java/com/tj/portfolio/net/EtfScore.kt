@@ -154,14 +154,33 @@ object EtfScore {
             // 5Y annualised: 0 points at 0%/yr, full at 20%/yr. 20 is roughly double the
             // long-run return of the US market, so a fund only tops this out by having
             // genuinely doubled it over five years.
+            var earned = 0.0
+            var possible = 0.0
             if (r.fiveYearAnnualPct != 0.0) {
-                s += ramp(r.fiveYearAnnualPct, 0.0, 20.0, 14.0)
+                earned += ramp(r.fiveYearAnnualPct, 0.0, 20.0, 14.0); possible += 14.0
             }
             if (r.threeYearAnnualPct != 0.0) {
-                s += ramp(r.threeYearAnnualPct, 0.0, 20.0, 10.0)
+                earned += ramp(r.threeYearAnnualPct, 0.0, 20.0, 10.0); possible += 10.0
             }
-            if (r.oneYearPct != 0.0) s += ramp(r.oneYearPct, 0.0, 30.0, 6.0)
-            if (r.ytdReturnPct != 0.0) s += ramp(r.ytdReturnPct, 0.0, 25.0, 4.0)
+            if (r.oneYearPct != 0.0) { earned += ramp(r.oneYearPct, 0.0, 30.0, 6.0); possible += 6.0 }
+            if (r.ytdReturnPct != 0.0) { earned += ramp(r.ytdReturnPct, 0.0, 25.0, 4.0); possible += 4.0 }
+
+            // ---- YOUTH IS PENALISED ONCE, NOT TWICE (Round 66).
+            //
+            // THE BUG THIS FIXES. The four terms were simply added, so a fund with no
+            // five-year figure lost those 14 points outright - and then lost points AGAIN on
+            // the record-length factor below, which exists precisely to say "too young to
+            // have shown it". A four-year-old fund that had beaten the market every one of
+            // those four years could not place, and the reason lines gave no hint why.
+            //
+            // Scored on the record it HAS, so long as that record is at least three years.
+            // The three-year floor is the whole guard against the classic failure of ranking
+            // funds on trailing return: a fund eighteen months old with one hot year would
+            // otherwise normalise its way to full marks on the strength of that year, which
+            // is exactly how retail money arrives at the top of a sector. Below the floor the
+            // terms are added raw, so such a fund keeps its points and still cannot reach the
+            // top of a list that is weighted toward the long run.
+            s += if (possible >= 20.0) earned * 34.0 / possible else earned
 
             // ONE LINE, NOT FOUR. The card shows up to six reasons and four separate return
             // lines would crowd out cost and size, which are the ones a person cannot look up

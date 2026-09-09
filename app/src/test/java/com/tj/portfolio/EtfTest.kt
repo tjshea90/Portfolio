@@ -200,6 +200,68 @@ class EtfTest {
         )
     }
 
+    /**
+     * ROUND 66. Youth was being charged for twice.
+     *
+     * The four return terms were simply added, so a fund with no five-year figure lost those
+     * 14 points outright - and then lost points AGAIN on the record-length factor, which
+     * exists precisely to say "too young to have shown it". A four-year-old fund that had
+     * beaten the market in every one of those four years could not place, and nothing in its
+     * reason lines said why.
+     */
+    @Test fun `a four-year fund is judged on the record it has`() {
+        val ten = System.currentTimeMillis() - 10L * 31_557_600_000L
+        val four = System.currentTimeMillis() - 4L * 31_557_600_000L
+        val base = EtfRow(
+            symbol = "X", name = "Fund", price = 100.0, expenseRatio = 0.1, netAssets = 5e9,
+            avgVolume3M = 1e6, fiftyDayAvg = 95.0, twoHundredDayAvg = 90.0
+        )
+        val veteran = base.copy(
+            inceptionMs = ten,
+            fiveYearAnnualPct = 16.0, threeYearAnnualPct = 16.0,
+            oneYearPct = 16.0, ytdReturnPct = 12.0
+        )
+        val younger = base.copy(
+            symbol = "Y", inceptionMs = four,
+            fiveYearAnnualPct = 0.0, threeYearAnnualPct = 16.0,
+            oneYearPct = 16.0, ytdReturnPct = 12.0
+        )
+        val v = EtfScore.best(veteran).score
+        val y = EtfScore.best(younger).score
+        // It should still lose - the record-length factor is a real difference - but by the
+        // eight points that factor is worth, not by the twenty-two it used to.
+        assertTrue("the younger fund scored $y against $v; it is being charged twice for its age",
+            y >= v - 12)
+        assertTrue("but a shorter record should still cost something: $y vs $v", y < v)
+    }
+
+    /**
+     * The other half of the same rule: the three-year floor. Normalising a fund with ONLY a
+     * hot twelve months up to full marks is exactly how a best-list fills with whatever just
+     * ran, which is the trap the whole weighting exists to avoid.
+     */
+    @Test fun `a fund with only one year of record cannot normalise its way to the top`() {
+        val base = EtfRow(
+            symbol = "X", name = "Fund", price = 100.0, expenseRatio = 0.1, netAssets = 5e9,
+            avgVolume3M = 1e6, fiftyDayAvg = 95.0, twoHundredDayAvg = 90.0,
+            inceptionMs = System.currentTimeMillis() - 10L * 31_557_600_000L
+        )
+        val steady = base.copy(
+            fiveYearAnnualPct = 15.0, threeYearAnnualPct = 15.0, oneYearPct = 15.0,
+            ytdReturnPct = 11.0
+        )
+        val hot = base.copy(
+            symbol = "Y", inceptionMs = System.currentTimeMillis() - 18L * 2_629_800_000L,
+            fiveYearAnnualPct = 0.0, threeYearAnnualPct = 0.0,
+            oneYearPct = 90.0, ytdReturnPct = 70.0
+        )
+        assertTrue(
+            "an eighteen-month fund with one hot year outscored a five-year record: " +
+                "${EtfScore.best(hot).score} vs ${EtfScore.best(steady).score}",
+            EtfScore.best(steady).score > EtfScore.best(hot).score
+        )
+    }
+
     @Test fun `cost is counted against return`() {
         val cheap = EtfRow(
             symbol = "A", name = "A", price = 100.0, expenseRatio = 0.03, netAssets = 1e10,
