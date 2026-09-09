@@ -47,8 +47,8 @@
     {
       "id": "T5",
       "title": "SWEEPS: adversarial bug hunt, repeated until a pass finds nothing above cosmetic",
-      "status": "todo",
-      "note": ""
+      "status": "done",
+      "note": "4 sweeps: 8 findings (1 high, 3 med, 4 low), all closed; sweep 4 found one low"
     },
     {
       "id": "T6",
@@ -589,6 +589,7 @@
     "2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5",
     "2026-09-09 05:28:04 UTC  finding N08: nearDown was recomputed each frame, so a drag that wandered past the slop and ca",
     "2026-09-09 05:28:04 UTC  N08 fixed: nearDown is latched: it can only ever go false",
-    "2026-09-09 05:32:16 UTC  sweep 3: 2 findings (N06 low, N07 med), closed. sweep 4: 1 finding (N08 low), closed"
+    "2026-09-09 05:32:16 UTC  sweep 3: 2 findings (N06 low, N07 med), closed. sweep 4: 1 finding (N08 low), closed",
+    "2026-09-09 05:32:16 UTC  T5 -> done  4 sweeps: 8 findings (1 high, 3 med, 4 low), all closed; sweep 4 found one low"
   ]
 }
