@@ -252,8 +252,8 @@ class PanGestureUiTest {
         rule.waitForIdle()
 
         assertTrue(
-            "a slow drag was captured as a hold-scrub and never panned",
-            reported.isNotEmpty()
+            "PROBE slow reported=${reported.size} scrubbing=${scrubbing()}",
+            false
         )
         val after = reported.last()
         assertEquals("the slow drag resized the window", before.spanMs, after.spanMs)
@@ -370,5 +370,79 @@ class PanGestureUiTest {
                 "${afterPan!!.startMs} -> ${afterPinch.startMs}",
             afterPinch.startMs >= afterPan.startMs - afterPan.spanMs / 20
         )
+    }
+}
+
+// temporary probes
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], qualifiers = "w411dp-h891dp-xhdpi")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class ProbeTimingTest {
+    @get:Rule val rule = createComposeRule()
+    private fun series() = ChartSeries(
+        symbol = "TEST", range = ChartRange.M6,
+        points = (0 until 180).map { ChartPoint(1_740_000_000L + it * 86_400L, 100.0 + it) },
+        baseline = 100.0, currency = "USD", fetched = System.currentTimeMillis()
+    )
+    private val whole: ChartWindow get() = series().let { ChartWindow(it.startMs, it.endMs) }
+    private val zoomed: ChartWindow get() = whole.let {
+        val third = (it.endMs - it.startMs) / 3
+        ChartWindow(it.startMs + third, it.endMs - third)
+    }
+    private val reported = ArrayList<ChartWindow>()
+    private var holds = 0
+
+    @Composable private fun Chart() {
+        var w by remember { mutableStateOf<ChartWindow?>(zoomed) }
+        PriceChart(series = series(), range = ChartRange.M6, loading = false,
+            window = w, windowBounds = whole,
+            onWindow = { next -> w = next; reported.add(next) }, onResetWindow = { w = null })
+    }
+    private fun run(step: Float, gap: Long, n: Int): String {
+        rule.setContent { PortfolioTheme(dark = false) { Box(Modifier.fillMaxSize()) { Chart() } } }
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
+            val x0 = width * 0.8f; val y = height * 0.5f
+            down(Offset(x0, y))
+            for (i in 1..n) { advanceEventTime(gap); moveTo(Offset(x0 - i * step, y)) }
+            up()
+        }
+        rule.waitForIdle()
+        return "step=$step gap=$gap n=$n reported=${reported.size}"
+    }
+    @Test fun `probe A fast big`() { assertTrue("PROBE " + run(20f, 16L, 5), false) }
+}
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], qualifiers = "w411dp-h891dp-xhdpi")
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class ProbeTimingTest2 {
+    @get:Rule val rule = createComposeRule()
+    private fun series() = ChartSeries(
+        symbol = "TEST", range = ChartRange.M6,
+        points = (0 until 180).map { ChartPoint(1_740_000_000L + it * 86_400L, 100.0 + it) },
+        baseline = 100.0, currency = "USD", fetched = System.currentTimeMillis()
+    )
+    private val whole: ChartWindow get() = series().let { ChartWindow(it.startMs, it.endMs) }
+    private val zoomed: ChartWindow get() = whole.let {
+        val third = (it.endMs - it.startMs) / 3
+        ChartWindow(it.startMs + third, it.endMs - third)
+    }
+    private val reported = ArrayList<ChartWindow>()
+    @Composable private fun Chart() {
+        var w by remember { mutableStateOf<ChartWindow?>(zoomed) }
+        PriceChart(series = series(), range = ChartRange.M6, loading = false,
+            window = w, windowBounds = whole,
+            onWindow = { next -> w = next; reported.add(next) }, onResetWindow = { w = null })
+    }
+    @Test fun `probe B slow small no advance`() {
+        rule.setContent { PortfolioTheme(dark = false) { Box(Modifier.fillMaxSize()) { Chart() } } }
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
+            val x0 = width * 0.8f; val y = height * 0.5f
+            down(Offset(x0, y))
+            for (i in 1..10) { moveTo(Offset(x0 - i * 3f, y)) }
+            up()
+        }
+        rule.waitForIdle()
+        assertTrue("PROBE noAdvance reported=${reported.size}", false)
     }
 }
