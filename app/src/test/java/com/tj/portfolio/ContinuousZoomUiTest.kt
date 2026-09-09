@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -494,7 +495,7 @@ class ContinuousZoomUiTest {
         val drawn = clipToWindow(s, w, pad = true)!!
         val range = insideIndices(drawn, w)
         val baseT = drawn.points[range.first].t
-        val own = primaryPercents(drawn, range.first)!!
+        val own = primaryPercents(drawn, range.first, fromPoint = true)!!
         val other = comparePercents(drawn, b, Long.MAX_VALUE, baseT)!!
         assertEquals(
             "the stock's line does not start at zero in its own window",
@@ -551,6 +552,71 @@ class ContinuousZoomUiTest {
                 assertTrue("$tag is drawn over a price label ($b vs $l)", !overlaps)
             }
         }
+    }
+
+
+    // ------------------------------------------- what a pinch OUTWARD must not do
+
+    @Test fun `pinching outward past the data still says what it is measuring`() {
+        // THE REGRESSION THIS PROVES FIXED. The measurements switched to "the window's first
+        // point on screen" whenever a window existed, while every label that explains what
+        // those measurements MEAN switched on a separate "is it zoomed" test that only looked
+        // for a NARROWER window. One pinch outward on a 1D chart landed between the two: the
+        // readout quietly measured from the session's open while still printing "since
+        // yesterday's close" beside it, and offered no way back.
+        show { ZoomableChart(chartBounds = optimisticBounds) }
+        spread(steps = 10, perStep = 1f / 1.25f, from = 300f)
+        assertTrue("the pinch reported nothing", reported.isNotEmpty())
+        val w = reported.last()
+        assertTrue(
+            "this test needs a window wider than the series to be meaningful " +
+                "(${w.spanMs} vs ${bounds.spanMs})",
+            w.spanMs > bounds.spanMs
+        )
+        val shown = texts()
+        assertTrue(
+            "a chart showing more than its own data still calls itself the plain range:\n" +
+                shown.joinToString("\n"),
+            shown.none { it == "over 6m" }
+        )
+        assertTrue(
+            "there is no way back from a chart the user has visibly moved",
+            rule.onAllNodesWithTag(RESET_ZOOM_TAG).fetchSemanticsNodes().isNotEmpty()
+        )
+    }
+
+    @Test fun `a rising chart zoomed into a falling stretch reports the fall`() {
+        // The readout's colour is taken from the very series its figure is measured over, so
+        // this is the checkable half of "a negative change must not be printed in green": a
+        // six-month line that rises overall, zoomed into a stretch where the stock fell, has
+        // to print a NEGATIVE change. It used to print the window's fall in the whole series'
+        // colour, because the two came from different places.
+        val rising = ChartSeries(
+            symbol = "TEST", range = ChartRange.M6,
+            points = (0 until 180).map { i ->
+                // Up overall, with a clear dip between day 100 and day 130.
+                val v = if (i in 100..130) 200.0 - (i - 100) else 100.0 + i
+                ChartPoint(1_740_000_000L + i * 86_400L, v)
+            },
+            baseline = 100.0, fetched = System.currentTimeMillis()
+        )
+        assertTrue("the fixture must rise overall", rising.change > 0.0)
+        val dip = ChartWindow(
+            rising.points[105].t * 1000L, rising.points[128].t * 1000L
+        )
+        show {
+            PriceChart(
+                series = rising, range = ChartRange.M6, loading = false,
+                window = dip,
+                windowBounds = ChartWindow(rising.startMs, rising.endMs),
+                onWindow = {}, onResetWindow = {}
+            )
+        }
+        val shown = texts()
+        assertTrue(
+            "the readout does not report the window's fall:\n" + shown.joinToString("\n"),
+            shown.any { it.startsWith("-$") || it.contains("   -") }
+        )
     }
 
     private fun texts(): List<String> =

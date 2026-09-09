@@ -24,15 +24,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.ChartWindow
@@ -117,6 +121,27 @@ fun FullScreenChart(
             decorFitsSystemWindows = false
         )
     ) {
+        // ---- THE STATUS BAR OVER *THIS* WINDOW (sweep 4).
+        //
+        // A dialog is its own window, and the light/dark polarity of the system-bar icons is a
+        // WINDOW property taken from the theme when that window is created. `MainActivity`
+        // re-applies it to the ACTIVITY's window when the configuration changes, and nothing
+        // reaches this one - so toggling dark mode with the chart open left the clock and
+        // icons in the previous theme's colour until it was closed.
+        //
+        // INSIDE the dialog's content, because that is the only place `LocalView` is the
+        // dialog's own view rather than the activity's; its parent implements
+        // `DialogWindowProvider`, which is how Compose exposes the window it created.
+        val dark = LocalDarkTheme.current
+        val view = LocalView.current
+        LaunchedEffect(dark, view) {
+            val window = (view.parent as? DialogWindowProvider)?.window
+            if (window != null) {
+                WindowCompat.getInsetsController(window, view)
+                    .isAppearanceLightStatusBars = !dark
+            }
+        }
+
         Surface(
             Modifier
                 .fillMaxSize()

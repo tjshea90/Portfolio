@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-09 01:27:37 UTC",
+  "updated": "2026-09-09 02:01:23 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -285,6 +285,55 @@
       "text": "StockRow comment still argues for weight 1.4 while the code is 1.6; SparklineSizeUiTest asserts !hasVisualOverflow on a widget whose job is to shrink until that is true",
       "sev": "low",
       "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "J01",
+      "text": "Zeroing the baseline keyed on window!=null while every explaining label keys on zoomedIn: pinch out on a 1D chart and the readout measures from the session open while still saying 'since yesterday's close'; no reset chip; the dotted previous-close line is clipped away",
+      "sev": "high",
+      "status": "fixed",
+      "note": ""
+    },
+    {
+      "id": "J02",
+      "text": "Readout colour comes from the whole series while its value comes from the window: a negative change printed in green on a zoomed chart",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "J03",
+      "text": "clipToWindow(pad=false)'s straddle fallback picks lo..lo+1 instead of the straddling pair, so 'inside' and insideIndices describe different points; a single in-window point is also widened to two",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "J04",
+      "text": "The legend's 'pts vs SPY' still uses pairedIndex() over the padded list, so it reads one candle past the window while the readout above reads inside it",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "J05",
+      "text": "baseIndex==0 short-circuit gives the comparison overlay the previous-close rule while the readout uses the first on-screen point",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "J06",
+      "text": "chartFillsHeight has no floor: when the fixed children out-measure a short landscape window the plot is given zero height and vanishes",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "J07",
+      "text": "Status-bar icon polarity in the full-screen dialog does not follow a dark-mode toggle while it is open",
+      "sev": "low",
+      "status": "open",
       "note": ""
     }
   ],
@@ -700,6 +749,14 @@
     "2026-09-09 01:27:34 UTC  H11 fixed",
     "2026-09-09 01:27:35 UTC  H12 fixed",
     "2026-09-09 01:27:36 UTC  H13 fixed",
-    "2026-09-09 01:27:37 UTC  sweep 3: 13 findings (2 high in sweep 2's own fixes), all closed; 656 tests green"
+    "2026-09-09 01:27:37 UTC  sweep 3: 13 findings (2 high in sweep 2's own fixes), all closed; 656 tests green",
+    "2026-09-09 01:41:54 UTC  finding J01: Zeroing the baseline keyed on window!=null while every explaining label keys on ",
+    "2026-09-09 01:41:54 UTC  finding J02: Readout colour comes from the whole series while its value comes from the window",
+    "2026-09-09 01:41:54 UTC  finding J03: clipToWindow(pad=false)'s straddle fallback picks lo..lo+1 instead of the stradd",
+    "2026-09-09 01:41:54 UTC  finding J04: The legend's 'pts vs SPY' still uses pairedIndex() over the padded list, so it r",
+    "2026-09-09 01:41:54 UTC  finding J05: baseIndex==0 short-circuit gives the comparison overlay the previous-close rule ",
+    "2026-09-09 01:41:55 UTC  finding J06: chartFillsHeight has no floor: when the fixed children out-measure a short lands",
+    "2026-09-09 01:41:55 UTC  finding J07: Status-bar icon polarity in the full-screen dialog does not follow a dark-mode t",
+    "2026-09-09 02:01:23 UTC  J01 fixed"
   ]
 }

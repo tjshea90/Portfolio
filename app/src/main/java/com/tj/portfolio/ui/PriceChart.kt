@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -246,17 +247,25 @@ fun PriceChart(
     // WHAT IS MEASURED, as opposed to what is drawn: the same clip WITHOUT the carried edge
     // points, so every figure printed anywhere on this chart describes the picture the user is
     // looking at. The two are the same object when nothing is zoomed.
-    val insideAll = remember(shown, window) {
-        val strict = clipToWindow(shown, window, pad = false)
-        // ---- AND ITS BASELINE IS DROPPED WHEN ZOOMED (Round 64 sweep 3).
-        //
-        // `ChartSeries.from` is the previous close on an intraday range. On a chart zoomed to
-        // three hours of the afternoon that is not what the reader is being shown a change
-        // OF - the caption says "over 3 hr" - and it would also widen the y-axis to reach a
-        // price from before the window. Zeroing it makes `from` the first point on screen,
-        // which is what every other figure on a zoomed chart is now measured from. The dotted
-        // baseline itself is drawn from the DRAWN series, so it is still there when it is.
-        if (window != null && strict != null) strict.copy(baseline = 0.0) else strict
+    // ---- IS THIS THE DEFAULT VIEW, OR HAS THE USER MOVED IT? ONE ANSWER (sweep 4).
+    //
+    // THE BUG THIS FIXES, and it is the reason this is computed once and read everywhere.
+    // The measurements were switched to "the window's own first point" on `window != null`,
+    // while every LABEL that explains what those measurements mean switched on `zoomedIn` -
+    // and the two disagree for any window WIDER than the series, which is what one pinch
+    // outward on a 1D chart produces. The readout then quietly measured from the session's
+    // open while still printing "since yesterday's close" beside it, disagreed with the price
+    // block above it and with its own range chip, and offered no reset chip to escape with.
+    //
+    // EITHER DIRECTION COUNTS. A window wider than the line is as much "not the default view"
+    // as a narrower one: it is what a pinch-out looks like while the wider series is still
+    // being fetched, and it needs the same caption, the same baseline rule and the same way
+    // back out.
+    val seriesWindowAll = remember(shown) {
+        shown?.takeIf { it.points.size >= 2 }?.let { ChartWindow(it.startMs, it.endMs) }
+    }
+    val movedAll = remember(window, seriesWindowAll) {
+        window != null && !ChartWindow.isDefaultView(window, seriesWindowAll)
     }
     val axisWindow = remember(drawnAll, window) {
         window ?: drawnAll?.let { ChartWindow(it.startMs, it.endMs) }
@@ -396,7 +405,12 @@ fun PriceChart(
 
     Column(modifier.fillMaxWidth()) {
         val plotSize =
-            if (chartFillsHeight) Modifier.fillMaxWidth().weight(1f)
+            // A FLOOR UNDER THE WEIGHT (sweep 4). `weight` hands out what is left, and when
+            // the fixed children out-measure the window - a short landscape window at a large
+            // font scale, or split-screen - what is left is nothing, and the chart itself
+            // disappeared while its caption stayed. Overflowing the bottom of a cramped window
+            // is a far better failure than deleting the subject of the screen.
+            if (chartFillsHeight) Modifier.fillMaxWidth().weight(1f).heightIn(min = 120.dp)
             else Modifier.fillMaxWidth().height(chartHeight)
         if (shown == null || shown.isEmpty) {
             Box(
@@ -429,12 +443,9 @@ fun PriceChart(
         // compromise either - `#16C784` on white is 2.20:1, which is faint for a line as well
         // as illegible for text. The fill palette stays where it belongs: the sparkline's
         // gradient, the badge and chip backgrounds.
-        val line = signColor(shown.change)
-
         // `drawnAll` and `axisWindow` are computed above the empty-state branch because the
         // gesture handler needs them; here they are simply narrowed to non-null.
         val drawn = drawnAll ?: shown
-        val inside = insideAll ?: drawn
         val axis = axisWindow ?: ChartWindow(drawn.startMs, drawn.endMs)
         // ---- WHAT COUNTS AS "ZOOMED", AND WHY IT IS NOT MEASURED AGAINST THE BOUNDS.
         //
@@ -446,8 +457,7 @@ fun PriceChart(
         //
         // What the user means by zoomed is "showing less than the whole line in front of me",
         // so that is what is asked. `seriesWindow` is the fetched series' own extent.
-        val seriesWindow = remember(shown) { ChartWindow(shown.startMs, shown.endMs) }
-        val zoomedIn = window != null && !ChartWindow.isWhole(window, seriesWindow)
+        val zoomedIn = movedAll
 
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
@@ -463,12 +473,49 @@ fun PriceChart(
         // Everything that MEASURES rather than draws - the y-axis, the resting readout, the
         // point count - works over this slice of it instead.
         val insideRange = remember(drawn, window) { insideIndices(drawn, window) }
-        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, insideRange) {
+
+        // ---- WHAT IS MEASURED: exactly the points [insideRange] names.
+        //
+        // DERIVED FROM THE SAME RANGE the y-axis, the point count and the comparison's zero
+        // are taken over, rather than from a second, independent clip - which is how they came
+        // to disagree: a window containing a single candle produced a caption reading "1 point"
+        // over a two-point measurement whose second price was off screen.
+        //
+        // ITS BASELINE IS DROPPED once the view has been moved. `ChartSeries.from` is the
+        // previous close on an intraday range, and on a chart zoomed to three hours of the
+        // afternoon that is not what the reader is being shown a change OF - the caption says
+        // "over 3 hr". It would also widen the y-axis to reach a price from outside the
+        // window. Zeroing it makes `from` the first point on screen, which is what every
+        // other figure on a moved chart is measured from.
+        val inside = remember(drawn, insideRange, zoomedIn) {
+            val whole = insideRange.first == 0 && insideRange.last == drawn.points.lastIndex
+            if (whole && !zoomedIn) drawn
+            else drawn.copy(
+                points = drawn.points.subList(insideRange.first, insideRange.last + 1),
+                baseline = if (zoomedIn) 0.0 else drawn.baseline
+            )
+        }
+
+        // ---- ONE GREEN, ONE RED, AND THEY DESCRIBE WHAT IS ON SCREEN.
+        //
+        // From `inside`, not from the whole fetched series (sweep 4). The readout's figure
+        // takes this colour, so a six-month line that is up overall, zoomed into a week in
+        // which the stock fell, printed "-1.00  -0.43%" IN GREEN - and drew the line green
+        // too. The colour and the number it colours have to come from the same series.
+        val line = signColor(inside.change)
+
+        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, insideRange, zoomedIn) {
             val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
             val baseIndex = insideRange.first
-            val baseT = if (baseIndex == 0) null else drawn.points[baseIndex].t
+            // ON THE SAME TERMS AS `inside`, and keyed on the same flag. Short-circuiting to
+            // "the series' own rule" whenever the base index happened to be 0 gave the overlay
+            // the benchmark's PREVIOUS CLOSE while the readout beside it used the first point
+            // on screen - two percentages on one line measured from two different moments.
+            val baseT = if (zoomedIn) drawn.points[baseIndex].t else null
             val other = comparePercents(drawn, benchmark, tipT, baseT)
-            val own = if (other == null) null else primaryPercents(drawn, baseIndex)
+            val own =
+                if (other == null) null
+                else primaryPercents(drawn, baseIndex, fromPoint = zoomedIn)
             if (other == null || own == null) null else ComparePair(own, other)
         }
 
@@ -509,7 +556,11 @@ fun PriceChart(
             ChartCanvas(
                 drawn, line, MaterialTheme.colorScheme.outline,
                 scrub, MaterialTheme.colorScheme.surface, Modifier.fillMaxSize(),
-                cmp, benchmarkColor, axis, yBounds
+                cmp, benchmarkColor, axis, yBounds,
+                // `inside.baseline` is zeroed on a moved chart, which is what takes the dotted
+                // line off it: the previous close is the reference for "today's move", not for
+                // a three-hour slice of the afternoon.
+                baselineValue = inside.baseline.takeIf { it > 0.0 }
             )
             // The y-axis, as two labels rather than a drawn scale: on a 170dp chart on a
             // phone the high and the low are the only two values anyone reads off it.
@@ -685,7 +736,14 @@ fun PriceChart(
                 // the stock's points - a fund that did not trade in an extended session, say -
                 // so taking each series' own final figure would subtract two different
                 // moments and print the result as this window's out-performance.
-                val spread = remember(cmp) { cmp.spread() }
+                // OVER THE WINDOW, like every other figure on this chart (sweep 4). Read
+                // across the whole padded list this printed the out-performance one candle
+                // PAST the right-hand edge - a month, on an all-time monthly line - while the
+                // readout above it printed the pair inside the window. Three numbers on one
+                // screen that could not be reconciled.
+                val spread = remember(cmp, insideRange) {
+                    cmp.spread(insideRange.first, insideRange.last)
+                }
                 if (spread != null) {
                     Spacer(Modifier.weight(1f))
                     Text(
@@ -1255,7 +1313,16 @@ private fun ChartCanvas(
      * Those outside points are then drawn off the top or bottom and clipped, which is right:
      * they exist to make the line reach the sides, not to move the axis.
      */
-    yBounds: DoubleArray
+    yBounds: DoubleArray,
+    /**
+     * The dotted previous-close line, or null for none.
+     *
+     * PASSED IN for the same reason [yBounds] is: the axis no longer widens to reach it on a
+     * moved chart, so a canvas that decided for itself would draw a line outside its own
+     * scale - clipped away on a gap day, which is exactly the day it exists for. One decision,
+     * made where the axis is made.
+     */
+    baselineValue: Double?
 ) {
     val pts = s.points
     // ---- THE Y SCALE. Two different questions, so two different answers.
@@ -1265,7 +1332,7 @@ private fun ChartCanvas(
     // spans BOTH percent series together and always includes zero - the zero line is the
     // whole reference and an axis that excluded it would draw two lines with nothing to
     // measure them against.
-    val base = if (cmp != null) null else s.baseline.takeIf { it > 0.0 }
+    val base = if (cmp != null) null else baselineValue?.takeIf { it > 0.0 }
     // ONE ARRAY FOR BOTH THE SCALE AND THE LABELS, so the number printed at the top of the
     // axis is by construction the value drawn there.
     //
@@ -2009,10 +2076,19 @@ internal fun primaryPercents(
      * from it puts every percentage on the chart, and the axis they are drawn against, one
      * candle out of step with the picture.
      */
-    baseIndex: Int = 0
+    baseIndex: Int = 0,
+    /**
+     * True to measure from `points[baseIndex]` rather than from the series' own rule.
+     *
+     * AN EXPLICIT FLAG, not "baseIndex != 0" (sweep 4). The index is 0 whenever the window
+     * reaches past the left-hand end of the series - one pinch outward does it - and inferring
+     * the rule from it silently put this line back on the previous close while everything else
+     * on the chart had moved to the first point on screen.
+     */
+    fromPoint: Boolean = false
 ): DoubleArray? {
     if (s.isEmpty) return null
-    val from = if (baseIndex in s.points.indices && baseIndex != 0) {
+    val from = if (fromPoint && baseIndex in s.points.indices) {
         s.points[baseIndex].close
     } else {
         s.from
@@ -2109,8 +2185,8 @@ internal class ComparePair(val own: DoubleArray, val other: DoubleArray) {
      * because the sign is chosen before the number is formatted. The same guard `rangePct`
      * carries, for the same reason.
      */
-    fun spread(): Double? {
-        val i = pairedIndex() ?: return null
+    fun spread(first: Int = 0, last: Int = Int.MAX_VALUE): Double? {
+        val i = pairedIndexIn(first, last) ?: return null
         val d = own[i] - other[i]
         return if (d.isFinite()) d + 0.0 else null
     }
@@ -2212,11 +2288,17 @@ internal fun clipToWindow(
     var hi = pts.indexOfLast { it.t <= endSec }
     if (hi < 0) hi = 0
     if (pad && hi < pts.lastIndex) hi++    // one after the right edge
-    if (hi <= lo) {
+    if (hi < lo) {
         // A window that falls between two candles - possible on a five-year weekly line
         // zoomed into a single day. Two points is the least that can be a line; showing the
         // pair that straddles the window is more honest than showing nothing.
-        lo = lo.coerceIn(0, pts.lastIndex - 1)
+        //
+        // THE SAME PAIR IN BOTH MODES (sweep 4). With `pad` the left index has already been
+        // stepped back, so `lo` IS the straddling point; without it, `lo` is the first point
+        // AFTER the window and the pair starts one earlier. Written as `lo.coerceIn(...)` for
+        // both, the padded and the strict clip returned different pairs - so the figures and
+        // the line described different candles.
+        lo = (if (pad) lo else lo - 1).coerceIn(0, pts.lastIndex - 1)
         hi = lo + 1
     }
     return s.copy(points = pts.subList(lo, hi + 1))

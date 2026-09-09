@@ -142,6 +142,25 @@ data class ChartWindow(val startMs: Long, val endMs: Long) {
         private const val WHOLE_FRACTION = 0.97
 
         /**
+         * True when a window IS the default view of a series - the whole of it, no more and no
+         * less (Round 64 sweep 4).
+         *
+         * NOT THE SAME QUESTION AS [isWhole], and conflating the two was a real defect.
+         * `isWhole` asks "is at least all of it on screen", which a window WIDER than the
+         * series also satisfies - and one pinch outward produces exactly that. The chart then
+         * treated a visibly different picture as the default one: it measured from the first
+         * point on screen while printing the label for the untouched view, and offered no way
+         * back. This asks the stricter question the labels actually need.
+         */
+        fun isDefaultView(w: ChartWindow?, series: ChartWindow?): Boolean {
+            if (w == null || series == null) return true
+            val slack = (series.spanMs / 33L).coerceAtLeast(1L)   // ~3%
+            if (w.spanMs < series.spanMs - slack) return false
+            if (w.spanMs > series.spanMs + slack) return false
+            return kotlin.math.abs(w.startMs - series.startMs) <= slack
+        }
+
+        /**
          * A window pulled back inside bounds that have MOVED UNDER IT (Round 64 sweep).
          *
          * Bounds change whenever a series arrives, and a zoom is what MAKES them change: the
