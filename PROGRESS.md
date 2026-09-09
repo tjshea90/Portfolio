@@ -592,3 +592,4 @@ Tasks 9/9 done, findings 45/45 fixed
 - [x] L02 (low) atRightEdge's comment says the slack is one candle, not a percentage; the code correctly uses the max of both
 2026-09-09 04:49:05 UTC  checkpoint 65  commit f5f78ce  T0 doing
 2026-09-09 04:52:58 UTC  checkpoint 65  commit 5e21349  T0 done
+2026-09-09 04:52:59 UTC  checkpoint 65  commit d7bb18b  T1 doing
