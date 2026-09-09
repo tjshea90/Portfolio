@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-09 01:27:27 UTC",
+  "updated": "2026-09-09 01:27:28 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -228,7 +228,7 @@
       "id": "H05",
       "text": "Expand button is a 34dp target with no content description and overlaps the high-price label from ~1.15x font scale; the reset chip covers it from ~1.3x",
       "sev": "med",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     },
     {
@@ -690,6 +690,7 @@
     "2026-09-09 01:27:19 UTC  H01 fixed",
     "2026-09-09 01:27:25 UTC  H02 fixed",
     "2026-09-09 01:27:26 UTC  H03 fixed",
-    "2026-09-09 01:27:27 UTC  H04 fixed"
+    "2026-09-09 01:27:27 UTC  H04 fixed",
+    "2026-09-09 01:27:28 UTC  H05 fixed"
   ]
 }
