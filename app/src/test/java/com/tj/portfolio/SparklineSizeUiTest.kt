@@ -2,6 +2,7 @@ package com.tj.portfolio
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -32,15 +33,17 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * THE ROW CHART, MEASURED (Round 64).
+ * THE ROW CHART, MEASURED (Round 64, rewritten in Round 65).
  *
  * TJ, with a screenshot of the portfolio list: *"notice the charts are small. can you make them
  * fill that blank area they are inside? they do not need to be squares."*
  *
- * The change is two weights instead of a fixed 64x34dp box, and the only honest way to check a
- * layout change is to RENDER IT AND MEASURE, which is what this does. Reading the modifiers
- * proves nothing: the previous round shipped a bar that measured 891dp from a modifier that
- * looked obviously correct.
+ * Round 64 answered with two weights; round 65 replaced them with a layout that measures the
+ * text and gives the chart the rest, because a weight reserves its share whether the child
+ * uses it or not and the unused part is exactly the gap TJ photographed. Either way the only
+ * honest way to check a layout change is to RENDER IT AND MEASURE, which is what this does.
+ * Reading the modifiers proves nothing: an earlier round shipped a bar that measured 891dp
+ * from a modifier that looked obviously correct.
  *
  * Both halves are checked, because making the chart bigger is only an improvement if the text
  * beside it still fits: the second assertion asks the text layout itself whether it had to cut
@@ -112,6 +115,24 @@ class SparklineSizeUiTest {
         )
     }
 
+    /**
+     * ROUND 65, AND THE REASON THIS ROUND EXISTS.
+     *
+     * Round 64's weights gave this exact row a 125dp chart and left ~60dp of the text column
+     * unpainted beside it - the gap in TJ's second screenshot. Measuring the text instead
+     * hands that leftover to the chart, so the number here has to beat 125 by a real margin,
+     * not by a rounding error. 150 is the line: below it, the layout is not measuring.
+     */
+    @Test fun `measuring beats the weights it replaced`() {
+        show { StockRowItem(row(), {}, {}, plMode = PlMode.DOLLAR) }
+        val (w, _) = sparkSize()
+        assertTrue(
+            "the chart measured ${w}dp - round 64's weights already gave it 125dp, so the " +
+                "measuring layout is not handing over the space the text did not want",
+            w >= 150f
+        )
+    }
+
     @Test fun `and taller, without making the row taller`() {
         show { StockRowItem(row(), {}, {}, plMode = PlMode.DOLLAR) }
         val (_, h) = sparkSize()
@@ -151,6 +172,56 @@ class SparklineSizeUiTest {
         show(width = 320) { StockRowItem(row(), {}, {}, plMode = PlMode.DOLLAR) }
         val (w, _) = sparkSize()
         assertTrue("on a 320dp phone the chart shrank to ${w}dp", w >= 80f)
+    }
+
+    /**
+     * THE FLOOR (round 65 review, M06).
+     *
+     * A watchlist row's second line is a company name, and a long one wants more width than
+     * the whole row has. Pure measuring would give it everything and leave the chart a
+     * sliver - a chart made SMALLER by the round that exists to make it bigger, on the one
+     * screen where the chart is the only thing to look at. The floor is round 64's own share,
+     * so this row can only match that layout, never fall below it.
+     */
+    @Test fun `a long company name cannot squeeze the chart below the old layout`() {
+        show { StockRowItem(watchRow(), {}, {}) }
+        val (w, _) = sparkSize()
+        assertTrue(
+            "a long watchlist name shrank the chart to ${w}dp - round 64's weights gave it " +
+                "125dp, and this round may not make any row worse",
+            w >= 120f
+        )
+    }
+
+    /** The same floor from the other side: the widest realistic holdings line. */
+    @Test fun `a four-figure position cannot squeeze it either`() {
+        show { StockRowItem(row(shares = 1234.5678, avg = 1234.56), {}, {}) }
+        val (w, _) = sparkSize()
+        assertTrue("a large position shrank the chart to ${w}dp", w >= 120f)
+    }
+
+    /**
+     * AN UNBOUNDED ROW DOES NOT CRASH (round 65 review, M05).
+     *
+     * The measuring layout works by subtracting the text from what it was given. Measured
+     * against `Constraints.Infinity` - an intrinsic pass, or a horizontally scrolling
+     * parent - that subtraction yields Infinity, and placing a Placeable that wide throws
+     * inside layout, which is a blank screen on a list the user is scrolling. The row has an
+     * explicit branch for it; this is the test that the branch is taken.
+     */
+    @Test fun `a row measured with an unbounded width still lays out`() {
+        rule.setContent {
+            PortfolioTheme(dark = false) {
+                androidx.compose.foundation.layout.Row(
+                    Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState())
+                ) {
+                    StockRowItem(row(), {}, {}, plMode = PlMode.DOLLAR)
+                }
+            }
+        }
+        rule.waitForIdle()
+        val (w, h) = sparkSize()
+        assertTrue("the chart vanished in an unbounded row: ${w}x${h}dp", w > 0f && h > 0f)
     }
 
 

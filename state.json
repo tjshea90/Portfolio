@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 04:52:58 UTC",
+  "updated": "2026-09-09 04:57:50 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,7 +10,7 @@
     "next_code": 62
   },
   "now": {
-    "step": "T1: Row charts sized by measuring the text, not by weight: ~215dp of chart, no gap",
+    "step": "",
     "next": ""
   },
   "tasks": [
@@ -23,8 +23,8 @@
     {
       "id": "T1",
       "title": "Row charts sized by measuring the text, not by weight: ~215dp of chart, no gap",
-      "status": "doing",
-      "note": "replacing the 1.6:1 weight split with a measuring layout"
+      "status": "done",
+      "note": "TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested"
     },
     {
       "id": "T2",
@@ -508,6 +508,7 @@
     "2026-09-09 04:48:55 UTC  round 65 started",
     "2026-09-09 04:49:04 UTC  T0 -> doing  cold-container baseline build running",
     "2026-09-09 04:52:56 UTC  T0 -> done  cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover",
-    "2026-09-09 04:52:58 UTC  T1 -> doing  replacing the 1.6:1 weight split with a measuring layout"
+    "2026-09-09 04:52:58 UTC  T1 -> doing  replacing the 1.6:1 weight split with a measuring layout",
+    "2026-09-09 04:57:50 UTC  T1 -> done  TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested"
   ]
 }
