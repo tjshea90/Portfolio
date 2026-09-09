@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:37:31 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:37:33 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T8: Ship v7.5 (versionCode 62) + final checkpoint
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -44,7 +44,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T5  REGRESSION: full suite, lint, checkinit; prove nothing pre-existing broke  — 632/632 green, lint vital clean, checkinit ok
 - [x] T6  SWEEP 1: adversarial bug hunt over the new code and the app  — 9 findings, all fixed, 640 tests green
 - [x] T7  SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic  — 6 sweeps: 45 findings, all closed; sweep 6 found one low + one stale comment
-- [ ] T8  Ship v7.5 (versionCode 62) + final checkpoint
+- [>] T8  Ship v7.5 (versionCode 62) + final checkpoint  — ship v7.5
 
 **Resume at T8** (Ship v7.5 (versionCode 62) + final checkpoint).
 
@@ -105,7 +105,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 02:16:10 UTC  finding K05: A window containing exactly one candle reports +0.00 over a visibly sloping line
 - 2026-09-09 02:22:06 UTC  K01 fixed
 - 2026-09-09 02:22:08 UTC  K02 fixed
 - 2026-09-09 02:22:10 UTC  K03 fixed
@@ -117,4 +116,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 02:37:28 UTC  L01 fixed
 - 2026-09-09 02:37:30 UTC  L02 fixed
 - 2026-09-09 02:37:31 UTC  T7 -> done  6 sweeps: 45 findings, all closed; sweep 6 found one low + one stale comment
+- 2026-09-09 02:37:33 UTC  T8 -> doing  ship v7.5
 
