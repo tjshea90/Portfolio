@@ -100,8 +100,30 @@ internal object YahooAuth {
         }
     }
 
+    /**
+     * Throw away the crumb, but NOT the clock (Round 66 audit, H3).
+     *
+     * ---- THE BUG THIS FIXES
+     *
+     * This used to also set `mintedAt = 0L`, which makes `n - mintedAt` an enormous number and
+     * so kills the [MIN_INTERVAL_MS] guard above on every path that follows an invalidate -
+     * and every 401 follows an invalidate. That guard is the ONLY thing standing between the
+     * app and a handshake loop, and the note beside it says so.
+     *
+     * What that cost: if Yahoo answers 401 persistently - a crumb-scheme change, or the A3
+     * cookie not being stored because something else claimed `CookieHandler.getDefault` - the
+     * quote batch invalidates on every tick, and the next tick pays a fresh fc.yahoo.com
+     * request plus up to two getcrumb requests before its own request 401s again. 401 is not
+     * in `Http`'s rate-limit set, so no cooldown ever arms and nothing stops it: three
+     * handshake requests every fifteen seconds, indefinitely.
+     *
+     * Keeping the clock is correct on both paths. A genuinely expired crumb is twelve hours
+     * old, so the interval has long passed and the next call re-mints at once. A crumb minted
+     * seconds ago that Yahoo has just rejected is not going to be fixed by minting another
+     * one seconds later; the caller gets a blank crumb, treats the pass as inconclusive, and
+     * tries again on the next tick with the interval honoured.
+     */
     fun invalidate() {
         crumb = ""
-        mintedAt = 0L
     }
 }

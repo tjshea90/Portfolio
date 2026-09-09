@@ -93,6 +93,56 @@ class NetLogicTest {
             "step of 15s", remaining <= 15_000L)
     }
 
+    /**
+     * ROUND 66 AUDIT (H4). The rate-limit ladder escalated per 429 RESPONSE, not per cooldown.
+     *
+     * Up to four requests are in flight to one host at a time - `Research.build` runs four
+     * screener calls under a Semaphore(4), and the feed pulls several RSS sources together.
+     * When the host answered 429 they all landed within milliseconds, `strikes` jumped 0 to 4,
+     * and the FIRST rate-limit event armed a four-minute cooldown instead of the documented
+     * thirty seconds. The next lapse sent the same four out together and hit the ten-minute
+     * ceiling, so the middle rungs of the ladder were unreachable in practice and every
+     * Yahoo-dependent screen froze for minutes over what may have been a one-second throttle.
+     *
+     * `noteUnreachable` had always done it per cooldown and its own comment calls the
+     * distinction load-bearing; this is the same rule, finally applied to both.
+     */
+    @Test fun `a burst of rate-limit responses earns only the first backoff step`() {
+        val now = 1_800_000_000_000L
+        var strikes = 0
+        var until = 0L
+        // Four concurrent requests all come back 429 within the same millisecond.
+        repeat(4) {
+            val (s2, u2) = Http.nextRateLimit(now, until, strikes, 0L)
+            strikes = s2; until = u2
+        }
+        assertEquals("four responses, one cooldown", 1, strikes)
+        assertEquals("the first step is 30 seconds", now + 30_000L, until)
+    }
+
+    @Test fun `the ladder still escalates once per cooldown`() {
+        var strikes = 0
+        var until = 0L
+        var now = 1_800_000_000_000L
+        val steps = ArrayList<Long>()
+        repeat(4) {
+            val (s2, u2) = Http.nextRateLimit(now, until, strikes, 0L)
+            strikes = s2; until = u2
+            steps.add(u2 - now)
+            now = u2 + 1          // wait the cooldown out, then get 429 again
+        }
+        assertEquals(listOf(30_000L, 60_000L, 120_000L, 240_000L), steps)
+    }
+
+    @Test fun `a server Retry-After wins when it is longer, and never shortens a cooldown`() {
+        val now = 1_800_000_000_000L
+        val (_, longer) = Http.nextRateLimit(now, 0L, 0, 90_000L)
+        assertEquals("the server asked for 90s and our step was 30s", now + 90_000L, longer)
+        // A late 429 arriving inside an existing cooldown must not pull the deadline back.
+        val (_, kept) = Http.nextRateLimit(now, now + 300_000L, 3, 1_000L)
+        assertEquals(now + 300_000L, kept)
+    }
+
     @Test fun `the cooldown is per host, not global`() = runBlocking {
         val a = "http://127.0.0.1:1/a"
         val b = "http://127.0.0.2:1/b"

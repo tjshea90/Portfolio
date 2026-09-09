@@ -71,9 +71,21 @@ object Screener {
                     "?scrIds=" + MarketData.enc(listId) + "&count=$n&start=0",
                 timeoutMs = 20000, conditionalKey = true
             )
-            // A local cooldown means this host is being deliberately left alone; trying the
-            // other Yahoo host would defeat the point, since the throttle is on us, not it.
-            if (r.throttledLocally) return emptyList()
+            // ---- A COOLING HOST IS SKIPPED, NOT A REASON TO GIVE UP (Round 66 audit, H2).
+            //
+            // THE BUG THIS FIXES, and `ChartFeed.series` already carries the same note: `Http`
+            // arms cooldowns PER HOST, so query1 being left alone says nothing at all about
+            // query2. Abandoning the whole call on the first host's cooldown meant ONE 429
+            // anywhere in the app - a quote batch, a chart, a quoteSummary, they all share
+            // query1 - emptied this list, and with it the tab it feeds, for the length of that
+            // cooldown while a perfectly healthy query2 sat unused. The comment that used to
+            // be here argued "the throttle is on us, not it", which is true and beside the
+            // point: it is on us AND THAT HOST.
+            //
+            // Skipping still honours the throttle - nothing is sent to a cooling host - and
+            // when every host is cooling the loop falls through to the same empty result it
+            // used to return immediately.
+            if (r.throttledLocally) continue
             if (!r.ok) continue
             val parsed = runCatching { parse(listId, r.body) }.getOrDefault(emptyList())
             if (parsed.isNotEmpty()) return parsed
@@ -150,7 +162,8 @@ object Screener {
                 "https://$host.finance.yahoo.com/v1/finance/trending/US?count=$count",
                 timeoutMs = 15000, conditionalKey = true
             )
-            if (r.throttledLocally) return emptyList()
+            // Skipped, not abandoned - see the note in `fetch` above (Round 66 audit, H2).
+            if (r.throttledLocally) continue
             if (!r.ok) continue
             val parsed = runCatching { parseTrending(r.body) }.getOrDefault(emptyList())
             if (parsed.isNotEmpty()) return parsed

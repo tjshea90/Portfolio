@@ -203,9 +203,12 @@ object FundamentalsFeed {
                     url, mapOf("Accept" to "application/json"),
                     conditionalKey = true, cacheAs = base
                 )
-                // A local cooldown means this host is being deliberately left alone; trying
-                // the other Yahoo host would defeat the point, since the throttle is on us.
-                if (r.throttledLocally) return YahooReply(null, r.code)
+                // A COOLING HOST IS SKIPPED, NOT A REASON TO GIVE UP (Round 66 audit, H2).
+                // Cooldowns are armed per host, so query1 being left alone says nothing about
+                // query2 - and abandoning here dropped the Stats and Analysts tabs to their
+                // Nasdaq/Finviz fallbacks over one unrelated 429. See the fuller note in
+                // `Screener.fetch`.
+                if (r.throttledLocally) continue
                 last = r.code
                 if (r.code == 401) {
                     // The crumb is stale or was minted against a cookie we no longer hold.

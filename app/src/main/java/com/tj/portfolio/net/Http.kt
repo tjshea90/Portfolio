@@ -158,10 +158,45 @@ object Http {
     private fun noteRateLimited(host: String, retryAfterMs: Long = 0L) {
         if (host.isEmpty()) return
         val st = hosts.getOrPut(host) { HostState() }
-        st.strikes += 1
-        val ours = backoffMs(st.strikes)
+        val now = System.currentTimeMillis()
+        // ---- ONE STEP PER COOLDOWN, NOT PER RESPONSE (Round 66 audit, H4).
+        //
+        // THE BUG THIS FIXES. `strikes` was incremented on every 429, and up to
+        // [MAX_PER_HOST] requests are in flight at once - `Research.build` runs four screener
+        // calls under a Semaphore(4), and the feed pulls several RSS sources together. When
+        // the host answered 429 they all landed within milliseconds, `strikes` jumped from 0
+        // to 4, and the FIRST rate-limit event armed `backoffMs(4)` = four minutes instead of
+        // the documented thirty seconds. The next lapse sent the same four out together and
+        // reached the ten-minute ceiling, so the ladder's middle rungs were unreachable in
+        // practice and every Yahoo-dependent screen was frozen for minutes over what may have
+        // been a one-second throttle.
+        //
+        // `noteUnreachable` right below already does it this way and its comment calls the
+        // distinction load-bearing. This is the same rule, finally applied to both.
+        val (strikes, until) = nextRateLimit(now, st.until, st.strikes, retryAfterMs)
+        st.strikes = strikes
+        st.until = until
+    }
+
+    /**
+     * The rate-limit ladder as a pure function, so the rule can be tested (Round 66 audit, H4).
+     *
+     * Returns the new strike count and the new cooldown deadline. Split out because the bug it
+     * fixes is invisible from the outside - it needs concurrent 429s to reproduce - and a rule
+     * this load-bearing should not only be checkable through a socket.
+     */
+    internal fun nextRateLimit(
+        now: Long,
+        until: Long,
+        strikes: Int,
+        retryAfterMs: Long
+    ): Pair<Int, Long> {
+        val next = if (now >= until) strikes + 1 else strikes
+        val ours = backoffMs(next)
         val theirs = retryAfterMs.coerceIn(0L, 6 * 3_600_000L)
-        st.until = System.currentTimeMillis() + maxOf(ours, theirs)
+        // NEVER SHORTEN AN EXISTING COOLDOWN. A late 429 from a request that was already in
+        // flight must not be able to pull the deadline back towards now.
+        return next to maxOf(until, now + maxOf(ours, theirs))
     }
 
     /**

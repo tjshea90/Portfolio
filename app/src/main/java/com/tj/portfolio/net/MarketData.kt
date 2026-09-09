@@ -88,8 +88,13 @@ object MarketData {
         val wanted = symbols.map { it.uppercase() }.distinct()
         val got = LinkedHashMap<String, Quote>(wanted.size)
 
+        // A LOCAL, not a field on this object. `quotes` can be running for the portfolio and
+        // for a detail screen at the same time, and a shared flag would let one pass suppress
+        // the other's fallback - or keep suppressing it after the batch was disabled entirely.
+        var batchCooling = false
         if (!batchDisabled) {
-            var verdict = Batch.INCONCLUSIVE
+            // Starts at the worst so the first chunk's outcome always wins; see [Batch].
+            var verdict = Batch.COOLING
             for (chunk in wanted.chunked(BATCH_SIZE)) {
                 val (outcome, rows) = runCatching { batchYahoo(chunk) }
                     .getOrDefault(Batch.INCONCLUSIVE to emptyList())
@@ -115,9 +120,10 @@ object MarketData {
             // signal at launch could disable the batch for the whole session.
             batchFailures = when (verdict) {
                 Batch.OK -> 0
-                Batch.INCONCLUSIVE -> batchFailures
+                Batch.INCONCLUSIVE, Batch.COOLING -> batchFailures
                 Batch.FAILED -> batchFailures + 1
             }
+            batchCooling = verdict == Batch.COOLING
         }
 
         // Whatever the batch could not supply falls back to the per-symbol chain.
@@ -141,7 +147,27 @@ object MarketData {
         // batch that returns nineteen of twenty symbols is a success by that measure, and it
         // is exactly the shape this produces. Every other repeated fetch in the app already
         // sits behind a `RetryClock`; the quote fallback was the one that did not.
-        val missing = wanted.filter { it !in got && !fallbackRetry.blocked(it) }
+        // ---- A COOLING BATCH DOES NOT FALL BACK (Round 66 audit, H1).
+        //
+        // THE BUG THIS FIXES, and the comment above about `batchFailures` already described
+        // it exactly: "those are exactly the moments when falling back to one request per
+        // symbol makes the situation worse rather than better". Nothing acted on it.
+        //
+        // When both Yahoo hosts are in one of OUR cooldowns the batch sends nothing, and every
+        // symbol therefore looked "missing". The per-symbol chain then ran for all of them -
+        // and its own Yahoo step is cooling too, so each symbol fell straight through to
+        // Finnhub and then Stooq. On a twenty-stock portfolio at the fifteen-second poll that
+        // is twenty requests a tick, about eighty a minute, to a third-party host, for the
+        // whole cooldown - four to ten minutes normally and up to six hours if Yahoo sent a
+        // Retry-After. Finnhub's free tier is sixty a minute, so it 429s and cools too, and
+        // the entire load lands on Stooq, whose rows this file itself labels DELAYED: asking
+        // again every fifteen seconds cannot return anything new. The exact traffic shape the
+        // batch endpoint was introduced to remove, resurrected by the app's own throttle.
+        //
+        // A REAL batch failure still falls back - that is what the fallback is for.
+        val missing =
+            if (batchCooling) emptyList()
+            else wanted.filter { it !in got && !fallbackRetry.blocked(it) }
         if (missing.isNotEmpty()) {
             val gate = kotlinx.coroutines.sync.Semaphore(FALLBACK_PARALLELISM)
             missing.map { sym ->
@@ -163,7 +189,15 @@ object MarketData {
     }
 
     /** How a batch attempt ended. Ordered best-first so a chunk's outcome can be merged. */
-    private enum class Batch { OK, INCONCLUSIVE, FAILED }
+    /**
+     * What one batch attempt proved.
+     *
+     * ORDER IS LOAD-BEARING: the caller keeps the LOWEST ordinal across the chunks, so the
+     * best outcome wins - one chunk returning rows proves the endpoint works whatever the
+     * others did. [COOLING] is last so it can only ever be the verdict when EVERY chunk was
+     * cooling, which is the one case where the per-symbol fallback must not run.
+     */
+    private enum class Batch { OK, INCONCLUSIVE, FAILED, COOLING }
 
     private const val FALLBACK_PARALLELISM = 5
 
@@ -221,8 +255,9 @@ object MarketData {
             val parsed = runCatching { parseBatch(r.body) }.getOrDefault(emptyList())
             if (parsed.isNotEmpty()) return Batch.OK to parsed
         }
-        // Every host was in a local cooldown, so nothing was actually sent. Not a verdict.
-        if (throttled >= 2) return Batch.INCONCLUSIVE to emptyList()
+        // Every host was in a local cooldown, so nothing was actually sent. Not a verdict -
+        // and, since Round 66, not a reason to fall back either. See [Batch.COOLING].
+        if (throttled >= 2) return Batch.COOLING to emptyList()
         // Both hosts answered and neither gave anything usable. That IS a verdict.
         return Batch.FAILED to emptyList()
     }
