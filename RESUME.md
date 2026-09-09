@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 01:27:30 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 01:27:31 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 6 still open, 25 fixed
+## 5. Open findings — 5 still open, 26 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -75,7 +75,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] H05 (med) Expand button is a 34dp target with no content description and overlaps the high-price label from ~1.15x font scale; the reset chip covers it from ~1.3x
 - [x] H06 (med) uiMode in configChanges leaves the status bar icons stale after a dark-mode toggle (enableEdgeToEdge only runs in onCreate)
 - [x] H07 (med) AutoFitNumber applied to the watchlist company name defeats the font-scale setting: a long name renders at 11dp at the Largest setting
-- [ ] H08 (med) configChanges omits fontWeightAdjustment, so toggling accessibility Bold text still destroys the nav stack
+- [x] H08 (med) configChanges omits fontWeightAdjustment, so toggling accessibility Bold text still destroys the nav stack
 - [ ] H09 (low) Re-anchor effect leaves a permanently-wider-than-data window on recently listed stocks (monthly candle lag exceeds the 1.03 guard)
 - [ ] H10 (low) Re-anchor effect can null the window mid-pinch while WindowHold still holds it: one-frame pop-out
 - [ ] H11 (low) Pan guard falls back to the optimistic 40-year bounds while the series is loading
@@ -91,7 +91,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 01:00:39 UTC  finding H09: Re-anchor effect leaves a permanently-wider-than-data window on recently listed 
 - 2026-09-09 01:00:39 UTC  finding H10: Re-anchor effect can null the window mid-pinch while WindowHold still holds it: 
 - 2026-09-09 01:00:39 UTC  finding H11: Pan guard falls back to the optimistic 40-year bounds while the series is loadin
 - 2026-09-09 01:00:39 UTC  finding H12: Reset chip does not clear zoomSettling, unlike the range chip handler
@@ -103,4 +102,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 01:27:28 UTC  H05 fixed
 - 2026-09-09 01:27:29 UTC  H06 fixed
 - 2026-09-09 01:27:30 UTC  H07 fixed
+- 2026-09-09 01:27:31 UTC  H08 fixed
 
