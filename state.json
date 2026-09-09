@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 04:49:04 UTC",
+  "updated": "2026-09-09 04:52:56 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,15 +10,15 @@
     "next_code": 62
   },
   "now": {
-    "step": "T0: Baseline: round-64 tree (29bd6bf) compiles and 663 tests green in the new container",
+    "step": "",
     "next": ""
   },
   "tasks": [
     {
       "id": "T0",
       "title": "Baseline: round-64 tree (29bd6bf) compiles and 663 tests green in the new container",
-      "status": "doing",
-      "note": "cold-container baseline build running"
+      "status": "done",
+      "note": "cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover"
     },
     {
       "id": "T1",
@@ -506,6 +506,7 @@
     "2026-09-09 02:37:33 UTC  T8 -> doing  ship v7.5",
     "2026-09-09 02:42:05 UTC  T8 -> done  v7.5 (versionCode 62) built, signed with the same cert, 663 tests green",
     "2026-09-09 04:48:55 UTC  round 65 started",
-    "2026-09-09 04:49:04 UTC  T0 -> doing  cold-container baseline build running"
+    "2026-09-09 04:49:04 UTC  T0 -> doing  cold-container baseline build running",
+    "2026-09-09 04:52:56 UTC  T0 -> done  cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover"
   ]
 }
