@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 19:31:57 UTC",
+  "updated": "2026-09-09 19:31:58 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -221,8 +221,8 @@
       "id": "E3",
       "text": "The 'Same exposure as ...' line is appended last and cut off by the card's six-reason limit, so on VOO - the case the feature was written for - it never renders",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for"
     },
     {
       "id": "E4",
@@ -798,6 +798,7 @@
     "2026-09-09 19:25:29 UTC  finding R4: 'most shorted' and 'day losers' are printed among the reasons a stock is rated a",
     "2026-09-09 19:25:29 UTC  finding R6: Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and",
     "2026-09-09 19:31:55 UTC  E1 fixed: fetchAll stops only on an empty page - one non-fund row no longer truncates the universe from 523 funds to 100",
-    "2026-09-09 19:31:57 UTC  E2 fixed: region is tested before the US size ladder, regional size bands stay separate, miners never group with bullion, and a Treasury fund is only grouped when its name states a maturity band; five new tests"
+    "2026-09-09 19:31:57 UTC  E2 fixed: region is tested before the US size ladder, regional size bands stay separate, miners never group with bullion, and a Treasury fund is only grouped when its name states a maturity band; five new tests",
+    "2026-09-09 19:31:58 UTC  E3 fixed: the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for"
   ]
 }
