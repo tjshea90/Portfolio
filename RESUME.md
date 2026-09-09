@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:35:37 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:35:39 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
 
-## 5. Open findings — 7 still open, 21 fixed
+## 5. Open findings — 6 still open, 22 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -76,7 +76,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] E5 (med) The fund card's 1Y cell is a price-only 52-week change shown and scored beside 3Y and 5Y NAV TOTAL returns, so every income fund is marked down by its own yield  — the 52-week figure is shown as '1Y price' and earns nothing - every other horizon in the score is a NAV total return, and averaging a price change with them marked income funds down by their own yield
 - [ ] R2 (med) Trending rows for symbols outside the nine equity screeners carry no price, name or day change, and nothing ever fills them
 - [x] R3 (med) 'cheap for that growth' is printed for a company whose forward EPS is BELOW trailing, when the growth term scored zero  — the valuation line only claims growth when the growth term scored, and says plainly when earnings are not growing
-- [ ] R4 (med) 'most shorted' and 'day losers' are printed among the reasons a stock is rated a good BUY, though neither screen scores anything
+- [x] R4 (med) 'most shorted' and 'day losers' are printed among the reasons a stock is rated a good BUY, though neither screen scores anything  — only the four screens that actually score are named among the reasons to buy
 - [ ] R6 (low) Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and EtfScreener still describe the Worst list, the short-vehicle lookup, a two-list ETF plan and a RESEARCH_TAB index that has moved
 
 ## 6. Version
@@ -88,7 +88,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 19:25:29 UTC  finding E5: The fund card's 1Y cell is a price-only 52-week change shown and scored beside 3
 - 2026-09-09 19:25:29 UTC  finding R2: Trending rows for symbols outside the nine equity screeners carry no price, name
 - 2026-09-09 19:25:29 UTC  finding R3: 'cheap for that growth' is printed for a company whose forward EPS is BELOW trai
 - 2026-09-09 19:25:29 UTC  finding R4: 'most shorted' and 'day losers' are printed among the reasons a stock is rated a
@@ -100,4 +99,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 19:32:02 UTC  E5 fixed: the 52-week figure is shown as '1Y price' and earns nothing - every other horizon in the score is a NAV total return, and averaging a price change with them marked income funds down by their own yield
 - 2026-09-09 19:35:36 UTC  R1 fixed: conviction is its own field; score stays the app's arithmetic; the card badges a suggested fund as CLAUDE n/10 and it can never outrank a fund the app scored
 - 2026-09-09 19:35:37 UTC  R3 fixed: the valuation line only claims growth when the growth term scored, and says plainly when earnings are not growing
+- 2026-09-09 19:35:39 UTC  R4 fixed: only the four screens that actually score are named among the reasons to buy
 

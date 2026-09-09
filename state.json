@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 19:35:37 UTC",
+  "updated": "2026-09-09 19:35:39 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -256,8 +256,8 @@
       "id": "R4",
       "text": "'most shorted' and 'day losers' are printed among the reasons a stock is rated a good BUY, though neither screen scores anything",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "only the four screens that actually score are named among the reasons to buy"
     },
     {
       "id": "R6",
@@ -803,6 +803,7 @@
     "2026-09-09 19:32:00 UTC  E4 fixed: the return normalisation gates on the record rather than the weight sum; two tests pin the invariant",
     "2026-09-09 19:32:02 UTC  E5 fixed: the 52-week figure is shown as '1Y price' and earns nothing - every other horizon in the score is a NAV total return, and averaging a price change with them marked income funds down by their own yield",
     "2026-09-09 19:35:36 UTC  R1 fixed: conviction is its own field; score stays the app's arithmetic; the card badges a suggested fund as CLAUDE n/10 and it can never outrank a fund the app scored",
-    "2026-09-09 19:35:37 UTC  R3 fixed: the valuation line only claims growth when the growth term scored, and says plainly when earnings are not growing"
+    "2026-09-09 19:35:37 UTC  R3 fixed: the valuation line only claims growth when the growth term scored, and says plainly when earnings are not growing",
+    "2026-09-09 19:35:39 UTC  R4 fixed: only the four screens that actually score are named among the reasons to buy"
   ]
 }
