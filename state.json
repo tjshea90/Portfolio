@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 64,
   "request": "Round 64: (1) the portfolio row sparklines are small - make them fill the blank area they sit in, not necessarily square. (2) ANY chart in the app: tap to open full screen, rotating with the phone's sensors. (3) make pinch-to-zoom SMOOTH and continuous instead of chopping between fixed intervals. Then more sweeps for bugs, UI and code, verifying nothing else breaks.",
-  "updated": "2026-09-09 02:22:06 UTC",
+  "updated": "2026-09-09 02:22:08 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -347,7 +347,7 @@
       "id": "K02",
       "text": "heightIn(min) after weight(1f) is inert - weight passes fixed constraints and heightIn enforces incoming - so the full-screen plot can still collapse to zero",
       "sev": "high",
-      "status": "open",
+      "status": "fixed",
       "note": ""
     },
     {
@@ -806,6 +806,7 @@
     "2026-09-09 02:16:10 UTC  finding K03: The re-anchor's reset test is span-only while isDefaultView is start-sensitive: ",
     "2026-09-09 02:16:10 UTC  finding K04: The full-screen dialog corrects the status-bar polarity but not the navigation b",
     "2026-09-09 02:16:10 UTC  finding K05: A window containing exactly one candle reports +0.00 over a visibly sloping line",
-    "2026-09-09 02:22:06 UTC  K01 fixed"
+    "2026-09-09 02:22:06 UTC  K01 fixed",
+    "2026-09-09 02:22:08 UTC  K02 fixed"
   ]
 }
