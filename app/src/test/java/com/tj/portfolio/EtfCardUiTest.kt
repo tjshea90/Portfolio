@@ -79,7 +79,10 @@ class EtfCardUiTest {
     @Test fun `every cell is labelled and filled`() {
         show(f = full)
         val t = texts()
-        listOf("5Y / yr", "3Y / yr", "1Y", "Expense", "Assets", "Yield").forEach {
+        // "1Y price", not "1Y" (Round 66 audit, E5): the cell beside two NAV TOTAL returns is
+        // a 52-week PRICE change, and three identically-labelled cells implied three
+        // comparable numbers. For an income fund the difference is the whole yield.
+        listOf("5Y / yr", "3Y / yr", "1Y price", "Expense", "Assets", "Yield").forEach {
             assertTrue("the \"$it\" cell is missing: $t", t.contains(it))
         }
         assertTrue(t.contains("+28.66%"))
