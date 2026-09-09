@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:01:28 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:01:29 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 3 still open, 35 fixed
+## 5. Open findings — 2 still open, 36 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -85,7 +85,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] J02 (high) Readout colour comes from the whole series while its value comes from the window: a negative change printed in green on a zoomed chart
 - [x] J03 (med) clipToWindow(pad=false)'s straddle fallback picks lo..lo+1 instead of the straddling pair, so 'inside' and insideIndices describe different points; a single in-window point is also widened to two
 - [x] J04 (med) The legend's 'pts vs SPY' still uses pairedIndex() over the padded list, so it reads one candle past the window while the readout above reads inside it
-- [ ] J05 (med) baseIndex==0 short-circuit gives the comparison overlay the previous-close rule while the readout uses the first on-screen point
+- [x] J05 (med) baseIndex==0 short-circuit gives the comparison overlay the previous-close rule while the readout uses the first on-screen point
 - [ ] J06 (low) chartFillsHeight has no floor: when the fixed children out-measure a short landscape window the plot is given zero height and vanishes
 - [ ] J07 (low) Status-bar icon polarity in the full-screen dialog does not follow a dark-mode toggle while it is open
 
@@ -98,7 +98,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 01:27:37 UTC  sweep 3: 13 findings (2 high in sweep 2's own fixes), all closed; 656 tests green
 - 2026-09-09 01:41:54 UTC  finding J01: Zeroing the baseline keyed on window!=null while every explaining label keys on 
 - 2026-09-09 01:41:54 UTC  finding J02: Readout colour comes from the whole series while its value comes from the window
 - 2026-09-09 01:41:54 UTC  finding J03: clipToWindow(pad=false)'s straddle fallback picks lo..lo+1 instead of the stradd
@@ -110,4 +109,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 02:01:25 UTC  J02 fixed
 - 2026-09-09 02:01:26 UTC  J03 fixed
 - 2026-09-09 02:01:28 UTC  J04 fixed
+- 2026-09-09 02:01:29 UTC  J05 fixed
 
