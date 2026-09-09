@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:44:15 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:44:18 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,14 +34,14 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 2/9 done
+## 4. Task ledger — 3/9 done
 
 - [x] T0  Baseline: v7.6 tree green in this container  — v7.6 tree green in this container
 - [x] T1  Thicker separator bars between stocks  — separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
 - [ ] T2  ETF section: accurate, multi-source, healthy strong-buy funds ranked best-first
 - [>] T3  Worst section: keep only stocks with a buyable companion short vehicle, or delete the section  — live probe of which stocks have a buyable single-stock inverse fund
 - [ ] T4  Stock research accuracy audit
-- [ ] T5  Cache and refresh policy: cache as big as needed, refresh liberally where it helps
+- [x] T5  Cache and refresh policy: cache as big as needed, refresh liberally where it helps  — cache/refresh audit produced A02 (cadences never fired), A05 (quotes never pruned) and A07 (marks travelling in backups)
 - [ ] T6  Whole-app parallel review: bugs, efficiency, UI, features working as designed
 - [ ] T7  Fix every confirmed finding
 - [ ] T8  REGRESSION + ship v7.7
@@ -72,7 +72,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 14:21:57 UTC  finding A05: Db.kt:1007 the quotes table is never pruned and is read whole, parsing every spa
 - 2026-09-09 14:21:57 UTC  finding A06: PortfolioViewModel.kt:2455 a headline's summary is dropped when the story is cac
 - 2026-09-09 14:21:57 UTC  finding A07: Db.kt:1429 a restore imports the old phone's AUTOSAVE_AT/AUTO_BACKUP_AT/DOWNLOAD
 - 2026-09-09 14:21:57 UTC  finding A08: PortfolioViewModel.kt:304 spinnerShouldShow does not know about the research/ETF
@@ -84,4 +83,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 14:39:46 UTC  A03 fixed: TxnFields extracted from the dialog: seeds use Fmt.exact (round-trips through the editor's own parser) and Save shares one computation with the preview. Pure tests, no flaky dialog rendering
 - 2026-09-09 14:44:13 UTC  A02 fixed: feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
 - 2026-09-09 14:44:15 UTC  A07 fixed: AUTOSAVE_AT, AUTO_BACKUP_AT, DOWNLOADS_TIDIED and the new FILINGS_AT are excluded from backups, and restoreAsync forces a safety copy of what it just restored
+- 2026-09-09 14:44:18 UTC  T5 -> done  cache/refresh audit produced A02 (cadences never fired), A05 (quotes never pruned) and A07 (marks travelling in backups)
 

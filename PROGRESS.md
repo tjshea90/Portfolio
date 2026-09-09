@@ -647,3 +647,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-09 14:39:49 UTC  checkpoint 66  commit 8772e7c  A01 + A03 fixed: txns indexes heal on upgrade, ledger no longer drifts on an untouched save
 2026-09-09 14:44:15 UTC  checkpoint 66  commit 3af5ff7  fix A02
 2026-09-09 14:44:16 UTC  checkpoint 66  commit 80bd81a  fix A07
+2026-09-09 14:44:18 UTC  checkpoint 66  commit f7eaf62  A02 + A07 fixed: refresh cadences survive backgrounding, backups no longer carry another phone's clock
