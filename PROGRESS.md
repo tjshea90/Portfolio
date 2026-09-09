@@ -636,3 +636,4 @@ Tasks 7/7 done, findings 8/8 fixed
 - [x] N06 (low) canPanNow is remembered on the onWindow LAMBDA, and DetailScreen builds a fresh one every recomposition, so the remember never hits; keying on whether it is null says what is actually meant  - keyed on whether onWindow is null, not on the lambda instance
 - [x] N07 (med) The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one where nothing about the gesture changed - longer text on the screen TJ reads daily, to describe behaviour he has had since v7.4  - the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
 - [x] N08 (low) nearDown was recomputed each frame, so a drag that wandered past the slop and came back could arm a hold - the 'has not really left where it landed' guarantee should only ever be lost, never regained  - nearDown is latched: it can only ever go false
+2026-09-09 06:05:24 UTC  checkpoint 66  commit 359ea19  T0 doing

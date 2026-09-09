@@ -203,10 +203,14 @@ class RowLayoutUiTest {
             .filter { it.second.top < symbols[1].second.top }
             .maxOf { it.second.bottom }
         val gapDp = (secondTop - firstRowBottom) / density
+        // ROUND 66: the bar went 3dp -> 5dp and the air either side 5dp -> 7dp, so the
+        // whole break is 5 + 14 = 19dp of separator on top of the rows' own padding. The
+        // floor is raised with it: an assertion that still passes at the OLD size would not
+        // notice the change being reverted, which is the only thing this test is for.
         assertTrue(
             "the gap between two stocks is only ${"%.1f".format(gapDp)}dp - " +
-                "TJ asked for this to be more pronounced",
-            gapDp >= 18f
+                "TJ has asked twice for this to be more pronounced",
+            gapDp >= 26f
         )
     }
 
@@ -226,7 +230,7 @@ class RowLayoutUiTest {
             .filter { it.second.top < secondTop }.maxOf { it.second.bottom }
         assertTrue(
             "rows overlap or touch at 1.3x in dark mode",
-            (secondTop - firstRowBottom) / density >= 18f
+            (secondTop - firstRowBottom) / density >= 26f
         )
     }
 }

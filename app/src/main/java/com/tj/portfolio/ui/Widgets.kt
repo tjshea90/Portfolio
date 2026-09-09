@@ -73,11 +73,26 @@ fun RowSeparator(modifier: Modifier = Modifier) {
     Spacer(Modifier.height(ROW_GAP.dp))
 }
 
-/** Breathing space either side of [RowSeparator]. */
-private const val ROW_GAP = 5
+/**
+ * Breathing space either side of [RowSeparator].
+ *
+ * It grows with the rule (Round 66). A heavier bar pressed hard against the text above and
+ * below it reads as crowding rather than as separation - the white space is half of what
+ * makes a divider legible, and a 5dp line with 5dp of air is a line with no room.
+ */
+private const val ROW_GAP = 7
 
-/** How heavy the line between two stocks is. */
-private const val ROW_RULE = 3
+/**
+ * How heavy the line between two stocks is.
+ *
+ * 5dp (Round 66). TJ has asked for this twice - it was 1dp, then 3dp, and then *"make the
+ * separation bars between stocks even thicker"*. This is a list where each entry is itself a
+ * two-part block with its own internal divider ([InRowDivider]), so the line between two
+ * DIFFERENT stocks has to be unmistakably heavier than the line inside one of them or the
+ * eye groups the wrong halves together. At 5dp against that 1dp hairline the ratio is five
+ * to one and no longer ambiguous at a glance.
+ */
+private const val ROW_RULE = 5
 
 /**
  * The divider used INSIDE a row, which must read as lighter than [RowSeparator].
