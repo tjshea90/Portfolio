@@ -47,6 +47,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.testTag
@@ -267,6 +270,20 @@ fun PriceChart(
     val movedAll = remember(window, seriesWindowAll) {
         window != null && !ChartWindow.isDefaultView(window, seriesWindowAll)
     }
+    // ---- CAN A DRAG MOVE THE WINDOW? ONE ANSWER, READ BY THE GESTURE AND BY THE CAPTION.
+    //
+    // Round 65 gives a zoomed chart a one-finger pan, and a caption that names it. Those were
+    // two separate tests in the first draft and they disagreed (review M03): the caption
+    // offered "drag to move" whenever the chart was zoomed at all, while the pan itself
+    // refuses to move a window that is not NARROWER than the line - there is nothing to pan
+    // over when the whole series is already on screen. So the chart promised a gesture that
+    // did nothing, which is worse than not mentioning it.
+    //
+    // There is one definition now and everything reads it: the caption, the choice between
+    // panning and scrubbing, and the pan guard itself.
+    val canPanNow = remember(window, seriesWindowAll) {
+        window != null && seriesWindowAll != null && window.spanMs < seriesWindowAll.spanMs
+    }
     val axisWindow = remember(drawnAll, window) {
         window ?: drawnAll?.let { ChartWindow(it.startMs, it.endMs) }
     }
@@ -287,7 +304,17 @@ fun PriceChart(
     val liveSeriesWindow = rememberUpdatedState(
         shown?.takeIf { it.points.size >= 2 }?.let { ChartWindow(it.startMs, it.endMs) }
     )
+    val liveCanPan = rememberUpdatedState(canPanNow)
+    // Captured here because a pointer handler is not a composition and cannot read a
+    // CompositionLocal; the tick itself is fired from inside the gesture.
+    val haptics = LocalHapticFeedback.current
+    // TWO FLAGS, NOT ONE (round 65). `zooming` means "two fingers are resizing the window" and
+    // is what the span badge follows - a one-finger pan does not change the span, so a badge
+    // naming it would be noise. `gestureLive` means "some gesture owns the window right now"
+    // and is what the Reset chip and the caller's stand-back flag follow: the chip used to sit
+    // under the finger through a whole pan (review M08).
     var zooming by remember { mutableStateOf(false) }
+    var gestureLive by remember { mutableStateOf(false) }
     var zoomSpan by remember { mutableStateOf(0L) }
 
     // ---- THE WINDOW THE FINGERS ARE WORKING FROM, HELD OUTSIDE COMPOSITION.
@@ -391,14 +418,38 @@ fun PriceChart(
                         }
                     }
                 },
-                onZoomActive = { active ->
+                // ---- WHICH GESTURE OWNS THE WINDOW, IF ANY (round 65).
+                //
+                // One callback rather than two booleans, because the interesting event is a
+                // TRANSITION - a one-finger pan that a second finger turns into a pinch - and
+                // two independent flags cannot describe it without a moment where both are
+                // wrong.
+                canPan = { liveCanPan.value },
+                onHold = {
+                    // The tick that says "the chart has taken this gesture". Without it a
+                    // press-and-hold on a zoomed chart is indistinguishable from a pan that
+                    // has not started moving yet.
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                },
+                onGesture = { g ->
+                    val active = g != ChartGesture.NONE
                     liveZoomingChanged.value?.invoke(active)
-                    // Seeded at the START of the gesture and released at the end, so a pinch
-                    // begun on an unzoomed chart starts from the whole series and a second
-                    // pinch starts from wherever the first one stopped.
-                    held.window = if (active) liveWindow.value ?: liveAxis.value else null
-                    zoomSpan = if (active) held.window?.spanMs ?: 0L else 0L
-                    zooming = active
+                    // ---- SEEDED ONCE PER GESTURE, AND NEVER RE-SEEDED MID-GESTURE.
+                    //
+                    // `liveWindow` is composition state, and composition lags a pointer loop
+                    // that emits several frames per recomposition. Re-reading it when a second
+                    // finger lands - which is what the first draft did, because pan and pinch
+                    // each seeded on their own activation - handed the pinch a window one or
+                    // more frames old and snapped the chart backwards at the exact moment the
+                    // user added a finger (review M04). Keeping whatever the pan has already
+                    // written is both simpler and correct: a pinch continues from where the
+                    // pan left the window.
+                    held.window =
+                        if (!active) null
+                        else held.window ?: liveWindow.value ?: liveAxis.value
+                    zooming = g == ChartGesture.ZOOM
+                    gestureLive = active
+                    zoomSpan = if (g == ChartGesture.ZOOM) held.window?.spanMs ?: 0L else 0L
                 }
             )
         }
@@ -663,7 +714,10 @@ fun PriceChart(
                 }
             }
 
-            if (!zooming && zoomedIn && onResetWindow != null) {
+            // `gestureLive`, not `zooming` (review M08): a one-finger pan is a gesture that
+            // moves the window too, and leaving the chip up through it put a tappable target
+            // under the moving finger and a label over the line being dragged.
+            if (!gestureLive && zoomedIn && onResetWindow != null) {
                 // ---- THE WAY BACK OUT.
                 //
                 // A continuous zoom can leave the chart anywhere, and pinching all the way
@@ -685,7 +739,9 @@ fun PriceChart(
                         // fetch". Aimed at `windowBounds` this set a forty-year window on any
                         // chart whose all-time series was not cached, which drew the loaded
                         // line as a sliver at the right-hand edge until a MAX fetch landed.
-                        .clickable { onResetWindow?.invoke() }
+                        // Not `?.invoke()`: this branch is only entered when the callback is
+                        // non-null, so the safe call was dead code the compiler warned about.
+                        .clickable { onResetWindow.invoke() }
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                         .testTag(RESET_ZOOM_TAG)
                 ) {
@@ -809,10 +865,18 @@ fun PriceChart(
                 append(onScreen)
                 append(if (onScreen == 1) " point" else " points")
                 if (onZoom != null || onWindow != null) {
-                    // DISCOVERABILITY, in four words. A gesture nothing on screen mentions is
-                    // a gesture nobody finds, and this caption is already the line that says
-                    // what the chart is showing.
+                    // ---- DISCOVERABILITY, NAMING WHAT IS ACTUALLY LIVE (round 65).
+                    //
+                    // A gesture nothing on screen mentions is a gesture nobody finds, and this
+                    // caption is already the line that says what the chart is showing.
+                    //
+                    // IT READS THE SAME `canPanNow` THE GESTURE READS. Offering "drag to move"
+                    // on a chart whose window is not narrower than the line promises a gesture
+                    // the pan guard then refuses, and a caption that lies about the controls is
+                    // worse than one that says nothing (review M03).
                     append("  -  pinch to zoom")
+                    if (canPanNow) append(", drag to move, hold to scrub")
+                    else append(", drag to scrub")
                 }
                 if (shown.truncated) {
                     // Said out loud rather than drawn as if it were the full window. A stock
