@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:38:37 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:38:39 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
 
-## 5. Open findings — 5 still open, 23 fixed
+## 5. Open findings — 4 still open, 24 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -68,7 +68,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] E2 (high) EtfExposure checks the US size ladder before the region checks, so iShares MSCI EAFE Small-Cap merges with a US small-cap fund; gold bullion merges with gold miners; SGOV merges with TLT. My own new code, and exactly the over-grouping its KDoc says is the failure that matters  — region is tested before the US size ladder, regional size bands stay separate, miners never group with bullion, and a Treasury fund is only grouped when its name states a maturity band; five new tests
 - [x] R1 (high) Claude's conviction is written into the displayed SCORE and re-sorts the ETF list, so a fund a model asserted can sit at row 1 showing SCORE 100 above every fund the app actually screened  — conviction is its own field; score stays the app's arithmetic; the card badges a suggested fund as CLAUDE n/10 and it can never outrank a fund the app scored
 - [x] H1 (high) A Yahoo cooldown makes MarketData fall back to per-symbol quotes for EVERY symbol, so a 20-stock portfolio sends ~80 requests a minute to Finnhub and then Stooq for the whole cooldown - the exact traffic shape the batch endpoint exists to remove  — a batch that sent nothing because both Yahoo hosts were cooling no longer triggers the per-symbol fallback - that was ~80 requests a minute to Finnhub and then Stooq for the length of every cooldown
-- [ ] H2 (high) Screener, EtfScreener and FundamentalsFeed abandon the whole call when query1 alone is cooling, so one 429 anywhere empties the Research and ETF tabs while query2 sits idle
+- [x] H2 (high) Screener, EtfScreener and FundamentalsFeed abandon the whole call when query1 alone is cooling, so one 429 anywhere empties the Research and ETF tabs while query2 sits idle  — Screener, EtfScreener and FundamentalsFeed skip a cooling host instead of abandoning the call, matching what ChartFeed already documented; one 429 on query1 no longer empties the Research and ETF tabs
 - [ ] H3 (high) YahooAuth.invalidate zeroes mintedAt, so the MIN_INTERVAL guard that exists to stop a handshake loop is dead on every path that follows a 401
 - [ ] H4 (med) Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a burst of four concurrent requests jumps straight to a 4-minute backoff on the first rate-limit event
 - [x] E3 (med) The 'Same exposure as ...' line is appended last and cut off by the card's six-reason limit, so on VOO - the case the feature was written for - it never renders  — the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for
@@ -88,7 +88,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 19:25:29 UTC  finding R3: 'cheap for that growth' is printed for a company whose forward EPS is BELOW trai
 - 2026-09-09 19:25:29 UTC  finding R4: 'most shorted' and 'day losers' are printed among the reasons a stock is rated a
 - 2026-09-09 19:25:29 UTC  finding R6: Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and
 - 2026-09-09 19:31:55 UTC  E1 fixed: fetchAll stops only on an empty page - one non-fund row no longer truncates the universe from 523 funds to 100
@@ -100,4 +99,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 19:35:37 UTC  R3 fixed: the valuation line only claims growth when the growth term scored, and says plainly when earnings are not growing
 - 2026-09-09 19:35:39 UTC  R4 fixed: only the four screens that actually score are named among the reasons to buy
 - 2026-09-09 19:38:37 UTC  H1 fixed: a batch that sent nothing because both Yahoo hosts were cooling no longer triggers the per-symbol fallback - that was ~80 requests a minute to Finnhub and then Stooq for the length of every cooldown
+- 2026-09-09 19:38:39 UTC  H2 fixed: Screener, EtfScreener and FundamentalsFeed skip a cooling host instead of abandoning the call, matching what ChartFeed already documented; one 429 on query1 no longer empties the Research and ETF tabs
 
