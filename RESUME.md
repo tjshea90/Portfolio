@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:01:32 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:01:33 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -98,7 +98,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 01:41:54 UTC  finding J03: clipToWindow(pad=false)'s straddle fallback picks lo..lo+1 instead of the stradd
 - 2026-09-09 01:41:54 UTC  finding J04: The legend's 'pts vs SPY' still uses pairedIndex() over the padded list, so it r
 - 2026-09-09 01:41:54 UTC  finding J05: baseIndex==0 short-circuit gives the comparison overlay the previous-close rule 
 - 2026-09-09 01:41:55 UTC  finding J06: chartFillsHeight has no floor: when the fixed children out-measure a short lands
@@ -110,4 +109,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 02:01:29 UTC  J05 fixed
 - 2026-09-09 02:01:30 UTC  J06 fixed
 - 2026-09-09 02:01:32 UTC  J07 fixed
+- 2026-09-09 02:01:33 UTC  sweep 4: 7 findings (1 high from sweep 3's own fix), all closed; 658 tests green
 
