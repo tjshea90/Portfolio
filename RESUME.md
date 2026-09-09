@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:06:34 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:06:35 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T4** (Stock research accuracy audit).
 
-## 5. Open findings — 1 still open, 11 fixed
+## 5. Open findings — 0 still open, 12 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -59,7 +59,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] A07 (med) Db.kt:1429 a restore imports the old phone's AUTOSAVE_AT/AUTO_BACKUP_AT/DOWNLOADS_TIDIED, so a new phone skips its first safety copy for 24 hours  — AUTOSAVE_AT, AUTO_BACKUP_AT, DOWNLOADS_TIDIED and the new FILINGS_AT are excluded from backups, and restoreAsync forces a safety copy of what it just restored
 - [x] A08 (med) PortfolioViewModel.kt:304 spinnerShouldShow does not know about the research/ETF build, so the poll loop retracts the pull indicator mid-build  — spinnerShouldShow gained a researchLoading term fed from _researchBusy, so the poll loop no longer retracts the pull indicator mid-build
 - [x] A09 (low) PortfolioViewModel.kt:762 two KDocs claim the quote wave survives backgrounding; it runs on fgScope and is cancelled  — both KDocs corrected, and setForeground now starts a replacement wave when one was cancelled - so a flick away and back inside the grace window no longer leaves stale prices
-- [ ] A10 (low) PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read on the launch path that provably cannot change anything
+- [x] A10 (low) PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read on the launch path that provably cannot change anything  — restoreFromCache(fromInit = true) skips the duplicate quote-cache read on the launch path
 - [x] A11 (low) PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list - the feed pass truncates 60 headlines to 40, removing stories the user is scrolling  — one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list
 - [x] A12 (low) Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks and give three  — money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed
 
@@ -72,7 +72,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 14:44:15 UTC  A07 fixed: AUTOSAVE_AT, AUTO_BACKUP_AT, DOWNLOADS_TIDIED and the new FILINGS_AT are excluded from backups, and restoreAsync forces a safety copy of what it just restored
 - 2026-09-09 14:44:18 UTC  T5 -> done  cache/refresh audit produced A02 (cadences never fired), A05 (quotes never pruned) and A07 (marks travelling in backups)
 - 2026-09-09 14:53:27 UTC  T3 -> done  Worst section deleted: tab, scorer, ShortVehicle, the inverse-ETF enrichment and its Claude prompt sections. Measured 16/20 momentum mega-caps have a US single-stock inverse fund vs 2/40 beaten-down names, one of those foreign-listed only
 - 2026-09-09 15:00:12 UTC  T2 -> done  ETF ranking: one fund per exposure (Schwab/Saxo both say comparison is only meaningful within an exposure group), youth no longer penalised twice with a three-year floor against performance-chasing, and the blurb now says what the feed cannot see
@@ -84,4 +83,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 15:03:07 UTC  A12 fixed: money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed
 - 2026-09-09 15:06:32 UTC  A08 fixed: spinnerShouldShow gained a researchLoading term fed from _researchBusy, so the poll loop no longer retracts the pull indicator mid-build
 - 2026-09-09 15:06:34 UTC  A09 fixed: both KDocs corrected, and setForeground now starts a replacement wave when one was cancelled - so a flick away and back inside the grace window no longer leaves stale prices
+- 2026-09-09 15:06:35 UTC  A10 fixed: restoreFromCache(fromInit = true) skips the duplicate quote-cache read on the launch path
 
