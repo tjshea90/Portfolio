@@ -614,3 +614,25 @@ Tasks 9/9 done, findings 45/45 fixed
 2026-09-09 05:32:17 UTC  checkpoint 65  commit dc0f094  T5 done
 2026-09-09 05:32:19 UTC  checkpoint 65  commit 08fd837  T6 done
 2026-09-09 05:32:20 UTC  checkpoint 65  commit d6cca4f  round 65 complete: v7.6 shipped
+
+## Round 65 ledger (closed 2026-09-09 06:05:20 UTC)
+
+Request: Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.
+
+Tasks 7/7 done, findings 8/8 fixed
+
+- [x] T0  Baseline: round-64 tree (29bd6bf) compiles and 663 tests green in the new container  - cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover
+- [x] T1  Row charts sized by measuring the text, not by weight: ~215dp of chart, no gap  - TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested
+- [x] T2  One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures  - one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in
+- [x] T3  Tests: 350ms vertical rest still scrolls; slow drag pans not scrubs; caption never promises a dead pan  - PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)
+- [x] T4  REGRESSION: full suite, lint, checkinit  - 679 tests green, lint vital clean, checkinit ok
+- [x] T5  SWEEPS: adversarial bug hunt, repeated until a pass finds nothing above cosmetic  - 4 sweeps: 8 findings (1 high, 3 med, 4 low), all closed; sweep 4 found one low
+- [x] T6  Ship v7.6 (versionCode 63) + final checkpoint  - v7.6 (versionCode 63) built and signed with the same cert as v7.5; 679 tests green, lint vital clean, checkinit ok
+- [x] N01 (high) The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought nothing and made the chart start consuming before touch slop, so a press that paused then scrolled could stop the page - on the one chart shape that never needed the gesture  - hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did
+- [x] N02 (low) chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fingers'; a one-finger pan raises them now  - chartPinching and onZoomingChanged both describe a window gesture now, not two fingers
+- [x] N03 (med) The gesture caption grew by up to 27 characters, and the full-screen viewer divides a fixed height between the plot and the text under it - an extra wrapped line at a large font scale is exactly round 64's H04 coming back  - worst-case caption (zoomed + SPY overlay + 1.5x type) measured in the full-screen viewer
+- [x] N04 (low) The event-path hold test reused holdPossible, which was computed from the previous frame's nearDown - stale by one event  - the event path now evaluates the full condition against the current frame
+- [x] N05 (med) canPanNow did not require onWindow: a chart given a window but no onWindow callback (both are optional parameters) would caption 'drag to move' and arm the hold, while pan() returns null and the drag scrubs - M03's fault from the other direction, and the same needless early consume as N01  - canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window
+- [x] N06 (low) canPanNow is remembered on the onWindow LAMBDA, and DetailScreen builds a fresh one every recomposition, so the remember never hits; keying on whether it is null says what is actually meant  - keyed on whether onWindow is null, not on the lambda instance
+- [x] N07 (med) The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one where nothing about the gesture changed - longer text on the screen TJ reads daily, to describe behaviour he has had since v7.4  - the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
+- [x] N08 (low) nearDown was recomputed each frame, so a drag that wandered past the slop and came back could arm a hold - the 'has not really left where it landed' guarantee should only ever be lost, never regained  - nearDown is latched: it can only ever go false

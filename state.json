@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "round": 65,
-  "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 05:32:17 UTC",
+  "round": 66,
+  "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
+  "updated": "2026-09-09 06:05:20 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,111 +10,18 @@
     "next_code": 62
   },
   "now": {
-    "step": "",
+    "step": "T0: Baseline: v7.6 tree green in this container",
     "next": ""
   },
   "tasks": [
     {
       "id": "T0",
-      "title": "Baseline: round-64 tree (29bd6bf) compiles and 663 tests green in the new container",
-      "status": "done",
-      "note": "cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover"
-    },
-    {
-      "id": "T1",
-      "title": "Row charts sized by measuring the text, not by weight: ~215dp of chart, no gap",
-      "status": "done",
-      "note": "TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested"
-    },
-    {
-      "id": "T2",
-      "title": "One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures",
-      "status": "done",
-      "note": "one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in"
-    },
-    {
-      "id": "T3",
-      "title": "Tests: 350ms vertical rest still scrolls; slow drag pans not scrubs; caption never promises a dead pan",
-      "status": "done",
-      "note": "PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)"
-    },
-    {
-      "id": "T4",
-      "title": "REGRESSION: full suite, lint, checkinit",
-      "status": "done",
-      "note": "679 tests green, lint vital clean, checkinit ok"
-    },
-    {
-      "id": "T5",
-      "title": "SWEEPS: adversarial bug hunt, repeated until a pass finds nothing above cosmetic",
-      "status": "done",
-      "note": "4 sweeps: 8 findings (1 high, 3 med, 4 low), all closed; sweep 4 found one low"
-    },
-    {
-      "id": "T6",
-      "title": "Ship v7.6 (versionCode 63) + final checkpoint",
-      "status": "done",
-      "note": "v7.6 (versionCode 63) built and signed with the same cert as v7.5; 679 tests green, lint vital clean, checkinit ok"
+      "title": "Baseline: v7.6 tree green in this container",
+      "status": "doing",
+      "note": "surveying the app"
     }
   ],
-  "findings": [
-    {
-      "id": "N01",
-      "text": "The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought nothing and made the chart start consuming before touch slop, so a press that paused then scrolled could stop the page - on the one chart shape that never needed the gesture",
-      "sev": "high",
-      "status": "fixed",
-      "note": "hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did"
-    },
-    {
-      "id": "N02",
-      "text": "chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fingers'; a one-finger pan raises them now",
-      "sev": "low",
-      "status": "fixed",
-      "note": "chartPinching and onZoomingChanged both describe a window gesture now, not two fingers"
-    },
-    {
-      "id": "N03",
-      "text": "The gesture caption grew by up to 27 characters, and the full-screen viewer divides a fixed height between the plot and the text under it - an extra wrapped line at a large font scale is exactly round 64's H04 coming back",
-      "sev": "med",
-      "status": "fixed",
-      "note": "worst-case caption (zoomed + SPY overlay + 1.5x type) measured in the full-screen viewer"
-    },
-    {
-      "id": "N04",
-      "text": "The event-path hold test reused holdPossible, which was computed from the previous frame's nearDown - stale by one event",
-      "sev": "low",
-      "status": "fixed",
-      "note": "the event path now evaluates the full condition against the current frame"
-    },
-    {
-      "id": "N05",
-      "text": "canPanNow did not require onWindow: a chart given a window but no onWindow callback (both are optional parameters) would caption 'drag to move' and arm the hold, while pan() returns null and the drag scrubs - M03's fault from the other direction, and the same needless early consume as N01",
-      "sev": "med",
-      "status": "fixed",
-      "note": "canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window"
-    },
-    {
-      "id": "N06",
-      "text": "canPanNow is remembered on the onWindow LAMBDA, and DetailScreen builds a fresh one every recomposition, so the remember never hits; keying on whether it is null says what is actually meant",
-      "sev": "low",
-      "status": "fixed",
-      "note": "keyed on whether onWindow is null, not on the lambda instance"
-    },
-    {
-      "id": "N07",
-      "text": "The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one where nothing about the gesture changed - longer text on the screen TJ reads daily, to describe behaviour he has had since v7.4",
-      "sev": "med",
-      "status": "fixed",
-      "note": "the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5"
-    },
-    {
-      "id": "N08",
-      "text": "nearDown was recomputed each frame, so a drag that wandered past the slop and came back could arm a hold - the 'has not really left where it landed' guarantee should only ever be lost, never regained",
-      "sev": "low",
-      "status": "fixed",
-      "note": "nearDown is latched: it can only ever go false"
-    }
-  ],
+  "findings": [],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -591,6 +498,8 @@
     "2026-09-09 05:28:04 UTC  N08 fixed: nearDown is latched: it can only ever go false",
     "2026-09-09 05:32:16 UTC  sweep 3: 2 findings (N06 low, N07 med), closed. sweep 4: 1 finding (N08 low), closed",
     "2026-09-09 05:32:16 UTC  T5 -> done  4 sweeps: 8 findings (1 high, 3 med, 4 low), all closed; sweep 4 found one low",
-    "2026-09-09 05:32:17 UTC  T6 -> done  v7.6 (versionCode 63) built and signed with the same cert as v7.5; 679 tests green, lint vital clean, checkinit ok"
+    "2026-09-09 05:32:17 UTC  T6 -> done  v7.6 (versionCode 63) built and signed with the same cert as v7.5; 679 tests green, lint vital clean, checkinit ok",
+    "2026-09-09 06:05:20 UTC  round 66 started",
+    "2026-09-09 06:05:20 UTC  T0 -> doing  surveying the app"
   ]
 }
