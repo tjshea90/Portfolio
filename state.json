@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 06:18:07 UTC",
+  "updated": "2026-09-09 14:21:00 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -551,6 +551,7 @@
     "2026-09-09 06:05:20 UTC  T0 -> doing  surveying the app",
     "2026-09-09 06:18:04 UTC  T0 -> done  v7.6 tree green in this container",
     "2026-09-09 06:18:05 UTC  T1 -> done  separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught",
-    "2026-09-09 06:18:07 UTC  T3 -> doing  live probe of which stocks have a buyable single-stock inverse fund"
+    "2026-09-09 06:18:07 UTC  T3 -> doing  live probe of which stocks have a buyable single-stock inverse fund",
+    "2026-09-09 14:21:00 UTC  WORKFLOW INTERRUPTED: session usage limit at 09:40 UTC killed 12 of 14 audit agents. Only review:viewmodel and review:database completed; their verifiers died, so nothing was adversarially confirmed."
   ]
 }

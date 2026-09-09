@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 06:18:07 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:21:00 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 05:27:11 UTC  N06 fixed: keyed on whether onWindow is null, not on the lambda instance
 - 2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
 - 2026-09-09 05:28:04 UTC  finding N08: nearDown was recomputed each frame, so a drag that wandered past the slop and ca
 - 2026-09-09 05:28:04 UTC  N08 fixed: nearDown is latched: it can only ever go false
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 06:18:04 UTC  T0 -> done  v7.6 tree green in this container
 - 2026-09-09 06:18:05 UTC  T1 -> done  separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
 - 2026-09-09 06:18:07 UTC  T3 -> doing  live probe of which stocks have a buyable single-stock inverse fund
+- 2026-09-09 14:21:00 UTC  WORKFLOW INTERRUPTED: session usage limit at 09:40 UTC killed 12 of 14 audit agents. Only review:viewmodel and review:database completed; their verifiers died, so nothing was adversarially confirmed.
 
