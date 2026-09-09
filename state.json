@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 14:21:00 UTC",
+  "updated": "2026-09-09 14:21:57 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -69,7 +69,92 @@
       "note": ""
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "id": "A01",
+      "text": "Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A02",
+      "text": "PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A03",
+      "text": "TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a transaction and pressing Save with no edit re-rounds it and silently changes the recorded cash",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A04",
+      "text": "PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so the Form 4 section is blank for up to 30 minutes after a memory trim even though the filings are still in memory and on disk",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A05",
+      "text": "Db.kt:1007 the quotes table is never pruned and is read whole, parsing every spark blob, synchronously on the main thread at launch",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A06",
+      "text": "PortfolioViewModel.kt:2455 a headline's summary is dropped when the story is cached, so reopening a stock loses every blurb",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A07",
+      "text": "Db.kt:1429 a restore imports the old phone's AUTOSAVE_AT/AUTO_BACKUP_AT/DOWNLOADS_TIDIED, so a new phone skips its first safety copy for 24 hours",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A08",
+      "text": "PortfolioViewModel.kt:304 spinnerShouldShow does not know about the research/ETF build, so the poll loop retracts the pull indicator mid-build",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A09",
+      "text": "PortfolioViewModel.kt:762 two KDocs claim the quote wave survives backgrounding; it runs on fgScope and is cancelled",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A10",
+      "text": "PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read on the launch path that provably cannot change anything",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A11",
+      "text": "PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list - the feed pass truncates 60 headlines to 40, removing stories the user is scrolling",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "A12",
+      "text": "Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks and give three",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    }
+  ],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -552,6 +637,18 @@
     "2026-09-09 06:18:04 UTC  T0 -> done  v7.6 tree green in this container",
     "2026-09-09 06:18:05 UTC  T1 -> done  separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught",
     "2026-09-09 06:18:07 UTC  T3 -> doing  live probe of which stocks have a buyable single-stock inverse fund",
-    "2026-09-09 14:21:00 UTC  WORKFLOW INTERRUPTED: session usage limit at 09:40 UTC killed 12 of 14 audit agents. Only review:viewmodel and review:database completed; their verifiers died, so nothing was adversarially confirmed."
+    "2026-09-09 14:21:00 UTC  WORKFLOW INTERRUPTED: session usage limit at 09:40 UTC killed 12 of 14 audit agents. Only review:viewmodel and review:database completed; their verifiers died, so nothing was adversarially confirmed.",
+    "2026-09-09 14:21:57 UTC  finding A01: Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so",
+    "2026-09-09 14:21:57 UTC  finding A02: PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the po",
+    "2026-09-09 14:21:57 UTC  finding A03: TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a t",
+    "2026-09-09 14:21:57 UTC  finding A04: PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so th",
+    "2026-09-09 14:21:57 UTC  finding A05: Db.kt:1007 the quotes table is never pruned and is read whole, parsing every spa",
+    "2026-09-09 14:21:57 UTC  finding A06: PortfolioViewModel.kt:2455 a headline's summary is dropped when the story is cac",
+    "2026-09-09 14:21:57 UTC  finding A07: Db.kt:1429 a restore imports the old phone's AUTOSAVE_AT/AUTO_BACKUP_AT/DOWNLOAD",
+    "2026-09-09 14:21:57 UTC  finding A08: PortfolioViewModel.kt:304 spinnerShouldShow does not know about the research/ETF",
+    "2026-09-09 14:21:57 UTC  finding A09: PortfolioViewModel.kt:762 two KDocs claim the quote wave survives backgrounding;",
+    "2026-09-09 14:21:57 UTC  finding A10: PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read",
+    "2026-09-09 14:21:57 UTC  finding A11: PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list ",
+    "2026-09-09 14:21:57 UTC  finding A12: Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks "
   ]
 }

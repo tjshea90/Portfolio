@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:21:00 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 14:21:57 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,9 +48,20 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T3** (Worst section: keep only stocks with a buyable companion short vehicle, or delete the section).
 
-## 5. Open findings — 0 still open, 0 fixed
+## 5. Open findings — 12 still open, 0 fixed
 
-(none recorded yet)
+- [ ] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row
+- [ ] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds
+- [ ] A03 (high) TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a transaction and pressing Save with no edit re-rounds it and silently changes the recorded cash
+- [ ] A04 (med) PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so the Form 4 section is blank for up to 30 minutes after a memory trim even though the filings are still in memory and on disk
+- [ ] A05 (med) Db.kt:1007 the quotes table is never pruned and is read whole, parsing every spark blob, synchronously on the main thread at launch
+- [ ] A06 (med) PortfolioViewModel.kt:2455 a headline's summary is dropped when the story is cached, so reopening a stock loses every blurb
+- [ ] A07 (med) Db.kt:1429 a restore imports the old phone's AUTOSAVE_AT/AUTO_BACKUP_AT/DOWNLOADS_TIDIED, so a new phone skips its first safety copy for 24 hours
+- [ ] A08 (med) PortfolioViewModel.kt:304 spinnerShouldShow does not know about the research/ETF build, so the poll loop retracts the pull indicator mid-build
+- [ ] A09 (low) PortfolioViewModel.kt:762 two KDocs claim the quote wave survives backgrounding; it runs on fgScope and is cancelled
+- [ ] A10 (low) PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read on the launch path that provably cannot change anything
+- [ ] A11 (low) PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list - the feed pass truncates 60 headlines to 40, removing stories the user is scrolling
+- [ ] A12 (low) Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks and give three
 
 ## 6. Version
 
@@ -61,16 +72,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
-- 2026-09-09 05:28:04 UTC  finding N08: nearDown was recomputed each frame, so a drag that wandered past the slop and ca
-- 2026-09-09 05:28:04 UTC  N08 fixed: nearDown is latched: it can only ever go false
-- 2026-09-09 05:32:16 UTC  sweep 3: 2 findings (N06 low, N07 med), closed. sweep 4: 1 finding (N08 low), closed
-- 2026-09-09 05:32:16 UTC  T5 -> done  4 sweeps: 8 findings (1 high, 3 med, 4 low), all closed; sweep 4 found one low
-- 2026-09-09 05:32:17 UTC  T6 -> done  v7.6 (versionCode 63) built and signed with the same cert as v7.5; 679 tests green, lint vital clean, checkinit ok
-- 2026-09-09 06:05:20 UTC  round 66 started
-- 2026-09-09 06:05:20 UTC  T0 -> doing  surveying the app
-- 2026-09-09 06:18:04 UTC  T0 -> done  v7.6 tree green in this container
-- 2026-09-09 06:18:05 UTC  T1 -> done  separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
-- 2026-09-09 06:18:07 UTC  T3 -> doing  live probe of which stocks have a buyable single-stock inverse fund
-- 2026-09-09 14:21:00 UTC  WORKFLOW INTERRUPTED: session usage limit at 09:40 UTC killed 12 of 14 audit agents. Only review:viewmodel and review:database completed; their verifiers died, so nothing was adversarially confirmed.
+- 2026-09-09 14:21:57 UTC  finding A01: Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so
+- 2026-09-09 14:21:57 UTC  finding A02: PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the po
+- 2026-09-09 14:21:57 UTC  finding A03: TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a t
+- 2026-09-09 14:21:57 UTC  finding A04: PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so th
+- 2026-09-09 14:21:57 UTC  finding A05: Db.kt:1007 the quotes table is never pruned and is read whole, parsing every spa
+- 2026-09-09 14:21:57 UTC  finding A06: PortfolioViewModel.kt:2455 a headline's summary is dropped when the story is cac
+- 2026-09-09 14:21:57 UTC  finding A07: Db.kt:1429 a restore imports the old phone's AUTOSAVE_AT/AUTO_BACKUP_AT/DOWNLOAD
+- 2026-09-09 14:21:57 UTC  finding A08: PortfolioViewModel.kt:304 spinnerShouldShow does not know about the research/ETF
+- 2026-09-09 14:21:57 UTC  finding A09: PortfolioViewModel.kt:762 two KDocs claim the quote wave survives backgrounding;
+- 2026-09-09 14:21:57 UTC  finding A10: PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read
+- 2026-09-09 14:21:57 UTC  finding A11: PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list 
+- 2026-09-09 14:21:57 UTC  finding A12: Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks 
 
