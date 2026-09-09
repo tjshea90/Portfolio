@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:51:24 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:51:26 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,8 +27,8 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** 14: Audit the six subsystems the two interrupted workflow runs never reached
-- **Next action:** (pick the first unchecked task below)
+- **In flight:** Batch 1 of 3 review agents: portfolio-ui, detail-ui, research-ui
+- **Next action:** Batch 2: settings-explain, cross-cutting, round66-diff
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
