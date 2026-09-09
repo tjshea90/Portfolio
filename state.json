@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 15:03:07 UTC",
+  "updated": "2026-09-09 15:06:32 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -123,8 +123,8 @@
       "id": "A08",
       "text": "PortfolioViewModel.kt:304 spinnerShouldShow does not know about the research/ETF build, so the poll loop retracts the pull indicator mid-build",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "spinnerShouldShow gained a researchLoading term fed from _researchBusy, so the poll loop no longer retracts the pull indicator mid-build"
     },
     {
       "id": "A09",
@@ -662,6 +662,7 @@
     "2026-09-09 15:03:01 UTC  A05 fixed: Db.purgeQuotes, called with the other purges - the quotes table was the one unbounded cache, and it is parsed whole on the launch path",
     "2026-09-09 15:03:03 UTC  A06 fixed: loadNews writes the blurbs through with the stories, and cacheNews's conflict path updates the summary without ever erasing one; three tests",
     "2026-09-09 15:03:05 UTC  A11 fixed: one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list",
-    "2026-09-09 15:03:07 UTC  A12 fixed: money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed"
+    "2026-09-09 15:03:07 UTC  A12 fixed: money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed",
+    "2026-09-09 15:06:32 UTC  A08 fixed: spinnerShouldShow gained a researchLoading term fed from _researchBusy, so the poll loop no longer retracts the pull indicator mid-build"
   ]
 }

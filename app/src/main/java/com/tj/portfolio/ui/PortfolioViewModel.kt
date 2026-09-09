@@ -301,8 +301,22 @@ sealed interface VisibleScope {
  * on while work is actually happening.** Pure, so the invariant can be tested without
  * standing up a ViewModel - which `init`'s polling loop otherwise makes impractical.
  */
-fun spinnerShouldShow(userAsked: Boolean, quotesLoading: Boolean, feedLoading: Boolean): Boolean =
-    userAsked && (quotesLoading || feedLoading)
+fun spinnerShouldShow(
+    userAsked: Boolean,
+    quotesLoading: Boolean,
+    feedLoading: Boolean,
+    /**
+     * The Research and ETF builds (Round 66).
+     *
+     * THE BUG THIS FIXES. This function knew about two of the three kinds of work that set
+     * `manualRefresh`. Pulling down on the Research tab sets it with `PULL_RESEARCH` and
+     * starts an ~18-request build - but with quotes and feed both idle, `want` came out false,
+     * and the polling loop calls `syncManualIndicator()` on every tick. So the indicator was
+     * retracted after one quote tick (fifteen seconds with the market open) while the build
+     * was still running, and the screen showed no pull feedback for the rest of it.
+     */
+    researchLoading: Boolean = false
+): Boolean = userAsked && (quotesLoading || feedLoading || researchLoading)
 
 /**
  * `ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL`. The app is still in the foreground but
@@ -665,6 +679,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private var lastFilingsAt = 0L
 
     /**
+     * A quote wave was still running when the app went to the background (Round 66).
+     *
+     * `refresh()` runs on `fgScope`, which `setForeground(false)` cancels - so a wave in
+     * flight is killed. Without this flag, a flick away and straight back inside
+     * [RESUME_REFRESH_GRACE_MS] also skipped the replacement refresh, and the screen kept
+     * prices from before the cancelled pass until the next automatic tick.
+     */
+    private var quotePassInterrupted = false
+
+    /**
      * Form 4 filings for ONE stock, for its own detail screen.
      *
      * Now holds parsed [InsiderFiling]s rather than the generic feed row it used to. The old
@@ -766,8 +790,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * WHAT DOES NOT, and why each one is deliberate:
      *   - anything that WRITES (`cacheNews`, `cacheQuotes`, backups, exports, an import being
      *     committed). Cancelling a write loses data; these are short and must land.
-     *   - the batched quote wave in `refresh()`. It is now ONE request for the whole
-     *     portfolio, and its answer is what the user sees the instant they come back.
+     *     (The batched quote wave in `refresh()` used to be listed here as another exception.
+     *     It never was one: `refresh()` launches into THIS scope, so leaving the app has
+     *     cancelled it since Round 59. The note was wrong for several rounds and is corrected
+     *     rather than acted on - the wave is cheap and the return starts a fresh one, which
+     *     `setForeground` now does even inside the resume grace window.)
      *   - Claude requests. They are user-initiated, rare, and already paid for the moment they
      *     are sent - cancelling one wastes the tokens without saving the bytes.
      *
@@ -1127,11 +1154,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * seconds - so the user sees the headlines they had immediately, and the network merely
      * adds whatever is new on top.
      */
-    private fun restoreFromCache(force: Boolean = false) {
+    private fun restoreFromCache(force: Boolean = false, fromInit: Boolean = false) {
         // Charts come back on EVERY resume, not just the first: a trim that ran while the
-        // app was away is exactly when they need putting back, and unlike the feed this
-        // costs nothing when there is nothing to do.
-        restoreSparklines()
+        // app was away is exactly when they need putting back.
+        //
+        // EXCEPT ON THE LAUNCH PATH (Round 66). `init` assigns `_quotes` from
+        // `db.cachedQuotes()` three lines before calling this, so on that path
+        // `restoreSparklines` would re-run the SAME query - reading every quote row and
+        // JSON-parsing every spark blob a second time, before the first frame - to fill
+        // sparks from rows the map already came from. Its early-out cannot save it either:
+        // any tracked symbol Yahoo never supplied a series for (a freshly added watch entry,
+        // a thin ticker) defeats the "every quote already has one" check, and then `changed`
+        // can never become true, because the map and the disk rows are the same data.
+        if (!fromInit) restoreSparklines()
         if (feedRestored && !force) return
         feedRestored = true
         viewModelScope.launch(Dispatchers.IO) {
@@ -1368,7 +1403,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         loadCachedAdvice()
         loadCachedResearch()
         loadCachedInsider()
-        restoreFromCache()
+        restoreFromCache(fromInit = true)
         db.get(Keys.FEED_AT).toLongOrNull()?.takeIf { it > 0 }?.let { _feedAt.value = it }
         db.get(Keys.FILINGS_AT).toLongOrNull()?.takeIf { it > 0 }?.let { lastFilingsAt = it }
         purgeOldNewsOnce()
@@ -2225,9 +2260,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * portfolio a feed pass is the market-wide pull plus a per-symbol news fetch for every
      * holding plus an EDGAR call for each one - dozens of requests still in flight, with
      * their answers parsed and written into state that nothing is on screen to draw.
-     * `refreshFeed` is the expensive one and is now cancelled outright; `refresh()` is a
-     * single bounded wave of quote requests whose results are worth keeping for the return,
-     * so it is left to finish.
+     * `refreshFeed` is the expensive one and is cancelled outright. So is `refresh()` - it
+     * runs on `fgScope` like everything else the screen asked for, and the whole point of
+     * that scope is that leaving the app cancels it. An earlier version of this note claimed
+     * the quote wave was "left to finish", which it has not been since Round 59; a resume
+     * that finds a cancelled pass now simply starts a new one, which is the paragraph below.
      *
      * The DEBOUNCE on the way back in matters as much. `setForeground(true)` fired a full
      * refresh unconditionally, so the notification shade, a permission dialog or an incoming
@@ -2249,10 +2286,23 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val away = System.currentTimeMillis() - wentBackgroundAt
             // Coming back to the app should show current prices immediately, not in 15s -
             // but a two-second glance at the notification shade is not "coming back".
-            if (wentBackgroundAt == 0L || away > RESUME_REFRESH_GRACE_MS) refresh()
+            //
+            // ---- UNLESS THE PASS THAT WAS RUNNING GOT CANCELLED (Round 66).
+            //
+            // Leaving the app cancels `fgScope`, and `refresh()` runs on it. Flick away and
+            // back inside the grace window while a wave is in flight and BOTH things happen:
+            // the wave is killed, and the grace check then skips the replacement. Prices
+            // stayed as of before the cancelled pass until the next tick - fifteen seconds
+            // with the market open, fifteen MINUTES with it shut. One flag closes it, and it
+            // costs one wave that the user's return had already justified.
+            val interrupted = quotePassInterrupted
+            quotePassInterrupted = false
+            if (wentBackgroundAt == 0L || away > RESUME_REFRESH_GRACE_MS || interrupted) refresh()
             startAuto()
         } else {
             wentBackgroundAt = System.currentTimeMillis()
+            // Read BEFORE the cancellation below, which is what makes it true.
+            quotePassInterrupted = _ui.value.loading
             autoJob?.cancel()
             autoJob = null
             feedJob?.cancel()
@@ -4368,7 +4418,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val want = spinnerShouldShow(
             userAsked = _ui.value.manualRefresh,
             quotesLoading = _ui.value.loading,
-            feedLoading = _feedLoading.value
+            feedLoading = _feedLoading.value,
+            researchLoading = _researchBusy.value.isNotEmpty()
         )
         if (_ui.value.manualRefresh != want) {
             _ui.value = _ui.value.copy(

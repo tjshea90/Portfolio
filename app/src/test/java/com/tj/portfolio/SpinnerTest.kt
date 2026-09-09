@@ -40,6 +40,16 @@ class SpinnerTest {
         // it attached to had finished, and nothing was loading any more. The old code left
         // the flag true here forever.
         assertFalse(spinnerShouldShow(userAsked = true, quotesLoading = false, feedLoading = false))
+        // ROUND 66: a third kind of work. Pulling down on the Research tab starts an
+        // ~18-request build with quotes and feed both idle, and the polling loop re-derives
+        // this on every tick - so without this term the indicator was retracted after fifteen
+        // seconds while the build it was reporting still had a minute to run.
+        assertTrue(spinnerShouldShow(
+            userAsked = true, quotesLoading = false, feedLoading = false, researchLoading = true
+        ))
+        assertFalse("still nothing to show for a build nobody asked for", spinnerShouldShow(
+            userAsked = false, quotesLoading = false, feedLoading = false, researchLoading = true
+        ))
     }
 
     @Test
