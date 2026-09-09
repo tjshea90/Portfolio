@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:23:26 UTC)
+# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:26:33 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,17 +34,17 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 4/7 done
+## 4. Task ledger — 5/7 done
 
 - [x] T0  Baseline: round-64 tree (29bd6bf) compiles and 663 tests green in the new container  — cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover
 - [x] T1  Row charts sized by measuring the text, not by weight: ~215dp of chart, no gap  — TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested
 - [x] T2  One-finger pan on a zoomed chart; press-and-hold always scrubs; caption names the live gestures  — one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in
 - [x] T3  Tests: 350ms vertical rest still scrolls; slow drag pans not scrubs; caption never promises a dead pan  — PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)
-- [ ] T4  REGRESSION: full suite, lint, checkinit
+- [x] T4  REGRESSION: full suite, lint, checkinit  — 679 tests green, lint vital clean, checkinit ok
 - [ ] T5  SWEEPS: adversarial bug hunt, repeated until a pass finds nothing above cosmetic
 - [ ] T6  Ship v7.6 (versionCode 63) + final checkpoint
 
-**Resume at T4** (REGRESSION: full suite, lint, checkinit).
+**Resume at T5** (SWEEPS: adversarial bug hunt, repeated until a pass finds nothing above cosmetic).
 
 ## 5. Open findings — 0 still open, 5 fixed
 
@@ -63,7 +63,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 05:13:02 UTC  T3 -> done  PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)
 - 2026-09-09 05:17:24 UTC  finding N01: The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought no
 - 2026-09-09 05:17:24 UTC  finding N02: chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fi
 - 2026-09-09 05:17:24 UTC  finding N03: The gesture caption grew by up to 27 characters, and the full-screen viewer divi
@@ -75,4 +74,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 05:20:35 UTC  sweep 1: 4 findings (1 high), all closed
 - 2026-09-09 05:22:44 UTC  finding N05: canPanNow did not require onWindow: a chart given a window but no onWindow callb
 - 2026-09-09 05:23:26 UTC  N05 fixed: canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window
+- 2026-09-09 05:26:33 UTC  T4 -> done  679 tests green, lint vital clean, checkinit ok
 
