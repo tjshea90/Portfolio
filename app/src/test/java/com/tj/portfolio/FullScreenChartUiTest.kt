@@ -70,7 +70,8 @@ class FullScreenChartUiTest {
         open: Boolean = true,
         fontScale: Float = 1f,
         compare: ChartSeries? = null,
-        withSeries: Boolean = true
+        withSeries: Boolean = true,
+        window: ChartWindow? = null
     ) {
         rule.setContent {
             val base = LocalDensity.current
@@ -90,7 +91,7 @@ class FullScreenChartUiTest {
                             loadingRanges = emptySet(),
                             livePrice = 0.0,
                             liveEdge = false,
-                            window = null,
+                            window = window,
                             windowBounds = ChartWindow(series().startMs, series().endMs),
                             onWindow = {},
                             onResetWindow = {},
@@ -185,6 +186,46 @@ class FullScreenChartUiTest {
         assertTrue("the chart collapsed to ${h}dp making room", h >= 200f)
     }
 
+
+    /**
+     * ROUND 65, SWEEP 1 (N03). The gesture caption grew: a zoomed chart now names the pan and
+     * the hold as well as the pinch, which is up to twenty-seven more characters and, at a
+     * large font scale, another wrapped line. The full-screen viewer divides ONE screen height
+     * between the plot and the text under it, so a longer caption is exactly the shape of round
+     * 64's H04 - and this is the worst case it can be asked to survive: zoomed, overlaid,
+     * and at 1.5x type.
+     */
+    @Test fun `the longer zoomed caption still fits at a large font`() {
+        val bench = ChartSeries(
+            symbol = "SPY", range = ChartRange.M6,
+            points = (0 until 180).map {
+                ChartPoint(1_740_000_000L + it * 86_400L, 400.0 + it * 0.5)
+            },
+            baseline = 400.0, fetched = System.currentTimeMillis()
+        )
+        val third = (series().endMs - series().startMs) / 3
+        show(
+            fontScale = 1.5f, compare = bench,
+            window = ChartWindow(series().startMs + third, series().endMs - third)
+        )
+        val d = rule.density.density
+        val root = rule.onNodeWithTag(FULLSCREEN_TAG).fetchSemanticsNode().boundsInRoot
+        val caption = rule.onAllNodes(
+            androidx.compose.ui.test.SemanticsMatcher("the caption") {
+                it.config.getOrNull(androidx.compose.ui.semantics.SemanticsProperties.Text)
+                    ?.joinToString(" ")?.contains("pinch to zoom") == true
+            },
+            useUnmergedTree = true
+        ).fetchSemanticsNodes().firstOrNull()
+        assertTrue("the gesture caption is not on screen at all", caption != null)
+        assertTrue(
+            "the caption names the pan but is cut off at the bottom " +
+                "(${caption!!.boundsInRoot.bottom / d}dp of ${root.bottom / d}dp)",
+            caption.boundsInRoot.bottom <= root.bottom + 1f
+        )
+        val h = chartHeightDp()
+        assertTrue("the chart collapsed to ${h}dp making room for the caption", h >= 200f)
+    }
 
     @Test fun `the loading placeholder fills the screen too`() {
         // THE REGRESSION THIS PROVES FIXED. The plot's floor was changed to `requiredHeightIn`

@@ -346,6 +346,48 @@ class PanGestureUiTest {
     }
 
     /**
+     * SWEEP 1, N01. The hold is only armed on a chart where it CHANGES something.
+     *
+     * An unzoomed chart already scrubs on a plain drag, so a hold there would buy nothing -
+     * and it would cost something real, because an armed hold consumes from that moment on,
+     * before the touch slop. A press that paused and then turned into a page scroll would stop
+     * the page dead, on the one chart shape that never needed the gesture. This is the same
+     * swipe as the M01 test with the zoom taken away.
+     */
+    @Test fun `a rest on an UNZOOMED chart does not capture the page scroll`() {
+        rule.setContent {
+            PortfolioTheme(dark = false) {
+                val scroll = rememberScrollState()
+                Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
+                    Text("top", Modifier.height(30.dp))
+                    Chart(null)
+                    repeat(40) { Text("row $it", Modifier.fillMaxWidth().height(40.dp)) }
+                }
+            }
+        }
+        val before = rule.onNodeWithTag(CHART_TEST_TAG).fetchSemanticsNode().positionInRoot.y
+
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
+            down(Offset(center.x, center.y))
+            // The pause comes FIRST here, before anything has moved: the most favourable
+            // moment there is for a hold to arm.
+            advanceEventTime(600)
+            moveTo(Offset(center.x, center.y - 4f))
+            moveTo(Offset(center.x, center.y - 160f))
+            moveTo(Offset(center.x, center.y - 320f))
+            up()
+        }
+        rule.waitForIdle()
+
+        val after = rule.onNodeWithTag(CHART_TEST_TAG).fetchSemanticsNode().positionInRoot.y
+        assertTrue(
+            "a press-and-hold on an unzoomed chart swallowed the page's scroll " +
+                "($before -> $after)",
+            after < before - 50f
+        )
+    }
+
+    /**
      * REVIEW M04. A pan writes the window several times per recomposition, so the composed
      * `window` lags what the fingers have actually done. The first draft re-read that lagging
      * value when a second finger landed, which snapped the chart back to an older window at

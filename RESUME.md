@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:13:02 UTC)
+# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:19:10 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -46,9 +46,11 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T4** (REGRESSION: full suite, lint, checkinit).
 
-## 5. Open findings — 0 still open, 0 fixed
+## 5. Open findings — 2 still open, 1 fixed
 
-(none recorded yet)
+- [x] N01 (high) The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought nothing and made the chart start consuming before touch slop, so a press that paused then scrolled could stop the page - on the one chart shape that never needed the gesture  — hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did
+- [ ] N02 (low) chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fingers'; a one-finger pan raises them now
+- [ ] N03 (med) The gesture caption grew by up to 27 characters, and the full-screen viewer divides a fixed height between the plot and the text under it - an extra wrapped line at a large font scale is exactly round 64's H04 coming back
 
 ## 6. Version
 
@@ -59,10 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 02:37:30 UTC  L02 fixed
-- 2026-09-09 02:37:31 UTC  T7 -> done  6 sweeps: 45 findings, all closed; sweep 6 found one low + one stale comment
-- 2026-09-09 02:37:33 UTC  T8 -> doing  ship v7.5
-- 2026-09-09 02:42:05 UTC  T8 -> done  v7.5 (versionCode 62) built, signed with the same cert, 663 tests green
 - 2026-09-09 04:48:55 UTC  round 65 started
 - 2026-09-09 04:49:04 UTC  T0 -> doing  cold-container baseline build running
 - 2026-09-09 04:52:56 UTC  T0 -> done  cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover
@@ -71,4 +69,8 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 04:57:51 UTC  T2 -> doing  one-finger pan + press-and-hold scrub in chartGestures
 - 2026-09-09 05:13:00 UTC  T2 -> done  one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in
 - 2026-09-09 05:13:02 UTC  T3 -> done  PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)
+- 2026-09-09 05:17:24 UTC  finding N01: The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought no
+- 2026-09-09 05:17:24 UTC  finding N02: chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fi
+- 2026-09-09 05:17:24 UTC  finding N03: The gesture caption grew by up to 27 characters, and the full-screen viewer divi
+- 2026-09-09 05:19:10 UTC  N01 fixed: hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did
 

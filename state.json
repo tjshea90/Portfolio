@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 05:13:02 UTC",
+  "updated": "2026-09-09 05:19:10 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -57,7 +57,29 @@
       "note": ""
     }
   ],
-  "findings": [],
+  "findings": [
+    {
+      "id": "N01",
+      "text": "The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought nothing and made the chart start consuming before touch slop, so a press that paused then scrolled could stop the page - on the one chart shape that never needed the gesture",
+      "sev": "high",
+      "status": "fixed",
+      "note": "hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did"
+    },
+    {
+      "id": "N02",
+      "text": "chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fingers'; a one-finger pan raises them now",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "N03",
+      "text": "The gesture caption grew by up to 27 characters, and the full-screen viewer divides a fixed height between the plot and the text under it - an extra wrapped line at a large font scale is exactly round 64's H04 coming back",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    }
+  ],
   "log": [
     "2026-09-07 19:59:39 UTC  round 58 started",
     "2026-09-07 19:59:53 UTC  round 58 ledger created",
@@ -512,6 +534,10 @@
     "2026-09-09 04:57:50 UTC  T1 -> done  TextThenChart measuring layout: TJ's row 125dp -> 186.5dp of chart, no gap; floor is round 64's own share so no row is ever worse; unbounded-width branch tested",
     "2026-09-09 04:57:51 UTC  T2 -> doing  one-finger pan + press-and-hold scrub in chartGestures",
     "2026-09-09 05:13:00 UTC  T2 -> done  one-finger pan on a zoomed chart, press-and-hold scrub with a haptic tick, vertical drags handed back to the page; M01-M04, M07, M08 designed in",
-    "2026-09-09 05:13:02 UTC  T3 -> done  PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)"
+    "2026-09-09 05:13:02 UTC  T3 -> done  PanGestureUiTest: 9 tests including the 3 the old suite could not catch (350ms rest still scrolls, slow drag pans, caption never promises a dead pan)",
+    "2026-09-09 05:17:24 UTC  finding N01: The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought no",
+    "2026-09-09 05:17:24 UTC  finding N02: chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fi",
+    "2026-09-09 05:17:24 UTC  finding N03: The gesture caption grew by up to 27 characters, and the full-screen viewer divi",
+    "2026-09-09 05:19:10 UTC  N01 fixed: hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did"
   ]
 }

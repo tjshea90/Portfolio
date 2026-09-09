@@ -402,9 +402,10 @@ fun DetailScreen(
     // it forces the sensor orientation while it is open.
     var chartExpanded by remember(symbol) { mutableStateOf(false) }
 
-    // True while two fingers are on a chart. The re-anchor below stands back until they lift:
-    // a fetch landing mid-pinch would otherwise reset the window under the user's fingers for
-    // a frame before the gesture wrote it again.
+    // True while a gesture owns the chart's window: a pinch, or - since round 65 - a one-finger
+    // pan on a zoomed chart. The re-anchor below stands back until the fingers lift, because a
+    // fetch landing mid-gesture would otherwise reset the window under them for a frame before
+    // the gesture wrote it again.
     var chartPinching by remember(symbol) { mutableStateOf(false) }
 
 

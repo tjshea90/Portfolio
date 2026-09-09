@@ -198,10 +198,11 @@ fun PriceChart(
      */
     onExpand: (() -> Unit)? = null,
     /**
-     * Called with true while two fingers are on the chart, false when they leave.
+     * Called with true while a gesture owns the chart's window - a pinch, or the one-finger
+     * pan round 65 added - and false when the fingers leave.
      *
      * SO THE CALLER CAN STAND BACK. The screen re-anchors the zoom window whenever new data
-     * arrives, and a fetch landing mid-pinch would otherwise reset the window under the
+     * arrives, and a fetch landing mid-gesture would otherwise reset the window under the
      * fingers for a frame before the gesture wrote it again.
      */
     onZoomingChanged: ((Boolean) -> Unit)? = null
@@ -1886,8 +1887,18 @@ internal suspend fun PointerInputScope.chartGestures(
                 // A finger that is perfectly still produces NO events, so the hold cannot be
                 // detected by waiting for one. Once the gesture is decided the deadline is
                 // dropped: a plain await is cheaper and there is nothing left to arm.
+                // ---- THE HOLD ONLY EXISTS WHERE IT CHANGES SOMETHING (sweep 1, N01).
+                //
+                // On an unzoomed chart a plain drag already scrubs, so arming a hold there
+                // buys the user nothing and costs something real: an armed hold consumes from
+                // that moment on, BEFORE the touch slop, so a press that paused and then
+                // turned into a page scroll would stop the page dead - on the one chart shape
+                // that never needed the gesture. `canPan` is the whole reason the hold exists,
+                // so it is also the condition for arming it.
+                val holdPossible =
+                    !holdArmed && nearDown && mode == GestureMode.UNDECIDED && canPan()
                 val event =
-                    if (!holdArmed && nearDown && mode == GestureMode.UNDECIDED) {
+                    if (holdPossible) {
                         withTimeoutOrNull(wait.coerceAtLeast(1L)) {
                             awaitPointerEvent(PointerEventPass.Main)
                         }
@@ -2023,7 +2034,10 @@ internal suspend fun PointerInputScope.chartGestures(
                 accY += delta.y
 
                 if (mode == GestureMode.UNDECIDED) {
-                    if (!holdArmed && nearDown && stillFor >= HOLD_SCRUB_MS) {
+                    // RE-EVALUATED here rather than reusing `holdPossible`, which was computed
+                    // from the PREVIOUS frame's reading of `nearDown` because it had to be
+                    // known before this event was awaited.
+                    if (!holdArmed && nearDown && canPan() && stillFor >= HOLD_SCRUB_MS) {
                         // The finger stopped without ever really leaving where it landed.
                         holdArmed = true
                         mode = GestureMode.SCRUB
