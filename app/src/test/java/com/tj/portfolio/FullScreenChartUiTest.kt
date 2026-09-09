@@ -69,7 +69,8 @@ class FullScreenChartUiTest {
     private fun show(
         open: Boolean = true,
         fontScale: Float = 1f,
-        compare: ChartSeries? = null
+        compare: ChartSeries? = null,
+        withSeries: Boolean = true
     ) {
         rule.setContent {
             val base = LocalDensity.current
@@ -81,9 +82,9 @@ class FullScreenChartUiTest {
                     if (showing) {
                         FullScreenChart(
                             symbol = "NVDA",
-                            series = series(),
+                            series = if (withSeries) series() else null,
                             range = ChartRange.M6,
-                            loading = false,
+                            loading = !withSeries,
                             onRange = {},
                             perf = emptyMap(),
                             loadingRanges = emptySet(),
@@ -182,6 +183,22 @@ class FullScreenChartUiTest {
         )
         val h = chartHeightDp()
         assertTrue("the chart collapsed to ${h}dp making room", h >= 200f)
+    }
+
+
+    @Test fun `the loading placeholder fills the screen too`() {
+        // THE REGRESSION THIS PROVES FIXED. The plot's floor was changed to `requiredHeightIn`
+        // so it could overflow a cramped window rather than vanish - and that also let this Box
+        // be SHORTER than the height it was handed. A Box seeds itself from its minimum, so
+        // the placeholder measured 120dp with the rest of the screen blank, and the gesture
+        // surface that is deliberately kept alive while a chart is missing - so a pinch can
+        // continue across a window that has not arrived yet - shrank with it.
+        show(withSeries = false)
+        val d = rule.density.density
+        val b = rule.onNodeWithTag(CHART_TEST_TAG, useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        val h = (b.bottom - b.top) / d
+        assertTrue("the placeholder measured only ${h}dp of the screen", h >= 400f)
     }
 
     @Test fun `the phone is allowed to turn while it is open`() {

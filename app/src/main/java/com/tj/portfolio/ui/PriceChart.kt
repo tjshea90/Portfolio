@@ -422,6 +422,13 @@ fun PriceChart(
         if (shown == null || shown.isEmpty) {
             Box(
                 plotSize
+                    // FILL, don't just meet the floor (sweep 6). `requiredHeightIn` lets this
+                    // Box be SHORTER than the height it was handed, and a Box seeds itself
+                    // from its minimum - so in the full-screen viewer the placeholder measured
+                    // 120dp with the rest of the screen blank, and the gesture surface that is
+                    // deliberately kept alive here (see the note above) shrank with it, losing
+                    // any pinch begun in the empty area.
+                    .fillMaxSize()
                     .background(
                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                         RoundedCornerShape(10.dp)

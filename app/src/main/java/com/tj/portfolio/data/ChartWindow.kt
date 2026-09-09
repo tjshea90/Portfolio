@@ -217,18 +217,22 @@ data class ChartWindow(val startMs: Long, val endMs: Long) {
         /**
          * True when a window's right-hand edge is at (or past) the newest data it knows of.
          *
-         * ---- THE SLACK IS ONE CANDLE, NOT A PERCENTAGE OF THE WINDOW (Round 64 sweep 5)
+         * ---- THE SLACK IS AT LEAST ONE CANDLE (Round 64 sweep 5)
          *
          * This is only ever asked by the re-anchor, which runs BECAUSE new data arrived - so
          * it holds the new bounds and a window still sitting at the OLD edge. The gap it has
          * to tolerate is therefore exactly the drift the new data introduced, which is one
          * candle, and nothing to do with how wide the window is.
          *
-         * Written as two percent of the window it only held for windows spanning fifty candles
-         * or more. Zoom into the last half hour of a five-minute chart and the answer became
-         * "no": the window was left where it was and never advanced again, so the line stopped
-         * growing and its right-hand edge froze at the minute of the pinch while the price
-         * above it went on ticking.
+         * Written as two percent of the window ALONE it only held for windows spanning fifty
+         * candles or more. Zoom into the last half hour of a five-minute chart and the answer
+         * became "no": the window was left where it was and never advanced again, so the line
+         * stopped growing and its right-hand edge froze at the minute of the pinch while the
+         * price above it went on ticking.
+         *
+         * The proportional term is KEPT as well, as the larger of the two: on a wide window a
+         * candle is a rounding error, and 2% of the span is the more forgiving answer to "was
+         * this parked at the edge". Neither alone is right; the max of them is.
          */
         fun atRightEdge(w: ChartWindow?, bounds: ChartWindow?, slackMs: Long = 0L): Boolean {
             if (w == null || bounds == null) return false
