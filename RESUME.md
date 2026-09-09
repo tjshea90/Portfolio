@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:19:10 UTC)
+# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:19:11 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -46,10 +46,10 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T4** (REGRESSION: full suite, lint, checkinit).
 
-## 5. Open findings — 2 still open, 1 fixed
+## 5. Open findings — 1 still open, 2 fixed
 
 - [x] N01 (high) The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought nothing and made the chart start consuming before touch slop, so a press that paused then scrolled could stop the page - on the one chart shape that never needed the gesture  — hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did
-- [ ] N02 (low) chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fingers'; a one-finger pan raises them now
+- [x] N02 (low) chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fingers'; a one-finger pan raises them now  — chartPinching and onZoomingChanged both describe a window gesture now, not two fingers
 - [ ] N03 (med) The gesture caption grew by up to 27 characters, and the full-screen viewer divides a fixed height between the plot and the text under it - an extra wrapped line at a large font scale is exactly round 64's H04 coming back
 
 ## 6. Version
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 04:48:55 UTC  round 65 started
 - 2026-09-09 04:49:04 UTC  T0 -> doing  cold-container baseline build running
 - 2026-09-09 04:52:56 UTC  T0 -> done  cold container rebuilt: SDK reinstalled, 29bd6bf compiles, 663/663 green - matches the handover
 - 2026-09-09 04:52:58 UTC  T1 -> doing  replacing the 1.6:1 weight split with a measuring layout
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 05:17:24 UTC  finding N02: chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fi
 - 2026-09-09 05:17:24 UTC  finding N03: The gesture caption grew by up to 27 characters, and the full-screen viewer divi
 - 2026-09-09 05:19:10 UTC  N01 fixed: hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did
+- 2026-09-09 05:19:11 UTC  N02 fixed: chartPinching and onZoomingChanged both describe a window gesture now, not two fingers
 
