@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:22:12 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:22:14 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -103,7 +103,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 02:01:33 UTC  sweep 4: 7 findings (1 high from sweep 3's own fix), all closed; 658 tests green
 - 2026-09-09 02:01:33 UTC  T7 -> doing  sweep 5: must come back clean
 - 2026-09-09 02:16:10 UTC  finding K01: atRightEdge's slack is 2% of the window, smaller than one candle: a zoomed-in 1D
 - 2026-09-09 02:16:10 UTC  finding K02: heightIn(min) after weight(1f) is inert - weight passes fixed constraints and he
@@ -115,4 +114,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 02:22:10 UTC  K03 fixed
 - 2026-09-09 02:22:11 UTC  K04 fixed
 - 2026-09-09 02:22:12 UTC  K05 fixed
+- 2026-09-09 02:22:14 UTC  sweep 5: 5 findings, all closed; 663 tests green
 
