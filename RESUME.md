@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:22:08 UTC)
+# RESUME — READ THIS FIRST  (round 64, saved 2026-09-09 02:22:10 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T7** (SWEEP 2: verify sweep 1's own fixes; repeat until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 3 still open, 40 fixed
+## 5. Open findings — 2 still open, 41 fixed
 
 - [x] F01 (high) Pinch-out cannot widen past loaded series: windowBounds is the union of LOADED series, so on a first-open (only 1D cached) a pinch-out saturates instantly and 'zoom out to all time' is impossible
 - [x] F02 (high) Pinching the After-hours chart blanks it permanently: windowBounds excludes OVERNIGHT, so the window is clamped into the regular session which the overnight series does not overlap
@@ -90,7 +90,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] J07 (low) Status-bar icon polarity in the full-screen dialog does not follow a dark-mode toggle while it is open
 - [x] K01 (high) atRightEdge's slack is 2% of the window, smaller than one candle: a zoomed-in 1D window stops following new data and the chart freezes while the price above it keeps ticking
 - [x] K02 (high) heightIn(min) after weight(1f) is inert - weight passes fixed constraints and heightIn enforces incoming - so the full-screen plot can still collapse to zero
-- [ ] K03 (med) The re-anchor's reset test is span-only while isDefaultView is start-sensitive: a slight pinch plus a sideways drag pans the chart, then jumps back on finger-lift
+- [x] K03 (med) The re-anchor's reset test is span-only while isDefaultView is start-sensitive: a slight pinch plus a sideways drag pans the chart, then jumps back on finger-lift
 - [ ] K04 (med) The full-screen dialog corrects the status-bar polarity but not the navigation bar
 - [ ] K05 (low) A window containing exactly one candle reports +0.00 over a visibly sloping line, with the same price in both y-axis corners
 
@@ -103,7 +103,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 02:01:29 UTC  J05 fixed
 - 2026-09-09 02:01:30 UTC  J06 fixed
 - 2026-09-09 02:01:32 UTC  J07 fixed
 - 2026-09-09 02:01:33 UTC  sweep 4: 7 findings (1 high from sweep 3's own fix), all closed; 658 tests green
@@ -115,4 +114,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 02:16:10 UTC  finding K05: A window containing exactly one candle reports +0.00 over a visibly sloping line
 - 2026-09-09 02:22:06 UTC  K01 fixed
 - 2026-09-09 02:22:08 UTC  K02 fixed
+- 2026-09-09 02:22:10 UTC  K03 fixed
 
