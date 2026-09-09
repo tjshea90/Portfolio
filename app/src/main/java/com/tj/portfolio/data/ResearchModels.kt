@@ -253,7 +253,7 @@ data class ResearchRow(
  * [trending] and [best] hold MORE than the ten rows the screen shows. The screen
  * reveals ten at a time from what is already here, so "Load more" costs nothing on the wire -
  * TJ's rule was that nothing beyond ten is loaded unless he asks, and the expensive per-symbol
- * work (analyst consensus, the short vehicle lookup) is done for the visible ten only.
+ * work (analyst consensus) is done for the visible ten only.
  */
 data class ResearchSet(
     val trending: List<ResearchRow> = emptyList(),

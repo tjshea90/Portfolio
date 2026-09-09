@@ -445,7 +445,7 @@ object Http {
      *
      * WHY IT HAD TO MOVE IN HERE. Every gate in the app was a `Semaphore` owned by its call
      * site - one in `refresh()`, one in `refreshFeed()`, one in `preloadNewsForAdvice()`, one
-     * in `Research.build`, one in `enrichAnalyst`, one in `enrichShortVehicles`. Six budgets
+     * in `Research.build` and one in `enrichAnalyst`. Several budgets
      * that knew nothing about each other, and most of them pointed at the same two Yahoo
      * hosts. A Research build overlapping a feed pass and a quote tick could legitimately
      * have twenty-five sockets open, nearly all of them to Yahoo - which is precisely the

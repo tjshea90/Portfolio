@@ -333,11 +333,10 @@ object ResearchScore {
     private fun confidence(have: Int, want: Int): Int =
         if (want <= 0) 0 else (have * 100 / max(1, want)).coerceIn(0, 100)
 
-    /** One-line verdict for the score, used as the row's headline label. */
-    fun grade(score: Int): String = when {
-        score >= 75 -> "Strong"
-        score >= 60 -> "Good"
-        score >= 45 -> "Fair"
-        else -> "Marginal"
-    }
+    // `grade()` WAS REMOVED IN ROUND 66. It turned a score into "Strong"/"Good"/"Fair" and
+    // its KDoc said it was "used as the row's headline label" - nothing in the app has called
+    // it for several rounds. The card shows the number and the reason lines instead, which is
+    // strictly more information, and a function nobody calls is a claim about the UI that
+    // stopped being true without anybody noticing.
+
 }

@@ -1631,7 +1631,15 @@ object Keys {
     /** Which half of the Watch tab was open last: 0 = watchlist, 1 = research. */
     const val WATCH_SUBTAB = "watch_subtab"
 
-    /** Which Research list was open last: 0 = trending, 1 = best, 2 = worst (Round 56). */
+    /**
+     * Which Research list was open last, as an index into `ResearchSet.SECTIONS`.
+     *
+     * NOT WRITTEN OUT AS "0 = trending, 1 = best, 2 = worst" any more (Round 66). That list
+     * was correct when it was written and wrong twice since - once when the ETF tab was added
+     * and once when Worst was removed - and a comment that names indices is guaranteed to rot
+     * the next time a section moves. `researchTabMax()` derives the bound from SECTIONS for
+     * the same reason.
+     */
     const val RESEARCH_TAB = "research_tab"
 
     /** Block ad, tracker and pop-up hosts in the in-app reader. On by default. */

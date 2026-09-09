@@ -5,29 +5,34 @@ import com.tj.portfolio.util.text
 import org.json.JSONObject
 
 /**
- * THE ETF UNIVERSE - Yahoo's own fund screens, keyless, six requests for ~600 funds.
+ * THE ETF UNIVERSE - Yahoo's own fund screens, keyless, ten requests for ~850 funds.
  *
  * [Screener] does this for stocks and deliberately DROPS anything that is not `EQUITY`,
  * because the stock scorers read company fundamentals. Funds need the opposite filter and a
  * different set of fields, so this is its own object rather than a flag on that one - trying
  * to serve both from one parser is how a fund ends up being scored on its forward P/E.
  *
- * ---- WHY THESE TWO LISTS
+ * ---- WHICH LISTS, AND WHY
  *
- * Verified live in September 2026: `top_etfs_us` and `top_performing_etfs` each report ~523
- * funds and their first hundred rows overlap by SEVEN. They are ranked on different things -
- * roughly size and roughly return - so taking both is not redundancy, it is the difference
- * between "the biggest funds" and "the funds that have actually done well", and the answer
- * TJ asked for lives in the intersection of those two ideas rather than in either one.
+ * Three, fetched by [Research.buildEtfs]: `top_etfs_us` six pages deep, `bond_etfs` three,
+ * `commodity_etfs` one. That is about 850 distinct funds for ten requests.
+ *
+ * `top_performing_etfs` is NOT among them, and [Lists.TOP_PERFORMING_UNUSED] records the
+ * measurement that settled it: it returns the same 523 symbols as `top_etfs_us` in a
+ * different order, so taking both was six extra requests per pass, four times a day, for rows
+ * the app already had. (An earlier version of this header argued the opposite - that their
+ * first hundred rows overlapped by seven and both were therefore worth taking. That was
+ * measured on one page rather than on the whole list, and it was wrong.)
  *
  * ---- WHY PAGINATION IS WORTH IT
  *
- * Yahoo caps `count` at 100 and honours `start`, so three pages of each list is six requests
- * for ~600 distinct funds, every one arriving with its expense ratio, its net assets, its
- * three- and five-year annualised NAV returns, its YTD, its yield, its liquidity and its
- * moving averages already attached. The per-fund alternative - `quoteSummary` with the
- * cookie-and-crumb handshake, one call each - would be six hundred requests for the same
- * answer, which the app's provider-safety rule forbids outright.
+ * Yahoo caps `count` at 100 and honours `start`, so paging is the only way to see past the
+ * first hundred funds of a 523-fund list - and every row arrives with its expense ratio, its
+ * net assets, its three- and five-year annualised NAV returns, its YTD, its yield, its
+ * liquidity and its moving averages already attached. The per-fund alternative -
+ * `quoteSummary` with the cookie-and-crumb handshake, one call each - would be eight hundred
+ * and fifty requests for the same answer, which the app's provider-safety rule forbids
+ * outright.
  *
  * A page that does not answer costs nothing but its own rows: the caller scores whatever
  * arrived. That matters because this is still Yahoo and still 429s in bursts.

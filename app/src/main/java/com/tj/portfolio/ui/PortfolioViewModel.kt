@@ -355,6 +355,17 @@ private const val MAX_FEED_ITEMS = 400
 private const val MAX_SYMBOL_NEWS = 60
 
 /**
+ * How many priceless research rows one fill pass will ask about.
+ *
+ * It is a cap on ONE batched `MarketData.quotes` call, not on requests: twenty symbols go up
+ * in a single URL. The number exists so a research list that came back mostly unresolvable -
+ * a burst of typo'd Reddit tickers, say - cannot turn the fill into a chunked sweep, and
+ * because the rows are handed over already sorted by score, so the twenty that get a price
+ * are the twenty nearest the top of the list anyone is actually looking at.
+ */
+private const val MAX_PRICE_FILL = 20
+
+/**
  * How many Form 4 filings the Insider tab holds.
  *
  * Its OWN cap, and that is the point. Sharing [MAX_FEED_ITEMS] with the news feed is what
@@ -4796,6 +4807,26 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     // symbols - Claude's paragraph about NVDA does not go stale in 30 minutes,
                     // and re-earning it would mean another API call or another file round trip.
                     cacheResearch(carryExplanations(_research.value, built))
+                    // ---- ROWS THAT ARRIVED WITHOUT A PRICE (Round 66 audit, R2).
+                    //
+                    // THE BUG THIS FIXES. Trending's candidate set is the UNION of three
+                    // sources - Reddit chatter, Yahoo's trending list, and the market-wide
+                    // headlines - but every number on a trending row is read out of
+                    // `universe`, which is only what the nine equity screeners returned. A
+                    // symbol that is trending WITHOUT being a day gainer, a day loser, most
+                    // active, most shorted or any of the other six is not in that map, so
+                    // `Research.buildTrending` writes it out with an empty name, a price of
+                    // zero and a day change of zero, and nothing downstream ever went back
+                    // for them: `enrichPass` walks Best only, and the fill below had exactly
+                    // one caller, the Claude import path. Those rows sat in the list with a
+                    // blank price for as long as they trended - which is precisely the set of
+                    // stocks the section exists to surface, because a name the screeners
+                    // already carry is not news.
+                    //
+                    // ONE BATCHED REQUEST for up to [MAX_PRICE_FILL] symbols, awaited here so
+                    // it cannot race the enrich pass below - see [fillPricesNow].
+                    val priceless = pricelessRows(_research.value)
+                    if (priceless.isNotEmpty()) fillPricesNow(priceless)
                 }
             } finally {
                 _researchBusy.value = ""
@@ -4831,8 +4862,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      *
      * Two stages, in this order and for the reason spelled out in [com.tj.portfolio.net.Research]:
      * analyst coverage over a window WIDER than the page (so it can change the ranking), then
-     * the inverse-ETF search over the page only (so it is never spent on a row that then
-     * dropped off it).
+     * and nothing else. There was a second stage - an inverse-ETF search over the page -
+     * until round 66 removed the section it served.
      */
     private fun enrichVisible() {
         if (enrichJob?.isActive == true) return
@@ -5071,47 +5102,78 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // Anything Claude ADDED has no price yet - fetch those quotes so the new rows are
         // not the only ones on screen without a number beside them.
         val newSymbols = (merged.trending + merged.best + merged.etfs)
-            .filter { it.price <= 0.0 }.map { it.symbol }.distinct().take(20)
+            .filter { it.price <= 0.0 }.map { it.symbol }.distinct().take(MAX_PRICE_FILL)
         if (newSymbols.isNotEmpty()) fillResearchPrices(newSymbols)
         val n = parsed.trending.size + parsed.best.size + parsed.etfs.size
         return "Research updated - $n explained" + (if (added > 0) ", $added added" else "")
     }
 
-    /** Quotes for rows Claude introduced, so every row on screen carries a live price. */
+    /**
+     * Which rows of a freshly built set still have no price, highest-scoring first.
+     *
+     * Pure, so the selection can be checked without a network: the lists arrive already
+     * sorted by score, so `take` keeps the ones nearest the top of the screen. ETFs are NOT
+     * included - they are built by [loadEtfs] on a six-hour clock of their own and are not
+     * part of what this rebuild just produced, and a fund Claude added that Yahoo cannot
+     * resolve would otherwise be re-requested on every half-hourly stock rebuild forever.
+     */
+    internal fun pricelessRows(
+        set: com.tj.portfolio.data.ResearchSet,
+        cap: Int = MAX_PRICE_FILL
+    ): List<String> = (set.trending + set.best)
+        .filter { it.price <= 0.0 }
+        .map { it.symbol }
+        .filter { it.isNotBlank() }
+        .distinct()
+        .take(cap)
+
+    /** Fire-and-forget wrapper for [fillPricesNow], for the callers that cannot suspend. */
     private fun fillResearchPrices(symbols: List<String>) {
-        fgScope.launch {
-            // ONE BATCHED REQUEST, not one per symbol (Round 63 sweep). `MarketData.quotes`
-            // takes the whole list and asks Yahoo once - the same endpoint the price poll has
-            // used since Round 56, complete with its per-symbol fallback for anything the
-            // batch cannot answer. This path was still doing it the old way: up to twenty
-            // symbols x four providers, and a SQLite read for the Finnhub key inside every
-            // one of them.
-            val key = finnhubKey()
-            val fetched = withContext(Dispatchers.IO) {
-                runCatching { MarketData.quotes(symbols, key) }.getOrDefault(emptyList())
-                    .associateBy { it.symbol }
-            }
-            if (fetched.isEmpty()) return@launch
-            fun fill(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
-                val q = fetched[r.symbol]
-                if (q == null || q.price <= 0.0) r
-                else r.copy(
-                    name = r.name.ifBlank { q.name },
-                    price = q.price,
-                    changePct = q.dayChangePct
-                )
-            }
-            val s = _research.value
-            // `etfs` INCLUDED. Claude is explicitly asked to add funds the app's screener
-            // universe cannot see, and those rows arrive with no price - so leaving them out
-            // spent a real quote request per added fund and discarded the answer, then
-            // re-spent it on the next import because the row still had no price.
-            cacheResearch(
-                s.copy(
-                    trending = fill(s.trending), best = fill(s.best), etfs = fill(s.etfs)
-                )
+        fgScope.launch { fillPricesNow(symbols) }
+    }
+
+    /**
+     * Quotes for rows that reached a list with no price, so every row on screen carries one.
+     *
+     * TWO CALLERS, AND THEY NEED DIFFERENT THINGS FROM IT (Round 66 audit, R2). The Claude
+     * import path is not a coroutine and cannot wait, so it goes through the launcher above.
+     * [loadResearch] calls this one directly and AWAITS it, which is what keeps it out of a
+     * race with `enrichVisible`: that pass re-ranks a window of Best around an IO call and
+     * writes the result back wholesale, so a fill landing mid-flight would be overwritten by
+     * a list the enrich pass had already read. Awaiting orders the two.
+     */
+    private suspend fun fillPricesNow(symbols: List<String>) {
+        // ONE BATCHED REQUEST, not one per symbol (Round 63 sweep). `MarketData.quotes`
+        // takes the whole list and asks Yahoo once - the same endpoint the price poll has
+        // used since Round 56, complete with its per-symbol fallback for anything the
+        // batch cannot answer. This path was still doing it the old way: up to twenty
+        // symbols x four providers, and a SQLite read for the Finnhub key inside every
+        // one of them.
+        val key = finnhubKey()
+        val fetched = withContext(Dispatchers.IO) {
+            runCatching { MarketData.quotes(symbols, key) }.getOrDefault(emptyList())
+                .associateBy { it.symbol }
+        }
+        if (fetched.isEmpty()) return
+        fun fill(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
+            val q = fetched[r.symbol]
+            if (q == null || q.price <= 0.0) r
+            else r.copy(
+                name = r.name.ifBlank { q.name },
+                price = q.price,
+                changePct = q.dayChangePct
             )
         }
+        val s = _research.value
+        // `etfs` INCLUDED. Claude is explicitly asked to add funds the app's screener
+        // universe cannot see, and those rows arrive with no price - so leaving them out
+        // spent a real quote request per added fund and discarded the answer, then
+        // re-spent it on the next import because the row still had no price.
+        cacheResearch(
+            s.copy(
+                trending = fill(s.trending), best = fill(s.best), etfs = fill(s.etfs)
+            )
+        )
     }
 
     // -------------------------------------------------------------- backup
