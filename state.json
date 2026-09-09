@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 14:39:44 UTC",
+  "updated": "2026-09-09 14:39:46 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -88,8 +88,8 @@
       "id": "A03",
       "text": "TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a transaction and pressing Save with no edit re-rounds it and silently changes the recorded cash",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "TxnFields extracted from the dialog: seeds use Fmt.exact (round-trips through the editor's own parser) and Save shares one computation with the preview. Pure tests, no flaky dialog rendering"
     },
     {
       "id": "A04",
@@ -650,6 +650,7 @@
     "2026-09-09 14:21:57 UTC  finding A10: PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read",
     "2026-09-09 14:21:57 UTC  finding A11: PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list ",
     "2026-09-09 14:21:57 UTC  finding A12: Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks ",
-    "2026-09-09 14:39:44 UTC  A01 fixed: createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes"
+    "2026-09-09 14:39:44 UTC  A01 fixed: createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes",
+    "2026-09-09 14:39:46 UTC  A03 fixed: TxnFields extracted from the dialog: seeds use Fmt.exact (round-trips through the editor's own parser) and Save shares one computation with the preview. Pure tests, no flaky dialog rendering"
   ]
 }
