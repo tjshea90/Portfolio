@@ -2438,8 +2438,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     if (due.anything) {
                         // refreshFeed() pulls the same headlines and writes them into the
                         // per-symbol news map too, so calling refreshAllNews() here as well
-                        // would fetch everything twice. It does its own gating on the
-                        // market-wide half, so a filings-only pass is cheap.
+                        // would fetch everything twice. A filings-only pass does cost a feed
+                        // pass that was not otherwise due - but at most one every half hour,
+                        // which is the cadence filings ride anyway because they are legally
+                        // up to two business days behind.
                         refreshFeed(includeInsider = due.filings)
                     }
                 }

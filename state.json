@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 15:11:34 UTC",
+  "updated": "2026-09-09 15:15:08 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -160,6 +160,13 @@
       "sev": "med",
       "status": "fixed",
       "note": "both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions"
+    },
+    {
+      "id": "B02",
+      "text": "SELF-REVIEW: my own A02 fix stamped lastFilingsAt after refreshInsiders' symbols.isEmpty() guard, so an empty portfolio or an already-running pass never advanced the mark and passDue reported filings due on EVERY tick - a full feed pass every 15 seconds",
+      "sev": "high",
+      "status": "fixed",
+      "note": "stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later"
     }
   ],
   "log": [
@@ -675,6 +682,8 @@
     "2026-09-09 15:06:35 UTC  A10 fixed: restoreFromCache(fromInit = true) skips the duplicate quote-cache read on the launch path",
     "2026-09-09 15:06:37 UTC  T4 -> done  research accuracy: the ETF ranking reworked and grounded in Schwab's and Saxo's own selection guidance; the Worst list removed rather than left inactionable; A06 restored the news blurbs the cache was discarding",
     "2026-09-09 15:11:34 UTC  finding B01: The Worst deletion left the offline Claude prompt still asking for a 'worst' lis",
-    "2026-09-09 15:11:34 UTC  B01 fixed: both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions"
+    "2026-09-09 15:11:34 UTC  B01 fixed: both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions",
+    "2026-09-09 15:15:08 UTC  finding B02: SELF-REVIEW: my own A02 fix stamped lastFilingsAt after refreshInsiders' symbols",
+    "2026-09-09 15:15:08 UTC  B02 fixed: stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later"
   ]
 }

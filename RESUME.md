@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:11:34 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 15:15:08 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
 
-## 5. Open findings — 0 still open, 13 fixed
+## 5. Open findings — 0 still open, 14 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -63,6 +63,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] A11 (low) PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list - the feed pass truncates 60 headlines to 40, removing stories the user is scrolling  — one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list
 - [x] A12 (low) Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks and give three  — money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed
 - [x] B01 (med) The Worst deletion left the offline Claude prompt still asking for a 'worst' list the app can no longer parse, plus a template phrase about inverse ETFs and several stale 'three lists' comments  — both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions
+- [x] B02 (high) SELF-REVIEW: my own A02 fix stamped lastFilingsAt after refreshInsiders' symbols.isEmpty() guard, so an empty portfolio or an already-running pass never advanced the mark and passDue reported filings due on EVERY tick - a full feed pass every 15 seconds  — stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later
 
 ## 6. Version
 
@@ -73,8 +74,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 15:00:13 UTC  T4 -> doing  research accuracy
-- 2026-09-09 15:03:00 UTC  A04 fixed: insiderAt is cleared with _insider on a memory trim, matching coreFetchedAt and ratingsFetchedAt beside it
 - 2026-09-09 15:03:01 UTC  A05 fixed: Db.purgeQuotes, called with the other purges - the quotes table was the one unbounded cache, and it is parsed whole on the launch path
 - 2026-09-09 15:03:03 UTC  A06 fixed: loadNews writes the blurbs through with the stories, and cacheNews's conflict path updates the summary without ever erasing one; three tests
 - 2026-09-09 15:03:05 UTC  A11 fixed: one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list
@@ -85,4 +84,6 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 15:06:37 UTC  T4 -> done  research accuracy: the ETF ranking reworked and grounded in Schwab's and Saxo's own selection guidance; the Worst list removed rather than left inactionable; A06 restored the news blurbs the cache was discarding
 - 2026-09-09 15:11:34 UTC  finding B01: The Worst deletion left the offline Claude prompt still asking for a 'worst' lis
 - 2026-09-09 15:11:34 UTC  B01 fixed: both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions
+- 2026-09-09 15:15:08 UTC  finding B02: SELF-REVIEW: my own A02 fix stamped lastFilingsAt after refreshInsiders' symbols
+- 2026-09-09 15:15:08 UTC  B02 fixed: stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later
 

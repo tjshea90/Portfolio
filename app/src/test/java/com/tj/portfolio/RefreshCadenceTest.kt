@@ -115,6 +115,30 @@ class RefreshCadenceTest {
         assertEquals(at, readFilingsMark())
     }
 
+    /**
+     * SELF-REVIEW, ROUND 66. The first version of the fix stamped the mark inside
+     * `refreshInsiders`, AFTER its `symbols.isEmpty()` guard - so on an empty portfolio, or
+     * whenever a pass was already running, the mark never advanced, `passDue` reported filings
+     * due on every tick, and the automatic pass fired a full feed refresh every fifteen
+     * seconds for as long as the app was open.
+     *
+     * That is worse than the bug it replaced: the old counter reset unconditionally, so it
+     * merely never fired. This asserts the property that makes the difference - a mark that
+     * has just been stamped is NOT due again - which is exactly what an unstamped mark breaks.
+     */
+    @Test fun `a stamped mark is not due again on the next tick`() {
+        val v = vm()
+        val at = 1_800_000_000_000L
+        // One tick later, at the 15-second quote cadence.
+        val next = v.passDue(at + 15_000L, feedAt = at, filingsAt = at, feedIntervalSecs = feedSecs)
+        assertFalse("the feed would re-fire one tick after a pass", next.feed)
+        assertFalse("filings would re-fire one tick after a pass", next.filings)
+        assertFalse("so no pass at all should run", next.anything)
+        // ...and an UNSTAMPED mark is due on every tick, which is the failure mode.
+        val unstamped = v.passDue(at + 15_000L, feedAt = at, filingsAt = 0L, feedIntervalSecs = feedSecs)
+        assertTrue("this is what a mark that never advances looks like", unstamped.filings)
+    }
+
     private fun readFilingsMark(): Long =
         Db(app).use { it.get(Keys.FILINGS_AT).toLongOrNull() ?: 0L }
 }
