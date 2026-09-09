@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 06:18:05 UTC",
+  "updated": "2026-09-09 06:18:07 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,7 +10,7 @@
     "next_code": 62
   },
   "now": {
-    "step": "",
+    "step": "T3: Worst section: keep only stocks with a buyable companion short vehicle, or delete the section",
     "next": ""
   },
   "tasks": [
@@ -35,8 +35,8 @@
     {
       "id": "T3",
       "title": "Worst section: keep only stocks with a buyable companion short vehicle, or delete the section",
-      "status": "todo",
-      "note": ""
+      "status": "doing",
+      "note": "live probe of which stocks have a buyable single-stock inverse fund"
     },
     {
       "id": "T4",
@@ -550,6 +550,7 @@
     "2026-09-09 06:05:20 UTC  round 66 started",
     "2026-09-09 06:05:20 UTC  T0 -> doing  surveying the app",
     "2026-09-09 06:18:04 UTC  T0 -> done  v7.6 tree green in this container",
-    "2026-09-09 06:18:05 UTC  T1 -> done  separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught"
+    "2026-09-09 06:18:05 UTC  T1 -> done  separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught",
+    "2026-09-09 06:18:07 UTC  T3 -> doing  live probe of which stocks have a buyable single-stock inverse fund"
   ]
 }

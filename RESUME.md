@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 06:18:05 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 06:18:07 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -27,7 +27,7 @@ at once or kill one mid-flight; always background the build with
 
 ## 3. WHERE THE WORK STOPPED
 
-- **In flight:** (nothing in flight)
+- **In flight:** T3: Worst section: keep only stocks with a buyable companion short vehicle, or delete the section
 - **Next action:** (pick the first unchecked task below)
 
 Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
@@ -39,14 +39,14 @@ commit, so `git log --oneline` is the history of this round and
 - [x] T0  Baseline: v7.6 tree green in this container  — v7.6 tree green in this container
 - [x] T1  Thicker separator bars between stocks  — separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
 - [ ] T2  ETF section: accurate, multi-source, healthy strong-buy funds ranked best-first
-- [ ] T3  Worst section: keep only stocks with a buyable companion short vehicle, or delete the section
+- [>] T3  Worst section: keep only stocks with a buyable companion short vehicle, or delete the section  — live probe of which stocks have a buyable single-stock inverse fund
 - [ ] T4  Stock research accuracy audit
 - [ ] T5  Cache and refresh policy: cache as big as needed, refresh liberally where it helps
 - [ ] T6  Whole-app parallel review: bugs, efficiency, UI, features working as designed
 - [ ] T7  Fix every confirmed finding
 - [ ] T8  REGRESSION + ship v7.7
 
-**Resume at T2** (ETF section: accurate, multi-source, healthy strong-buy funds ranked best-first).
+**Resume at T3** (Worst section: keep only stocks with a buyable companion short vehicle, or delete the section).
 
 ## 5. Open findings — 0 still open, 0 fixed
 
@@ -61,7 +61,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 05:27:11 UTC  finding N07: The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one 
 - 2026-09-09 05:27:11 UTC  N06 fixed: keyed on whether onWindow is null, not on the lambda instance
 - 2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
 - 2026-09-09 05:28:04 UTC  finding N08: nearDown was recomputed each frame, so a drag that wandered past the slop and ca
@@ -73,4 +72,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 06:05:20 UTC  T0 -> doing  surveying the app
 - 2026-09-09 06:18:04 UTC  T0 -> done  v7.6 tree green in this container
 - 2026-09-09 06:18:05 UTC  T1 -> done  separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
+- 2026-09-09 06:18:07 UTC  T3 -> doing  live probe of which stocks have a buyable single-stock inverse fund
 

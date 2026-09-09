@@ -638,3 +638,4 @@ Tasks 7/7 done, findings 8/8 fixed
 - [x] N08 (low) nearDown was recomputed each frame, so a drag that wandered past the slop and came back could arm a hold - the 'has not really left where it landed' guarantee should only ever be lost, never regained  - nearDown is latched: it can only ever go false
 2026-09-09 06:05:24 UTC  checkpoint 66  commit 359ea19  T0 doing
 2026-09-09 06:18:05 UTC  checkpoint 66  commit a10a50a  T0 done
+2026-09-09 06:18:07 UTC  checkpoint 66  commit 522793f  T1 done
