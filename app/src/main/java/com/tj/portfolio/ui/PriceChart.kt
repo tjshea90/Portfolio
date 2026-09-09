@@ -1739,22 +1739,56 @@ private const val ZOOM_STEP = 1.55f
  */
 private const val ZOOM_DEAD_ZONE = 1.0015f
 
+/** Which gesture, if any, currently owns the chart's window. */
+internal enum class ChartGesture { NONE, PAN, ZOOM }
+
 /**
- * ONE POINTER LOOP FOR SCRUBBING AND ZOOMING.
+ * How long a finger must sit still before a press becomes a scrub.
  *
- * The two gestures share a surface, so they have to share a decision. The rule is simply the
- * number of fingers down: one scrubs, two or more zoom, and once a gesture has become a zoom
- * it stays one until every finger is lifted - a pinch that ends with one finger still on the
- * glass must not turn into a scrub as the other leaves.
+ * MEASURED FROM THE LAST MOVEMENT, not from the press. Timing it from the press is what broke
+ * the first draft of this feature (review M02): a deliberate, slow drag can easily take more
+ * than a third of a second to travel eight dp, so every careful little pan was captured as a
+ * hold-scrub and the gesture the round exists for never fired. What the user means by "held"
+ * is a finger that has STOPPED, and stopping is a thing you measure from the last movement.
+ */
+private const val HOLD_SCRUB_MS = 350L
+
+/**
+ * ONE POINTER LOOP FOR SCRUBBING, PANNING AND ZOOMING.
  *
- * WHAT IS CONSUMED, AND WHEN. Nothing at all until the gesture has been identified:
+ * The gestures share a surface, so they have to share a decision:
  *
- *   * a scrub consumes only after the horizontal touch slop is passed, so a vertical swipe
- *     starting on the chart still scrolls the page it sits in - the chart is 170dp of a
- *     scrolling screen and making that a dead zone would be worse than the feature is good;
- *   * a zoom consumes from the second finger down, immediately, because there is no such
- *     thing as an accidental two-finger drag and the list underneath must not scroll while
- *     the chart is being pinched.
+ *   * TWO OR MORE FINGERS - pinch to zoom and pan, and once a gesture has become a zoom it
+ *     stays one until every finger is lifted; a pinch that ends with one finger still on the
+ *     glass must not turn into a scrub as the other leaves.
+ *   * ONE FINGER, CHART NOT ZOOMED - drag scrubs. Untouched, deliberately: it is the gesture
+ *     TJ uses every day and it is what shipped in v7.4.
+ *   * ONE FINGER, CHART ZOOMED - drag moves the window. A zoomed chart with no way to slide
+ *     sideways is a window the reader is stuck in, and asking for two fingers to escape it is
+ *     asking for the harder gesture to do the commoner thing.
+ *   * PRESS AND HOLD, THEN DRAG - scrubs either way, with a tick when it takes hold. This is
+ *     what keeps the crosshair reachable on a zoomed chart.
+ *
+ * ---- HOW A ONE-FINGER DRAG IS TOLD FROM THE PAGE'S SCROLL
+ *
+ * The chart is a strip of a screen that scrolls, so the interesting question is never "is this
+ * a scrub or a pan" but "is this the chart's gesture at all". Two rules, and both exist
+ * because the first draft got them wrong:
+ *
+ *   * A DRAG THAT IS MOSTLY VERTICAL IS THE PAGE'S. Once it passes the touch slop downwards or
+ *     upwards this loop hands it back and stops looking - it does not consume, so the scroller
+ *     above sees every event. The first draft only ever measured horizontal movement, so a
+ *     page scroll that paused on the chart armed the hold and the page stopped dead under the
+ *     finger (review M01).
+ *   * A HOLD CAN ONLY ARM WHILE THE FINGER IS STILL NEAR WHERE IT LANDED. Together with
+ *     measuring stillness from the last movement, that is what separates "pressed and waited"
+ *     from "scrolled, paused, carried on": a real scroll has travelled well past the slop
+ *     before it pauses.
+ *
+ * WHAT IS CONSUMED, AND WHEN. Nothing at all until the gesture has been identified: a scrub or
+ * a pan consumes only once it is decided, and a zoom consumes from the second finger down,
+ * immediately, because there is no such thing as an accidental two-finger drag and the list
+ * underneath must not scroll while the chart is being pinched.
  *
  * TOTAL BY CONSTRUCTION. This runs in a gesture handler, where an exception is a crash on a
  * screen the user is touching: a degenerate series, a zero width and a non-finite zoom factor
@@ -1782,21 +1816,42 @@ internal suspend fun PointerInputScope.chartGestures(
      */
     pinch: () -> ((Float, Float) -> Unit)? = { null },
     /**
-     * TWO-FINGER PAN, in fractions of the visible width, positive when the content is dragged
+     * MOVE THE WINDOW, in fractions of the visible width, positive when the content is dragged
      * leftwards (later in time).
      *
-     * ON THE PINCH GESTURE RATHER THAN ITS OWN, because one finger is already spoken for by
-     * the crosshair and a zoomed chart with no way to move sideways shows a window the user
-     * cannot get out of except by zooming back out.
+     * Driven by a two-finger drag on any chart, and by a ONE-finger drag on a zoomed one - see
+     * [canPan], which decides which of a one-finger drag's two meanings applies.
      */
     pan: () -> ((Float) -> Unit)? = { null },
-    onZoomActive: (Boolean) -> Unit
+    /**
+     * Whether a one-finger drag should move the window instead of scrubbing.
+     *
+     * A PROVIDER, and the caller feeds it the same value the caption is written from, so the
+     * two can never disagree about which gestures are live (review M03).
+     */
+    canPan: () -> Boolean = { false },
+    /** Fired once, when a press-and-hold takes the gesture. The caller ticks the phone. */
+    onHold: () -> Unit = {},
+    /** Which gesture owns the window now. Called only when the answer changes. */
+    onGesture: (ChartGesture) -> Unit
 ) {
     val slop = viewConfiguration.touchSlop
+    /**
+     * How far a finger may wander and still count as "not moving".
+     *
+     * HALF THE TOUCH SLOP. A per-frame test cannot do this job: a drag of one pixel per frame
+     * moves too little each frame to reset any per-frame threshold, so it reads as still and
+     * arms the hold - which is review M02 all over again. Measuring drift from a remembered
+     * ANCHOR instead means a slow drag accumulates: at half a slop it has plainly moved, the
+     * anchor resets, and the hold clock starts over. A finger that is actually resting stays
+     * inside the circle indefinitely.
+     */
+    val jitter = slop / 2f
     awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
+        val first = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
         var mode = GestureMode.UNDECIDED
-        var dx = 0f
+        var accX = 0f
+        var accY = 0f
         var zoomAccum = 1f
         // The two fingers this pinch is being measured between. Re-chosen whenever one of
         // them leaves, so a third finger landing or one of two lifting costs a single frame
@@ -1809,9 +1864,49 @@ internal suspend fun PointerInputScope.chartGestures(
         // Zoom the fingers have done but that has not yet cleared the noise floor. See the
         // note at its use below.
         var pendingZoom = 1f
+
+        // ---- PRESS AND HOLD.
+        var holdArmed = false
+        // Where the finger was when it last plainly moved, and when that was.
+        var stillAt = first.position
+        var stillSince = first.uptimeMillis
+        // Still close enough to where it landed for a hold to be believable.
+        var nearDown = true
+        var wait = HOLD_SCRUB_MS
+
+        var reported = ChartGesture.NONE
+        fun report(g: ChartGesture) {
+            if (reported != g) { reported = g; onGesture(g) }
+        }
+
         try {
             while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Main)
+                // ---- WAIT WITH A DEADLINE ONLY WHILE A HOLD IS STILL POSSIBLE.
+                //
+                // A finger that is perfectly still produces NO events, so the hold cannot be
+                // detected by waiting for one. Once the gesture is decided the deadline is
+                // dropped: a plain await is cheaper and there is nothing left to arm.
+                val event =
+                    if (!holdArmed && nearDown && mode == GestureMode.UNDECIDED) {
+                        withTimeoutOrNull(wait.coerceAtLeast(1L)) {
+                            awaitPointerEvent(PointerEventPass.Main)
+                        }
+                    } else {
+                        awaitPointerEvent(PointerEventPass.Main)
+                    }
+
+                if (event == null) {
+                    // Nothing at all arrived before the deadline: the finger has stopped.
+                    holdArmed = true
+                    mode = GestureMode.SCRUB
+                    clearPoint()
+                    onHold()
+                    // Put the crosshair where the finger already is, so a hold shows something
+                    // without having to be dragged first.
+                    pointAt(stillAt.x)
+                    continue
+                }
+
                 val pressed = event.changes.count { it.pressed }
                 if (pressed == 0) break
 
@@ -1828,7 +1923,10 @@ internal suspend fun PointerInputScope.chartGestures(
                         pendingZoom = 1f
                         pair = null
                         centroid = Float.NaN
-                        onZoomActive(true)
+                        // The window itself is NOT re-seeded here - see the caller's note on
+                        // review M04. A pinch that follows a pan continues from where the pan
+                        // left the window.
+                        report(ChartGesture.ZOOM)
                     }
                     event.changes.forEach { if (it.pressed) it.consume() }
                     val width = size.width.toFloat()
@@ -1871,10 +1969,10 @@ internal suspend fun PointerInputScope.chartGestures(
                             // already moved the window under a fixed point, so what is left is
                             // how far that point itself travelled.
                             if (onPan != null && centroid.isFinite()) {
-                                val dx = mid - centroid
+                                val moved = mid - centroid
                                 // The content follows the fingers, so the WINDOW moves the
                                 // other way: dragging right shows earlier time.
-                                if (dx != 0f) onPan(-dx / width)
+                                if (moved != 0f) onPan(-moved / width)
                             }
                         }
                         centroid = mid
@@ -1907,26 +2005,79 @@ internal suspend fun PointerInputScope.chartGestures(
                     // Somebody inside claimed it first. Leave it alone.
                     break
                 }
-                dx += change.positionChange().x
-                if (mode == GestureMode.UNDECIDED && kotlin.math.abs(dx) > slop) {
-                    mode = GestureMode.SCRUB
+
+                // ---- HAS IT MOVED, AND HOW FAR FROM WHERE IT LANDED.
+                //
+                // Both are measured against remembered points rather than per frame, for the
+                // reason in the note on [jitter].
+                if ((change.position - stillAt).getDistance() > jitter) {
+                    stillAt = change.position
+                    stillSince = change.uptimeMillis
                 }
-                if (mode == GestureMode.SCRUB) {
-                    change.consume()
-                    pointAt(change.position.x)
+                nearDown = (change.position - first.position).getDistance() <= slop
+                val stillFor = change.uptimeMillis - stillSince
+                wait = HOLD_SCRUB_MS - stillFor
+
+                val delta = change.positionChange()
+                accX += delta.x
+                accY += delta.y
+
+                if (mode == GestureMode.UNDECIDED) {
+                    if (!holdArmed && nearDown && stillFor >= HOLD_SCRUB_MS) {
+                        // The finger stopped without ever really leaving where it landed.
+                        holdArmed = true
+                        mode = GestureMode.SCRUB
+                        onHold()
+                    } else if (kotlin.math.abs(accY) > slop &&
+                        kotlin.math.abs(accY) > kotlin.math.abs(accX)
+                    ) {
+                        // ---- THE PAGE'S GESTURE, NOT THE CHART'S (review M01).
+                        //
+                        // Handed back untouched - nothing has been consumed - and this loop
+                        // stops looking, so a later sideways wobble cannot reclaim a drag the
+                        // reader has already committed to scrolling with.
+                        break
+                    } else if (kotlin.math.abs(accX) > slop) {
+                        // A ZOOMED CHART PANS; AN UNZOOMED ONE SCRUBS. Read at the moment the
+                        // drag is decided rather than when the finger landed, so a pinch that
+                        // ends with one finger down leaves the right gesture behind it.
+                        mode = if (canPan() && onPan != null) GestureMode.PAN
+                        else GestureMode.SCRUB
+                    }
+                }
+
+                when (mode) {
+                    GestureMode.SCRUB -> {
+                        change.consume()
+                        pointAt(change.position.x)
+                    }
+                    GestureMode.PAN -> {
+                        change.consume()
+                        if (reported != ChartGesture.PAN) {
+                            // Seeded before the first movement is applied, so the pan starts
+                            // from the window on screen rather than from a stale one.
+                            clearPoint()
+                            report(ChartGesture.PAN)
+                        }
+                        val width = size.width.toFloat()
+                        // The content follows the finger, so the WINDOW moves the other way -
+                        // the same rule as the two-finger pan above.
+                        if (width > 0f && delta.x != 0f) onPan?.invoke(-delta.x / width)
+                    }
+                    else -> Unit
                 }
             }
         } finally {
             // In a `finally` because this loop can be cancelled - the composable leaving the
-            // screen mid-drag - and a crosshair or a zoom badge stranded on by a cancellation
-            // never comes off.
+            // screen mid-drag - and a crosshair or a badge stranded on by a cancellation never
+            // comes off.
             clearPoint()
-            if (mode == GestureMode.ZOOM) onZoomActive(false)
+            report(ChartGesture.NONE)
         }
     }
 }
 
-private enum class GestureMode { UNDECIDED, SCRUB, ZOOM }
+private enum class GestureMode { UNDECIDED, SCRUB, PAN, ZOOM }
 
 /**
  * How much wider a NAMED PAIR of fingers got between the previous frame and this one, or null
