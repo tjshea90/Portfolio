@@ -655,3 +655,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-09 15:00:15 UTC  checkpoint 66  commit 8abe977  T4 doing
 2026-09-09 15:00:17 UTC  checkpoint 66  commit cddced8  ETF section reworked: exposure dedup + return normalisation, 706 green
 2026-09-09 15:03:01 UTC  checkpoint 66  commit 0425a07  fix A04
+2026-09-09 15:03:03 UTC  checkpoint 66  commit a9318d4  fix A05
