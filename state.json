@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 05:28:04 UTC",
+  "updated": "2026-09-09 05:32:16 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -588,6 +588,7 @@
     "2026-09-09 05:27:11 UTC  N06 fixed: keyed on whether onWindow is null, not on the lambda instance",
     "2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5",
     "2026-09-09 05:28:04 UTC  finding N08: nearDown was recomputed each frame, so a drag that wandered past the slop and ca",
-    "2026-09-09 05:28:04 UTC  N08 fixed: nearDown is latched: it can only ever go false"
+    "2026-09-09 05:28:04 UTC  N08 fixed: nearDown is latched: it can only ever go false",
+    "2026-09-09 05:32:16 UTC  sweep 3: 2 findings (N06 low, N07 med), closed. sweep 4: 1 finding (N08 low), closed"
   ]
 }

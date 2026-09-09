@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:28:04 UTC)
+# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:32:16 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -66,7 +66,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 05:19:14 UTC  N04 fixed: the event path now evaluates the full condition against the current frame
 - 2026-09-09 05:20:35 UTC  sweep 1: 4 findings (1 high), all closed
 - 2026-09-09 05:22:44 UTC  finding N05: canPanNow did not require onWindow: a chart given a window but no onWindow callb
 - 2026-09-09 05:23:26 UTC  N05 fixed: canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window
@@ -78,4 +77,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
 - 2026-09-09 05:28:04 UTC  finding N08: nearDown was recomputed each frame, so a drag that wandered past the slop and ca
 - 2026-09-09 05:28:04 UTC  N08 fixed: nearDown is latched: it can only ever go false
+- 2026-09-09 05:32:16 UTC  sweep 3: 2 findings (N06 low, N07 med), closed. sweep 4: 1 finding (N08 low), closed
 
