@@ -645,3 +645,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-09 14:39:46 UTC  checkpoint 66  commit 11d6742  fix A01
 2026-09-09 14:39:47 UTC  checkpoint 66  commit dcc6938  fix A03
 2026-09-09 14:39:49 UTC  checkpoint 66  commit 8772e7c  A01 + A03 fixed: txns indexes heal on upgrade, ledger no longer drifts on an untouched save
+2026-09-09 14:44:15 UTC  checkpoint 66  commit 3af5ff7  fix A02
