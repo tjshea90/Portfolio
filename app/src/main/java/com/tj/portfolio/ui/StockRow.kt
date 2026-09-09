@@ -24,10 +24,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tj.portfolio.data.PlMode
@@ -38,6 +40,31 @@ enum class RowAction { OPEN, EDIT_POSITION, ADD_TXN, NEWS, WATCH_TOGGLE, DELETE 
 
 /** Test handle for the row's chart, so its size can be measured rather than assumed. */
 internal const val SPARK_TEST_TAG = "rowSparkline"
+
+/** The breathing space between the holdings text and the chart beside it. */
+private val ROW_CHART_GAP = 8.dp
+
+/**
+ * The share of the row the chart keeps EVEN WHEN THE TEXT WANTS EVERYTHING.
+ *
+ * 0.385 is exactly what round 64's `weight(1.6f)` / `weight(1f)` split gave it - 1/2.6 - so
+ * this floor can only ever match that layout, never undercut it. That matters for the one row
+ * whose text really is longer than the row: a watchlist entry, whose second line is a company
+ * name and not a short holdings figure. Measuring alone would hand "Taiwan Semiconductor
+ * Manufacturing Company Limited" the whole width and leave the chart a sliver - a chart made
+ * SMALLER by the round whose entire purpose was to make it bigger.
+ */
+private const val ROW_CHART_MIN_FRACTION = 0.385f
+
+/**
+ * What the chart takes when the row is measured with no width to divide up.
+ *
+ * A row can be measured against `Constraints.Infinity` - an intrinsic-width pass from a
+ * parent, or a horizontally scrolling one. There is no "what is left over" in that case:
+ * subtracting from Infinity gives Infinity, and a Placeable that wide is a crash. Both halves
+ * take a size of their own instead, which is the only sane reading of an unbounded row.
+ */
+private val ROW_CHART_FALLBACK = 140.dp
 
 /**
  * One holding, split into two clearly separated halves by a divider:
@@ -82,26 +109,33 @@ fun StockRowItem(
                 Avatar(row.symbol, 36)
                 Spacer(Modifier.width(10.dp))
 
-                // ---- HOW THE ROW'S TOP LINE IS DIVIDED (Round 64).
+                // ---- HOW THE ROW'S TOP LINE IS DIVIDED (Round 65).
                 //
                 // TJ, with a screenshot: *"in the portfolio section notice the charts are
                 // small. can you make them fill that blank area they are inside? they do not
-                // need to be squares."*
+                // need to be squares."* And then, with a second screenshot, that the gap was
+                // still there.
                 //
-                // The old split was `weight(1f)` for the text and a FIXED 64x34dp box for the
-                // chart - so the text column was handed the whole of the row it did not use
-                // and the chart got a stamp at the far right, with about 150dp of nothing
-                // between them. That blank strip is what TJ is pointing at.
+                // ROUND 64 SPLIT THE ROW BY WEIGHT, 1.6 to 1. That was the wrong instrument,
+                // and the second screenshot is what it looks like: a weight RESERVES its share
+                // whether the child uses it or not. "5 shares - avg $220.105" is nowhere near
+                // 200dp wide, so the text column was handed 200 and painted about 140 - and
+                // the 60dp it did not use stayed blank, at the very spot TJ was pointing at.
+                // Changing the ratio only moves that gap; it cannot remove it, because the
+                // gap is the difference between what the text was GIVEN and what it WANTED.
                 //
-                // TWO WEIGHTS INSTEAD OF ONE, so there is no unclaimed space left to be
-                // blank: 1.6 to 1 hands the text about 200dp and the chart about 125dp on a
-                // 411dp phone, and stays in proportion on a narrower or wider one - which a
-                // fixed width cannot do. `SparklineSizeUiTest` renders the row and measures
-                // both halves rather than trusting that arithmetic.
+                // SO ASK IT WHAT IT WANTS. [TextThenChart] measures the text at its intrinsic
+                // width and hands everything left to the chart, which is the only split with
+                // no unclaimed space in it by construction. On TJ's phone that is about 215dp
+                // of chart where the weights gave 125dp, and it adapts to the actual string:
+                // a bigger position takes its width back out of the chart instead of leaving
+                // a hole. `SparklineSizeUiTest` renders the row and MEASURES both halves
+                // rather than trusting any of this arithmetic.
                 //
                 // AND TALLER: 34dp -> 48dp. The row is not made taller by it - the avatar and
                 // two text lines already stand 46dp - so the height was free all along.
-                Column(Modifier.weight(1.6f)) {
+                TextThenChart(text = {
+                  Column {
                     Text(
                         row.symbol,
                         fontWeight = FontWeight.Bold,
@@ -143,17 +177,16 @@ fun StockRowItem(
                             minSp = 11
                         )
                     }
+                  }
+                }) {
+                    Sparkline(
+                        points = q?.spark ?: emptyList(),
+                        baseline = q?.prevClose ?: 0.0,
+                        modifier = Modifier
+                            .height(48.dp)
+                            .testTag(SPARK_TEST_TAG)
+                    )
                 }
-
-                Spacer(Modifier.width(8.dp))
-                Sparkline(
-                    points = q?.spark ?: emptyList(),
-                    baseline = q?.prevClose ?: 0.0,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .testTag(SPARK_TEST_TAG)
-                )
             }
 
             // The price used to live in a squeezed right-hand column with no labels at all.
@@ -273,6 +306,96 @@ fun StockRowItem(
                     onClick = { menu = false; onAction(RowAction.DELETE) }
                 )
             }
+        }
+    }
+}
+
+/**
+ * THE ROW'S TOP LINE: THE TEXT AT THE WIDTH IT ASKS FOR, THE CHART FOR EVERYTHING LEFT.
+ *
+ * ---- WHY THIS IS A LAYOUT AND NOT TWO WEIGHTS
+ *
+ * A weight RESERVES its share. `weight(1.6f)` against `weight(1f)` hands the text column 200dp
+ * of a 325dp row whether the string in it is 200dp wide or 140dp wide, and when it is 140 the
+ * other 60 stay blank - inside the text column, where nothing can reach them. That blank strip
+ * is the exact thing TJ photographed twice. No ratio removes it, because the gap is not the
+ * ratio: it is the difference between what the text was GIVEN and what it WANTED.
+ *
+ * Measuring closes it by construction. The text is asked, through its intrinsic width, how
+ * wide it would like to be; it is given that, and the chart is given the rest. There is no
+ * third share left over to be blank, and the split follows the actual string - a four-figure
+ * holdings line takes its width back out of the chart rather than leaving a hole.
+ *
+ * ---- THE FLOOR, AND WHY IT IS A FRACTION AND NOT A DP
+ *
+ * One row's text really can want more than the row: a watchlist entry's second line is a
+ * company name. Pure measuring would hand it everything and leave the chart a sliver - a chart
+ * made SMALLER by the round that exists to make it bigger. [ROW_CHART_MIN_FRACTION] is round
+ * 64's own share, so the floor case reproduces round 64 exactly and every other case is wider.
+ * A floor in dp could not say that: it would be right on one screen width and wrong on the
+ * rest.
+ *
+ * ---- TOTAL BY CONSTRUCTION
+ *
+ * This runs during layout, where a thrown exception is a blank screen on a list the user is
+ * scrolling. An unbounded width, a missing child and a zero-width row are all handled by
+ * producing some layout rather than by throwing.
+ */
+@Composable
+private fun TextThenChart(
+    text: @Composable () -> Unit,
+    chart: @Composable () -> Unit
+) {
+    Layout(content = { text(); chart() }) { measurables, constraints ->
+        // Exactly two by construction - one node from each slot. Read defensively anyway:
+        // see the note above about what an exception costs here.
+        val textM = measurables.getOrNull(0)
+        val chartM = measurables.getOrNull(1)
+        if (textM == null || chartM == null) {
+            return@Layout layout(0, 0) {}
+        }
+
+        val gap = ROW_CHART_GAP.roundToPx()
+        val avail = constraints.maxWidth
+
+        // ---- NOTHING TO DIVIDE UP.
+        //
+        // An intrinsic-width pass measures with `Constraints.Infinity`, and so does a
+        // horizontally scrolling parent. "Everything left over" is meaningless there -
+        // Infinity minus the text is still Infinity, and a Placeable that wide crashes. Both
+        // halves take a size of their own instead, and the row reports their sum.
+        if (avail == Constraints.Infinity) {
+            val t = textM.measure(Constraints())
+            val cw = ROW_CHART_FALLBACK.roundToPx()
+            val c = chartM.measure(Constraints(minWidth = cw, maxWidth = cw))
+            val h = maxOf(t.height, c.height)
+            return@Layout layout(t.width + gap + c.width, h) {
+                t.place(0, (h - t.height) / 2)
+                c.place(t.width + gap, (h - c.height) / 2)
+            }
+        }
+
+        val content = (avail - gap).coerceAtLeast(0)
+        val chartFloor = (content * ROW_CHART_MIN_FRACTION).toInt().coerceIn(0, content)
+        // THE WHOLE POINT: what the text would take if nothing constrained it. `AutoFitNumber`
+        // reports this at its full size rather than at whatever size it last shrank to, so the
+        // answer does not depend on the previous frame.
+        val wanted = textM.maxIntrinsicWidth(constraints.maxHeight)
+        val textW = wanted.coerceIn(0, content - chartFloor)
+        val chartW = content - textW
+
+        val t = textM.measure(constraints.copy(minWidth = 0, maxWidth = textW, minHeight = 0))
+        val c = chartM.measure(
+            constraints.copy(minWidth = chartW, maxWidth = chartW, minHeight = 0)
+        )
+        val h = maxOf(t.height, c.height)
+        layout(avail, h) {
+            t.place(0, (h - t.height) / 2)
+            // MEASURED FROM THE RIGHT EDGE rather than from the text's width. The two are the
+            // same number when the chart takes the width it was given, and this way the chart
+            // is still flush with the row's content edge if it ever does not - which is the
+            // property the screenshot was about.
+            c.place(avail - c.width, (h - c.height) / 2)
         }
     }
 }
