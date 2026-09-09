@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:27:11 UTC)
+# RESUME — READ THIS FIRST  (round 65, saved 2026-09-09 05:27:12 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -46,7 +46,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T5** (SWEEPS: adversarial bug hunt, repeated until a pass finds nothing above cosmetic).
 
-## 5. Open findings — 1 still open, 6 fixed
+## 5. Open findings — 0 still open, 7 fixed
 
 - [x] N01 (high) The hold armed on UNZOOMED charts too, where a drag already scrubs: it bought nothing and made the chart start consuming before touch slop, so a press that paused then scrolled could stop the page - on the one chart shape that never needed the gesture  — hold is only armed where canPan is true, so an unzoomed chart behaves exactly as v7.5 did
 - [x] N02 (low) chartPinching in DetailScreen and onZoomingChanged's KDoc both still say 'two fingers'; a one-finger pan raises them now  — chartPinching and onZoomingChanged both describe a window gesture now, not two fingers
@@ -54,7 +54,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] N04 (low) The event-path hold test reused holdPossible, which was computed from the previous frame's nearDown - stale by one event  — the event path now evaluates the full condition against the current frame
 - [x] N05 (med) canPanNow did not require onWindow: a chart given a window but no onWindow callback (both are optional parameters) would caption 'drag to move' and arm the hold, while pan() returns null and the drag scrubs - M03's fault from the other direction, and the same needless early consume as N01  — canPanNow now requires onWindow, and a test covers a zoomed chart that has nowhere to report a window
 - [x] N06 (low) canPanNow is remembered on the onWindow LAMBDA, and DetailScreen builds a fresh one every recomposition, so the remember never hits; keying on whether it is null says what is actually meant  — keyed on whether onWindow is null, not on the lambda instance
-- [ ] N07 (med) The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one where nothing about the gesture changed - longer text on the screen TJ reads daily, to describe behaviour he has had since v7.4
+- [x] N07 (med) The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one where nothing about the gesture changed - longer text on the screen TJ reads daily, to describe behaviour he has had since v7.4  — the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
 
 ## 6. Version
 
@@ -65,7 +65,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 05:19:11 UTC  N02 fixed: chartPinching and onZoomingChanged both describe a window gesture now, not two fingers
 - 2026-09-09 05:19:13 UTC  N03 fixed: worst-case caption (zoomed + SPY overlay + 1.5x type) measured in the full-screen viewer
 - 2026-09-09 05:19:14 UTC  finding N04: The event-path hold test reused holdPossible, which was computed from the previo
 - 2026-09-09 05:19:14 UTC  N04 fixed: the event path now evaluates the full condition against the current frame
@@ -77,4 +76,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 05:27:11 UTC  finding N06: canPanNow is remembered on the onWindow LAMBDA, and DetailScreen builds a fresh 
 - 2026-09-09 05:27:11 UTC  finding N07: The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one 
 - 2026-09-09 05:27:11 UTC  N06 fixed: keyed on whether onWindow is null, not on the lambda instance
+- 2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5
 

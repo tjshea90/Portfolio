@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 65,
   "request": "Rebuild round 65 after container loss: (1) row charts sized by measuring, not weights; (2) one-finger pan on a zoomed chart + press-and-hold scrub; with the M01-M08 fixes designed in from the start and the 3 tests the old suite could not catch.",
-  "updated": "2026-09-09 05:27:11 UTC",
+  "updated": "2026-09-09 05:27:12 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -104,8 +104,8 @@
       "id": "N07",
       "text": "The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one where nothing about the gesture changed - longer text on the screen TJ reads daily, to describe behaviour he has had since v7.4",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5"
     }
   ],
   "log": [
@@ -578,6 +578,7 @@
     "2026-09-09 05:26:34 UTC  sweep 2: 1 finding (N05, med), closed; M01-M08 all covered by tests",
     "2026-09-09 05:27:11 UTC  finding N06: canPanNow is remembered on the onWindow LAMBDA, and DetailScreen builds a fresh ",
     "2026-09-09 05:27:11 UTC  finding N07: The caption gained ', drag to scrub' on EVERY chart, including the unzoomed one ",
-    "2026-09-09 05:27:11 UTC  N06 fixed: keyed on whether onWindow is null, not on the lambda instance"
+    "2026-09-09 05:27:11 UTC  N06 fixed: keyed on whether onWindow is null, not on the lambda instance",
+    "2026-09-09 05:27:12 UTC  N07 fixed: the caption names the pan and the hold only on a zoomed chart; an unzoomed one reads exactly as it did in v7.5"
   ]
 }
