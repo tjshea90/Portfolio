@@ -262,6 +262,52 @@ class EtfTest {
         )
     }
 
+    /**
+     * ROUND 66 AUDIT (E4). The normalisation gate was the SUM OF AVAILABLE WEIGHTS, which is
+     * only reachable as 3Y+1Y+YTD or with a 5Y term. So a fund with a genuine three-year
+     * record but no published YTD figure fell off the normalised path entirely and was capped
+     * at 16 of the 34 return points - and adding a near-worthless YTD crossed the threshold
+     * and jumped it eleven points, for a figure that had earned almost none of them. A
+     * discontinuity, in the direction that rewarded reporting a bad number.
+     *
+     * The gate is the record itself now, so the return term is a plain weighted average of
+     * the horizons a fund actually publishes. This asserts the property that follows: a fund
+     * is judged on its RATES, not on how many boxes it happened to fill in.
+     */
+    @Test fun `a missing short-run figure does not change a fund judged on its rates`() {
+        val base = EtfRow(
+            symbol = "X", name = "Fund", price = 100.0, expenseRatio = 0.1, netAssets = 5e9,
+            avgVolume3M = 1e6, fiftyDayAvg = 95.0, twoHundredDayAvg = 90.0,
+            inceptionMs = System.currentTimeMillis() - 10L * 31_557_600_000L,
+            threeYearAnnualPct = 20.0, oneYearPct = 30.0
+        )
+        val withoutYtd = EtfScore.best(base).score
+        // The same fund, whose YTD is running at the same full rate as everything else.
+        val withYtd = EtfScore.best(base.copy(ytdReturnPct = 25.0)).score
+        assertEquals(
+            "a fund topping out every horizon it reports should score the same whether or not " +
+                "one more horizon is published ($withoutYtd vs $withYtd)",
+            withoutYtd, withYtd
+        )
+    }
+
+    /** And a weak figure still counts against it - that is what an average is for. */
+    @Test fun `a weak YTD lowers the score, by about what its weight is worth`() {
+        val base = EtfRow(
+            symbol = "X", name = "Fund", price = 100.0, expenseRatio = 0.1, netAssets = 5e9,
+            avgVolume3M = 1e6, fiftyDayAvg = 95.0, twoHundredDayAvg = 90.0,
+            inceptionMs = System.currentTimeMillis() - 10L * 31_557_600_000L,
+            threeYearAnnualPct = 20.0, oneYearPct = 30.0
+        )
+        val strong = EtfScore.best(base.copy(ytdReturnPct = 25.0)).score
+        val weak = EtfScore.best(base.copy(ytdReturnPct = 0.5)).score
+        assertTrue("a flat year to date should cost something: $strong -> $weak", weak < strong)
+        assertTrue(
+            "but not more than the whole return factor: $strong -> $weak",
+            strong - weak <= 12
+        )
+    }
+
     @Test fun `cost is counted against return`() {
         val cheap = EtfRow(
             symbol = "A", name = "A", price = 100.0, expenseRatio = 0.03, netAssets = 1e10,

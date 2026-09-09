@@ -74,14 +74,61 @@ class EtfExposureTest {
         assertEquals("and every one distinct", 6, keys.toSet().size)
     }
 
+    /**
+     * ROUND 66 AUDIT (E2). The first version of this file tested the US size ladder BEFORE the
+     * region words, so " small cap " matched and " eafe " was never reached: a developed-markets
+     * small-cap fund was handed the key "US small cap" and merged with a US one. The loser
+     * vanished from the page under a card claiming they were the same exposure - the exact
+     * over-grouping failure this file's own note says is the one that matters.
+     */
+    @Test fun `a non-US fund is never merged with a US one`() {
+        val usSmall = EtfExposure.keyOf("iShares Core S&P Small-Cap ETF")
+        val eafeSmall = EtfExposure.keyOf("iShares MSCI EAFE Small-Cap ETF")
+        val worldSmall = EtfExposure.keyOf("Vanguard FTSE All-World ex-US Small-Cap ETF")
+        assertTrue("all three should be recognised",
+            listOf(usSmall, eafeSmall, worldSmall).all { it != null })
+        assertNotEquals("EAFE small-cap is not US small-cap", usSmall, eafeSmall)
+        assertNotEquals("all-world ex-US small-cap is not US small-cap", usSmall, worldSmall)
+        assertNotEquals("and the two non-US ones are different regions", eafeSmall, worldSmall)
+    }
+
+    @Test fun `a region's own size bands stay separate`() {
+        val eafe = EtfExposure.keyOf("iShares MSCI EAFE ETF")
+        val eafeSmall = EtfExposure.keyOf("iShares MSCI EAFE Small-Cap ETF")
+        assertNotEquals("EAFE large and EAFE small are not one decision", eafe, eafeSmall)
+    }
+
+    /** Bullion holds metal; miners hold companies that dig it up. Not one decision. */
+    @Test fun `gold bullion is not merged with gold miners`() {
+        val bullion = EtfExposure.keyOf("SPDR Gold Shares")
+        val miners = EtfExposure.keyOf("VanEck Gold Miners ETF")
+        assertTrue("bullion funds should group with each other", bullion != null)
+        assertEquals(bullion, EtfExposure.keyOf("iShares Gold Trust"))
+        assertNotEquals("a miner is not bullion", bullion, miners)
+    }
+
+    /**
+     * SGOV holds 0-3 month bills; TLT holds 20+ year bonds. Both are "Treasuries" and one is
+     * a cash substitute while the other is a duration bet.
+     */
+    @Test fun `Treasury funds are separated by maturity`() {
+        val bills = EtfExposure.keyOf("iShares 0-3 Month Treasury Bond ETF")
+        val long = EtfExposure.keyOf("iShares 20+ Year Treasury Bond ETF")
+        val mid = EtfExposure.keyOf("iShares 7-10 Year Treasury Bond ETF")
+        assertTrue(listOf(bills, long, mid).all { it != null })
+        assertEquals("three different decisions", 3, listOf(bills, long, mid).toSet().size)
+        // A fund that does not state a band is left alone rather than guessed at.
+        assertNull(EtfExposure.keyOf("iShares U.S. Treasury Bond ETF"))
+    }
+
     @Test fun `bond funds are separated by what they actually hold`() {
         val t = EtfExposure.keyOf("iShares 20+ Year Treasury Bond ETF")
         val h = EtfExposure.keyOf("iShares iBoxx High Yield Corporate Bond ETF")
         val a = EtfExposure.keyOf("Vanguard Total Bond Market ETF")
-        val i = EtfExposure.keyOf("Schwab U.S. TIPS ETF")
-        assertTrue(listOf(t, h, a, i).all { it != null })
+        val m = EtfExposure.keyOf("Vanguard Tax-Exempt Municipal Bond ETF")
+        assertTrue(listOf(t, h, a, m).all { it != null })
         assertEquals("a Treasury fund and a junk-bond fund are not the same decision",
-            4, listOf(t, h, a, i).toSet().size)
+            4, listOf(t, h, a, m).toSet().size)
     }
 
     @Test fun `an unrecognised name is left alone rather than guessed at`() {

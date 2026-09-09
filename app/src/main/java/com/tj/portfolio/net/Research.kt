@@ -292,9 +292,18 @@ object Research {
         // NAMED, NOT SILENTLY DROPPED. A fund removed from the page because something else
         // holds the same thing is still a fund TJ might prefer - a different issuer, a
         // different broker's commission-free list - so the row it lost to says so.
+        //
+        // FIRST, NOT LAST (Round 66 audit, E3). The card renders `reasons.take(6)`, and
+        // `EtfScore.best` already emits six lines for any ordinary large fund: returns, cost,
+        // size, trend, yield and "Found in ...". Appended, this line was the seventh and never
+        // rendered - on VOO, which is the exact case the whole feature was written for. The
+        // blurb and the sources note both promise the alternatives are named on the card, so
+        // eight funds were disappearing from a forty-row list with nothing explaining where.
         reasons = if (alsoTracking.isEmpty()) sc.reasons
-        else sc.reasons + ("Same exposure as " + alsoTracking.joinToString(", ") +
-            " - this one scored highest of them"),
+        else listOf(
+            "Same exposure as " + alsoTracking.joinToString(", ") +
+                " - this one scored highest of them"
+        ) + sc.reasons,
         etf = com.tj.portfolio.data.EtfFacts(
             expenseRatio = r.expenseRatio,
             netAssets = r.netAssets,

@@ -119,9 +119,23 @@ object EtfScreener {
         val out = ArrayList<EtfRow>(pages * MAX_COUNT)
         for (p in 0 until pages.coerceAtLeast(1)) {
             val page = fetch(listId, MAX_COUNT, p * MAX_COUNT)
+            // ---- STOP ONLY ON AN EMPTY PAGE (Round 66 audit, E1).
+            //
+            // THE BUG THIS FIXES. This used to also stop on `page.size < MAX_COUNT`, which
+            // looks like the obvious "that was the last page" test and is not: `page` is what
+            // [parse] returned AFTER dropping every quote that is not typed ETF - and parse's
+            // own comment says these screens "return the occasional non-fund". So ONE equity
+            // row anywhere in the first hundred made the count 99, broke the loop, and cut the
+            // universe from 523 funds to 100. Silently: the caller only warns when a list
+            // returns nothing at all, so the screen went on saying it had ranked about 850
+            // funds while the top of the list was whatever happened to be on Yahoo's first
+            // page. On the one list TJ is about to spend money from.
+            //
+            // The empty-page stop that `fetch` already documents is the correct one and needs
+            // no extra information. `pages` is bounded at six, so the worst case is one wasted
+            // request per list - which is the cheaper mistake by a wide margin.
             if (page.isEmpty()) break
             out.addAll(page)
-            if (page.size < MAX_COUNT) break
         }
         return out
     }

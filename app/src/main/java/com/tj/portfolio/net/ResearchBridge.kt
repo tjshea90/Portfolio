@@ -198,7 +198,12 @@ $bundle
                             if (e.netAssets > 0) put("netAssetsUsd", e.netAssets)
                             if (e.yieldPct != 0.0) put("yieldPct", round2(e.yieldPct))
                             if (e.ytdReturnPct != 0.0) put("ytdReturnPct", round2(e.ytdReturnPct))
-                            if (e.oneYearPct != 0.0) put("oneYearPct", round2(e.oneYearPct))
+                            // NAMED FOR WHAT IT IS: a price change, where the neighbouring
+                            // three- and five-year figures are NAV total returns. Handing a
+                            // model "oneYearPct" beside "threeYearAnnualisedPct" invited it to
+                            // compare them (Round 66 audit, E5).
+                            if (e.oneYearPct != 0.0)
+                                put("oneYearPriceChangePct", round2(e.oneYearPct))
                             if (e.threeYearAnnualPct != 0.0)
                                 put("threeYearAnnualisedPct", round2(e.threeYearAnnualPct))
                             if (e.fiveYearAnnualPct != 0.0)

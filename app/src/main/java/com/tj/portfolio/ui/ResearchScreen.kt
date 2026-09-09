@@ -756,7 +756,11 @@ internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
         Row(Modifier.fillMaxWidth()) {
             FactCell("5Y / yr", pctOrDash(f.fiveYearAnnualPct), signed = true, weight = 1f)
             FactCell("3Y / yr", pctOrDash(f.threeYearAnnualPct), signed = true, weight = 1f)
-            FactCell("1Y", pctOrDash(f.oneYearPct), signed = true, weight = 1f)
+            // "1Y price", not "1Y" (Round 66 audit, E5). The two cells beside it are NAV
+            // TOTAL returns; this one is a 52-week price change with dividends excluded, and
+            // three identical-looking cells on one row implied three comparable numbers. For a
+            // 4.5%-yielding bond fund the gap between them is the entire yield.
+            FactCell("1Y price", pctOrDash(f.oneYearPct), signed = true, weight = 1f)
         }
         Spacer(Modifier.height(7.dp))
         Row(Modifier.fillMaxWidth()) {

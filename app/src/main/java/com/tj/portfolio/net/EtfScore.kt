@@ -18,11 +18,16 @@ import kotlin.math.max
  * choose an ETF" checklist agrees on - State Street's and Schwab's both, and they are written
  * by people who sell the things - is cost, size, liquidity, tracking and long-run return. So:
  *
- *   * **Long-run return, weighted toward the long run (0-34).** Five-year and three-year
- *     ANNUALISED NAV returns carry more than YTD, and YTD carries more than three months.
- *     This is the single most important guard in the file: rank on a trailing year and the
- *     list fills with whatever sector happened to run, which is the classic way retail money
- *     arrives at the top.
+ *   * **Long-run return, weighted toward the long run (0-34).** Five-year annualised NAV
+ *     return carries 14 of those points, three-year 10, and year-to-date 4; a fund is scored
+ *     on the horizons it actually publishes, as a weighted average of them, provided it has at
+ *     least a three-year record. That floor is the single most important guard in the file:
+ *     rank on a trailing year and the list fills with whatever sector happened to run, which
+ *     is the classic way retail money arrives at the top.
+ *
+ *     THE 52-WEEK FIGURE IS SHOWN BUT NOT SCORED. It is a price change, not a total return
+ *     (see the note at its use), and averaging it with NAV total returns marked every income
+ *     fund down by its own yield.
  *   * **Cost (0-20).** The expense ratio is the only number in investing known in advance.
  *     Three basis points against sixty is more than half a percent a year, compounding, and
  *     it is subtracted from the return above whether the fund goes up or down.
@@ -162,7 +167,19 @@ object EtfScore {
             if (r.threeYearAnnualPct != 0.0) {
                 earned += ramp(r.threeYearAnnualPct, 0.0, 20.0, 10.0); possible += 10.0
             }
-            if (r.oneYearPct != 0.0) { earned += ramp(r.oneYearPct, 0.0, 30.0, 6.0); possible += 6.0 }
+            // ---- THE ONE-YEAR FIGURE IS NOT SCORED (Round 66 audit, E5).
+            //
+            // THE BUG THIS FIXES. `oneYearPct` is `fiftyTwoWeekChangePercent` - a PRICE change
+            // with dividends excluded - while every other horizon here is a NAV TOTAL return.
+            // Scoring them together marked every income fund down by its own yield: a
+            // 4.5%-yielding short-Treasury fund whose price is flat returned about +4.5% and
+            // scored as if it had returned -0.3%, on a list whose stated weighting is total
+            // return, in a universe three of whose ten pages are the bond screen.
+            //
+            // The figure is still SHOWN, because it is real and a reader wants it - but it is
+            // labelled as a price change on the card and it earns nothing. The remaining
+            // horizons are all total returns, so the weighted average above is now comparing
+            // like with like.
             if (r.ytdReturnPct != 0.0) { earned += ramp(r.ytdReturnPct, 0.0, 25.0, 4.0); possible += 4.0 }
 
             // ---- YOUTH IS PENALISED ONCE, NOT TWICE (Round 66).
@@ -180,7 +197,16 @@ object EtfScore {
             // is exactly how retail money arrives at the top of a sector. Below the floor the
             // terms are added raw, so such a fund keeps its points and still cannot reach the
             // top of a list that is weighted toward the long run.
-            s += if (possible >= 20.0) earned * 34.0 / possible else earned
+            //
+            // GATED ON THE RECORD, NOT ON THE WEIGHT SUM (Round 66 audit, E4). The first
+            // version tested `possible >= 20.0`, which is only reachable as 3Y+1Y+YTD or with
+            // a 5Y term - so a fund WITH a full three-year record still fell off the
+            // normalised path whenever one short-run figure happened to be missing, and was
+            // capped at 16 of the 34 return points. Worse, it was non-monotonic: the same fund
+            // reporting a near-worthless YTD of +0.5% crossed the threshold and gained eleven
+            // points for a figure that earned almost none of them.
+            val hasLongRecord = r.threeYearAnnualPct != 0.0 || r.fiveYearAnnualPct != 0.0
+            s += if (hasLongRecord && possible > 0.0) earned * 34.0 / possible else earned
 
             // ONE LINE, NOT FOUR. The card shows up to six reasons and four separate return
             // lines would crowd out cost and size, which are the ones a person cannot look up
@@ -188,7 +214,7 @@ object EtfScore {
             val parts = ArrayList<String>(4)
             if (r.fiveYearAnnualPct != 0.0) parts.add("${Fmt.pct(r.fiveYearAnnualPct)}/yr over 5y")
             if (r.threeYearAnnualPct != 0.0) parts.add("${Fmt.pct(r.threeYearAnnualPct)}/yr over 3y")
-            if (r.oneYearPct != 0.0) parts.add("${Fmt.pct(r.oneYearPct)} over 1y")
+            if (r.oneYearPct != 0.0) parts.add("${Fmt.pct(r.oneYearPct)} over 1y in price")
             if (r.ytdReturnPct != 0.0) parts.add("${Fmt.pct(r.ytdReturnPct)} YTD")
             if (parts.isNotEmpty()) why.add("Returned " + parts.joinToString(", "))
         }

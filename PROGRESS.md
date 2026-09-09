@@ -668,3 +668,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-09 15:11:38 UTC  checkpoint 66  commit b0c5b8a  Worst-deletion leftovers cleaned, 709 green
 2026-09-09 15:15:10 UTC  checkpoint 66  commit 8ce0441  fix B02
 2026-09-09 15:15:17 UTC  checkpoint 66  commit 7b87699  self-review caught a high-severity bug in this round's own refresh fix
+2026-09-09 19:25:37 UTC  checkpoint 66  commit 63eadb3  recovered 14 more findings from the second interrupted audit

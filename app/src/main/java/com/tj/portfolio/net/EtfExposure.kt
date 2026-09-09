@@ -44,8 +44,11 @@ object EtfExposure {
      */
     fun keyOf(name: String): String? {
         if (name.isBlank()) return null
+        // '+' with the rest of the punctuation: "iShares 20+ Year Treasury" has to reduce to
+        // "20 year" or the maturity band below never matches it, which is how TLT ended up
+        // ungrouped on the first attempt at this.
         val n = " " + name.lowercase()
-            .replace('-', ' ').replace('&', ' ').replace('/', ' ')
+            .replace('-', ' ').replace('&', ' ').replace('/', ' ').replace('+', ' ')
             .replace(",", " ").replace(".", " ")
             .replace(Regex("\\s+"), " ") + " "
 
@@ -61,6 +64,37 @@ object EtfExposure {
         val hasTilt = tilted.any { n.contains(it) }
 
         fun group(key: String) = if (hasTilt) null else key
+
+        // ---- REGION IS TESTED BEFORE SIZE (Round 66 audit, E2).
+        //
+        // THE BUG THIS FIXES, and it was in the first version of this file. The US size
+        // ladder ran first, so " small cap " matched before " eafe " was ever reached and
+        // "iShares MSCI EAFE Small-Cap ETF" was handed the key "US small cap" - merging a
+        // developed-markets fund with a US one and dropping whichever scored lower off the
+        // page, under a card claiming "same exposure". "Vanguard FTSE All-World ex-US
+        // Small-Cap" went the same way. That is precisely the over-grouping this file's own
+        // note calls the failure that matters: it hides a real choice, silently, from someone
+        // about to spend money.
+        val region = when {
+            n.contains(" emerging markets ") || n.contains(" emerging market ") ->
+                "Emerging markets"
+            n.contains(" eafe ") || n.contains(" developed markets ") ||
+                n.contains(" developed world ") -> "Developed ex-US"
+            n.contains(" total international ") || n.contains(" total world ") ||
+                n.contains(" all world ") || n.contains(" acwi ") ||
+                n.contains(" ex us ") || n.contains(" ex u s ") -> "Global equity"
+            else -> null
+        }
+        if (region != null) {
+            // A regional fund's SIZE band still separates it: EAFE small-cap and EAFE large
+            // are not one decision either.
+            val size = when {
+                n.contains(" small cap ") || n.contains(" smallcap ") -> " small cap"
+                n.contains(" mid cap ") || n.contains(" midcap ") -> " mid cap"
+                else -> ""
+            }
+            return group(region + size)
+        }
 
         return when {
             // ---- US large cap, the crowded end of the list
@@ -84,26 +118,31 @@ object EtfExposure {
             n.contains(" mid cap ") || n.contains(" midcap ") || n.contains(" s p 400 ") ->
                 group("US mid cap")
 
-            // ---- outside the US
-            n.contains(" emerging markets ") || n.contains(" emerging market ") ->
-                group("Emerging markets")
-            n.contains(" developed markets ") || n.contains(" eafe ") ||
-                n.contains(" developed world ") -> group("Developed ex-US")
-            n.contains(" total international ") || n.contains(" total world ") ||
-                n.contains(" all world ") || n.contains(" acwi ") -> group("Global equity")
-
-            // ---- fixed income, by what it actually holds
+            // ---- fixed income, by what it holds AND how long it holds it
+            //
+            // MATURITY IS PART OF THE DECISION (Round 66 audit, E2). SGOV holds 0-3 month
+            // bills and TLT holds 20+ year bonds; both are "Treasuries" and they are not
+            // remotely the same instrument - one is a cash substitute and the other is a
+            // duration bet. A fund whose name does not state a band is left ungrouped rather
+            // than guessed at, which is this file's standing rule.
             n.contains(" tips ") || n.contains(" inflation protected ") ->
-                group("Bonds - inflation protected")
-            n.contains(" treasury ") || n.contains(" treasuries ") -> group("Bonds - Treasuries")
+                maturityKey(n, "Bonds - inflation protected")
+            n.contains(" treasury ") || n.contains(" treasuries ") ->
+                maturityKey(n, "Bonds - Treasuries")
             n.contains(" municipal ") || n.contains(" muni ") -> group("Bonds - municipal")
             n.contains(" high yield ") || n.contains(" junk ") -> group("Bonds - high yield")
             n.contains(" corporate bond ") || n.contains(" investment grade ") ->
-                group("Bonds - corporate")
+                maturityKey(n, "Bonds - corporate")
             n.contains(" aggregate bond ") || n.contains(" total bond ") ->
                 group("Bonds - US aggregate")
 
             // ---- commodities and cash
+            //
+            // BULLION IS NOT A MINER (Round 66 audit, E2). "SPDR Gold Shares" holds metal;
+            // "VanEck Gold Miners" holds equities that dig it up, with operating leverage,
+            // labour costs and country risk the metal does not have. They move together often
+            // enough to look alike and are not one decision.
+            n.contains(" miners ") || n.contains(" mining ") -> null
             n.contains(" gold ") -> group("Gold")
             n.contains(" silver ") -> group("Silver")
             n.contains(" bitcoin ") -> group("Bitcoin")
@@ -112,7 +151,32 @@ object EtfExposure {
                 group("Cash and ultra-short")
 
             else -> null
+        }.let { if (hasTilt) null else it }
+    }
+
+    /**
+     * A bond key with its maturity band, or null when the name does not state one.
+     *
+     * Returning null - "leave this fund alone" - is deliberate for an unstated band. A broad
+     * Treasury fund and a 20-year one really are different decisions, and the cost of failing
+     * to group two funds is one extra row; the cost of wrongly grouping them is a decision
+     * removed from the page with a card that says they were the same.
+     */
+    private fun maturityKey(n: String, base: String): String? {
+        val band = when {
+            n.contains(" 0 3 month ") || n.contains(" 1 3 month ") ||
+                n.contains(" ultra short ") || n.contains(" 0 1 year ") -> "0-3 month"
+            n.contains(" 1 3 year ") || n.contains(" short term ") ||
+                n.contains(" short duration ") -> "1-3 year"
+            n.contains(" 3 7 year ") || n.contains(" 5 10 year ") ||
+                n.contains(" intermediate ") -> "intermediate"
+            n.contains(" 7 10 year ") -> "7-10 year"
+            n.contains(" 10 20 year ") -> "10-20 year"
+            n.contains(" 20 year ") || n.contains(" 25 year ") ||
+                n.contains(" long term ") || n.contains(" extended duration ") -> "20+ year"
+            else -> return null
         }
+        return "$base, $band"
     }
 
     /**
