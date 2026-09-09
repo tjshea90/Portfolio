@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:38:40 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-09 19:38:42 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -48,7 +48,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
 
-## 5. Open findings — 3 still open, 25 fixed
+## 5. Open findings — 2 still open, 26 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -70,7 +70,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] H1 (high) A Yahoo cooldown makes MarketData fall back to per-symbol quotes for EVERY symbol, so a 20-stock portfolio sends ~80 requests a minute to Finnhub and then Stooq for the whole cooldown - the exact traffic shape the batch endpoint exists to remove  — a batch that sent nothing because both Yahoo hosts were cooling no longer triggers the per-symbol fallback - that was ~80 requests a minute to Finnhub and then Stooq for the length of every cooldown
 - [x] H2 (high) Screener, EtfScreener and FundamentalsFeed abandon the whole call when query1 alone is cooling, so one 429 anywhere empties the Research and ETF tabs while query2 sits idle  — Screener, EtfScreener and FundamentalsFeed skip a cooling host instead of abandoning the call, matching what ChartFeed already documented; one 429 on query1 no longer empties the Research and ETF tabs
 - [x] H3 (high) YahooAuth.invalidate zeroes mintedAt, so the MIN_INTERVAL guard that exists to stop a handshake loop is dead on every path that follows a 401  — YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401
-- [ ] H4 (med) Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a burst of four concurrent requests jumps straight to a 4-minute backoff on the first rate-limit event
+- [x] H4 (med) Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a burst of four concurrent requests jumps straight to a 4-minute backoff on the first rate-limit event  — the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests
 - [x] E3 (med) The 'Same exposure as ...' line is appended last and cut off by the card's six-reason limit, so on VOO - the case the feature was written for - it never renders  — the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for
 - [x] E4 (med) The ETF return normalisation gates on the sum of available weights, so a fund with a full three-year record but no YTD figure is capped at 16 of 34 points - and reporting a worthless YTD gains it eleven  — the return normalisation gates on the record rather than the weight sum; two tests pin the invariant
 - [x] E5 (med) The fund card's 1Y cell is a price-only 52-week change shown and scored beside 3Y and 5Y NAV TOTAL returns, so every income fund is marked down by its own yield  — the 52-week figure is shown as '1Y price' and earns nothing - every other horizon in the score is a NAV total return, and averaging a price change with them marked income funds down by their own yield
@@ -88,7 +88,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 19:25:29 UTC  finding R6: Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and
 - 2026-09-09 19:31:55 UTC  E1 fixed: fetchAll stops only on an empty page - one non-fund row no longer truncates the universe from 523 funds to 100
 - 2026-09-09 19:31:57 UTC  E2 fixed: region is tested before the US size ladder, regional size bands stay separate, miners never group with bullion, and a Treasury fund is only grouped when its name states a maturity band; five new tests
 - 2026-09-09 19:31:58 UTC  E3 fixed: the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for
@@ -100,4 +99,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-09 19:38:37 UTC  H1 fixed: a batch that sent nothing because both Yahoo hosts were cooling no longer triggers the per-symbol fallback - that was ~80 requests a minute to Finnhub and then Stooq for the length of every cooldown
 - 2026-09-09 19:38:39 UTC  H2 fixed: Screener, EtfScreener and FundamentalsFeed skip a cooling host instead of abandoning the call, matching what ChartFeed already documented; one 429 on query1 no longer empties the Research and ETF tabs
 - 2026-09-09 19:38:40 UTC  H3 fixed: YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401
+- 2026-09-09 19:38:42 UTC  H4 fixed: the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests
 

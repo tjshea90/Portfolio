@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 19:38:40 UTC",
+  "updated": "2026-09-09 19:38:42 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -214,8 +214,8 @@
       "id": "H4",
       "text": "Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a burst of four concurrent requests jumps straight to a 4-minute backoff on the first rate-limit event",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests"
     },
     {
       "id": "E3",
@@ -807,6 +807,7 @@
     "2026-09-09 19:35:39 UTC  R4 fixed: only the four screens that actually score are named among the reasons to buy",
     "2026-09-09 19:38:37 UTC  H1 fixed: a batch that sent nothing because both Yahoo hosts were cooling no longer triggers the per-symbol fallback - that was ~80 requests a minute to Finnhub and then Stooq for the length of every cooldown",
     "2026-09-09 19:38:39 UTC  H2 fixed: Screener, EtfScreener and FundamentalsFeed skip a cooling host instead of abandoning the call, matching what ChartFeed already documented; one 429 on query1 no longer empties the Research and ETF tabs",
-    "2026-09-09 19:38:40 UTC  H3 fixed: YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401"
+    "2026-09-09 19:38:40 UTC  H3 fixed: YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401",
+    "2026-09-09 19:38:42 UTC  H4 fixed: the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests"
   ]
 }
