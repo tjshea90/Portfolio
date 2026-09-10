@@ -1,21 +1,23 @@
-# CHECKPOINT 602 — read me first, then TASKS.md
+# CHECKPOINT 603 — read me first, then TASKS.md
 
-**Written:** 2026-09-10T22:00:41Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/resume-function-claude-code-q3cbja` · **builds on:** `22103f3` (this checkpoint is the commit after it)
+**Written:** 2026-09-10T22:05:24Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/resume-function-claude-code-q3cbja` · **builds on:** `fc37ee5` (this checkpoint is the commit after it)
 
 ## Just done
-GITHUB NOW BUILDS, SIGNS AND PUBLISHES THE APK, END TO END - run #7 green through every step including 'Publish the Release', which created the v7.8 tag server-side and attached Portfolio-v7.8.apk (8,563,505 bytes) at https://github.com/tjshea90/Portfolio/releases/tag/v7.8. Proved the safety question independently rather than trusting the run: downloaded GitHub's own artifact and ran apksigner on it here. Three fingerprints identical - GitHub-built, Claude-built and the certificate recorded in BRIEF.md all 2e8c38472d1657b7d2562266c6d7e1d8e6f03d7666bd10e1cb505b1cf396a9f2 - and aapt2 confirms package com.tj.portfolio versionCode 65 versionName 7.8 straight out of GitHub's APK. So an update from GitHub installs in place exactly like one built here: same certificate, same applicationId, non-decreasing versionCode. The run itself also verified the certificate on its own artifact before publishing, so a wrong key fails the run rather than reaching the Releases page. Also confirmed record-release.sh is idempotent: v7.8 was already in BUILDLOG from the local ship, and it declined to add a second line.
+Wrote Tj's 'this is the flow I want forever' request into TASKS.md and found four real gaps by inspecting the current state rather than assuming it works. (1) CLAUDE.md is STALE: it still tells a session that ship.sh tags and pushes the tag, which is exactly the thing that returns 403 from a Claude container - a fresh session on another account would follow that and fail. (2) A release interrupted between GitHub's build and tools/record-release.sh leaves BUILDLOG.md without its entry and NOTHING reports it; BUILDLOG is what the next release's versionCode is gated against, so a missed entry lets the next version reuse a shipped code and produce an APK that cannot install. (3) Every full build uploads an 8MB artifact for 90 days AND publishes the same APK as a Release asset - the Release is permanent, so the artifact is a duplicate accumulating against a limited free storage allowance. (4) TASKS.md holding a finished job costs context on every turn of every future session.
 
 ## Do this next
-Nothing outstanding on the release path. The remaining unproven piece is a release cut from scratch through the new flow (bump versionCode, ship.sh gates and pushes, Claude triggers the workflow, record-release.sh writes BUILDLOG) - that happens naturally at the next real version.
+Fix 1-3, cover them in test_resume.sh, then verify by SIMULATING an interruption at each stage of a release rather than reasoning about it. Reset TASKS.md last.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
+     M TASKS.md
 
 ## Last ten checkpoints
 ```
+  fc37ee5 ckpt 602: GITHUB NOW BUILDS, SIGNS AND PUBLISHES THE APK, END TO END - run #7 green thro
   22103f3 ckpt 601: Fixed a false positive my own change caused in test_resume.sh: the 'CI commits
   f0adaa1 ckpt 600: GITHUB HAS NOW BUILT AN APK - run #6 went green all the way through: unit test
   f1c1ac1 ckpt 599: Restructured releasing so GITHUB BUILDS ALL FUTURE APKS and Claude only writes
@@ -25,5 +27,4 @@ Nothing outstanding on the release path. The remaining unproven piece is a relea
   3adcc05 ship v7.8: Chart axis labels now carry the year when a window spans calendar years - a p
   66e50e1 ckpt 595: Fixed my own broken regression test rather than the code: DetailTabCrashTest's
   5e88705 ckpt 594: ROOT-CAUSED the crash from the device log Tj sent - and it was NOT what I gues
-  64b2e98 ckpt 593: Investigated Tj's two reports from the screen recording and fixed both finding
 ```
