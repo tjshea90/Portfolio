@@ -194,12 +194,6 @@ jobs:
           echo "vcode=$VCODE" >> "$GITHUB_OUTPUT"
           echo "Built Portfolio v$VNAME (versionCode $VCODE)" >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/upload-artifact@v4
-        if: steps.mode.outputs.full == 'true'
-        with:
-          name: Portfolio-v${{ steps.v.outputs.vname }}-apk
-          path: Portfolio-*.apk
-          retention-days: 90
 
       # PUBLISHED ON EVERY FULL BUILD, AND GITHUB CREATES THE TAG ITSELF.
       #
@@ -233,6 +227,26 @@ jobs:
               --notes "$NOTES"
           fi
           echo "Published $TAG -> $(gh release view "$TAG" --json url -q .url)" >> "$GITHUB_STEP_SUMMARY"
+
+      # KEPT ONLY WHEN SOMETHING WENT WRONG.
+      #
+      # This used to upload the APK as a 90-day artifact on EVERY full build, alongside
+      # publishing the identical file as a Release asset. The Release is the permanent,
+      # linkable copy Tj actually downloads, so the artifact was an 8 MB duplicate of it
+      # accruing against a limited free-tier artifact allowance - a handful of releases and
+      # it starts costing storage for nothing.
+      #
+      # On a FAILED run there is no Release, and the half-finished binary is worth keeping
+      # briefly to look at. `if-no-files-found: ignore` because most failures happen before
+      # an APK exists at all.
+      - name: Keep the APK for inspection (failed runs only)
+        if: failure() && steps.mode.outputs.full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: unpublished-apk
+          path: Portfolio-*.apk
+          retention-days: 7
+          if-no-files-found: ignore
 
       # Belt and braces: the runner is destroyed anyway, but never leave a
       # decoded private key sitting in a workspace that later steps could read.
