@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 01:03:36 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 01:03:37 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 10 still open, 38 fixed
+## 5. Open findings — 9 still open, 39 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -89,7 +89,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] AUD1 (med) redText in dark theme was brand Red at 4.41:1 on the StatCard surfaceVariant - under AA. Found by the new ContrastTest  — New RedTextDark 0xFFF2606F: 5.20:1 on surfaceVariant, 6.06:1 on background
 - [x] ETF1 (high) EtfScore: 0.0 is the sentinel for 'not published', so a flat/absent YTD is DROPPED from the weighted average - and because the average rescales, dropping the weakest horizon RAISES the score. A missing YTD scores like +15pct YTD. The list systematically prefers funds with less complete data  — YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points
 - [ ] ETF2 (high) EtfScreener.fetch returns emptyList() for both 'past the end' and 'no host answered', so fetchAll's empty-page stop silently truncates 523 funds to 200 on a transient 429 - and buildEtfs only warns when a list returns nothing at all
-- [ ] ETF3 (high) EtfExposure.keyOf tests region BEFORE asset class with no bond guard, so BNDX/BNDW (international/world BONDS) get key 'Global equity' and are DELETED as duplicates of VT. Same for IAGG vs BND
+- [x] ETF3 (high) EtfExposure.keyOf tests region BEFORE asset class with no bond guard, so BNDX/BNDW (international/world BONDS) get key 'Global equity' and are DELETED as duplicates of VT. Same for IAGG vs BND  — Asset class tested before region, with a bond-word guard; 'aggregate bond' now requires the name not to be international/global/world/ex-US
 - [ ] ETF4 (med) Every term that could separate two S&P500 trackers is saturated for large funds, so the exposure-group winner is decided by third-decimal noise or, on the integer tie, by Yahoo's screen order - and dedupe now DELETES the loser
 - [x] ETF5 (med) ramp clamps a negative long-run return to 0 points but 'possible' still counts its weight, so the 4pt YTD term scales to 9.71 of 34 exactly for funds with the worst long-run records  — Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x
 - [x] ETF6 (med) expenseRatio > 0.0 treats a genuinely free fund (BKLC, BKAG at 0.00pct) as 'unknown': 20 cost points forfeited and a confidence penalty, scoring identically to a 0.85pct fund  — expenseRatio sentinel is -1.0 through EtfRow, EtfFacts, parse, toJson/fromJson, the card and the Claude prompt; oneYearPct no longer opens the return block
@@ -109,7 +109,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 00:59:16 UTC  finding ETF4: Every term that could separate two S&P500 trackers is saturated for large funds,
 - 2026-09-10 00:59:16 UTC  finding ETF5: ramp clamps a negative long-run return to 0 points but 'possible' still counts i
 - 2026-09-10 00:59:16 UTC  finding ETF6: expenseRatio > 0.0 treats a genuinely free fund (BKLC, BKAG at 0.00pct) as 'unkn
 - 2026-09-10 00:59:16 UTC  finding ETF7: One key 'Global equity' covers both all-world INCLUDING the US (VT, ACWI) and al
@@ -121,4 +120,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 01:03:35 UTC  ETF1 fixed: YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points
 - 2026-09-10 01:03:35 UTC  ETF5 fixed: Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x
 - 2026-09-10 01:03:36 UTC  ETF6 fixed: expenseRatio sentinel is -1.0 through EtfRow, EtfFacts, parse, toJson/fromJson, the card and the Claude prompt; oneYearPct no longer opens the return block
+- 2026-09-10 01:03:37 UTC  ETF3 fixed: Asset class tested before region, with a bond-word guard; 'aggregate bond' now requires the name not to be international/global/world/ex-US
 
