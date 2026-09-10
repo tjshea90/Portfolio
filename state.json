@@ -451,8 +451,8 @@
       "id": "RES6",
       "text": "The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the Section enum - two lists in two files, so the guard does not protect the array access it was written for",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch"
     },
     {
       "id": "RES7",
@@ -1065,6 +1065,7 @@
     "2026-09-10 05:35:09 UTC  RES2 fixed: Nasdaq named in SOURCES, and the closing sentence now says the analyst view is blended at 30pct",
     "2026-09-10 05:35:10 UTC  RES3 fixed: One fund per exposure now applies on the Claude path too, beside dropLeveraged; gaps hint no longer names both AGG and BND; prompt says one fund per exposure",
     "2026-09-10 05:35:11 UTC  RES4 fixed: Dead ResearchRow.followed deleted, with a note saying where the chip really comes from",
-    "2026-09-10 05:35:12 UTC  RES5 fixed: resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts"
+    "2026-09-10 05:35:12 UTC  RES5 fixed: resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts",
+    "2026-09-10 05:35:12 UTC  RES6 fixed: Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch"
   ]
 }
