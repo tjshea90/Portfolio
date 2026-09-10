@@ -1,29 +1,46 @@
 #!/usr/bin/env bash
-# ship.sh — MILESTONE release. Not the routine checkpoint; that is tools/ckpt.sh.
+# ship.sh — cut a release. GITHUB BUILDS AND SIGNS IT; this prepares and triggers that.
 #
-# WHY THIS EXISTS SEPARATELY FROM ckpt.sh
-# ----------------------------------------
-# tools/ckpt.sh is deliberately fast and ungated — it has to be, so a session
-# can checkpoint mid-change without paying for a full Gradle build every time.
-# That is exactly wrong for something that becomes an installable APK: a
-# release has to be green, signed with the one keystore Android will accept
-# as an in-place update, and versioned higher than what's already on the
-# phone (see BRIEF.md — "the keystore is irreplaceable"). ship.sh is that
-# gate. Use it at real versions, not mid-task.
+#   bash ship.sh "what changed this release"        # normal: GitHub builds the APK
+#   bash ship.sh --local "what changed"             # fallback: build it here instead
 #
-#   bash ship.sh "what changed this release"
+# WHY GITHUB BUILDS IT NOW
+# ------------------------
+# Every APK up to v7.8 was built inside a Claude container and committed to releases/.
+# That worked, but it tied an installable build to a working Claude session and to this
+# container having the signing keystore. TJ's rule from 2026-09-10 is that GitHub makes all
+# future APKs while Claude writes the code, and this is the mechanism:
 #
+#   1. Claude codes, tests and checkpoints as usual.
+#   2. `ship.sh "note"` runs the FULL gate locally first - a red suite must never spend
+#      GitHub's minutes - then tags the commit and pushes the tag.
+#   3. The `v*` tag fires .github/workflows/android.yml, which builds, SIGNS with the
+#      keystore held in GitHub Secrets, verifies the certificate on the artifact it just
+#      produced, and publishes it as a GitHub Release.
+#   4. Once that run is green, `tools/record-release.sh` writes the line into BUILDLOG.md.
+#
+# THE PART THAT MATTERS FOR HANDOFF: the keystore is no longer needed here. A fresh
+# container, on any Claude account, with no keystore at all, can now cut a full signed
+# release - because the signing happens on GitHub. That removes the one manual, irreplaceable
+# thing that used to stand between a new session and a shipped build.
+#
+# WHY THE APK IS NO LONGER COMMITTED. releases/ held eight megabytes per version, cloned in
+# full by every future session before it read a line of code. GitHub Releases hold the
+# binaries now; BUILDLOG.md remains the durable record of what shipped, and it is what both
+# this script and the workflow gate the next versionCode against.
 set -uo pipefail
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; cd "$D" || exit 1
+
+LOCAL=0
+if [ "${1:-}" = "--local" ]; then LOCAL=1; shift; fi
 NOTE="${1:-}"; [ -z "$NOTE" ] && { echo "FAIL: a one-line change note is required."; exit 1; }
 
-# COMMIT BEFORE BUILDING. A build run against a dirty tree proves nothing
-# about what's actually committed, and leaves the tree looking like the last
-# session was interrupted when it wasn't (see tools/resume.sh's mid-change
-# warning — it must not cry wolf on every clean ship).
+# COMMIT BEFORE BUILDING. A build run against a dirty tree proves nothing about what is
+# actually committed, and leaves the tree looking like the last session was interrupted when
+# it wasn't (see tools/resume.sh's mid-change warning - it must not cry wolf on every ship).
 if [ -d .git ] && [ -n "$(git status --porcelain 2>/dev/null)" ]; then
   bash tools/ckpt.sh "pre-ship: $NOTE" "ship.sh gates and releases this" >/dev/null 2>&1
-  echo "  OK    committed the working tree before building"
+  echo "  OK    committed the working tree before releasing"
 fi
 
 echo "== ship gates =="
@@ -35,26 +52,29 @@ if ! python3 tools/checkinit.py; then
 fi
 echo "  OK    checkinit"
 
-# ---- the build environment provisions ITSELF ---------------------------------
-# This used to hard-fail with "no Android SDK — run tools/setup-android-sdk.sh",
-# which put a manual step between a ready session and a release in a project
-# whose whole point is surviving handoffs without manual steps. Every session
-# gets a fresh container, so that fired on the FIRST ship in every container.
-# tools/ensure-build-env.sh installs the SDK if it is missing (~5 min, once)
-# and is near-instant afterwards. --release also makes a missing or WRONG
-# signing keystore fatal here, rather than letting Gradle fail deep in the
-# build or, worse, produce an APK that cannot update the phone.
-export ANDROID_HOME="${ANDROID_HOME:-/root/android-sdk}"
-if ! bash tools/ensure-build-env.sh --release; then
-  echo "  FAIL  build environment not ready. Not shipping this."
+# ---- the version Android will actually see -----------------------------------
+VCODE="$(grep -m1 -oE 'versionCode *= *[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')"
+VNAME="$(grep -m1 -oE 'versionName *= *"[^"]+"' app/build.gradle.kts | grep -oE '"[^"]+"' | tr -d '"')"
+[ -n "$VCODE" ] && [ -n "$VNAME" ] || { echo "  FAIL  could not read versionCode/versionName from app/build.gradle.kts"; exit 1; }
+
+# STRICTLY HIGHER THAN EVERY CODE EVER SHIPPED, or Android refuses the install as a
+# downgrade. Read from BUILDLOG.md, which records every version including ones whose APK is
+# no longer anywhere in this repo - the workflow gates against exactly the same file.
+PREV_MAX="$(grep -oE 'code [0-9]+' BUILDLOG.md 2>/dev/null | grep -oE '[0-9]+' | sort -n | tail -1)"
+PREV_MAX="${PREV_MAX:-0}"
+if [ "$VCODE" -le "$PREV_MAX" ]; then
+  echo "  FAIL  versionCode $VCODE is not higher than the last shipped ($PREV_MAX)."
+  echo "        Android will refuse to install this over what's on the phone."
+  echo "        Bump versionCode in app/build.gradle.kts, then ship again."
   exit 1
 fi
+echo "  OK    version v$VNAME (code $VCODE) — higher than every previous ship"
 
 # ---- the full unit suite must be green ---------------------------------------
-# Backgrounded and given real time: a cold container downloads Gradle itself
-# plus every dependency, and Maven Central can 429 on a cold pull — see
-# BRIEF.md's build traps before "fixing" a failure here that is really that.
-echo "  ..    running gradle testDebugUnitTest (797 tests as of v7.7 — can take minutes cold)"
+# RUN HERE EVEN THOUGH THE WORKFLOW RUNS IT TOO. A red suite discovered on a runner has
+# already cost five minutes of a 2,000-minute monthly budget and a round trip; discovered
+# here it costs nothing but the time it was going to take anyway.
+echo "  ..    running the full unit suite (can take minutes cold)"
 if ! bash tools/gradle.sh testDebugUnitTest --console=plain > /tmp/ship-test.log 2>&1; then
   echo "  FAIL  the unit suite is red. Not shipping this."
   grep -E 'FAILED|error:' /tmp/ship-test.log | head -20 | sed 's/^/          /'
@@ -63,99 +83,65 @@ if ! bash tools/gradle.sh testDebugUnitTest --console=plain > /tmp/ship-test.log
 fi
 echo "  OK    unit suite green"
 
-# ---- the release build itself -------------------------------------------------
-echo "  ..    running gradle :app:assembleRelease"
-if ! bash tools/gradle.sh :app:assembleRelease --console=plain > /tmp/ship-build.log 2>&1; then
-  echo "  FAIL  the release build did not succeed. Not shipping this."
-  tail -30 /tmp/ship-build.log | sed 's/^/          /'
-  echo "        full log: /tmp/ship-build.log"
-  exit 1
-fi
-APK_OUT="app/build/outputs/apk/release/app-release.apk"
-[ -f "$APK_OUT" ] || { echo "  FAIL  build reported success but $APK_OUT is missing."; exit 1; }
-echo "  OK    release APK built"
+TAG="v$VNAME"
 
-# ---- read the version Android will actually see -------------------------------
-VCODE="$(grep -m1 -oE 'versionCode *= *[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')"
-VNAME="$(grep -m1 -oE 'versionName *= *"[^"]+"' app/build.gradle.kts | grep -oE '"[^"]+"' | tr -d '"')"
-[ -n "$VCODE" ] && [ -n "$VNAME" ] || { echo "  FAIL  could not read versionCode/versionName from app/build.gradle.kts"; exit 1; }
-
-# versionCode must be STRICTLY HIGHER than every code this repo has already
-# shipped, or Android refuses the install as a downgrade. Checked against
-# what's actually committed under releases/, which survives across
-# containers (unlike anything in a build/ directory).
-PREV_MAX=0
-for f in releases/Portfolio-v*.apk; do
-  [ -f "$f" ] || continue
-  V="$(basename "$f" .apk | sed -E 's/^Portfolio-v//')"
-  C="$(grep -q "^| v${V} |" BUILDLOG.md 2>/dev/null && grep "^| v${V} |" BUILDLOG.md | head -1 | grep -oE 'code [0-9]+' | grep -oE '[0-9]+' || true)"
-  [ -n "$C" ] && [ "$C" -gt "$PREV_MAX" ] && PREV_MAX="$C"
-done
-if [ "$VCODE" -le "$PREV_MAX" ]; then
-  echo "  FAIL  versionCode $VCODE is not higher than the last shipped code ($PREV_MAX)."
-  echo "        Android will refuse to install this over what's on the phone."
-  echo "        Bump versionCode in app/build.gradle.kts, then ship again."
-  exit 1
-fi
-echo "  OK    version v$VNAME (code $VCODE) — higher than every previous ship"
-
-# ---- publish the APK under releases/, committed -------------------------------
-mkdir -p releases
-APK="releases/Portfolio-v${VNAME}.apk"
-cp "$APK_OUT" "$APK"
-echo "  OK    apk staged at $APK"
-
-# PRUNE OLD RELEASES. Every fresh session clones every committed release APK
-# before reading a line of code. Three is enough to roll back to a
-# known-good build; older ones stay in git history, recoverable by SHA.
-KEEP=3
-OLD="$(ls -1 releases/Portfolio-v*.apk 2>/dev/null | sort -V | head -n -"$KEEP")"
-if [ -n "$OLD" ]; then
-  for f in $OLD; do
-    [ "$f" = "$APK" ] && continue
-    git rm -q --cached "$f" >/dev/null 2>&1 || true
-    rm -f "$f"
-    echo "  ..    pruned old release $(basename "$f") (still in git history)"
-  done
+# ------------------------------------------------------------------ local fallback
+if [ "$LOCAL" -eq 1 ]; then
+  echo "  ..    --local: building and signing HERE instead of on GitHub"
+  if ! bash tools/ensure-build-env.sh --release; then
+    echo "  FAIL  build environment not ready (the keystore is required for a local build)."
+    exit 1
+  fi
+  if ! bash tools/gradle.sh :app:assembleRelease --console=plain > /tmp/ship-build.log 2>&1; then
+    echo "  FAIL  the release build did not succeed."
+    tail -30 /tmp/ship-build.log | sed 's/^/          /'
+    exit 1
+  fi
+  APK_OUT="app/build/outputs/apk/release/app-release.apk"
+  [ -f "$APK_OUT" ] || { echo "  FAIL  build reported success but $APK_OUT is missing."; exit 1; }
+  if ! bash tools/verify-apk.sh "$APK_OUT"; then
+    echo "  FAIL  the APK is not signed with the certificate the phone accepts."
+    exit 1
+  fi
+  mkdir -p releases
+  cp "$APK_OUT" "releases/Portfolio-v${VNAME}.apk"
+  echo "  OK    apk at releases/Portfolio-v${VNAME}.apk"
+  bash tools/record-release.sh "$TAG" "$NOTE (built locally)"
+  echo
+  echo "== released v$VNAME (code $VCODE) locally =="
+  exit 0
 fi
 
-touch BUILDLOG.md
-printf '| v%s | code %s | %s | %s\n' "$VNAME" "$VCODE" "$(date -u +%Y-%m-%dT%H:%MZ)" "$NOTE" >> BUILDLOG.md
-
-# ---- commit everything the gates produced --------------------------------------
-git add -A >/dev/null 2>&1
-if ! bash tools/secretscan.sh; then
-  git reset -q >/dev/null 2>&1
-  echo "  FAIL  a credential is in the tree — nothing committed or published."
-  exit 1
-fi
-if git diff --cached --quiet 2>/dev/null; then
-  echo "  ..    nothing new to commit (releases/BUILDLOG.md already current)"
-else
-  git commit -q -m "ship v$VNAME: $NOTE
-
-versionCode: $VCODE
-tests: unit suite green
-
-Co-Authored-By: Claude <noreply@anthropic.com>" >/dev/null 2>&1
-  echo "  OK    working tree committed"
-fi
-
-# THE SHIP IS NOT DONE UNTIL IT IS PUSHED — fatal on failure, unlike ckpt.sh:
-# a "shipped" version that exists nowhere but this container is a lie, and
-# the next session would bump past it and never build it again.
-if bash tools/push.sh; then
-  echo "  OK    pushed to GitHub"
-else
-  echo "  FAIL  COULD NOT PUSH. v$VNAME exists only in this container and will"
-  echo "        be lost when the session ends. Retry:  git push origin HEAD"
+# ------------------------------------------------------------------ the normal path
+if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1 ||
+   git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
+  echo "  FAIL  tag $TAG already exists. A released version is never re-tagged:"
+  echo "        bump versionCode and versionName in app/build.gradle.kts instead."
   exit 1
 fi
 
+# The tag must point at what was just gated, and it must be on GitHub before the tag is,
+# or the workflow checks out a commit the remote does not have.
+if ! bash tools/push.sh; then
+  echo "  FAIL  could not push the commit. Not tagging - a tag whose commit is missing"
+  echo "        from GitHub would start a run against nothing."
+  exit 1
+fi
+git tag -a "$TAG" -m "Portfolio $TAG (versionCode $VCODE): $NOTE" >/dev/null 2>&1
+if ! timeout 45 git push -q origin "refs/tags/$TAG" >/dev/null 2>&1; then
+  echo "  FAIL  could not push the tag. Retry:  git push origin $TAG"
+  exit 1
+fi
+
+echo "  OK    tagged $TAG and pushed — GitHub is building it now"
 echo
-echo "== shipped v$VNAME (code $VCODE) =="
+echo "== $TAG handed to GitHub (code $VCODE) =="
 echo
-echo "  Tj installs it from the repo: $APK  (tap it, then Download)"
+echo "  Watch:   https://github.com/tjshea90/Portfolio/actions"
+echo "  The run builds, SIGNS with the keystore in GitHub Secrets, verifies the"
+echo "  certificate on the artifact itself, and publishes it under Releases."
 echo
-echo "  To continue in a NEW session: open the repo and say \"continue\"."
-echo "  The SessionStart hook briefs it automatically."
+echo "  WHEN THAT RUN IS GREEN, and not before:"
+echo "    bash tools/record-release.sh $TAG \"$NOTE\""
+echo "  BUILDLOG.md is what the next release is gated against, so a line in it"
+echo "  must never describe a build that does not exist."
