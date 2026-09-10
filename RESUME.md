@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 13:21:39 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 13:37:53 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -34,7 +34,7 @@ Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
 commit, so `git log --oneline` is the history of this round and
 `git show HEAD` is exactly what the last save changed.
 
-## 4. Task ledger — 6/10 done
+## 4. Task ledger — 7/10 done
 
 - [x] T0  Baseline: v7.6 tree green in this container  — v7.6 tree green in this container
 - [x] T1  Thicker separator bars between stocks  — separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
@@ -45,9 +45,9 @@ commit, so `git log --oneline` is the history of this round and
 - [ ] T6  Whole-app parallel review: bugs, efficiency, UI, features working as designed
 - [ ] T7  Fix every confirmed finding
 - [ ] T8  REGRESSION + ship v7.7
-- [>] 14  Audit the six subsystems the two interrupted workflow runs never reached  — portfolio-ui, detail-ui, research-ui, settings-explain, cross-cutting, round66-diff
+- [x] 14  Audit the six subsystems the two interrupted workflow runs never reached  — 46 findings found and fixed across 8 audit dimensions
 
-**Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
+**Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
 
 ## 5. Open findings — 1 still open, 73 fixed
 
@@ -135,7 +135,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 06:01:45 UTC  DET7 fixed: Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed
 - 2026-09-10 06:01:45 UTC  DET8 fixed: OverviewTab's scroll state keyed on the symbol
 - 2026-09-10 13:13:28 UTC  finding CRX2: MERGE restore matches each incoming row against rows THIS restore just inserted,
 - 2026-09-10 13:13:28 UTC  finding CRX1: todayShares/todayCost are never reduced by a SELL, so a same-day round trip fabr
@@ -147,4 +146,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 13:21:37 UTC  EXP1 fixed: Pull-to-refresh on Settings now bumps infoTick, so the request counter updates the way the card says it does
 - 2026-09-10 13:21:38 UTC  EXP2 fixed: refreshStatus reports the two paused states - no prices on screen, and prices final for the session - instead of promising a tick that is not happening
 - 2026-09-10 13:21:39 UTC  EXP3 fixed: A new 52-week high or low now says so, instead of reporting a negative distance inside a sentence that only works for a positive one
+- 2026-09-10 13:37:53 UTC  14 -> done  46 findings found and fixed across 8 audit dimensions
 
