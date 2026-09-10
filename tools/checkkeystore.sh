@@ -26,7 +26,17 @@ D="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$D" || exit 1
 # changing it is the "erases the portfolio" failure. Recorded in BRIEF.md too.
 KS_FP="2E:8C:38:47:2D:16:57:B7:D2:56:22:66:C6:D7:E1:D8:E6:F0:3D:76:66:BD:10:E1:CB:50:5B:1C:F3:96:A9:F2"
 
-QUIET=0; for a in "$@"; do [ "$a" = "--quiet" ] && QUIET=1; done
+QUIET=0
+for a in "$@"; do
+  case "$a" in
+    --quiet) QUIET=1 ;;
+    # Lets tools/verify-apk.sh and CI check an APK against the same value
+    # without copying it. A second copy of this string is a second thing that
+    # can be edited, and it is the one string in the project that must never
+    # change.
+    --expected) printf '%s\n' "$KS_FP"; exit 0 ;;
+  esac
+done
 say_ok(){ [ "$QUIET" -eq 1 ] || echo "$1"; }
 
 if [ ! -f app/sideload.jks ]; then
