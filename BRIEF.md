@@ -39,6 +39,13 @@ band. This means `git clone` alone does not reproduce a buildable checkout:
 missing, say so plainly rather than generating a replacement — a fresh
 keystore is exactly the "erases the portfolio" failure above.
 
+`bootstrap.sh` now checks this at every session start and prints one line:
+present-and-correct, missing, or **WRONG**. The wrong case is the one that
+matters — a different key builds and installs perfectly and only fails to
+update the phone, which Android reports at install time, long after the
+build looked green. It compares against the SHA-256 above, so a regenerated
+keystore is caught even when its DN matches exactly (verified).
+
 ## The build guard: `tools/checkinit.py`
 
 Kotlin runs property initialisers and `init {}` in source order, so a

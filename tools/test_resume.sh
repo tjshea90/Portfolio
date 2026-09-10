@@ -162,6 +162,12 @@ fi
 grep -q '^\*\*Branch:\*\*' "$FX/CHECKPOINT.md" && ok "CHECKPOINT.md records its branch" \
   || bad "CHECKPOINT.md does not say which branch the work is on"
 
+# A cold session must be TOLD about the keystore, not discover it minutes into
+# a failed Gradle run. The fixtures have no app/ dir, so this is the missing case.
+( cd "$RA" && bash bootstrap.sh 2>/dev/null ) | grep -qi "signing keystore" \
+  && ok "bootstrap reports the signing keystore state at session start" \
+  || bad "bootstrap says nothing about the keystore"
+
 # ---- 6. the secret scan still has teeth --------------------------------------
 S="$TMP/secret"; mkdir -p "$S"; cp -r tools "$S/tools"
 ( cd "$S" && git init -q . && git add -A >/dev/null 2>&1 && git commit -qm init >/dev/null 2>&1 )
