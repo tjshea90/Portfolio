@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 05:35:08 UTC",
+  "updated": "2026-09-10 05:35:09 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -423,8 +423,8 @@
       "id": "RES2",
       "text": "The 'where these numbers come from' note omits Nasdaq - the source of the analyst consensus and price target that 30pct of an enriched Best score is blended from",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Nasdaq named in SOURCES, and the closing sentence now says the analyst view is blended at 30pct"
     },
     {
       "id": "RES3",
@@ -1061,6 +1061,7 @@
     "2026-09-10 05:25:24 UTC  finding RES6: The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the ",
     "2026-09-10 05:25:25 UTC  finding RES7: enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back th",
     "2026-09-10 05:25:25 UTC  finding RES8: Seven comment sites still count three stock lists or four sections after the Wor",
-    "2026-09-10 05:35:08 UTC  RES1 fixed: Cache format version is finally read; a version-1 row with a score but no reasons and no facts has its number moved back to conviction. Writer bumped to 2"
+    "2026-09-10 05:35:08 UTC  RES1 fixed: Cache format version is finally read; a version-1 row with a score but no reasons and no facts has its number moved back to conviction. Writer bumped to 2",
+    "2026-09-10 05:35:09 UTC  RES2 fixed: Nasdaq named in SOURCES, and the closing sentence now says the analyst view is blended at 30pct"
   ]
 }
