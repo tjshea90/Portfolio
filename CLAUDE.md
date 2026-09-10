@@ -110,31 +110,7 @@ from his side he already explained it.
 Tick a box only when it is written, tested (name the test, if one applies)
 and committed. The next session will not re-verify a ticked box.
 
-## Saving work — VERIFY THE HOOK BEFORE TRUSTING IT
-
-**CONFIRMED 2026-09-10: in this environment (Claude Code on the web, a
-multi-repo container under `/home/user`), the PostToolUse/SessionStart hooks
-in `.claude/settings.json` do NOT fire.** `CLAUDE_PROJECT_DIR` is unset, and
-there is no `.claude/settings.json` at `/home/user` itself (only inside this
-repo and the sibling one) — the harness appears to only load hooks from one
-designated project root for the whole session, not from a subdirectory repo.
-Direct test: an Edit-tool change to `TASKS.md` produced NO autosave commit
-across multiple subsequent tool calls. This is not a one-off — the same
-absence of autosave commits holds across this entire session's history.
-
-**So: do not assume level 1 below is running. Verify it, every session,
-before relying on it:**
-```bash
-# after your FIRST real edit this session:
-git log -1 --oneline   # if it's not a fresh "auto-checkpoint:" commit, hooks are NOT firing
-```
-If they're not firing, **level 2 (manual `ckpt.sh`) is the ONLY safety net
-you have** — treat "run it after every completed step" as load-bearing, not
-optional, and say so to Tj so he knows the automatic layer isn't covering
-him. If Claude Code ever starts honoring these hooks in this environment
-(a platform fix, a settings change, a differently-scoped session), this
-whole section becomes moot and level 1 resumes being real protection — but
-don't assume that's true without re-running the check above.
+## Saving work — three levels (see "FIRST ACTION" above before trusting level 1)
 
 **1. Automatic (hooks — when they fire).** `tools/autosave.sh` commits and
 pushes after every file edit and every bash command, and again on Stop. It
