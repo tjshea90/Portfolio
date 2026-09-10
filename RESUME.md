@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 05:35:22 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 05:54:29 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 1 still open, 55 fixed
+## 5. Open findings — 14 still open, 55 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -107,6 +107,19 @@ commit, so `git log --oneline` is the history of this round and
 - [x] RES6 (low) The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the Section enum - two lists in two files, so the guard does not protect the array access it was written for  — Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch
 - [x] RES7 (med) enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back the pre-suspension snapshot - a Claude import landing in that window is silently discarded AND persisted as lost  — enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy
 - [x] RES8 (low) Seven comment sites still count three stock lists or four sections after the Worst deletion, including the data model header a maintainer reads first  — Section counts corrected in all seven comment sites
+- [ ] REG1 (high) EtfRow.merge still tests expenseRatio > 0, so merging a fund across two screens discards a real 0.00pct fee in favour of the -1.0 unknown - re-creating ETF-6 for the exact funds its comment names
+- [ ] REG2 (high) The v1-to-v2 migration treats 'no reasons and no etf' as 'app did not score it', but ResearchScore.best can return a positive score with zero reasons - such a Best row is relabelled CLAUDE n/10 and its real score destroyed
+- [ ] REG3 (high) PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched symbol it now REMOVES from the watchlist while saying Also watch
+- [ ] REG4 (med) oneFundPerExposure APPENDS the 'Same exposure as' line, but the card renders reasons.take(6) and EtfScore already emits six - so the line is never drawn and an imported fund vanishes with no explanation
+- [ ] REG5 (med) The contrast fix changed only the redText accessor; ~8 hard-coded color = Red text sites remain, including one on a StatCard at the 4.41:1 the fix measured
+- [ ] REG6 (low) CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seconds, so a legitimate leftmost-candle scrub is refused after a pan
+- [ ] DET1 (med) Price target card prints an unreported targetLow/High as $0.00 and feeds that zero into the spread sentence, fabricating 'the professionals genuinely disagree'
+- [ ] DET2 (med) Realized P/L is rendered only inside the 'you still hold shares' branch, so closing a position hides its realized profit on the one screen that promises the number
+- [ ] DET4 (med) loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minute TTL on the next line is unreachable for exactly the symbols it was written for
+- [ ] DET5 (low) MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line above writes -$0.42 - the one formatter in the app that disagrees with the rest
+- [ ] DET6 (low) TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty*price against the NET total, so it fires on every fee-bearing trade even when the answer is exact
+- [ ] DET7 (low) refreshEverything force-reloads the fund register only when the Holdings tab is selected, but that tab exists only once the register loaded - so pull-to-refresh cannot recover a failed lookup
+- [ ] DET8 (low) OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stock in place opens the new one at the previous one's scroll offset
 
 ## 6. Version
 
@@ -117,16 +130,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 05:25:24 UTC  finding RES5: resetResearchPaging() has zero callers, so a page count of 40 survives a rebuild
-- 2026-09-10 05:25:24 UTC  finding RES6: The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the 
-- 2026-09-10 05:25:25 UTC  finding RES7: enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back th
-- 2026-09-10 05:25:25 UTC  finding RES8: Seven comment sites still count three stock lists or four sections after the Wor
-- 2026-09-10 05:35:08 UTC  RES1 fixed: Cache format version is finally read; a version-1 row with a score but no reasons and no facts has its number moved back to conviction. Writer bumped to 2
-- 2026-09-10 05:35:09 UTC  RES2 fixed: Nasdaq named in SOURCES, and the closing sentence now says the analyst view is blended at 30pct
-- 2026-09-10 05:35:10 UTC  RES3 fixed: One fund per exposure now applies on the Claude path too, beside dropLeveraged; gaps hint no longer names both AGG and BND; prompt says one fund per exposure
-- 2026-09-10 05:35:11 UTC  RES4 fixed: Dead ResearchRow.followed deleted, with a note saying where the chip really comes from
-- 2026-09-10 05:35:12 UTC  RES5 fixed: resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts
-- 2026-09-10 05:35:12 UTC  RES6 fixed: Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch
-- 2026-09-10 05:35:13 UTC  RES7 fixed: enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy
-- 2026-09-10 05:35:14 UTC  RES8 fixed: Section counts corrected in all seven comment sites
+- 2026-09-10 05:54:28 UTC  finding REG2: The v1-to-v2 migration treats 'no reasons and no etf' as 'app did not score it',
+- 2026-09-10 05:54:28 UTC  finding REG3: PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched s
+- 2026-09-10 05:54:28 UTC  finding REG4: oneFundPerExposure APPENDS the 'Same exposure as' line, but the card renders rea
+- 2026-09-10 05:54:28 UTC  finding REG5: The contrast fix changed only the redText accessor; ~8 hard-coded color = Red te
+- 2026-09-10 05:54:28 UTC  finding REG6: CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seco
+- 2026-09-10 05:54:28 UTC  finding DET1: Price target card prints an unreported targetLow/High as $0.00 and feeds that ze
+- 2026-09-10 05:54:28 UTC  finding DET2: Realized P/L is rendered only inside the 'you still hold shares' branch, so clos
+- 2026-09-10 05:54:28 UTC  finding DET4: loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minu
+- 2026-09-10 05:54:28 UTC  finding DET5: MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line ab
+- 2026-09-10 05:54:28 UTC  finding DET6: TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty
+- 2026-09-10 05:54:28 UTC  finding DET7: refreshEverything force-reloads the fund register only when the Holdings tab is 
+- 2026-09-10 05:54:29 UTC  finding DET8: OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stoc
 

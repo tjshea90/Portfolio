@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 05:35:22 UTC",
+  "updated": "2026-09-10 05:54:29 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -467,6 +467,97 @@
       "sev": "low",
       "status": "fixed",
       "note": "Section counts corrected in all seven comment sites"
+    },
+    {
+      "id": "REG1",
+      "text": "EtfRow.merge still tests expenseRatio > 0, so merging a fund across two screens discards a real 0.00pct fee in favour of the -1.0 unknown - re-creating ETF-6 for the exact funds its comment names",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "REG2",
+      "text": "The v1-to-v2 migration treats 'no reasons and no etf' as 'app did not score it', but ResearchScore.best can return a positive score with zero reasons - such a Best row is relabelled CLAUDE n/10 and its real score destroyed",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "REG3",
+      "text": "PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched symbol it now REMOVES from the watchlist while saying Also watch",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "REG4",
+      "text": "oneFundPerExposure APPENDS the 'Same exposure as' line, but the card renders reasons.take(6) and EtfScore already emits six - so the line is never drawn and an imported fund vanishes with no explanation",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "REG5",
+      "text": "The contrast fix changed only the redText accessor; ~8 hard-coded color = Red text sites remain, including one on a StatCard at the 4.41:1 the fix measured",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "REG6",
+      "text": "CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seconds, so a legitimate leftmost-candle scrub is refused after a pan",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "DET1",
+      "text": "Price target card prints an unreported targetLow/High as $0.00 and feeds that zero into the spread sentence, fabricating 'the professionals genuinely disagree'",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "DET2",
+      "text": "Realized P/L is rendered only inside the 'you still hold shares' branch, so closing a position hides its realized profit on the one screen that promises the number",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "DET4",
+      "text": "loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minute TTL on the next line is unreachable for exactly the symbols it was written for",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "DET5",
+      "text": "MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line above writes -$0.42 - the one formatter in the app that disagrees with the rest",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "DET6",
+      "text": "TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty*price against the NET total, so it fires on every fee-bearing trade even when the answer is exact",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "DET7",
+      "text": "refreshEverything force-reloads the fund register only when the Holdings tab is selected, but that tab exists only once the register loaded - so pull-to-refresh cannot recover a failed lookup",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "DET8",
+      "text": "OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stock in place opens the new one at the previous one's scroll offset",
+      "sev": "low",
+      "status": "open",
+      "note": ""
     }
   ],
   "log": [
@@ -1068,6 +1159,19 @@
     "2026-09-10 05:35:12 UTC  RES5 fixed: resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts",
     "2026-09-10 05:35:12 UTC  RES6 fixed: Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch",
     "2026-09-10 05:35:13 UTC  RES7 fixed: enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy",
-    "2026-09-10 05:35:14 UTC  RES8 fixed: Section counts corrected in all seven comment sites"
+    "2026-09-10 05:35:14 UTC  RES8 fixed: Section counts corrected in all seven comment sites",
+    "2026-09-10 05:54:28 UTC  finding REG1: EtfRow.merge still tests expenseRatio > 0, so merging a fund across two screens ",
+    "2026-09-10 05:54:28 UTC  finding REG2: The v1-to-v2 migration treats 'no reasons and no etf' as 'app did not score it',",
+    "2026-09-10 05:54:28 UTC  finding REG3: PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched s",
+    "2026-09-10 05:54:28 UTC  finding REG4: oneFundPerExposure APPENDS the 'Same exposure as' line, but the card renders rea",
+    "2026-09-10 05:54:28 UTC  finding REG5: The contrast fix changed only the redText accessor; ~8 hard-coded color = Red te",
+    "2026-09-10 05:54:28 UTC  finding REG6: CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seco",
+    "2026-09-10 05:54:28 UTC  finding DET1: Price target card prints an unreported targetLow/High as $0.00 and feeds that ze",
+    "2026-09-10 05:54:28 UTC  finding DET2: Realized P/L is rendered only inside the 'you still hold shares' branch, so clos",
+    "2026-09-10 05:54:28 UTC  finding DET4: loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minu",
+    "2026-09-10 05:54:28 UTC  finding DET5: MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line ab",
+    "2026-09-10 05:54:28 UTC  finding DET6: TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty",
+    "2026-09-10 05:54:28 UTC  finding DET7: refreshEverything force-reloads the fund register only when the Holdings tab is ",
+    "2026-09-10 05:54:29 UTC  finding DET8: OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stoc"
   ]
 }
