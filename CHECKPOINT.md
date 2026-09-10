@@ -1,21 +1,22 @@
-# CHECKPOINT 568 — read me first, then TASKS.md
+# CHECKPOINT 569 — read me first, then TASKS.md
 
-**Written:** 2026-09-10T16:40:03Z · **tests:** all 1 fast checks green (gradle suite: see ship.sh)
+**Written:** 2026-09-10T19:00:42Z · **tests:** all 1 fast checks green (gradle suite: see ship.sh)
 
 ## Just done
-Second efficiency/robustness pass on the resume logic: added a stale-git-lock cleanup to resume.sh/autosave.sh/ckpt.sh (a hook killed mid-commit by its own 60s timeout could otherwise wedge every future commit for the rest of the session - tested with a simulated stale lock, confirmed it clears the dead one and leaves a live one alone), bounded push.sh's git push/fetch calls with explicit timeouts so a hung connection fails fast instead of silently eating the whole hook budget, removed the duplicate uncommitted-work message from bootstrap.sh (resume.sh already reports it in more detail), and trimmed ckpt.sh's boilerplate 'how to resume' block since CLAUDE.md already covers it and loads every session regardless.
+Added auto-merge-from-main to resume.sh (when origin/main has newer commits than this branch and it's a clean fast-forward, merge them in automatically instead of just warning - covers 'another account pushed to main while I was away'). Tested the OLD warn-only version worked; the NEW auto-merge version is UNVERIFIED - my test methodology had two bugs (stale local main ref confused a scratch-clone checkout; then discovered this exact edit had sat uncommitted in the working tree for many tool calls, meaning the autosave PostToolUse hook did NOT fire during part of this session - unconfirmed why, could be a real gap or an artifact of nested bash git commands not tripping the hook matcher). This commit was made by manually running ckpt.sh rather than relying on the hook, specifically because I could not confirm the hook was firing.
 
 ## Do this next
-Measure the clean-state SessionStart payload size to confirm the trims actually reduced it, then report findings on the stray claude/github-app-setup-w26crs branch and the 4.4MB dead classes.jar blob in history - both need explicit sign-off before touching (branch deletion / history rewrite).
+1) VERIFY THE HOOK: make a trivial edit with the Edit tool (not Bash), then run 'git log -1 --oneline' - if no new auto-checkpoint commit appears, the PostToolUse hook is genuinely broken and that's the top-priority bug (the whole safety net depends on it). 2) If the hook is fine, re-verify the main-auto-merge logic added to tools/resume.sh (lines ~69-96) with a CLEAN test: clone into a scratch dir, checkout the actual branch by full SHA (not a branch name, to avoid ref ambiguity), push a test commit to a throwaway remote's main, run tools/resume.sh, confirm 'git log -1' shows the merge happened. 3) This session also found (unfixed, low priority): gc.auto=0 locally (harmless, doesn't propagate to fresh clones) and considered adding 'git gc --quiet &' to ship.sh for repo hygiene at milestones - not done, optional.
 
 *(resuming? read CLAUDE.md's "Starting a session" — this file is only step 1 of that.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
-     M tools/ckpt.sh
+     M tools/resume.sh
 
 ## Last ten checkpoints
 ```
+  a30bb1f ckpt 568: Second efficiency/robustness pass on the resume logic: added a stale-git-lock 
   f2b8bc6 ckpt 566: Audited the resume/checkpoint system for Claude-Code (not Cowork) fitness and 
   424ad4b ckpt 565: Sent the signing keystore (app/sideload.jks) to Tj directly since it can't be 
   04a9d02 ckpt 564: Migrated the Portfolio Android app from its Cowork checkpoint system into this
@@ -25,8 +26,4 @@ Measure the clean-state SessionStart payload size to confirm the trims actually 
   0b2467e ckpt 66: 14 done
   de1a54c ckpt 66: All recovered cross-cutting and settings findings fixed. 797 tests, 0 failures
   74ee4cb ckpt 66: fix EXP3
-  7f45902 ckpt 66: fix EXP2
 ```
-
-(1 automatic checkpoint(s) since the last deliberate one — the
-session was still mid-step. `git diff` against it shows what changed.)

@@ -69,10 +69,29 @@ BRIEF="$(
     if [ "$CURBR" != "main" ] && git rev-parse --verify -q origin/main >/dev/null 2>&1; then
       MBEHIND="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
       MAHEAD="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
-      if [ "${MAHEAD:-0}" -gt 0 ]; then
-        echo "  WARN  origin/main has $MAHEAD commit(s) this branch does NOT have —"
-        echo "        something was pushed to main independently. Reconcile before"
-        echo "        treating main as stale."
+      if [ "${MAHEAD:-0}" -gt 0 ] && [ "${MBEHIND:-0}" -eq 0 ]; then
+        # A CLEAN fast-forward: this branch's tip is an ancestor of main, so
+        # main has strictly MORE — most likely another session/account pushed
+        # newer work there. Pull it in now rather than just warning, the same
+        # way the upstream check above does, and for the same reason: "another
+        # account has newer work" must not require a manual step to see it.
+        if [ -z "$DIRTY" ]; then
+          if timeout 25 git merge -q --ff-only origin/main >/dev/null 2>&1; then
+            echo "  OK    origin/main had $MAHEAD newer commit(s) (another session/account) —"
+            echo "        merged in, this checkout is now current."
+          else
+            echo "  WARN  origin/main has $MAHEAD commit(s) this branch doesn't, and the"
+            echo "        fast-forward failed unexpectedly — check 'git log origin/main' by hand."
+          fi
+        else
+          echo "  WARN  origin/main has $MAHEAD newer commit(s) (another session/account) but"
+          echo "        this tree is dirty, so it was NOT auto-merged — finish or checkpoint"
+          echo "        current work first, then 'git merge --ff-only origin/main'."
+        fi
+      elif [ "${MAHEAD:-0}" -gt 0 ]; then
+        echo "  WARN  this branch and origin/main have DIVERGED ($MBEHIND local, $MAHEAD on"
+        echo "        main) — both have commits the other lacks. Reconcile by hand before"
+        echo "        trusting either as the full state."
       elif [ "${MBEHIND:-0}" -gt 0 ]; then
         echo "  WARN  origin/main is $MBEHIND commit(s) behind this branch — a fresh"
         echo "        session opening this repo cold would miss real work. Run"
