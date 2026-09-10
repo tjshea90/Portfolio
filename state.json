@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 06:01:37 UTC",
+  "updated": "2026-09-10 06:01:38 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -486,8 +486,8 @@
       "id": "REG3",
       "text": "PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched symbol it now REMOVES from the watchlist while saying Also watch",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "DetailScreen's watch button now reads row.watched and says 'Remove from watchlist' when that is what it will do"
     },
     {
       "id": "REG4",
@@ -1174,6 +1174,7 @@
     "2026-09-10 05:54:28 UTC  finding DET7: refreshEverything force-reloads the fund register only when the Holdings tab is ",
     "2026-09-10 05:54:29 UTC  finding DET8: OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stoc",
     "2026-09-10 06:01:36 UTC  REG1 fixed: EtfRow.merge now tests >= 0 like every other reader of the fee sentinel",
-    "2026-09-10 06:01:37 UTC  REG2 fixed: Migration scoped to the etfs array and to the full fingerprint: no facts, a paragraph, and a score that is a positive multiple of ten. Three tests guard the rows it must not touch"
+    "2026-09-10 06:01:37 UTC  REG2 fixed: Migration scoped to the etfs array and to the full fingerprint: no facts, a paragraph, and a score that is a positive multiple of ten. Three tests guard the rows it must not touch",
+    "2026-09-10 06:01:38 UTC  REG3 fixed: DetailScreen's watch button now reads row.watched and says 'Remove from watchlist' when that is what it will do"
   ]
 }
