@@ -1,0 +1,90 @@
+package com.tj.portfolio
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.junit4.createComposeRule
+import com.tj.portfolio.ui.DetailTab
+import com.tj.portfolio.ui.DetailTabRow
+import com.tj.portfolio.ui.PortfolioTheme
+import com.tj.portfolio.ui.visibleTabs
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
+
+/**
+ * The tab strip must survive its own list changing size under a live selection.
+ *
+ * THE CRASH THIS REPRODUCES, from TJ's phone (Sep 10 2026, four times in two minutes):
+ *
+ *     java.lang.IndexOutOfBoundsException: Index 5 out of bounds for length 5
+ *         at androidx.compose.material3.TabRowKt$ScrollableTabRow$1.invoke(TabRow.kt:1409)
+ *
+ * Material3's default indicator reads `tabPositions[selectedTabIndex]`. `selectedTabIndex`
+ * is a composition value; `tabPositions` comes from the strip's measure pass. Grow the tab
+ * list while the LAST tab is selected and, for one frame, the index is one past the end of
+ * the positions - which is fatal, not cosmetic.
+ *
+ * Here that happens because Holdings is hidden until the fund lookup returns, which is about
+ * a second after the screen opens - the same second the News tab's headlines land.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+class DetailTabCrashTest {
+
+    @get:Rule
+    val rule = createComposeRule()
+
+    @Test
+    fun `the tab list growing under the last selection does not crash`() {
+        var isFund by mutableStateOf(false)
+
+        rule.setContent {
+            PortfolioTheme {
+                val tabs = visibleTabs(isFund)
+                var tab by remember { mutableStateOf(DetailTab.NEWS) }
+                DetailTabRow(tabs, tab) { tab = it }
+            }
+        }
+        rule.waitForIdle()
+
+        // Five tabs, News selected at index 4. Now the lookup returns "fund" and the list
+        // becomes six, so News moves to index 5 while the measured positions still hold five.
+        assertEquals(5, visibleTabs(false).size)
+        assertEquals(6, visibleTabs(true).size)
+        assertEquals(5, visibleTabs(true).indexOf(DetailTab.NEWS))
+
+        isFund = true
+        rule.waitForIdle()      // threw before the indicator was bounded
+
+        // And back again - a memory trim drops the holdings and the list shrinks.
+        isFund = false
+        rule.waitForIdle()
+    }
+
+    @Test
+    fun `every tab can be selected at either list size without going out of bounds`() {
+        for (fund in listOf(false, true)) {
+            val tabs = visibleTabs(fund)
+            for (t in DetailTab.entries) {
+                var isFund by mutableStateOf(fund)
+                rule.setContent {
+                    PortfolioTheme {
+                        val shown = visibleTabs(isFund)
+                        DetailTabRow(shown, t) { }
+                    }
+                }
+                rule.waitForIdle()
+                isFund = !fund
+                rule.waitForIdle()
+            }
+            assertEquals(if (fund) 6 else 5, tabs.size)
+        }
+    }
+}

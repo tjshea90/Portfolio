@@ -38,11 +38,12 @@ class ChartAxisYearTest {
 
     @Test
     fun `a window inside one calendar year needs no year on its labels`() {
-        val jan = 1_767_000_000_000L          // early Jan 2026
-        val jun = 1_780_000_000_000L          // mid 2026
-        assertFalse(spansMoreThanAYear(jan, jun))
-        val label = axisLabel(jun, ChartRange.M6, withDate = true, withYear = false)
-        assertFalse("a same-year label should stay short: $label", label.contains("20"))
+        val feb = 1_772_000_000_000L          // 2026-02-25
+        val jul = 1_785_000_000_000L          // 2026-07-25
+        assertFalse(spansMoreThanAYear(feb, jul))
+        val label = axisLabel(jul, ChartRange.M6, withDate = true, withYear = false)
+        // "contains(\"20\")" was wrong here - a day-of-month can be 20-something.
+        assertFalse("a same-year label should not name a year: $label", label.contains("2026"))
     }
 
     @Test
@@ -84,7 +85,10 @@ class ChartAxisYearTest {
      */
     @Test
     fun `feed rows that share an id are collapsed even when the merge keeps both`() {
-        val prefix = "Q2 2026: U.S. Retailer's E.P.S. Beats; F.D.A., S.E.C. & F.T.C. Weigh In"
+        // MUST be at least 80 characters: `FeedItem.id` truncates the title there, so a
+        // shorter shared prefix would leave the two ids different and the fixture would
+        // prove nothing. This one is 88.
+        val prefix = "Q2 2026: U.S. Retailer's E.P.S. Beats; F.D.A., S.E.C. & F.T.C. All Weigh In On The Result"
         val a = FeedItem(
             kind = FeedItem.NEWS, symbol = "FIVE", title = "$prefix on margins",
             url = "https://a.example/1", source = "Nasdaq", published = 1_756_000_000_000L
@@ -95,6 +99,7 @@ class ChartAxisYearTest {
         )
 
         // Same key, so a LazyColumn keyed by `id` would throw on these two.
+        assertTrue("the fixture prefix must exceed the 80-char id truncation", prefix.length >= 80)
         assertEquals("the fixture must actually collide on id", a.id, b.id)
 
         // Dedupe by id - what the Feed now does - collapses them.
