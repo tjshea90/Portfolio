@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 06:01:39 UTC",
+  "updated": "2026-09-10 06:01:40 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -507,8 +507,8 @@
       "id": "REG6",
       "text": "CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seconds, so a legitimate leftmost-candle scrub is refused after a pan",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "CHT-3's guard now compares in truncated seconds, the same unit nearestIndex clamps in"
     },
     {
       "id": "DET1",
@@ -1177,6 +1177,7 @@
     "2026-09-10 06:01:37 UTC  REG2 fixed: Migration scoped to the etfs array and to the full fingerprint: no facts, a paragraph, and a score that is a positive multiple of ten. Three tests guard the rows it must not touch",
     "2026-09-10 06:01:38 UTC  REG3 fixed: DetailScreen's watch button now reads row.watched and says 'Remove from watchlist' when that is what it will do",
     "2026-09-10 06:01:39 UTC  REG4 fixed: The 'same exposure' line is PREPENDED on the import path too, so it survives reasons.take(6)",
-    "2026-09-10 06:01:39 UTC  REG5 fixed: All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)"
+    "2026-09-10 06:01:39 UTC  REG5 fixed: All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)",
+    "2026-09-10 06:01:40 UTC  REG6 fixed: CHT-3's guard now compares in truncated seconds, the same unit nearestIndex clamps in"
   ]
 }
