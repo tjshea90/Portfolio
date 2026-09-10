@@ -55,7 +55,10 @@ BRIEF="$(
     # killed (its own 60s timeout) would otherwise wedge the 'git pull' below.
     find .git -name '*.lock' -mmin +2 -delete 2>/dev/null || true
 
-    timeout 25 git fetch -q origin >/dev/null 2>&1 || echo "  NOTE  could not reach GitHub — working from the local checkout only."
+    # --tags because GitHub creates release tags SERVER-SIDE (see CLAUDE.md's "Releasing"),
+    # so a branch-only fetch would never see them and the unrecorded-release check below
+    # would silently never fire.
+    timeout 25 git fetch -q --tags origin >/dev/null 2>&1 || echo "  NOTE  could not reach GitHub — working from the local checkout only."
 
     DIRTY="$(git status --porcelain 2>/dev/null)"
 
@@ -152,6 +155,34 @@ BRIEF="$(
       echo "        none appear over a few tool calls, the hooks are not firing —"
       echo "        run 'bash tools/install-hooks.sh' and say so rather than"
       echo "        working on unprotected."
+    fi
+
+    # IS THERE A RELEASE GITHUB BUILT THAT NOBODY RECORDED?
+    #
+    # The release flow has a seam: GitHub builds and publishes, then a SECOND command
+    # (tools/record-release.sh) writes the line into BUILDLOG.md. A usage cap landing in
+    # between leaves a shipped version that BUILDLOG does not know about - and BUILDLOG is
+    # what the NEXT release's versionCode is gated against, in ship.sh and in the workflow
+    # alike. So the next version would be allowed to reuse a code that is already on the
+    # phone, and Android would refuse to install it.
+    #
+    # Nothing else reports this: the tree is clean, the tests are green, and the only sign
+    # is a tag with no matching BUILDLOG line. Cheap to check, and it is checked from the
+    # TAGS, which is what GitHub actually creates.
+    VC="$(grep -m1 -oE 'versionCode *= *[0-9]+' app/build.gradle.kts 2>/dev/null | grep -oE '[0-9]+' || true)"
+    VN="$(grep -m1 -oE 'versionName *= *"[^"]+"' app/build.gradle.kts 2>/dev/null | grep -oE '"[^"]+"' | tr -d '"' || true)"
+    if [ -n "$VN" ] && git rev-parse -q --verify "refs/tags/v$VN" >/dev/null 2>&1; then
+      if ! grep -q "^| v${VN} |" BUILDLOG.md 2>/dev/null; then
+        echo
+        echo "  !!    v$VN WAS RELEASED BUT NEVER RECORDED."
+        echo "        GitHub built and published tag v$VN, but BUILDLOG.md has no line for"
+        echo "        it - a session was cut off between the two. BUILDLOG is what the NEXT"
+        echo "        release's versionCode is gated against, so leaving it means the next"
+        echo "        version can reuse code $VC and the phone will refuse the install."
+        echo
+        echo "          bash tools/record-release.sh v$VN \"what that release changed\""
+        echo
+      fi
     fi
 
     # WAS THE LAST SESSION CUT OFF MID-CHANGE?
