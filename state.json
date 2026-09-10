@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-09 19:51:26 UTC",
+  "updated": "2026-09-10 00:26:29 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -268,6 +268,55 @@
     {
       "id": "R6",
       "text": "Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and EtfScreener still describe the Worst list, the short-vehicle lookup, a two-list ETF plan and a RESEARCH_TAB index that has moved",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "PUI1",
+      "text": "RowActions.EditPositionDialog seeds shares/avgCost with display formatters (Fmt.shares/Fmt.priceBare) so Save with no edit writes a ROUNDED override - same bug TxnEditor fixed with Fmt.exact",
+      "sev": "high",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "PUI2",
+      "text": "PortfolioScreen.BigLine weights only the label and leaves two unweighted figures after it - at large font scale the label measures to 0dp and vanishes; sub has no overflow so it clips with no ellipsis",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "PUI3",
+      "text": "PortfolioScreen reconciliation note claims Since-you-started = broker Total G/L + banked profit, but totalGain also contains dividends/interest/fees so the stated arithmetic does not add up",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "PUI4",
+      "text": "RowSeparator thickened to 5dp but still painted in colorScheme.outline at 1.24:1 (light) / 1.37:1 (dark) - TJ's 'even thicker' request is blocked by the COLOUR, not the thickness",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "PUI5",
+      "text": "PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on the StatCard surface, the only coloured value on that card not going through signColor",
+      "sev": "med",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "PUI6",
+      "text": "WatchlistScreen PRICE column header is an unweighted child after a weighted Spacer (measures to ~8dp and renders empty at large font scale) and labels a right-hand price column that no longer exists",
+      "sev": "low",
+      "status": "open",
+      "note": ""
+    },
+    {
+      "id": "PUI7",
+      "text": "StockRow watch menu reads row.watchOnly, never true for a held row, so a held+watched symbol always says 'Also watch this' and the toggle is one-way with an untrue toast",
       "sev": "low",
       "status": "open",
       "note": ""
@@ -816,6 +865,13 @@
     "2026-09-09 19:38:40 UTC  H3 fixed: YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401",
     "2026-09-09 19:38:42 UTC  H4 fixed: the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests",
     "2026-09-09 19:48:11 UTC  R2 fixed: Trending rows outside the nine screeners had no price/name/change - loadResearch now awaits one batched fill",
-    "2026-09-09 19:51:24 UTC  14 -> doing  portfolio-ui, detail-ui, research-ui, settings-explain, cross-cutting, round66-diff"
+    "2026-09-09 19:51:24 UTC  14 -> doing  portfolio-ui, detail-ui, research-ui, settings-explain, cross-cutting, round66-diff",
+    "2026-09-10 00:26:29 UTC  finding PUI1: RowActions.EditPositionDialog seeds shares/avgCost with display formatters (Fmt.",
+    "2026-09-10 00:26:29 UTC  finding PUI2: PortfolioScreen.BigLine weights only the label and leaves two unweighted figures",
+    "2026-09-10 00:26:29 UTC  finding PUI3: PortfolioScreen reconciliation note claims Since-you-started = broker Total G/L ",
+    "2026-09-10 00:26:29 UTC  finding PUI4: RowSeparator thickened to 5dp but still painted in colorScheme.outline at 1.24:1",
+    "2026-09-10 00:26:29 UTC  finding PUI5: PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on ",
+    "2026-09-10 00:26:29 UTC  finding PUI6: WatchlistScreen PRICE column header is an unweighted child after a weighted Spac",
+    "2026-09-10 00:26:29 UTC  finding PUI7: StockRow watch menu reads row.watchOnly, never true for a held row, so a held+wa"
   ]
 }
