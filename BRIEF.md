@@ -24,12 +24,20 @@ name AND the signing certificate both match. A new keystore forces an
 uninstall first, which **erases the portfolio** (transactions, overrides,
 caches — everything on the phone). So:
 
-- Never `keytool -genkey` a fresh key. Always sign with the committed
+- Never `keytool -genkey` a fresh key. Always sign with the same
   `app/sideload.jks`.
 - Never change `applicationId`.
 - Always bump `versionCode` in `app/build.gradle.kts` before shipping —
   Android refuses to install a build whose versionCode is not higher than
   what's already on the phone.
+
+**This file is deliberately NOT in git** (see `.gitignore`) — committing it
+was blocked even in this private repo, so Tj holds the only copy out of
+band. This means `git clone` alone does not reproduce a buildable checkout:
+`app/sideload.jks` has to be placed at that exact path before
+`./gradlew assembleRelease` or `ship.sh` will work. If a session finds it
+missing, say so plainly rather than generating a replacement — a fresh
+keystore is exactly the "erases the portfolio" failure above.
 
 ## The build guard: `tools/checkinit.py`
 

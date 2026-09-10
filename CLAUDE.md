@@ -112,6 +112,12 @@ even after history is rewritten. Keep real secrets in a local, gitignored
 
 ## Building the APK
 
+A `git clone` alone is not enough to build a release: `app/sideload.jks`
+(the signing keystore) is intentionally not in this repo — see BRIEF.md's
+"the keystore is irreplaceable" — so it has to be supplied at that exact
+path first, out of band, by Tj. If it's missing, say so; do not generate a
+replacement.
+
 `bash tools/setup-android-sdk.sh` once per fresh container (~5 min, downloads
 the Android SDK). Then `./gradlew :app:assembleRelease` or, for a full
 gated release, `bash ship.sh "note"`. Read BRIEF.md's build traps first —
