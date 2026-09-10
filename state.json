@@ -360,8 +360,8 @@
       "id": "ETF5",
       "text": "ramp clamps a negative long-run return to 0 points but 'possible' still counts its weight, so the 4pt YTD term scales to 9.71 of 34 exactly for funds with the worst long-run records",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x"
     },
     {
       "id": "ETF6",
@@ -985,6 +985,7 @@
     "2026-09-10 00:59:16 UTC  finding CHT2: GestureMode.ZOOM latches until every finger lifts: one finger of a pinch leaving",
     "2026-09-10 00:59:16 UTC  finding CHT3: nearestIndex's off-screen clamp is skipped when the window falls between two can",
     "2026-09-10 00:59:16 UTC  finding CHT4: canPanNow omits windowBounds != null while pan() requires it, so the caption pro",
-    "2026-09-10 01:03:35 UTC  ETF1 fixed: YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points"
+    "2026-09-10 01:03:35 UTC  ETF1 fixed: YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points",
+    "2026-09-10 01:03:35 UTC  ETF5 fixed: Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x"
   ]
 }
