@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 06:01:41 UTC",
+  "updated": "2026-09-10 06:01:42 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -521,8 +521,8 @@
       "id": "DET2",
       "text": "Realized P/L is rendered only inside the 'you still hold shares' branch, so closing a position hides its realized profit on the one screen that promises the number",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "A closed position now shows what it made, in its own card, on the watchlist branch"
     },
     {
       "id": "DET4",
@@ -1179,6 +1179,7 @@
     "2026-09-10 06:01:39 UTC  REG4 fixed: The 'same exposure' line is PREPENDED on the import path too, so it survives reasons.take(6)",
     "2026-09-10 06:01:39 UTC  REG5 fixed: All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)",
     "2026-09-10 06:01:40 UTC  REG6 fixed: CHT-3's guard now compares in truncated seconds, the same unit nearestIndex clamps in",
-    "2026-09-10 06:01:41 UTC  DET1 fixed: Lowest/Highest target rows and the spread sentence are all guarded on a real figure"
+    "2026-09-10 06:01:41 UTC  DET1 fixed: Lowest/Highest target rows and the spread sentence are all guarded on a real figure",
+    "2026-09-10 06:01:42 UTC  DET2 fixed: A closed position now shows what it made, in its own card, on the watchlist branch"
   ]
 }

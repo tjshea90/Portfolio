@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 06:01:41 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 06:01:42 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 7 still open, 62 fixed
+## 5. Open findings — 6 still open, 63 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -114,7 +114,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] REG5 (med) The contrast fix changed only the redText accessor; ~8 hard-coded color = Red text sites remain, including one on a StatCard at the 4.41:1 the fix measured  — All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)
 - [x] REG6 (low) CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seconds, so a legitimate leftmost-candle scrub is refused after a pan  — CHT-3's guard now compares in truncated seconds, the same unit nearestIndex clamps in
 - [x] DET1 (med) Price target card prints an unreported targetLow/High as $0.00 and feeds that zero into the spread sentence, fabricating 'the professionals genuinely disagree'  — Lowest/Highest target rows and the spread sentence are all guarded on a real figure
-- [ ] DET2 (med) Realized P/L is rendered only inside the 'you still hold shares' branch, so closing a position hides its realized profit on the one screen that promises the number
+- [x] DET2 (med) Realized P/L is rendered only inside the 'you still hold shares' branch, so closing a position hides its realized profit on the one screen that promises the number  — A closed position now shows what it made, in its own card, on the watchlist branch
 - [ ] DET4 (med) loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minute TTL on the next line is unreachable for exactly the symbols it was written for
 - [ ] DET5 (low) MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line above writes -$0.42 - the one formatter in the app that disagrees with the rest
 - [ ] DET6 (low) TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty*price against the NET total, so it fires on every fee-bearing trade even when the answer is exact
@@ -130,7 +130,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 05:54:28 UTC  finding DET4: loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minu
 - 2026-09-10 05:54:28 UTC  finding DET5: MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line ab
 - 2026-09-10 05:54:28 UTC  finding DET6: TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty
 - 2026-09-10 05:54:28 UTC  finding DET7: refreshEverything force-reloads the fund register only when the Holdings tab is 
@@ -142,4 +141,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 06:01:39 UTC  REG5 fixed: All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)
 - 2026-09-10 06:01:40 UTC  REG6 fixed: CHT-3's guard now compares in truncated seconds, the same unit nearestIndex clamps in
 - 2026-09-10 06:01:41 UTC  DET1 fixed: Lowest/Highest target rows and the spread sentence are all guarded on a real figure
+- 2026-09-10 06:01:42 UTC  DET2 fixed: A closed position now shows what it made, in its own card, on the watchlist branch
 
