@@ -124,9 +124,21 @@ if not isinstance(hooks, dict):
     hooks, damaged = {}, True
     merged["hooks"] = hooks
 
+# LEGACY ENTRIES COUNT AS OURS TOO.
+# The first version of these hooks predates the marker: it was copied into
+# place with a plain `cp`, so its entries carry no tag. Merging naively left
+# BOTH the old untagged entry and the new tagged one installed for every
+# event — and since the old one printed its own JSON per repo, that put the
+# exact double-JSON bug this rewrite removes straight back into the live
+# config. Observed, not theorised. Any hook command that invokes one of our
+# own scripts is ours by definition, whether or not it is tagged.
+LEGACY = ("tools/resume.sh", "tools/autosave.sh", "tools/toobig.sh",
+          "tools/hooks/", "tools/ckpt.sh")
+
 def is_ours(entry):
     for h in (entry or {}).get("hooks", []) or []:
-        if MARKER in str(h.get("command", "")):
+        cmd = str(h.get("command", ""))
+        if MARKER in cmd or any(x in cmd for x in LEGACY):
             return True
     return False
 
