@@ -174,6 +174,45 @@ case "$KSOUT" in
   *) bad "bootstrap says nothing about the keystore" ;;
 esac
 
+# ---- the build environment provisions itself -------------------------------
+# The point of these: a session must never be told "go run a second command"
+# before it can build, and must never be allowed to ship with the wrong key.
+case "$( bash tools/ensure-build-env.sh --check 2>&1 )" in
+  *"android sdk"*|*"build environment ready"*) ok "ensure-build-env --check reports SDK state without installing" ;;
+  *) bad "ensure-build-env --check said something unexpected" ;;
+esac
+
+# A release path must REFUSE a wrong keystore rather than build with it. Run it
+# against a fixture holding a freshly generated (therefore wrong) key.
+KSFX="$TMP/kstest"; mkdir -p "$KSFX/app" "$KSFX/tools"
+cp tools/checkkeystore.sh "$KSFX/tools/"
+if command -v keytool >/dev/null 2>&1; then
+  keytool -genkeypair -alias portfolio -keystore "$KSFX/app/sideload.jks" \
+    -storepass portfolio -keypass portfolio -keyalg RSA -keysize 2048 -validity 30 \
+    -dname "CN=Portfolio, OU=Personal, O=TJ, L=NA, ST=NA, C=US" >/dev/null 2>&1
+  ( cd "$KSFX" && bash tools/checkkeystore.sh >/dev/null 2>&1 )
+  [ "$?" = "2" ] && ok "checkkeystore rejects a regenerated key with an identical DN" \
+                 || bad "checkkeystore ACCEPTED a wrong keystore — a ship would erase the phone"
+  rm -f "$KSFX/app/sideload.jks"
+  ( cd "$KSFX" && bash tools/checkkeystore.sh >/dev/null 2>&1 )
+  [ "$?" = "1" ] && ok "checkkeystore reports a missing keystore distinctly from a wrong one" \
+                 || bad "checkkeystore does not distinguish missing from wrong"
+else
+  ok "checkkeystore cases skipped (no keytool here)"
+fi
+
+# gradle.sh must pick the release-strict mode from the task name, not guess.
+grep -q 'assembleRelease' tools/gradle.sh && grep -q '\-\-release' tools/gradle.sh \
+  && ok "gradle.sh escalates to release-strict mode for assembleRelease" \
+  || bad "gradle.sh does not treat a release task as release-strict"
+
+# Nothing may tell a session to run the SDK setup by hand any more.
+if grep -n 'Run: bash tools/setup-android-sdk.sh' ship.sh >/dev/null 2>&1; then
+  bad "ship.sh still hard-fails telling a human to install the SDK by hand"
+else
+  ok "no build path asks a human to install the SDK by hand"
+fi
+
 # ---- 6. the secret scan still has teeth --------------------------------------
 S="$TMP/secret"; mkdir -p "$S"; cp -r tools "$S/tools"
 ( cd "$S" && git init -q . && git add -A >/dev/null 2>&1 && git commit -qm init >/dev/null 2>&1 )
