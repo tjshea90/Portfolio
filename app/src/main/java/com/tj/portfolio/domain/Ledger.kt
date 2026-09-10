@@ -190,7 +190,11 @@ object Ledger {
     }
 
     /** One purchase lot: shares remaining, and cost per share including that buy's fees. */
-    private data class Lot(var shares: Double, val unitCost: Double)
+    /**
+     * @param today whether the BUY that opened this lot was dated in the current session -
+     *   carried ON THE LOT so that a sell removes it with the shares (Round 66 audit, CRX-1).
+     */
+    private data class Lot(var shares: Double, val unitCost: Double, val today: Boolean = false)
 
     /**
      * FIFO replay - matches what a broker statement shows. Sells consume the oldest lots
@@ -204,8 +208,6 @@ object Ledger {
         val lots = LinkedHashMap<String, ArrayDeque<Lot>>()
         val realized = LinkedHashMap<String, Double>()
         val first = LinkedHashMap<String, Long>()
-        val todayShares = LinkedHashMap<String, Double>()
-        val todayCost = LinkedHashMap<String, Double>()
 
         for (t in txns.sortedWith(compareBy({ it.date }, { it.id }))) {
             val sym = t.symbol?.uppercase() ?: continue
@@ -221,11 +223,27 @@ object Ledger {
             when (t.type) {
                 TxnType.BUY -> {
                     if (first[sym] == null) first[sym] = t.date
-                    q.addLast(Lot(qty, (qty * px + t.fees) / qty))
-                    if (t.date in today) {
-                        todayShares[sym] = (todayShares[sym] ?: 0.0) + qty
-                        todayCost[sym] = (todayCost[sym] ?: 0.0) + qty * px + t.fees
-                    }
+                    // ---- "BOUGHT TODAY" IS A PROPERTY OF THE LOT (Round 66 audit, CRX-1).
+                    //
+                    // THE BUG THIS FIXES. It used to be two side maps that a BUY added to and
+                    // NOTHING ever took from - a SELL consumed the lot but left the same
+                    // shares sitting in `todayShares`, at their old cost, forever.
+                    //
+                    // A same-day round trip is all it took. Buy 100 SOFI at 10.00 in the
+                    // morning, sell all 100 at 12.00 at lunch (+$200, correctly booked in
+                    // `realized`), buy 100 back at 12.00 in the afternoon: `todayShares` is
+                    // 200 and `todayCost` is 2,200, so the app believes the 100 shares held
+                    // cost 11.00 apiece when they cost 12.00. With the price at 12.00 -
+                    // exactly what was paid, so today's move on the open position is zero -
+                    // `dayPnl` reported +$100.00 and +9.09%. The portfolio's "Today" headline
+                    // carried the same fabricated hundred dollars, and `brokerDayGain`, which
+                    // never touches these fields, disagreed with it by precisely that amount:
+                    // the two figures whose whole purpose is to reconcile.
+                    //
+                    // On the lot, the arithmetic is exact and needs no separate bookkeeping at
+                    // all - FIFO already removes the right lots, so whatever is still in the
+                    // deque and flagged is genuinely what was bought today and still held.
+                    q.addLast(Lot(qty, (qty * px + t.fees) / qty, today = t.date in today))
                 }
                 TxnType.SELL -> {
                     var remaining = qty
@@ -248,9 +266,11 @@ object Ledger {
         return lots.map { (sym, q) ->
             val shares = q.sumOf { it.shares }
             val cost = q.sumOf { it.shares * it.unitCost }
+            // Only lots opened today AND still open - see the note at `Lot(today = ...)`.
+            val fresh = q.filter { it.today }
             applyOverride(
                 sym, shares, cost, realized[sym] ?: 0.0, first[sym] ?: 0L, overrides,
-                todayShares[sym] ?: 0.0, todayCost[sym] ?: 0.0
+                fresh.sumOf { it.shares }, fresh.sumOf { it.shares * it.unitCost }
             )
         }
     }
@@ -310,6 +330,25 @@ object Ledger {
                     a.cost -= covered * avg
                     a.shares -= covered
                     if (a.shares < 1e-9) { a.shares = 0.0; a.cost = 0.0 }
+                    // ---- AND THE SAME-DAY POOL SHRINKS WITH IT (Round 66 audit, CRX-1).
+                    //
+                    // The FIFO replay carries "bought today" on the lot, which a sell removes
+                    // for free. Average cost has no lots, so it has to do the arithmetic: the
+                    // shares sold come out of today's pool at today's own blended price, in
+                    // the same proportion. Without this a same-day round trip left shares in
+                    // the pool that were no longer held, and the "Today" figure for the
+                    // position was computed against a cost nobody paid.
+                    //
+                    // FIFO would take the OLDEST lots first, which for a same-session trade
+                    // and a pool this size comes to the same shares; taking them pro-rata is
+                    // the only thing an average-cost book can say, and it is consistent with
+                    // how every other figure in this branch is derived.
+                    val fromToday = minOf(covered, a.todayShares)
+                    if (fromToday > 1e-9 && a.todayShares > 1e-9) {
+                        a.todayCost -= fromToday * (a.todayCost / a.todayShares)
+                        a.todayShares -= fromToday
+                        if (a.todayShares < 1e-9) { a.todayShares = 0.0; a.todayCost = 0.0 }
+                    }
                 }
             }
         }

@@ -2512,6 +2512,31 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshStatus(): String {
         val user = refreshSecs()
         if (user <= 0) return "Auto-refresh is off - pull down to update prices."
+        // ---- THE TWO REASONS NOTHING IS BEING FETCHED (Round 66 audit, EXP-2).
+        //
+        // THE BUG THIS FIXES. This line's own comment calls it "what the app is ACTUALLY doing
+        // right now", and it consulted only the market clock and the user's interval - never
+        // the two conditions that actually gate a pass. So on the Settings tab, which is
+        // `VisibleScope.None` by construction and where the poll loop skips the quote pass
+        // entirely, it read "Open - updating every 15s" while making exactly zero requests.
+        // The paragraph six lines below it on the same screen says the opposite, correctly:
+        // "the Activity, Advice and Settings tabs show no prices, so the app stops asking for
+        // them entirely while you are on those." A screen that contradicts itself teaches the
+        // reader to trust neither half.
+        //
+        // The same gap swallowed `pricesAreFinal()`: at 3am on a Sunday with the post-close
+        // quotes already held, nothing is fetched at all and the line still promised a
+        // fifteen-minute tick - which is precisely the "why are prices not moving?" confusion
+        // this line was written to prevent.
+        val phaseNow = MarketClock.label()
+        if (visibleScope == VisibleScope.None) {
+            return "$phaseNow - paused while you are on this tab. Prices resume the moment " +
+                "one is on screen."
+        }
+        if (pricesAreFinal()) {
+            return "$phaseNow - prices are final for this session, so nothing is being " +
+                "requested until the next one opens."
+        }
         val secs = currentQuoteIntervalSecs()
         val every = if (secs >= 60) "${secs / 60} min" else "${secs}s"
         val phase = MarketClock.label()

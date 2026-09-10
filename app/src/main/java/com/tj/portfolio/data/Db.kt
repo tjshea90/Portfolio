@@ -670,7 +670,11 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      */
     fun txnExists(t: Txn): Boolean = findDuplicateId(t) != null
 
-    fun findDuplicateId(t: Txn): Long? {
+    /**
+     * @param exclude ids this caller has already matched or inserted, which must not match
+     *   again. See [restoreJson] - without it, a merge restore silently deletes real rows.
+     */
+    fun findDuplicateId(t: Txn, exclude: Set<Long> = emptySet()): Long? {
         val sym = (t.symbol ?: "").uppercase()
         val dayStart = startOfDay(t.date)
         val dayEnd = dayStart + 86_400_000L
@@ -697,6 +701,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         ).use { c ->
             while (c.moveToNext()) {
                 val id = c.getLong(0)
+                // ONE STORED ROW CAN ABSORB ONE FILE ROW, NOT MANY (Round 66 audit, CRX-2).
+                if (id in exclude) continue
                 val q = c.getDouble(1)
                 val a = kotlin.math.abs(c.getDouble(2))
                 val sameQty = kotlin.math.abs(q - kotlin.math.abs(t.quantity)) < 0.0001
@@ -1379,6 +1385,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
 
             var n = 0
             var skipped = 0
+            // Stored ids this restore has already matched or inserted - see the note at the
+            // duplicate check below (Round 66 audit, CRX-2).
+            val claimed = HashSet<Long>()
             val arr = txnArr ?: JSONArray()
             for (i in 0 until arr.length()) {
                 val o = arr.optJSONObject(i) ?: continue
@@ -1399,8 +1408,34 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                     note = if (o.isNull("note")) null else o.optString("note").ifBlank { null },
                     source = o.optString("source", "RESTORE").ifBlank { "RESTORE" }
                 )
-                if (!replace && txnExists(t)) { skipped++; continue }
-                insertTxn(t); n++
+                // ---- A ROW ALREADY MATCHED CANNOT MATCH AGAIN (Round 66 audit, CRX-2).
+                //
+                // THE BUG THIS FIXES, and it is the worst kind: silent data loss in the one
+                // code path that exists to RECOVER lost data.
+                //
+                // `txnExists` asked "is there a row in the table that looks like this one?" -
+                // against the whole table, including the rows this same restore had just
+                // inserted a moment earlier. So any set of genuinely identical transactions in
+                // a backup collapsed to exactly one row. Two $500 deposits on the same day
+                // become one $500 deposit. Two halves of a partial fill - which Ally lists as
+                // separate rows, 45 shares each - become one 45-share buy.
+                //
+                // Merge is not a corner of the app: it is the primary button of the restore
+                // dialog, the "Restore that backup" button on the data-loss recovery card, the
+                // Downloads autosave recovery and the paste-JSON path. Its dialog says "Merge
+                // adds anything missing... it can never remove anything you already have",
+                // and the toast said "Merged 2 transactions (2 duplicate skipped)", which
+                // reads like success. Meanwhile net deposits were $500 short, the position was
+                // 45 shares and $340.43 of cost basis short, and `totalGain = equity -
+                // netDeposits` was wrong on BOTH terms at once. Re-running the restore could
+                // never recover them, because the same rule applied again.
+                //
+                // `claimed` makes the matching one-to-one: a stored row absorbs at most one
+                // file row, and a row inserted by this restore is excluded from matching the
+                // rows that follow it.
+                val dup = if (replace) null else findDuplicateId(t, claimed)
+                if (dup != null) { claimed.add(dup); skipped++; continue }
+                claimed.add(insertTxn(t)); n++
             }
 
             var ovN = 0

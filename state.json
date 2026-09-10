@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 13:13:28 UTC",
+  "updated": "2026-09-10 13:21:36 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -563,8 +563,8 @@
       "id": "CRX2",
       "text": "MERGE restore matches each incoming row against rows THIS restore just inserted, so N genuinely identical transactions in a backup collapse to one - silent data loss in the one path that exists to recover lost transactions",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code"
     },
     {
       "id": "CRX1",
@@ -1225,6 +1225,7 @@
     "2026-09-10 13:13:28 UTC  finding CRX1: todayShares/todayCost are never reduced by a SELL, so a same-day round trip fabr",
     "2026-09-10 13:13:28 UTC  finding EXP1: Settings' request-counter card says to pull down to update it, but the value is ",
     "2026-09-10 13:13:28 UTC  finding EXP2: refreshStatus claims 'updating every 15s' on the Settings tab, which is exactly ",
-    "2026-09-10 13:13:28 UTC  finding EXP3: The 52-week high/low sheets compute distance without clamping, so a new high rea"
+    "2026-09-10 13:13:28 UTC  finding EXP3: The 52-week high/low sheets compute distance without clamping, so a new high rea",
+    "2026-09-10 13:21:36 UTC  CRX2 fixed: Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code"
   ]
 }

@@ -99,7 +99,19 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         }
     }
 
-    Refreshable(refreshing = ui.pulling(PULL_PRICES), onRefresh = { vm.refresh(manual = true) }) {
+    // `infoTick++` ON THE PULL (Round 66 audit, EXP-1). The "Requests in the last hour" card
+    // tells the reader to pull down to update its figures, and pulling could not: the value
+    // lives in a `remember(infoTick, refresh)`, and `vm.refresh(manual = true)` touches
+    // neither key. The card recomposed and handed back the same cached list it captured when
+    // the tab was opened, so the one question it exists to answer - how hard are we hitting
+    // the providers RIGHT NOW - could only be re-asked by leaving the screen and coming back.
+    // `Http.requestsLastHour()` is an in-memory scan of sixty buckets with no disk work, so
+    // it is safe on this path; the snapshot and crash-log remembers are not, which is why the
+    // note further down warns against bumping the tick from the text field.
+    Refreshable(
+        refreshing = ui.pulling(PULL_PRICES),
+        onRefresh = { vm.refresh(manual = true); infoTick++ }
+    ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
     ) {

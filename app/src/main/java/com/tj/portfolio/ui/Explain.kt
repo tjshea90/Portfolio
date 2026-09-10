@@ -1465,6 +1465,24 @@ object Explain {
                 else {
                     val off = (c.v - p) / c.v
                     when {
+                        // ---- A NEW HIGH IS ITS OWN SENTENCE (Round 66 audit, EXP-3).
+                        //
+                        // `p` is the live quote, seconds old. `c.v` is the 52-week high out
+                        // of the fundamentals cache, which has a six-hour TTL and which Yahoo
+                        // itself publishes off the PREVIOUS CLOSE. So on any intraday
+                        // breakout the live price is above the stored high, `off` goes
+                        // negative, and this sheet read "the stock is within -4.2% of its
+                        // 52-week high of $201.50" - a negative distance inside a sentence
+                        // whose wording only works for a positive one. The ETF and Research
+                        // models both clamp the identical expression, which is what makes
+                        // this an oversight rather than a decision.
+                        //
+                        // Clamping to zero would hide it. A new high is the most interesting
+                        // state this number ever has, so it gets said out loud.
+                        off <= 0.0 -> "At ${Fmt.price(p)} the stock is trading ABOVE its last " +
+                            "recorded 52-week high of ${Fmt.price(c.v)} - a new high. The " +
+                            "stored figure is published off the previous close, so it catches " +
+                            "up overnight." to Verdict.NEUTRAL
                         off < 0.03 -> "At ${Fmt.price(p)} the stock is within ${pf(off)} of its " +
                             "52-week high of ${Fmt.price(c.v)} - trading at the top of its " +
                             "yearly range." to Verdict.NEUTRAL
@@ -1493,7 +1511,14 @@ object Explain {
                 if (p <= 0) "The 52-week low is ${Fmt.price(c.v)}." to Verdict.NEUTRAL
                 else {
                     val up = (p - c.v) / c.v
-                    if (up < 0.10) "At ${Fmt.price(p)} the stock is only ${pf(up)} above its " +
+                    // The mirror of the 52-week high, and the same reason - see the note
+                    // there (Round 66 audit, EXP-3). Below the stored low, "only -3.1% above
+                    // its 52-week low" is both wrong and the wrong shape of sentence.
+                    if (up <= 0.0) "At ${Fmt.price(p)} the stock is trading BELOW its last " +
+                        "recorded 52-week low of ${Fmt.price(c.v)} - a new low. The stored " +
+                        "figure is published off the previous close, so it catches up " +
+                        "overnight." to Verdict.MIXED
+                    else if (up < 0.10) "At ${Fmt.price(p)} the stock is only ${pf(up)} above its " +
                         "52-week low of ${Fmt.price(c.v)} - near the bottom of its yearly " +
                         "range." to Verdict.MIXED
                     else "The stock is ${pf(up)} above its 52-week low of ${Fmt.price(c.v)}." to
