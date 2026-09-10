@@ -93,8 +93,14 @@ class EtfCardUiTest {
         assertTrue("assets should be compact money: $t", t.any { it == "$1.74T" })
     }
 
+    /**
+     * `expenseRatio = -1.0`, not 0.0 (Round 66 audit, ETF-6). Zero is a REAL FEE - BKLC and
+     * BKAG charge nothing - so it stopped being this field's "not published" sentinel, and
+     * -1.0 took over. The test says what it always meant to say: a fund that published no fee
+     * shows a dash.
+     */
     @Test fun `a figure the fund never published prints an em dash, never a zero`() {
-        show(f = EtfFacts(expenseRatio = 0.0, netAssets = 0.0, yieldPct = 0.0,
+        show(f = EtfFacts(expenseRatio = -1.0, netAssets = 0.0, yieldPct = 0.0,
             oneYearPct = 12.0, threeYearAnnualPct = 0.0, fiveYearAnnualPct = 0.0))
         val t = texts()
         assertEquals(
@@ -104,6 +110,13 @@ class EtfCardUiTest {
         assertFalse("a fabricated zero reached the card: $t", t.any { it == "+0.00%" })
         assertFalse(t.any { it == "0.00%" })
         assertTrue("the one real figure is still shown", t.contains("+12.00%"))
+    }
+
+    /** And the other half of it: a fund that really charges nothing says so. */
+    @Test fun `a genuinely free fund shows its zero fee, not a dash`() {
+        show(f = full.copy(expenseRatio = 0.0))
+        val t = texts()
+        assertTrue("a 0.00% fee must be printed as a fee: $t", t.contains("0.00%"))
     }
 
     @Test fun `a negative return is shown with its sign`() {

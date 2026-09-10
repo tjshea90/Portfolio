@@ -154,7 +154,16 @@ object EtfScore {
         // --- long-run return, weighted toward the long run (0-34)
         want++
         val hasLong = r.fiveYearAnnualPct != 0.0 || r.threeYearAnnualPct != 0.0
-        if (hasLong || r.ytdReturnPct != 0.0 || r.oneYearPct != 0.0) {
+        // ---- `oneYearPct` NO LONGER OPENS THIS BLOCK (Round 66 audit, ETF-6).
+        //
+        // It used to, from when the 52-week price change was still scored. Round 66 stopped
+        // scoring it - see the note below - but left it in this gate, so a fund publishing
+        // NOTHING but a 52-week price change was recorded as having carried the return
+        // factor while earning none of its 34 points. `confidence` is the share of factors
+        // carried, and the caller drops rows below [MIN_ETF_CONFIDENCE] precisely to avoid
+        // ranking funds on absent data - so the one row with no scored return data at all
+        // was the one row that could reach confidence 100 without any.
+        if (hasLong || r.ytdReturnPct != 0.0) {
             have++
             // 5Y annualised: 0 points at 0%/yr, full at 20%/yr. 20 is roughly double the
             // long-run return of the US market, so a fund only tops this out by having
@@ -180,7 +189,6 @@ object EtfScore {
             // labelled as a price change on the card and it earns nothing. The remaining
             // horizons are all total returns, so the weighted average above is now comparing
             // like with like.
-            if (r.ytdReturnPct != 0.0) { earned += ramp(r.ytdReturnPct, 0.0, 25.0, 4.0); possible += 4.0 }
 
             // ---- YOUTH IS PENALISED ONCE, NOT TWICE (Round 66).
             //
@@ -205,8 +213,39 @@ object EtfScore {
             // capped at 16 of the 34 return points. Worse, it was non-monotonic: the same fund
             // reporting a near-worthless YTD of +0.5% crossed the threshold and gained eleven
             // points for a figure that earned almost none of them.
+            //
+            // ---- AND THE NORMALISED SET IS THE TWO ANNUALISED HORIZONS, NOTHING ELSE
+            // (Round 66 audit, ETF-1 / ETF-5).
+            //
+            // THE BUG THIS FIXES, and it is the third time this rescaling has bitten. YTD was
+            // inside `earned`/`possible` too, and `0.0` is this feed's sentinel for "Yahoo did
+            // not publish it" - every return field is parsed with `optDouble(key, 0.0)`. So a
+            // fund whose YTD was absent OR genuinely flat had its weakest horizon dropped from
+            // the average, and because the average rescales what is left up to the full 34,
+            // DROPPING A WEAK TERM RAISED THE SCORE.
+            //
+            // Two funds identical at +12%/yr over both 3y and 5y: the one reporting +3.0% YTD
+            // scored 14.88 x 34/28 = 18.07, the one reporting nothing scored 14.4 x 34/24 =
+            // 20.40. The break-even was +15% YTD - so every fund with a year worse than that,
+            // which is most of them, was beaten by the same fund with the figure missing. On a
+            // list built to tell TJ which funds to buy, the ranking preferred incomplete data.
+            //
+            // The same rescaling did a second thing (ETF-5): `ramp` floors a NEGATIVE long-run
+            // return at zero points while `possible` still counts its full weight, so for a
+            // fund that has LOST money over three years the only surviving term was the hot
+            // trailing year - amplified 2.43x. A fund down 1.5%/yr over 3y with a +38% YTD
+            // outscored a fund up 6%/yr over 3y with a +4% YTD. That is precisely the failure
+            // the three-year floor exists to prevent, arriving through the back door.
+            //
+            // The fix is to normalise only over terms that measure the SAME THING. 5y and 3y
+            // are annualised NAV total returns and are genuinely interchangeable weights, so
+            // they are averaged and rescaled to 30. YTD is a partial-year cumulative figure -
+            // a different quantity on a different clock - so it is added separately, capped at
+            // 4, exactly as cost and size are. A missing YTD now costs a fund up to 4 points
+            // and can never gain it any, which is the only monotonic answer.
             val hasLongRecord = r.threeYearAnnualPct != 0.0 || r.fiveYearAnnualPct != 0.0
-            s += if (hasLongRecord && possible > 0.0) earned * 34.0 / possible else earned
+            s += if (hasLongRecord && possible > 0.0) earned * 30.0 / possible else earned
+            if (r.ytdReturnPct != 0.0) s += ramp(r.ytdReturnPct, 0.0, 25.0, 4.0)
 
             // ONE LINE, NOT FOUR. The card shows up to six reasons and four separate return
             // lines would crowd out cost and size, which are the ones a person cannot look up
@@ -221,7 +260,18 @@ object EtfScore {
 
         // --- cost (0-20)
         want++
-        if (r.expenseRatio > 0.0) {
+        // ---- `>= 0.0`, BECAUSE FREE IS A PRICE (Round 66 audit, ETF-6).
+        //
+        // THE BUG THIS FIXES. This read `> 0.0`, which meant a fund charging 0.00% was treated
+        // as a fund whose expense ratio Yahoo had not published: it forfeited all 20 cost
+        // points and took a confidence penalty on top, landing on the same score as the same
+        // fund charging 0.85% and closer to being dropped by [MIN_ETF_CONFIDENCE] than the
+        // expensive one. Zero-fee funds are not hypothetical - BNY Mellon's BKLC and BKAG have
+        // charged nothing since 2020 and are both in Yahoo's US ETF screen - and on a list
+        // whose single strongest term is cost, the cheapest funds in existence were the ones
+        // it could not see. [EtfScreener.parse] now parses the field with a -1.0 default so
+        // "absent" and "free" are different numbers.
+        if (r.expenseRatio >= 0.0) {
             have++
             // Full marks at or below 5bp, nothing at or above 75bp. Both ends are real: 3bp
             // is what the cheapest broad index funds charge and 75bp is where thematic funds

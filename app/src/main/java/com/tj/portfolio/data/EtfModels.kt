@@ -36,8 +36,14 @@ data class EtfRow(
     val name: String = "",
     val price: Double = 0.0,
     val changePct: Double = 0.0,
-    /** Net expense ratio as a PERCENT - 0.03 means three basis points. */
-    val expenseRatio: Double = 0.0,
+    /**
+     * Net expense ratio as a PERCENT - 0.03 means three basis points.
+     *
+     * **-1.0 means Yahoo did not publish one.** Zero is a real fee (Round 66 audit, ETF-6):
+     * BKLC and BKAG charge nothing, so this field cannot use 0.0 as its absent-sentinel the
+     * way the rest of them do. Anything reading it must test `>= 0.0`, not `> 0.0`.
+     */
+    val expenseRatio: Double = -1.0,
     /** Total net assets in dollars. */
     val netAssets: Double = 0.0,
     /** Trailing yield as a percent. */
@@ -117,7 +123,11 @@ data class EtfRow(
  * five-year figure rather than a zero, because a zero here reads as "it returned nothing".
  */
 data class EtfFacts(
-    val expenseRatio: Double = 0.0,
+    /**
+     * As [EtfRow.expenseRatio]: a PERCENT, and **-1.0 means unknown** - 0.0 is a real fee
+     * (Round 66 audit, ETF-6). Every test on this field is `>= 0.0`, never `> 0.0`.
+     */
+    val expenseRatio: Double = -1.0,
     val netAssets: Double = 0.0,
     val yieldPct: Double = 0.0,
     val ytdReturnPct: Double = 0.0,
@@ -128,11 +138,11 @@ data class EtfFacts(
     val inceptionMs: Long = 0L
 ) {
     val isEmpty: Boolean
-        get() = expenseRatio <= 0.0 && netAssets <= 0.0 && oneYearPct == 0.0 &&
+        get() = expenseRatio < 0.0 && netAssets <= 0.0 && oneYearPct == 0.0 &&
             threeYearAnnualPct == 0.0 && fiveYearAnnualPct == 0.0 && ytdReturnPct == 0.0
 
     fun toJson(): JSONObject = JSONObject().apply {
-        if (expenseRatio > 0) put("expenseRatio", expenseRatio)
+        if (expenseRatio >= 0) put("expenseRatio", expenseRatio)
         if (netAssets > 0) put("netAssets", netAssets)
         if (yieldPct != 0.0) put("yieldPct", yieldPct)
         if (ytdReturnPct != 0.0) put("ytdReturnPct", ytdReturnPct)
@@ -151,7 +161,10 @@ data class EtfFacts(
                 return if (v.isNaN() || v.isInfinite()) 0.0 else v
             }
             val f = EtfFacts(
-                expenseRatio = d("expenseRatio"),
+                // The one field whose absent-sentinel is -1.0, so a stored 0.00% survives a
+                // cache round trip as a fee rather than coming back as "unknown".
+                expenseRatio = o.optDouble("expenseRatio", -1.0)
+                    .let { if (it.isNaN() || it.isInfinite()) -1.0 else it },
                 netAssets = d("netAssets"),
                 yieldPct = d("yieldPct"),
                 ytdReturnPct = d("ytdReturnPct"),

@@ -178,6 +178,81 @@ class EtfExposureTest {
         assertTrue(out.all { it.second.isEmpty() })
     }
 
+    // ------------------------------------------- ROUND 66 AUDIT: ETF-3 and ETF-7
+
+    /**
+     * ETF-3. A WORLD BOND FUND IS NOT A WORLD STOCK FUND.
+     *
+     * The region ladder matched on the whole name with no idea what the fund held, so
+     * " total international " matched inside "Vanguard Total INTERNATIONAL BOND Index Fund"
+     * and " total world " inside "Vanguard Total WORLD BOND ETF". Both were keyed as global
+     * EQUITY, de-duplicated against VT and ACWI, and - because VT scores highest of that
+     * group - DELETED from the list, under a card saying they were the same exposure.
+     * The bond screen is one of the three lists fetched, so both are really in the universe.
+     */
+    @Test fun `a world bond fund is never grouped with world equity`() {
+        val equity = EtfExposure.keyOf("Vanguard Total World Stock Index Fund ETF Shares")
+        assertTrue("a world stock fund should still group", equity != null)
+        for (bond in listOf(
+            "Vanguard Total International Bond Index Fund ETF Shares",
+            "Vanguard Total World Bond ETF"
+        )) {
+            assertNotEquals(
+                "\"$bond\" was keyed as world EQUITY",
+                equity, EtfExposure.keyOf(bond)
+            )
+        }
+    }
+
+    /** The same class of error one branch further down: IAGG is not BND. */
+    @Test fun `an international aggregate bond fund is not the US aggregate`() {
+        val us = EtfExposure.keyOf("Vanguard Total Bond Market ETF")
+        assertTrue("the US aggregate funds should still group", us != null)
+        assertEquals(us, EtfExposure.keyOf("iShares Core U.S. Aggregate Bond ETF"))
+        assertNotEquals(
+            "IAGG holds hedged ex-US debt and was merged into the US aggregate group",
+            us, EtfExposure.keyOf("iShares Core International Aggregate Bond ETF")
+        )
+    }
+
+    /** And the US aggregate funds must not have stopped grouping in the process. */
+    @Test fun `the US aggregate bond funds are still one decision`() {
+        val k = EtfExposure.keyOf("Vanguard Total Bond Market ETF")
+        assertTrue(k != null)
+        assertEquals(k, EtfExposure.keyOf("iShares Core U.S. Aggregate Bond ETF"))
+        assertEquals(k, EtfExposure.keyOf("SPDR Portfolio Aggregate Bond ETF"))
+    }
+
+    /**
+     * ETF-7. "THE WHOLE WORLD" AND "THE WORLD EXCEPT AMERICA" ARE OPPOSITE ANSWERS.
+     *
+     * One key covered both. VT and ACWI hold about 60% United States; VXUS, IXUS, VEU and
+     * ACWX hold none at all - which is exactly what somebody who already owns VOO is asking
+     * for. Merged, VT wins the group on the strength of that US weight and every ex-US fund
+     * is deleted as a duplicate of it, so the reader who wanted the rest of the world is
+     * handed a fund that is more than half the index they already hold.
+     */
+    @Test fun `all-world and all-world-ex-US are not the same decision`() {
+        val inclUs = EtfExposure.keyOf("Vanguard Total World Stock Index Fund ETF Shares")
+        val exUs = EtfExposure.keyOf("Vanguard Total International Stock Index Fund ETF Shares")
+        assertTrue(inclUs != null && exUs != null)
+        assertNotEquals("a world fund WITH the US was merged with one without it", inclUs, exUs)
+
+        // Each half still groups internally - the point is two groups, not none.
+        assertEquals(inclUs, EtfExposure.keyOf("iShares MSCI ACWI ETF"))
+        assertEquals(exUs, EtfExposure.keyOf("iShares Core MSCI Total International Stock ETF"))
+        assertEquals(exUs, EtfExposure.keyOf("iShares MSCI ACWI ex U.S. ETF"))
+    }
+
+    /**
+     * The order of the two ex-US tests is load-bearing: "Vanguard FTSE All-World ex-US Index
+     * Fund" contains BOTH " all world " and " ex us ", and ex-US is the correct reading.
+     */
+    @Test fun `a name containing both spellings reads as ex-US`() {
+        val exUs = EtfExposure.keyOf("Vanguard Total International Stock Index Fund ETF Shares")
+        assertEquals(exUs, EtfExposure.keyOf("Vanguard FTSE All-World ex-US Index Fund ETF Shares"))
+    }
+
     @Test fun `the list of alternatives is bounded`() {
         val many = (1..9).map { F("S$it", "Issuer $it S&P 500 ETF") }
         val out = EtfExposure.dedupe(many, name = { it.name }, symbol = { it.sym })

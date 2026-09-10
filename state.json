@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 00:59:16 UTC",
+  "updated": "2026-09-10 01:03:35 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -332,8 +332,8 @@
       "id": "ETF1",
       "text": "EtfScore: 0.0 is the sentinel for 'not published', so a flat/absent YTD is DROPPED from the weighted average - and because the average rescales, dropping the weakest horizon RAISES the score. A missing YTD scores like +15pct YTD. The list systematically prefers funds with less complete data",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points"
     },
     {
       "id": "ETF2",
@@ -984,6 +984,7 @@
     "2026-09-10 00:59:16 UTC  finding CHT1: Two-finger pan compares centroidX across frames even when the POINTER COUNT chan",
     "2026-09-10 00:59:16 UTC  finding CHT2: GestureMode.ZOOM latches until every finger lifts: one finger of a pinch leaving",
     "2026-09-10 00:59:16 UTC  finding CHT3: nearestIndex's off-screen clamp is skipped when the window falls between two can",
-    "2026-09-10 00:59:16 UTC  finding CHT4: canPanNow omits windowBounds != null while pan() requires it, so the caption pro"
+    "2026-09-10 00:59:16 UTC  finding CHT4: canPanNow omits windowBounds != null while pan() requires it, so the caption pro",
+    "2026-09-10 01:03:35 UTC  ETF1 fixed: YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points"
   ]
 }

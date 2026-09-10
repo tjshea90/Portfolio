@@ -189,7 +189,16 @@ object EtfScreener {
                     // multiplies a DIFFERENT FIELD - `trailingAnnualDividendYield` on an
                     // EQUITY row - which really is a fraction. Two field names, two units,
                     // and reading one rule onto the other is a 100x error on a card.
-                    expenseRatio = d(q, "netExpenseRatio"),
+                    // ---- -1.0, NOT 0.0, WHEN THE FIELD IS ABSENT (Round 66 audit, ETF-6).
+                    //
+                    // Every other number here can use 0.0 as its "not published" sentinel
+                    // because zero is not a value any of them can really take. A fee can:
+                    // BKLC and BKAG charge 0.00%. Sharing the sentinel made the cheapest
+                    // funds on the market indistinguishable from funds with no fee data, and
+                    // [EtfScore.best] scored them accordingly. -1.0 is impossible for a fee,
+                    // so it can mean "absent" without stealing a real value.
+                    expenseRatio = q.optDouble("netExpenseRatio", -1.0)
+                        .let { if (it.isNaN() || it.isInfinite()) -1.0 else it },
                     netAssets = d(q, "netAssets"),
                     yieldPct = d(q, "yieldTTM").takeIf { it != 0.0 } ?: d(q, "dividendYield"),
                     ytdReturnPct = d(q, "ytdReturn"),

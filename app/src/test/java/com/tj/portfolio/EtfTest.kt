@@ -263,31 +263,107 @@ class EtfTest {
     }
 
     /**
-     * ROUND 66 AUDIT (E4). The normalisation gate was the SUM OF AVAILABLE WEIGHTS, which is
-     * only reachable as 3Y+1Y+YTD or with a 5Y term. So a fund with a genuine three-year
-     * record but no published YTD figure fell off the normalised path entirely and was capped
-     * at 16 of the 34 return points - and adding a near-worthless YTD crossed the threshold
-     * and jumped it eleven points, for a figure that had earned almost none of them. A
-     * discontinuity, in the direction that rewarded reporting a bad number.
+     * ROUND 66 AUDIT (ETF-1). THE INVARIANT THAT REPLACED THE ONE THAT WAS HERE.
      *
-     * The gate is the record itself now, so the return term is a plain weighted average of
-     * the horizons a fund actually publishes. This asserts the property that follows: a fund
-     * is judged on its RATES, not on how many boxes it happened to fill in.
+     * This test used to assert that a fund topping out every horizon it reports scores the
+     * SAME whether or not one more horizon is published. That was the correct reading of the
+     * code at the time - YTD was inside the weighted average, so publishing a maxed-out YTD
+     * changed nothing - and it was precisely the property that made the bug possible. Because
+     * the average rescales to the full weight, a fund's WEAKEST horizon being absent RAISED
+     * its score: two funds at +12%/yr over 3y and 5y scored 18.07 with a +3% YTD and 20.40
+     * with none. The break-even was +15% YTD, so almost every real fund was beaten by the
+     * same fund with the figure missing. A ranking that prefers incomplete data, on the list
+     * TJ said he is going to buy from.
+     *
+     * YTD is now added separately, outside the average, so the property to hold is
+     * MONOTONICITY: a better year to date never lowers the score, and a fund that reports one
+     * is never beaten by the same fund that reports nothing.
      */
-    @Test fun `a missing short-run figure does not change a fund judged on its rates`() {
+    @Test fun `the year to date figure is monotonic and never pays to hide`() {
         val base = EtfRow(
             symbol = "X", name = "Fund", price = 100.0, expenseRatio = 0.1, netAssets = 5e9,
             avgVolume3M = 1e6, fiftyDayAvg = 95.0, twoHundredDayAvg = 90.0,
             inceptionMs = System.currentTimeMillis() - 10L * 31_557_600_000L,
-            threeYearAnnualPct = 20.0, oneYearPct = 30.0
+            fiveYearAnnualPct = 12.0, threeYearAnnualPct = 12.0
         )
-        val withoutYtd = EtfScore.best(base).score
-        // The same fund, whose YTD is running at the same full rate as everything else.
-        val withYtd = EtfScore.best(base.copy(ytdReturnPct = 25.0)).score
+        val hidden = EtfScore.best(base).score
+
+        // ---- 1. NEVER PAYS TO HIDE. Every YTD a real fund can report, against silence.
+        for (ytd in listOf(0.5, 1.0, 3.0, 6.0, 9.0, 12.0, 14.9, 15.0, 20.0, 25.0, 40.0)) {
+            val shown = EtfScore.best(base.copy(ytdReturnPct = ytd)).score
+            assertTrue(
+                "reporting a YTD of $ytd scored $shown against $hidden for reporting nothing " +
+                    "- a fund must never gain by withholding a figure",
+                shown >= hidden
+            )
+        }
+
+        // ---- 2. MONOTONIC. More is never worth less.
+        var last = Int.MIN_VALUE
+        for (ytd in listOf(0.5, 2.0, 5.0, 8.0, 11.0, 14.0, 17.0, 21.0, 25.0, 30.0)) {
+            val sc = EtfScore.best(base.copy(ytdReturnPct = ytd)).score
+            assertTrue("score fell from $last to $sc as YTD rose to $ytd", sc >= last)
+            last = sc
+        }
+    }
+
+    /**
+     * ROUND 66 AUDIT (ETF-5). `ramp` floors a NEGATIVE long-run return at zero points while
+     * the old `possible` still counted its full weight, so for a fund that had LOST money
+     * over three years the only surviving term was its trailing year - rescaled 2.43x. A fund
+     * down 1.5%/yr over three years with a hot +38% YTD outscored a fund up 6%/yr over three
+     * years with a sober +4% one: the exact failure the three-year floor exists to prevent,
+     * arriving through the back door.
+     */
+    @Test fun `a hot year cannot rescue a losing three-year record`() {
+        val base = EtfRow(
+            symbol = "X", name = "Fund", price = 100.0, expenseRatio = 0.35, netAssets = 2e9,
+            avgVolume3M = 5e5, fiftyDayAvg = 95.0, twoHundredDayAvg = 90.0,
+            inceptionMs = System.currentTimeMillis() - 8L * 31_557_600_000L
+        )
+        val sober = EtfScore.best(base.copy(threeYearAnnualPct = 6.0, ytdReturnPct = 4.0)).score
+        val hot = EtfScore.best(base.copy(threeYearAnnualPct = -1.5, ytdReturnPct = 38.0)).score
+        assertTrue(
+            "a fund losing 1.5%/yr over three years outscored one making 6%/yr on the " +
+                "strength of one year ($hot vs $sober)",
+            sober > hot
+        )
+    }
+
+    /**
+     * ROUND 66 AUDIT (ETF-6). Zero is a real fee - BKLC and BKAG have charged nothing since
+     * 2020 and are both in Yahoo's US ETF screen - so it cannot double as the "not published"
+     * sentinel. It did, and the cheapest funds on the market forfeited all 20 cost points and
+     * took a confidence penalty, landing on the same score as the same fund charging 0.85%.
+     */
+    @Test fun `a free fund is scored as free, not as unknown`() {
+        val base = EtfRow(
+            symbol = "X", name = "Fund", price = 100.0, netAssets = 3e9,
+            avgVolume3M = 2e5, fiftyDayAvg = 95.0, twoHundredDayAvg = 90.0,
+            inceptionMs = System.currentTimeMillis() - 6L * 31_557_600_000L,
+            fiveYearAnnualPct = 14.0, threeYearAnnualPct = 17.0, ytdReturnPct = 11.0
+        )
+        val free = EtfScore.best(base.copy(expenseRatio = 0.0))
+        val cheap = EtfScore.best(base.copy(expenseRatio = 0.03))
+        val dear = EtfScore.best(base.copy(expenseRatio = 0.85))
+        val unknown = EtfScore.best(base.copy(expenseRatio = -1.0))
+
+        assertTrue(
+            "a free fund must beat one charging 85bp (${free.score} vs ${dear.score})",
+            free.score > dear.score
+        )
+        assertTrue(
+            "a free fund must not score below one charging 3bp (${free.score} vs ${cheap.score})",
+            free.score >= cheap.score
+        )
         assertEquals(
-            "a fund topping out every horizon it reports should score the same whether or not " +
-                "one more horizon is published ($withoutYtd vs $withYtd)",
-            withoutYtd, withYtd
+            "a free fund carried the cost factor, so its confidence must match",
+            cheap.confidence, free.confidence
+        )
+        assertTrue(
+            "an UNKNOWN fee is still unknown and must lose the factor " +
+                "(${unknown.confidence} vs ${free.confidence})",
+            unknown.confidence < free.confidence
         )
     }
 

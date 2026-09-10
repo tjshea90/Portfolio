@@ -75,17 +75,53 @@ object EtfExposure {
         // Small-Cap" went the same way. That is precisely the over-grouping this file's own
         // note calls the failure that matters: it hides a real choice, silently, from someone
         // about to spend money.
+        // ---- BUT ASSET CLASS IS TESTED BEFORE REGION (Round 66 audit, ETF-3).
+        //
+        // THE BUG THIS FIXES, and it is the same over-grouping arriving from the other side.
+        // The region ladder below matches on the WHOLE NAME and knows nothing about what the
+        // fund holds, so " total international " matched inside "Vanguard Total INTERNATIONAL
+        // BOND Index Fund" and " total world " inside "Vanguard Total WORLD BOND ETF". Both
+        // came back keyed "Global equity" and were de-duplicated against VT and ACWI - and
+        // since VT scores highest of that group, `dedupe` DELETED BNDX and BNDW from the list
+        // and printed on VT's card that they were the same exposure. A world stock fund and a
+        // world bond fund are not the same decision; they are barely the same asset. The bond
+        // screen is one of the three lists fetched, so both funds are really in the universe.
+        //
+        // Falling through to the fixed-income ladder is the right answer, not a workaround:
+        // neither states a maturity band, so `maturityKey` returns null and they are left
+        // ungrouped - which is this file's standing rule for a fund it cannot place.
+        val bondWords = listOf(
+            " bond ", " bonds ", " treasury ", " treasuries ", " aggregate ", " credit ",
+            " municipal ", " muni ", " tips ", " debt ", " income "
+        )
+        val isFixedIncome = bondWords.any { n.contains(it) }
+
         val region = when {
             n.contains(" emerging markets ") || n.contains(" emerging market ") ->
                 "Emerging markets"
             n.contains(" eafe ") || n.contains(" developed markets ") ||
                 n.contains(" developed world ") -> "Developed ex-US"
-            n.contains(" total international ") || n.contains(" total world ") ||
-                n.contains(" all world ") || n.contains(" acwi ") ||
-                n.contains(" ex us ") || n.contains(" ex u s ") -> "Global equity"
+            // ---- EX-US AND ALL-WORLD ARE OPPOSITE ANSWERS (Round 66 audit, ETF-7).
+            //
+            // These were one key. They are two questions with two answers: VT and ACWI hold
+            // the whole world INCLUDING about 60% United States, while VXUS, IXUS, VEU and
+            // ACWX hold the world with NO US in it at all - which is exactly what somebody
+            // who already owns VOO is looking for. Merged, VT wins the group (its US weight
+            // carries a stronger five-year record), every ex-US fund is deleted as a
+            // duplicate of it, and the reader who wanted the rest of the world is handed a
+            // fund that is more than half the S&P 500 they already hold.
+            //
+            // EX-US IS TESTED FIRST AND THAT ORDER IS LOAD-BEARING: "Vanguard FTSE All-World
+            // ex-US Index Fund" contains BOTH " all world " and " ex us ", and ex-US is the
+            // correct reading of it.
+            n.contains(" total international ") || n.contains(" ex us ") ||
+                n.contains(" ex u s ") || n.contains(" international stock ") ->
+                "Global equity ex-US"
+            n.contains(" total world ") || n.contains(" all world ") || n.contains(" acwi ") ->
+                "Global equity incl US"
             else -> null
         }
-        if (region != null) {
+        if (region != null && !isFixedIncome) {
             // A regional fund's SIZE band still separates it: EAFE small-cap and EAFE large
             // are not one decision either.
             val size = when {
@@ -133,7 +169,16 @@ object EtfExposure {
             n.contains(" high yield ") || n.contains(" junk ") -> group("Bonds - high yield")
             n.contains(" corporate bond ") || n.contains(" investment grade ") ->
                 maturityKey(n, "Bonds - corporate")
-            n.contains(" aggregate bond ") || n.contains(" total bond ") ->
+            // ---- "US aggregate" MEANS US (Round 66 audit, ETF-3, second instance).
+            //
+            // " aggregate bond " carried no region qualifier, so "iShares Core INTERNATIONAL
+            // Aggregate Bond ETF" (IAGG, hedged ex-US debt) was keyed alongside BND, AGG and
+            // SPAB and deleted as a duplicate of them. A non-US bond fund left ungrouped is a
+            // fund the reader still gets to see; a non-US bond fund merged into the US
+            // aggregate group is a choice made for them.
+            (n.contains(" aggregate bond ") || n.contains(" total bond ")) &&
+                !n.contains(" international ") && !n.contains(" global ") &&
+                !n.contains(" world ") && !n.contains(" ex us ") && !n.contains(" ex u s ") ->
                 group("Bonds - US aggregate")
 
             // ---- commodities and cash

@@ -780,7 +780,9 @@ internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
         Row(Modifier.fillMaxWidth()) {
             FactCell(
                 "Expense",
-                if (f.expenseRatio > 0) Fmt.pct(f.expenseRatio) else DASH,
+                // `>= 0`: a 0.00% fee is a fee, and the cheapest funds on the market have one
+                // (Round 66 audit, ETF-6). -1.0 is the unknown sentinel - see [EtfFacts].
+                if (f.expenseRatio >= 0) Fmt.pct(f.expenseRatio) else DASH,
                 weight = 1f
             )
             FactCell(

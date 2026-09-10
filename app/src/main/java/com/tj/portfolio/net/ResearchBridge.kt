@@ -194,7 +194,7 @@ $bundle
                     }
                     r.etf?.let { e ->
                         put("fund", JSONObject().apply {
-                            if (e.expenseRatio > 0) put("expenseRatioPct", e.expenseRatio)
+                            if (e.expenseRatio >= 0) put("expenseRatioPct", e.expenseRatio)
                             if (e.netAssets > 0) put("netAssetsUsd", e.netAssets)
                             if (e.yieldPct != 0.0) put("yieldPct", round2(e.yieldPct))
                             if (e.ytdReturnPct != 0.0) put("ytdReturnPct", round2(e.ytdReturnPct))
