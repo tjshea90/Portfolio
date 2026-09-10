@@ -24,7 +24,7 @@ command -v python3 >/dev/null 2>&1 && echo "  OK    python3 $(python3 -V 2>&1 | 
 AHOME="${ANDROID_HOME:-/root/android-sdk}"
 [ -d "$AHOME/platforms" ] \
   && echo "  OK    android sdk present at $AHOME" \
-  || echo "  note  no android sdk yet — run: bash tools/setup-android-sdk.sh (~5 min, once)"
+  || echo "  note  no android sdk yet — installed automatically on the first build (~5 min); no action needed"
 # --- the signing keystore (BRIEF.md: "the keystore is irreplaceable") ---
 # Delegated so the expected fingerprint lives in exactly one place; see
 # tools/checkkeystore.sh for why the certificate is checked and not just the

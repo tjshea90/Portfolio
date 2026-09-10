@@ -188,12 +188,36 @@ A `git clone` alone is not enough to build a release: `app/sideload.jks`
 path first, out of band, by Tj. If it's missing, say so; do not generate a
 replacement.
 
-`bash tools/setup-android-sdk.sh` once per fresh container (~5 min, downloads
-the Android SDK). Then `./gradlew :app:assembleRelease` or, for a full
-gated release, `bash ship.sh "note"`. Read BRIEF.md's build traps first —
-several failures that look like code problems (a blanked
-`JAVA_TOOL_OPTIONS`, two concurrent Gradle builds, a cold Maven Central 429)
-are not.
+**The container provisions itself — do not run `tools/setup-android-sdk.sh`
+by hand, and do not call `./gradlew` directly.** Use:
+
+```bash
+bash tools/gradle.sh testDebugUnitTest      # or any gradle task
+bash ship.sh "note"                         # full gated release
+```
+
+Both call `tools/ensure-build-env.sh` first, which installs the Android SDK
+if this container does not have one (~5 min, once), writes
+`local.properties`, and verifies the signing keystore. It is idempotent and
+adds ~0.3s once the container is ready, so there is never a reason to skip
+it. `ship.sh` additionally treats a missing or WRONG keystore as fatal
+before it builds anything.
+
+The only thing that cannot be provisioned is `app/sideload.jks` itself —
+only Tj has it. `tools/checkkeystore.sh` verifies it by certificate
+fingerprint, so a regenerated key is caught even when its DN matches.
+
+Read BRIEF.md's build traps before fighting a build failure — several that
+look like code problems (a blanked `JAVA_TOOL_OPTIONS`, two concurrent
+Gradle builds, a cold Maven Central 429) are not. `ensure-build-env.sh`
+already names the network case when SDK install fails.
+
+**There is no CI. GitHub does not build these APKs** — checked 2026-09-10:
+no `.github/` directory, and `git log --all -- .github` is empty across the
+whole history. Every APK, v7.7 included, was built in a Claude container by
+`ship.sh` and committed to `releases/`. Adding GitHub Actions would require
+uploading the keystore into GitHub Secrets, which is Tj's decision to make,
+not a default to assume.
 
 ## Project rules
 
