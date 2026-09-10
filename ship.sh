@@ -113,35 +113,31 @@ if [ "$LOCAL" -eq 1 ]; then
 fi
 
 # ------------------------------------------------------------------ the normal path
-if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null 2>&1 ||
-   git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
-  echo "  FAIL  tag $TAG already exists. A released version is never re-tagged:"
-  echo "        bump versionCode and versionName in app/build.gradle.kts instead."
-  exit 1
-fi
-
-# The tag must point at what was just gated, and it must be on GitHub before the tag is,
-# or the workflow checks out a commit the remote does not have.
+#
+# WHY THIS DOES NOT PUSH A TAG.
+# The obvious design is `git tag v7.9 && git push origin v7.9`, and it does not work from a
+# Claude container: the session's egress policy allows pushes to refs/heads/* and answers
+# 403 to refs/tags/*. Measured, not guessed. So the tag is created by GitHub instead - the
+# workflow's publish step calls `gh release create --target <sha>`, which makes the tag
+# server-side. A tag push still triggers a build for anyone who CAN push one.
 if ! bash tools/push.sh; then
-  echo "  FAIL  could not push the commit. Not tagging - a tag whose commit is missing"
-  echo "        from GitHub would start a run against nothing."
+  echo "  FAIL  could not push the commit. Nothing to build - a run would check out a"
+  echo "        commit GitHub does not have."
   exit 1
 fi
-git tag -a "$TAG" -m "Portfolio $TAG (versionCode $VCODE): $NOTE" >/dev/null 2>&1
-if ! timeout 45 git push -q origin "refs/tags/$TAG" >/dev/null 2>&1; then
-  echo "  FAIL  could not push the tag. Retry:  git push origin $TAG"
-  exit 1
-fi
-
-echo "  OK    tagged $TAG and pushed — GitHub is building it now"
+echo "  OK    commit pushed"
 echo
-echo "== $TAG handed to GitHub (code $VCODE) =="
+echo "== v$VNAME (code $VCODE) is ready for GitHub to build =="
 echo
-echo "  Watch:   https://github.com/tjshea90/Portfolio/actions"
-echo "  The run builds, SIGNS with the keystore in GitHub Secrets, verifies the"
-echo "  certificate on the artifact itself, and publishes it under Releases."
+echo "  NEXT, and Claude does this - it needs the GitHub API, not git:"
+echo "    trigger the 'Build APK' workflow on main with full_build=true"
+echo "    (mcp__github__actions_run_trigger, method run_workflow, android.yml)"
+echo
+echo "  That run builds, SIGNS with the keystore in GitHub Secrets, verifies the"
+echo "  certificate on the APK it just produced, creates the tag v$VNAME and"
+echo "  publishes it under Releases."
 echo
 echo "  WHEN THAT RUN IS GREEN, and not before:"
-echo "    bash tools/record-release.sh $TAG \"$NOTE\""
+echo "    bash tools/record-release.sh v$VNAME \"$NOTE\""
 echo "  BUILDLOG.md is what the next release is gated against, so a line in it"
 echo "  must never describe a build that does not exist."
