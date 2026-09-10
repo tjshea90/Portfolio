@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 13:21:36 UTC",
+  "updated": "2026-09-10 13:21:37 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -577,8 +577,8 @@
       "id": "EXP1",
       "text": "Settings' request-counter card says to pull down to update it, but the value is in a remember whose keys pull-to-refresh never changes - frozen at tab-open",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Pull-to-refresh on Settings now bumps infoTick, so the request counter updates the way the card says it does"
     },
     {
       "id": "EXP2",
@@ -1227,6 +1227,7 @@
     "2026-09-10 13:13:28 UTC  finding EXP2: refreshStatus claims 'updating every 15s' on the Settings tab, which is exactly ",
     "2026-09-10 13:13:28 UTC  finding EXP3: The 52-week high/low sheets compute distance without clamping, so a new high rea",
     "2026-09-10 13:21:36 UTC  CRX2 fixed: Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code",
-    "2026-09-10 13:21:36 UTC  CRX1 fixed: 'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code"
+    "2026-09-10 13:21:36 UTC  CRX1 fixed: 'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code",
+    "2026-09-10 13:21:37 UTC  EXP1 fixed: Pull-to-refresh on Settings now bumps infoTick, so the request counter updates the way the card says it does"
   ]
 }

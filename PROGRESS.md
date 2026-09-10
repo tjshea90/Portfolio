@@ -743,3 +743,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-10 06:01:47 UTC  checkpoint 66  commit 82b625a  6 self-inflicted regressions + 7 detail findings fixed. 784 tests, 0 failures
 2026-09-10 13:13:37 UTC  checkpoint 66  commit 706b5c7  Recovered 2 cross-cutting (1 HIGH data loss) and 3 settings/Explain findings from disk after both agents hit the limit
 2026-09-10 13:21:36 UTC  checkpoint 66  commit f82a8f5  fix CRX2
+2026-09-10 13:21:37 UTC  checkpoint 66  commit 21ee9d2  fix CRX1
