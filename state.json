@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 05:35:12 UTC",
+  "updated": "2026-09-10 05:35:13 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -458,8 +458,8 @@
       "id": "RES7",
       "text": "enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back the pre-suspension snapshot - a Claude import landing in that window is silently discarded AND persisted as lost",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy"
     },
     {
       "id": "RES8",
@@ -1066,6 +1066,7 @@
     "2026-09-10 05:35:10 UTC  RES3 fixed: One fund per exposure now applies on the Claude path too, beside dropLeveraged; gaps hint no longer names both AGG and BND; prompt says one fund per exposure",
     "2026-09-10 05:35:11 UTC  RES4 fixed: Dead ResearchRow.followed deleted, with a note saying where the chip really comes from",
     "2026-09-10 05:35:12 UTC  RES5 fixed: resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts",
-    "2026-09-10 05:35:12 UTC  RES6 fixed: Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch"
+    "2026-09-10 05:35:12 UTC  RES6 fixed: Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch",
+    "2026-09-10 05:35:13 UTC  RES7 fixed: enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy"
   ]
 }
