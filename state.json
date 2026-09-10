@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 05:35:13 UTC",
+  "updated": "2026-09-10 05:35:14 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -465,8 +465,8 @@
       "id": "RES8",
       "text": "Seven comment sites still count three stock lists or four sections after the Worst deletion, including the data model header a maintainer reads first",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Section counts corrected in all seven comment sites"
     }
   ],
   "log": [
@@ -1067,6 +1067,7 @@
     "2026-09-10 05:35:11 UTC  RES4 fixed: Dead ResearchRow.followed deleted, with a note saying where the chip really comes from",
     "2026-09-10 05:35:12 UTC  RES5 fixed: resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts",
     "2026-09-10 05:35:12 UTC  RES6 fixed: Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch",
-    "2026-09-10 05:35:13 UTC  RES7 fixed: enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy"
+    "2026-09-10 05:35:13 UTC  RES7 fixed: enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy",
+    "2026-09-10 05:35:14 UTC  RES8 fixed: Section counts corrected in all seven comment sites"
   ]
 }

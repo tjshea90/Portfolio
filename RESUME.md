@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 05:35:13 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 05:35:14 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 2 still open, 54 fixed
+## 5. Open findings — 1 still open, 55 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -106,7 +106,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] RES5 (med) resetResearchPaging() has zero callers, so a page count of 40 survives a rebuild and the next TTL rebuild fires up to 50 Nasdaq requests with no user action  — resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts
 - [x] RES6 (low) The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the Section enum - two lists in two files, so the guard does not protect the array access it was written for  — Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch
 - [x] RES7 (med) enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back the pre-suspension snapshot - a Claude import landing in that window is silently discarded AND persisted as lost  — enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy
-- [ ] RES8 (low) Seven comment sites still count three stock lists or four sections after the Worst deletion, including the data model header a maintainer reads first
+- [x] RES8 (low) Seven comment sites still count three stock lists or four sections after the Worst deletion, including the data model header a maintainer reads first  — Section counts corrected in all seven comment sites
 
 ## 6. Version
 
@@ -117,7 +117,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 05:25:24 UTC  finding RES4: ResearchRow.followed is dead: nothing writes or reads it and it is not in the JS
 - 2026-09-10 05:25:24 UTC  finding RES5: resetResearchPaging() has zero callers, so a page count of 40 survives a rebuild
 - 2026-09-10 05:25:24 UTC  finding RES6: The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the 
 - 2026-09-10 05:25:25 UTC  finding RES7: enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back th
@@ -129,4 +128,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 05:35:12 UTC  RES5 fixed: resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts
 - 2026-09-10 05:35:12 UTC  RES6 fixed: Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch
 - 2026-09-10 05:35:13 UTC  RES7 fixed: enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy
+- 2026-09-10 05:35:14 UTC  RES8 fixed: Section counts corrected in all seven comment sites
 
