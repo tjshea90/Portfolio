@@ -710,3 +710,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-10 01:08:12 UTC  checkpoint 66  commit 38f62b0  fix ETF2
 2026-09-10 01:08:13 UTC  checkpoint 66  commit fc51d6d  fix ETF4
 2026-09-10 01:08:13 UTC  checkpoint 66  commit 6654c0d  fix ETF8
+2026-09-10 01:08:14 UTC  checkpoint 66  commit 50a6ffb  All 8 ETF findings fixed. 770 tests, 0 failures

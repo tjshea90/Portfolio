@@ -288,9 +288,16 @@ fun PriceChart(
     // armed the hold while the pan callback was null and the drag scrubbed. That is M03 again,
     // approached from the other side: the caption and the gesture must be one predicate, and
     // the predicate has to include everything the gesture needs.
+    // `windowBounds != null` IS ALSO PART OF IT (Round 66 audit, CHT-4). Same shape as N05,
+    // one parameter further along: `windowBounds` is optional too, and `pan()` returns null
+    // without it. So a chart given `window` and `onWindow` but no bounds captioned "drag to
+    // move, hold to scrub", armed the 350ms hold - which consumes from the moment it fires,
+    // before the touch slop, so a press that pauses and then turns into a page scroll stopped
+    // the page dead - and then scrubbed when the drag was finally decided. One predicate has
+    // to mean one thing, and it has to include EVERYTHING the gesture needs.
     val canReportWindow = onWindow != null
-    val canPanNow = remember(window, seriesWindowAll, canReportWindow) {
-        canReportWindow && window != null && seriesWindowAll != null &&
+    val canPanNow = remember(window, seriesWindowAll, canReportWindow, windowBounds) {
+        canReportWindow && windowBounds != null && window != null && seriesWindowAll != null &&
             window.spanMs < seriesWindowAll.spanMs
     }
     val axisWindow = remember(drawnAll, window) {
@@ -365,7 +372,30 @@ fun PriceChart(
                     val pts = liveSeries.value?.points.orEmpty()
                     val w = size.width.toFloat()
                     if (pts.size >= 2 && w > 0f) {
-                        scrub.intValue = nearestIndex(pts, x / w, liveAxis.value)
+                        val axis = liveAxis.value
+                        val idx = nearestIndex(pts, x / w, axis)
+                        // ---- NOTHING UNDER THE FINGER IS AN ANSWER (Round 66 audit, CHT-3).
+                        //
+                        // THE BUG THIS FIXES. `nearestIndex`'s on-screen clamp has a fallback:
+                        // when NO point falls inside the axis it returns the nearest one
+                        // anyway, "which is all there is". That case is reachable - zoom into
+                        // the middle of a 5Y (weekly) or All (monthly) chart and the window can
+                        // land entirely between two candles, since `MIN_SPAN_MS` is thirty
+                        // minutes. The readout then printed a price and a date from a candle
+                        // WEEKS outside the window, while the crosshair meant to show where
+                        // that price came from was drawn at an x hundreds of screen-widths away
+                        // and clipped off the canvas. A number under the finger, a date
+                        // contradicting the axis right below it, and nothing marking the spot.
+                        //
+                        // A point outside the axis is not a point the reader is touching, so
+                        // the honest answer is the one both halves already understand: no
+                        // scrub. The readout falls back to the live price and the crosshair
+                        // draws nothing, which is what the chart looks like before a finger
+                        // lands at all.
+                        scrub.intValue = if (axis == null) idx else {
+                            val tMs = pts[idx].t * 1000L
+                            if (tMs in axis.startMs..axis.endMs) idx else NO_SCRUB
+                        }
                     }
                 },
                 clearPoint = { scrub.intValue = NO_SCRUB },
@@ -1874,6 +1904,12 @@ internal suspend fun PointerInputScope.chartGestures(
         // Where the pinch was centred on the previous frame, for the pan. NaN means "no
         // reading yet" - the first frame of a pinch, or the frame after the pair changed.
         var centroid = Float.NaN
+        /**
+         * How many pointers [centroid] was averaged over (Round 66 audit, CHT-1). A reading
+         * taken over a different number of fingers is not comparable with this one, so the
+         * next frame re-seeds instead of reporting the difference as hand movement.
+         */
+        var centroidN = 0
         // Zoom the fingers have done but that has not yet cleared the noise floor. See the
         // note at its use below.
         var pendingZoom = 1f
@@ -1946,6 +1982,7 @@ internal suspend fun PointerInputScope.chartGestures(
                         pendingZoom = 1f
                         pair = null
                         centroid = Float.NaN
+                        centroidN = 0
                         // The window itself is NOT re-seeded here - see the caller's note on
                         // review M04. A pinch that follows a pan continues from where the pan
                         // left the window.
@@ -1964,6 +2001,7 @@ internal suspend fun PointerInputScope.chartGestures(
                         // centroid against one computed from different fingers would report a
                         // jump the hand never made.
                         centroid = Float.NaN
+                        centroidN = 0
                         continue
                     }
 
@@ -1991,7 +2029,26 @@ internal suspend fun PointerInputScope.chartGestures(
                             // PAN AFTER ZOOM, and against the PREVIOUS centroid: the zoom has
                             // already moved the window under a fixed point, so what is left is
                             // how far that point itself travelled.
-                            if (onPan != null && centroid.isFinite()) {
+                            // ---- AND OVER THE SAME NUMBER OF FINGERS (Round 66 audit, CHT-1).
+                            //
+                            // THE BUG THIS FIXES. `pair` is re-chosen, and `centroid` reset,
+                            // only when one of the two MEASURED fingers has gone - but
+                            // `centroidX` averages EVERY pressed pointer. A third finger
+                            // landing (a resting palm, a steadying thumb) leaves the pair
+                            // intact, so `zoomFactor` still returns a value and none of the
+                            // resets above fire, while `mid` jumps by a third of the distance
+                            // to the new finger. On a 1080px chart, fingers at 100 and 300
+                            // with a third arriving at 1000: `mid` goes 200 -> 466.7 and this
+                            // line reports a pan of a quarter of the visible span, in one
+                            // frame, from a finger that only touched down. Lifting it reports
+                            // the same jump back the other way. `centroidX`'s own KDoc
+                            // promises the opposite: "a third finger landing should not make
+                            // the window jump".
+                            //
+                            // A frame where the count changed re-seeds the reference and
+                            // reports nothing - exactly what the pair-changed path already
+                            // does one screen up.
+                            if (onPan != null && centroid.isFinite() && centroidN == pressed) {
                                 val moved = mid - centroid
                                 // The content follows the fingers, so the WINDOW moves the
                                 // other way: dragging right shows earlier time.
@@ -1999,6 +2056,7 @@ internal suspend fun PointerInputScope.chartGestures(
                             }
                         }
                         centroid = mid
+                        centroidN = pressed
                         continue
                     }
 
@@ -2017,10 +2075,32 @@ internal suspend fun PointerInputScope.chartGestures(
                 }
 
                 if (mode == GestureMode.ZOOM) {
-                    // Down to one finger, but this is still the tail of a pinch. Keep
-                    // consuming so the list below does not suddenly start scrolling.
-                    event.changes.forEach { if (it.pressed) it.consume() }
-                    continue
+                    // ---- A PINCH DOWN TO ONE FINGER BECOMES A PAN (Round 66 audit, CHT-2).
+                    //
+                    // THE BUG THIS FIXES. This arm consumed and `continue`d unconditionally,
+                    // and nothing else could ever assign `mode` once it had left UNDECIDED -
+                    // so ZOOM latched until the LAST finger lifted. Lift one finger of a pinch
+                    // and keep dragging with the other and the chart was inert: the window did
+                    // not move, no crosshair appeared, and because the frame was still being
+                    // consumed the page underneath could not scroll either. The natural way to
+                    // end a two-finger zoom is to lift one finger, so this was reachable by
+                    // ordinary use, and the app simply stopped responding until the hand came
+                    // off the glass.
+                    //
+                    // PAN, NEVER SCRUB. The rule at the top of this function is that the tail
+                    // of a pinch must not turn into a scrub, and it still holds - a pinch only
+                    // happens on a chart that can pan, and panning is the continuation of what
+                    // the two fingers were already doing. The window is not re-seeded, so it
+                    // carries on from exactly where the pinch left it, and a second finger
+                    // landing again re-enters ZOOM through the branch above.
+                    if (pressed == 1 && canPan() && onPan != null) {
+                        mode = GestureMode.PAN
+                    } else {
+                        // Still the tail of a pinch with nowhere to go. Keep consuming so the
+                        // list below does not suddenly start scrolling.
+                        event.changes.forEach { if (it.pressed) it.consume() }
+                        continue
+                    }
                 }
 
                 val change = event.changes.firstOrNull { it.pressed } ?: break
