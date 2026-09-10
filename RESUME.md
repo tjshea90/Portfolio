@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 2 still open, 67 fixed
+## 5. Open findings — 1 still open, 68 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -119,7 +119,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] DET5 (low) MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line above writes -$0.42 - the one formatter in the app that disagrees with the rest  — Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter
 - [x] DET6 (low) TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty*price against the NET total, so it fires on every fee-bearing trade even when the answer is exact  — The caveat compares the computed cash against the typed total, so it fires only when they really disagree
 - [x] DET7 (low) refreshEverything force-reloads the fund register only when the Holdings tab is selected, but that tab exists only once the register loaded - so pull-to-refresh cannot recover a failed lookup  — Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed
-- [ ] DET8 (low) OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stock in place opens the new one at the previous one's scroll offset
+- [x] DET8 (low) OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stock in place opens the new one at the previous one's scroll offset  — OverviewTab's scroll state keyed on the symbol
 
 ## 6. Version
 
@@ -130,7 +130,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 06:01:36 UTC  REG1 fixed: EtfRow.merge now tests >= 0 like every other reader of the fee sentinel
 - 2026-09-10 06:01:37 UTC  REG2 fixed: Migration scoped to the etfs array and to the full fingerprint: no facts, a paragraph, and a score that is a positive multiple of ten. Three tests guard the rows it must not touch
 - 2026-09-10 06:01:38 UTC  REG3 fixed: DetailScreen's watch button now reads row.watched and says 'Remove from watchlist' when that is what it will do
 - 2026-09-10 06:01:39 UTC  REG4 fixed: The 'same exposure' line is PREPENDED on the import path too, so it survives reasons.take(6)
@@ -142,4 +141,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 06:01:43 UTC  DET5 fixed: Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter
 - 2026-09-10 06:01:44 UTC  DET6 fixed: The caveat compares the computed cash against the typed total, so it fires only when they really disagree
 - 2026-09-10 06:01:45 UTC  DET7 fixed: Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed
+- 2026-09-10 06:01:45 UTC  DET8 fixed: OverviewTab's scroll state keyed on the symbol
 

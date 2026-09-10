@@ -556,8 +556,8 @@
       "id": "DET8",
       "text": "OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stock in place opens the new one at the previous one's scroll offset",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "OverviewTab's scroll state keyed on the symbol"
     }
   ],
   "log": [
@@ -1184,6 +1184,7 @@
     "2026-09-10 06:01:42 UTC  DET4 fixed: The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged",
     "2026-09-10 06:01:43 UTC  DET5 fixed: Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter",
     "2026-09-10 06:01:44 UTC  DET6 fixed: The caveat compares the computed cash against the typed total, so it fires only when they really disagree",
-    "2026-09-10 06:01:45 UTC  DET7 fixed: Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed"
+    "2026-09-10 06:01:45 UTC  DET7 fixed: Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed",
+    "2026-09-10 06:01:45 UTC  DET8 fixed: OverviewTab's scroll state keyed on the symbol"
   ]
 }
