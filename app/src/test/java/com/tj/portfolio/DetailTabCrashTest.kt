@@ -69,22 +69,29 @@ class DetailTabCrashTest {
     }
 
     @Test
-    fun `every tab can be selected at either list size without going out of bounds`() {
-        for (fund in listOf(false, true)) {
-            val tabs = visibleTabs(fund)
-            for (t in DetailTab.entries) {
-                var isFund by mutableStateOf(fund)
-                rule.setContent {
-                    PortfolioTheme {
-                        val shown = visibleTabs(isFund)
-                        DetailTabRow(shown, t) { }
-                    }
-                }
-                rule.waitForIdle()
-                isFund = !fund
+    fun `every tab survives the list resizing under it`() {
+        // ONE setContent for the whole test: `createComposeRule` allows exactly one per
+        // rule, and calling it in a loop throws "has already set content" - which is what
+        // the first version of this test did, and it failed for that reason rather than
+        // for anything about the tab strip.
+        var isFund by mutableStateOf(false)
+        var current by mutableStateOf(DetailTab.OVERVIEW)
+
+        rule.setContent {
+            PortfolioTheme {
+                DetailTabRow(visibleTabs(isFund), current) { current = it }
+            }
+        }
+        rule.waitForIdle()
+
+        for (t in DetailTab.entries) {
+            for (fund in listOf(false, true, false)) {
+                current = t
+                isFund = fund
                 rule.waitForIdle()
             }
-            assertEquals(if (fund) 6 else 5, tabs.size)
         }
+        assertEquals(5, visibleTabs(false).size)
+        assertEquals(6, visibleTabs(true).size)
     }
 }
