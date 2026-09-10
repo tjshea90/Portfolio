@@ -164,9 +164,15 @@ grep -q '^\*\*Branch:\*\*' "$FX/CHECKPOINT.md" && ok "CHECKPOINT.md records its 
 
 # A cold session must be TOLD about the keystore, not discover it minutes into
 # a failed Gradle run. The fixtures have no app/ dir, so this is the missing case.
-( cd "$RA" && bash bootstrap.sh 2>/dev/null ) | grep -qi "signing keystore" \
-  && ok "bootstrap reports the signing keystore state at session start" \
-  || bad "bootstrap says nothing about the keystore"
+# NOTE the shape: capture, then match. Piping into `grep -q` under `set -o
+# pipefail` reports FAILURE even on a match — grep -q exits at the first hit,
+# the producer takes SIGPIPE, and pipefail surfaces that. It cost a false red
+# here already.
+KSOUT="$( cd "$RA" && bash bootstrap.sh 2>/dev/null )"
+case "$KSOUT" in
+  *"signing keystore"*) ok "bootstrap reports the signing keystore state at session start" ;;
+  *) bad "bootstrap says nothing about the keystore" ;;
+esac
 
 # ---- 6. the secret scan still has teeth --------------------------------------
 S="$TMP/secret"; mkdir -p "$S"; cp -r tools "$S/tools"
