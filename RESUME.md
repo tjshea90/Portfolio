@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 01:16:03 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 01:16:04 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 3 still open, 45 fixed
+## 5. Open findings — 2 still open, 46 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -97,7 +97,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] ETF8 (med) isLeveragedOrInverse is applied only on the screener path, so a leveraged fund Claude adds (TQQQ) survives on a list whose own sources note says leveraged and inverse funds are excluded  — Leveraged/inverse funds dropped on the Claude path too, once the quote fill supplies a name; prompt now says not to add them
 - [x] CHT1 (med) Two-finger pan compares centroidX across frames even when the POINTER COUNT changed, so a third finger landing reports a quarter-span pan that never happened  — centroidN tracks how many pointers the pan reference was measured over; a frame with a different count re-seeds instead of reporting a phantom pan
 - [x] CHT2 (med) GestureMode.ZOOM latches until every finger lifts: one finger of a pinch leaving leaves the chart inert and consuming, so neither the chart nor the page beneath it can move  — A pinch down to one finger becomes a PAN (never a scrub) instead of latching in ZOOM and consuming forever
-- [ ] CHT3 (med) nearestIndex's off-screen clamp is skipped when the window falls between two candles, so the readout prints a price and date from weeks outside the window with no crosshair anywhere
+- [x] CHT3 (med) nearestIndex's off-screen clamp is skipped when the window falls between two candles, so the readout prints a price and date from weeks outside the window with no crosshair anywhere  — pointAt returns NO_SCRUB when the nearest point falls outside the axis, so the readout and the crosshair never disagree
 - [ ] CHT4 (low) canPanNow omits windowBounds != null while pan() requires it, so the caption promises a pan that cannot exist and the 350ms hold still arms and consumes
 
 ## 6. Version
@@ -109,7 +109,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 00:59:16 UTC  finding CHT3: nearestIndex's off-screen clamp is skipped when the window falls between two can
 - 2026-09-10 00:59:16 UTC  finding CHT4: canPanNow omits windowBounds != null while pan() requires it, so the caption pro
 - 2026-09-10 01:03:35 UTC  ETF1 fixed: YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points
 - 2026-09-10 01:03:35 UTC  ETF5 fixed: Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x
@@ -121,4 +120,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 01:08:13 UTC  ETF8 fixed: Leveraged/inverse funds dropped on the Claude path too, once the quote fill supplies a name; prompt now says not to add them
 - 2026-09-10 01:16:02 UTC  CHT1 fixed: centroidN tracks how many pointers the pan reference was measured over; a frame with a different count re-seeds instead of reporting a phantom pan
 - 2026-09-10 01:16:03 UTC  CHT2 fixed: A pinch down to one finger becomes a PAN (never a scrub) instead of latching in ZOOM and consuming forever
+- 2026-09-10 01:16:04 UTC  CHT3 fixed: pointAt returns NO_SCRUB when the nearest point falls outside the axis, so the readout and the crosshair never disagree
 
