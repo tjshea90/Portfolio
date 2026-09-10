@@ -691,3 +691,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-10 00:26:38 UTC  checkpoint 66  commit 642bf60  portfolio-ui audit returned 7 findings (1 HIGH); detail-ui and research-ui agents died on session limit
 2026-09-10 00:37:22 UTC  checkpoint 66  commit 7cafd42  fix PUI1
 2026-09-10 00:37:23 UTC  checkpoint 66  commit 6d79806  fix PUI2
+2026-09-10 00:37:25 UTC  checkpoint 66  commit 89f7bd2  fix PUI3
