@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 01:03:37 UTC",
+  "updated": "2026-09-10 01:08:12 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -339,8 +339,8 @@
       "id": "ETF2",
       "text": "EtfScreener.fetch returns emptyList() for both 'past the end' and 'no host answered', so fetchAll's empty-page stop silently truncates 523 funds to 200 on a transient 429 - and buildEtfs only warns when a list returns nothing at all",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "fetch returns null for 'nobody answered' vs emptyList for 'end of list'; fetchAll reports completeness and buildEtfs warns when a screen answered only part of its pages"
     },
     {
       "id": "ETF3",
@@ -989,6 +989,7 @@
     "2026-09-10 01:03:35 UTC  ETF5 fixed: Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x",
     "2026-09-10 01:03:36 UTC  ETF6 fixed: expenseRatio sentinel is -1.0 through EtfRow, EtfFacts, parse, toJson/fromJson, the card and the Claude prompt; oneYearPct no longer opens the return block",
     "2026-09-10 01:03:37 UTC  ETF3 fixed: Asset class tested before region, with a bond-word guard; 'aggregate bond' now requires the name not to be international/global/world/ex-US",
-    "2026-09-10 01:03:37 UTC  ETF7 fixed: Global equity split into 'incl US' and 'ex-US', ex-US tested first so 'All-World ex-US' reads correctly"
+    "2026-09-10 01:03:37 UTC  ETF7 fixed: Global equity split into 'incl US' and 'ex-US', ex-US tested first so 'All-World ex-US' reads correctly",
+    "2026-09-10 01:08:12 UTC  ETF2 fixed: fetch returns null for 'nobody answered' vs emptyList for 'end of list'; fetchAll reports completeness and buildEtfs warns when a screen answered only part of its pages"
   ]
 }

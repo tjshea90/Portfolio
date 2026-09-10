@@ -275,7 +275,9 @@ own arithmetic; it cannot explain them and it cannot search the web.
   and inverse funds are excluded. The universe is Yahoo's own ETF screens and it OMITS
   several of the most widely held US funds - the symbols in "etfUniverseGaps" are examples.
   Add any fund that belongs on a best-ETF list and is not there; give each one a short
-  "category" so the list reads as a set rather than a leaderboard.
+  "category" so the list reads as a set rather than a leaderboard. Do NOT add leveraged,
+  inverse or single-stock funds - the app excludes them deliberately and drops them again
+  if they arrive.
 
 Each row carries the app's score out of 100 and the reason lines behind it.
 

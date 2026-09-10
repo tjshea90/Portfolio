@@ -79,7 +79,18 @@ object EtfScreener {
      * [start] is Yahoo's own offset. A page beyond the end of a list returns no quotes rather
      * than an error, which is the natural stopping condition for [fetchAll].
      */
-    suspend fun fetch(listId: String, count: Int = MAX_COUNT, start: Int = 0): List<EtfRow> {
+    /**
+     * One page.
+     *
+     * ---- NULL AND EMPTY ARE DIFFERENT ANSWERS (Round 66 audit, ETF-2)
+     *
+     * `emptyList()` means "Yahoo answered, and there is nothing here" - the end of the list.
+     * `null` means "no host would answer": both cooling, both refusing, or the body
+     * unparseable. They used to be the same value, and [fetchAll] stops on an empty page, so
+     * a single transient 429 in the middle of a list truncated the fund universe and looked
+     * exactly like reaching the end of it.
+     */
+    suspend fun fetch(listId: String, count: Int = MAX_COUNT, start: Int = 0): List<EtfRow>? {
         val n = count.coerceIn(1, MAX_COUNT)
         val from = start.coerceAtLeast(0)
         for (host in listOf("query1", "query2")) {
@@ -112,7 +123,8 @@ object EtfScreener {
             // every list's terminal page cost two requests rather than one.
             if (isWellFormed(r.body)) return emptyList()
         }
-        return emptyList()
+        // Nothing answered. NOT the same as an empty list - see the KDoc.
+        return null
     }
 
     /** True when the body is a screener response we understood, however few rows it carried. */
@@ -132,10 +144,60 @@ object EtfScreener {
      * Stops early on an empty page, so a list shorter than expected costs one wasted request
      * rather than all of them.
      */
-    suspend fun fetchAll(listId: String, pages: Int = 3): List<EtfRow> {
-        val out = ArrayList<EtfRow>(pages * MAX_COUNT)
-        for (p in 0 until pages.coerceAtLeast(1)) {
-            val page = fetch(listId, MAX_COUNT, p * MAX_COUNT)
+    data class Fetched(
+        val rows: List<EtfRow>,
+        /**
+         * True when every page asked for was either delivered or reached the end of the list.
+         *
+         * False means a page went unanswered and the universe is SHORT by an unknown amount -
+         * which the caller has to be able to say out loud, because the alternative is a
+         * ranking built from a fraction of the funds while the screen still claims to have
+         * read all of them (Round 66 audit, ETF-2).
+         */
+        val complete: Boolean,
+        /** How many pages actually arrived, for the warning text. */
+        val pagesRead: Int,
+        val pagesAsked: Int
+    )
+
+    suspend fun fetchAll(listId: String, pages: Int = 3): Fetched =
+        fetchAllWith(pages) { start -> fetch(listId, MAX_COUNT, start) }
+
+    /**
+     * [fetchAll]'s loop, with the page fetcher handed in.
+     *
+     * Split out for one reason: the decision this loop makes - stop and call it complete, or
+     * stop and say the universe is short - is the whole of ETF-2, and it was untestable while
+     * it could only be reached through two live Yahoo hosts. `page` returns null for "nobody
+     * answered" and an empty list for "that is the end of the list", exactly as [fetch] does.
+     */
+    internal suspend fun fetchAllWith(
+        pages: Int,
+        page: suspend (start: Int) -> List<EtfRow>?
+    ): Fetched {
+        val want = pages.coerceAtLeast(1)
+        val out = ArrayList<EtfRow>(want * MAX_COUNT)
+        var read = 0
+        var unanswered = false
+        for (p in 0 until want) {
+            val got = page(p * MAX_COUNT)
+            // ---- A PAGE NOBODY ANSWERED IS NOT THE END OF THE LIST (Round 66 audit, ETF-2).
+            //
+            // THE BUG THIS FIXES. `fetch` returned `emptyList()` for four different reasons -
+            // past the end, both hosts cooling, both refusing, body unparseable - so this loop
+            // could not tell them apart and treated all four as "that was the last page".
+            // `Http` arms cooldowns per host and every feed in the app shares query1, so a
+            // chart or a quote batch tripping a 429 anywhere was enough: page 2 of the US ETF
+            // screen came back empty, the loop broke, and the universe was 200 funds instead
+            // of 523. `buildEtfs` only warned when a list returned NOTHING, so 200 rows passed
+            // silently and the screen went on saying it had ranked about 850 funds.
+            //
+            // Ironic detail worth recording: the Round 66 change that made a cooling host
+            // `continue` instead of abandoning the call - a strict improvement on its own -
+            // made THIS failure more likely, because it turned "give up loudly" into "return
+            // empty quietly".
+            if (got == null) { unanswered = true; break }
+            read++
             // ---- STOP ONLY ON AN EMPTY PAGE (Round 66 audit, E1).
             //
             // THE BUG THIS FIXES. This used to also stop on `page.size < MAX_COUNT`, which
@@ -151,10 +213,12 @@ object EtfScreener {
             // The empty-page stop that `fetch` already documents is the correct one and needs
             // no extra information. `pages` is bounded at six, so the worst case is one wasted
             // request per list - which is the cheaper mistake by a wide margin.
-            if (page.isEmpty()) break
-            out.addAll(page)
+            if (got.isEmpty()) break
+            out.addAll(got)
         }
-        return out
+        // Reaching the end of a SHORT list is complete - the list really is that long. Only
+        // a page nobody answered leaves the universe short by an unknown amount.
+        return Fetched(out, complete = !unanswered, pagesRead = read, pagesAsked = want)
     }
 
     /** Split out so it can be tested against a saved response with no network. */

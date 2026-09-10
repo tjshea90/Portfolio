@@ -5188,9 +5188,30 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // universe cannot see, and those rows arrive with no price - so leaving them out
         // spent a real quote request per added fund and discarded the answer, then
         // re-spent it on the next import because the row still had no price.
+        // ---- LEVERAGED AND INVERSE FUNDS ARE DROPPED HERE TOO (Round 66 audit, ETF-8).
+        //
+        // THE BUG THIS FIXES. `EtfScore.isLeveragedOrInverse` was applied on the SCREENER path
+        // only, and the ETF list has a second entrance: Claude is explicitly asked to add
+        // funds the app's screener universe cannot see. Ask it for the best ETFs and TQQQ is a
+        // reasonable thing for a model to name - so a 3x fund could land on a list whose own
+        // sources note reads "Leveraged and inverse funds are excluded", and then survive
+        // every six-hourly rebuild because `carryEtfExplanations` carries it forward.
+        //
+        // IT HAS TO BE HERE AND NOT AT MERGE TIME. The matcher reads the fund's NAME, and a
+        // row Claude added arrives with a symbol and a paragraph but no name - that is exactly
+        // why it is in this function's list of rows to fill. So the test runs on the filled
+        // copy, one line after the name exists. The prompt now says so as well, but a prompt
+        // is a request and this is the guarantee.
+        fun dropLeveraged(list: List<com.tj.portfolio.data.ResearchRow>) =
+            list.filterNot {
+                it.name.isNotBlank() &&
+                    com.tj.portfolio.net.EtfScore.isLeveragedOrInverse(it.name, it.symbol)
+            }
         cacheResearch(
             s.copy(
-                trending = fill(s.trending), best = fill(s.best), etfs = fill(s.etfs)
+                trending = fill(s.trending),
+                best = fill(s.best),
+                etfs = dropLeveraged(fill(s.etfs))
             )
         )
     }

@@ -211,10 +211,29 @@ object Research {
         // 429. This pass has a six-hour TTL - it does not need to be quick, it needs to land.
         val universe = LinkedHashMap<String, EtfRow>()
         for ((id, pages) in plan) {
-            val rows = runCatching { EtfScreener.fetchAll(id, pages) }.getOrDefault(emptyList())
+            val got = runCatching { EtfScreener.fetchAll(id, pages) }
+                .getOrDefault(EtfScreener.Fetched(emptyList(), complete = false, 0, pages))
+            val rows = got.rows
             if (rows.isEmpty()) {
                 warnings.add("${EtfScreener.label(id)} did not answer")
                 continue
+            }
+            // ---- A LIST THAT ANSWERED PARTLY IS NOT A LIST THAT ANSWERED (Round 66 audit,
+            // ETF-2).
+            //
+            // This used to warn only when a screen returned NOTHING. A screen that returned
+            // its first two pages and then hit a cooldown returned 200 of 523 funds, which is
+            // not nothing, so nothing was said - and the sources note under the list went on
+            // telling TJ it had ranked about 850 funds. He is choosing what to buy from the
+            // top of it; "these are the best funds" and "these are the best of the third of
+            // the funds we managed to read" are different sentences and he is entitled to
+            // know which one he is looking at.
+            if (!got.complete) {
+                warnings.add(
+                    "${EtfScreener.label(id)} answered only ${got.pagesRead} of " +
+                        "${got.pagesAsked} pages - Yahoo was rate-limiting. This ranking is " +
+                        "over ${rows.size} of its funds; pull down in a few minutes for the rest."
+                )
             }
             for (r in rows) {
                 val existing = universe[r.symbol]
@@ -241,7 +260,28 @@ object Research {
             .filter { !EtfScore.isLeveragedOrInverse(it.name, it.symbol) }
             .map { it to EtfScore.best(it) }
             .filter { it.second.confidence >= MIN_ETF_CONFIDENCE }
-            .sortedByDescending { it.second.score }
+            // ---- THE TIE-BREAK MATTERS NOW THAT THE LOSER IS DELETED (Round 66 audit, ETF-4).
+            //
+            // THE BUG THIS FIXES. `sortedByDescending { score }` is a STABLE sort, so equal
+            // scores kept the order they arrived in - which is Yahoo's screen order, held in a
+            // `LinkedHashMap` keyed by fetch sequence. That was survivable while a tie only
+            // put two funds on adjacent rows. Since the exposure de-duplication below, the
+            // fund that loses a tie is REMOVED FROM THE LIST, so Yahoo's page order was
+            // quietly deciding which S&P 500 tracker TJ gets shown.
+            //
+            // And ties are the normal case here, not the edge: every term that could separate
+            // two trackers of one index is saturated for funds this size. The cost ramp is at
+            // full marks anywhere at or below 5bp, so 2bp and 5bp score identically; `logRamp`
+            // tops out at $50bn of assets and $100m of daily volume, which VOO, IVV and SPLG
+            // all clear several times over. What is left is third-decimal noise in the
+            // reported NAV returns, truncated to an Int.
+            //
+            // So the order becomes explicit: cheaper first (the one difference that is
+            // certain, compounds, and is the reason to prefer one tracker over another), then
+            // larger, then the ticker - which is arbitrary but STABLE, so the same inputs
+            // always produce the same list rather than one that reshuffles with Yahoo's mood.
+            // An unknown fee sorts last among equals: it cannot claim to be cheap.
+            .sortedWith(ETF_ORDER)
             .toList()
             // ---- ONE FUND PER EXPOSURE (Round 66).
             //
@@ -323,6 +363,20 @@ object Research {
             "news feeds. Scores are computed on the phone from those numbers."
 
     // ----------------------------------------------------------------- trending
+
+    /**
+     * The order of the ETF list: score, then cost, then size, then ticker.
+     *
+     * Named and internal so the tie-break can be tested without a network - see [ETF_ORDER]'s
+     * long note at the call site for why the tie-break is the interesting part.
+     */
+    internal val ETF_ORDER: Comparator<Pair<EtfRow, ResearchScore.Scored>> =
+        compareByDescending<Pair<EtfRow, ResearchScore.Scored>> { it.second.score }
+            .thenBy {
+                if (it.first.expenseRatio >= 0.0) it.first.expenseRatio else Double.MAX_VALUE
+            }
+            .thenByDescending { it.first.netAssets }
+            .thenBy { it.first.symbol }
 
     private fun buildTrending(
         social: List<com.tj.portfolio.data.Trending>,
