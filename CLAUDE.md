@@ -150,9 +150,10 @@ not just intent.
 
 **3. Milestone — `bash ship.sh "note"`.** Cuts a release. It runs the full gate
 HERE (`tools/checkinit.py`, the whole Gradle unit suite, and a versionCode
-strictly higher than every code in `BUILDLOG.md`), then tags the commit and
-pushes the tag. **GitHub builds and signs the APK**, not this container — see
-below. A red suite must never reach a runner, which is why the suite runs
+strictly higher than every code in `BUILDLOG.md`), then pushes the commit.
+**GitHub builds and signs the APK**, not this container — see below. It does
+NOT push a tag: that is 403 from a Claude container, so GitHub creates the tag
+itself. A red suite must never reach a runner, which is why the suite runs
 locally first even though the workflow runs it again.
 
 `bash ship.sh --local "note"` is the fallback for when GitHub is unavailable:
@@ -188,23 +189,33 @@ Tj's rule, 2026-09-10: **GitHub makes all future APKs; Claude codes them.**
 
 ```bash
 # 1. bump versionCode AND versionName in app/build.gradle.kts
-bash ship.sh "what changed this release"      # gates here, tags, pushes the tag
+bash ship.sh "what changed this release"      # gates HERE, pushes the commit
 # 2. watch https://github.com/tjshea90/Portfolio/actions until the run is GREEN
 bash tools/record-release.sh v7.9 "what changed this release"
 ```
 
-The `v*` tag fires `.github/workflows/android.yml`, which builds, signs with
-the keystore held in **GitHub Secrets**, verifies the certificate on the
-artifact it just produced, and publishes it under Releases. Tj downloads it
-there (signed in to GitHub — the repo is private, so Release assets are not
-anonymously downloadable).
+Then **Claude triggers the build through the GitHub API** — not git:
+`mcp__github__actions_run_trigger`, `run_workflow`, `android.yml`, on `main`,
+with `full_build: "true"`. The run builds, signs with the keystore held in
+**GitHub Secrets**, verifies the certificate on the APK it just produced,
+creates the `v*` tag server-side and publishes it under Releases. Claude then
+downloads that APK and sends it to Tj in the chat, so he never has to go
+looking for it.
+
+**Why Claude triggers it instead of pushing a tag.** `git push origin v7.9`
+returns `RPC failed; HTTP 403` from a Claude container: the session's egress
+policy allows `refs/heads/*` and refuses `refs/tags/*`. Measured, not guessed,
+and the proxy's own docs say not to retry or route around a 403. A tag push
+still works for Tj from his own machine and triggers the same workflow.
 
 **Why the two steps.** `BUILDLOG.md` is load-bearing: both `ship.sh` and the
 workflow gate the next versionCode against it, so a line in it is a claim that
 a release EXISTS. `ship.sh` finishes before the build does, so recording it
 there would make the file lie whenever a run failed. `tools/record-release.sh`
 writes the line only once the run is green. **Never write that line by hand,
-and never before the run is green.**
+and never before the run is green.** If a session is interrupted between the
+build and the recording, `tools/resume.sh` says so on the next start and prints
+the command — that gap is detected, not remembered.
 
 **The APK is no longer committed.** `releases/` held ~8 MB per version that
 every future session cloned before reading a line of code; GitHub Releases hold
