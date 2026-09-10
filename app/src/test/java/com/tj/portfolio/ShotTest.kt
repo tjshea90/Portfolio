@@ -96,7 +96,26 @@ class ShotTest {
         view.layout(0, 0, 1080, 2340)
         val bmp = android.graphics.Bitmap.createBitmap(1080, 2340, android.graphics.Bitmap.Config.ARGB_8888)
         view.draw(android.graphics.Canvas(bmp))
-        val out = File("/home/claude/shots").also { it.mkdirs() }
+        // WRITTEN INSIDE THE MODULE, NOT AT AN ABSOLUTE PATH.
+        //
+        // This was `File("/home/claude/shots")` - a leftover from the Cowork container the
+        // project moved out of, the same class of leftover the header of
+        // tools/setup-android-sdk.sh describes. It survived because the Claude container
+        // runs as root, so `mkdirs()` on `/home/claude` simply succeeds there and the whole
+        // suite looked green.
+        //
+        // It is not green anywhere else. A GitHub runner executes as the unprivileged user
+        // `runner`, which cannot create a directory under /home: `mkdirs()` returns false,
+        // `outputStream()` then throws FileNotFoundException, and all five screenshot cases
+        // fail. That is exactly what happened the first time CI ran the full build - 806
+        // tests, 5 failed, and the APK step never ran.
+        //
+        // Gradle runs unit tests with the module directory as the working directory, so this
+        // lands in app/build/shots - already ignored by .gitignore, and wiped by a clean.
+        val out = File(System.getProperty("portfolio.shots.dir") ?: "build/shots")
+        if (!out.isDirectory && !out.mkdirs()) {
+            throw AssertionError("cannot create the screenshot directory ${out.absolutePath}")
+        }
         File(out, "$name.png").outputStream().use {
             bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
         }
