@@ -5,8 +5,8 @@ away from what ships. `Fmt`, `Txn`, `Ledger`, `Position`, `Fees`, `Claude`, `Cla
 and `News` all load outside Android.
 
 ```bash
-cd /home/claude/portfolio
-export ANDROID_HOME=/root/android-sdk
+cd <repo root>                                        # wherever this checkout lives
+export ANDROID_HOME="${ANDROID_HOME:-/root/android-sdk}"
 ./gradlew :app:assembleRelease                       # produces the classes below
 
 CLS=app/build/tmp/kotlin-classes/release
@@ -43,8 +43,8 @@ Robolectric runs the real Android framework on the JVM, which reaches everything
 suites above cannot - SQLite, MediaStore-free file IO, and the Compose UI itself.
 
 ```bash
-cd /home/claude/portfolio
-export ANDROID_HOME=/root/android-sdk
+cd <repo root>
+export ANDROID_HOME="${ANDROID_HOME:-/root/android-sdk}"
 ./gradlew :app:test          # all 74, or --tests "com.tj.portfolio.DbTest"
 #   :app:test and :app:testDebugUnitTest are the same thing - the release unit-test
 #   variant is disabled on purpose, see the note in app/build.gradle.kts

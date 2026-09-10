@@ -54,6 +54,31 @@ BRIEF="$(
     fi
     [ "${AHEAD:-0}" -gt 0 ] && echo "  NOTE  $AHEAD commit(s) not yet pushed — 'git push origin HEAD' when convenient."
 
+    # IS main CURRENT? Claude Code can assign a different local branch name to
+    # every session — this repo has seen it happen. tools/push.sh keeps `main`
+    # fast-forwarded to match every push specifically so a session (or account)
+    # that just opens the repo, rather than rediscovering a specific branch
+    # name, still lands on the real state. This check exists because that sync
+    # can only fail SILENTLY (push.sh never surfaces it): main sat 565 commits
+    # behind for the length of a whole migration before anyone noticed.
+    CURBR="$(git branch --show-current 2>/dev/null || true)"
+    if [ "$CURBR" != "main" ] && git rev-parse --verify -q origin/main >/dev/null 2>&1; then
+      MBEHIND="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+      MAHEAD="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
+      if [ "${MAHEAD:-0}" -gt 0 ]; then
+        echo "  WARN  origin/main has $MAHEAD commit(s) this branch does NOT have —"
+        echo "        something was pushed to main independently. Reconcile before"
+        echo "        treating main as stale."
+      elif [ "${MBEHIND:-0}" -gt 0 ]; then
+        echo "  WARN  origin/main is $MBEHIND commit(s) behind this branch — a fresh"
+        echo "        session opening this repo cold would miss real work. Run"
+        echo "        'git push origin HEAD:main' (tools/push.sh should do this"
+        echo "        automatically on the next checkpoint; say so if it doesn't)."
+      else
+        echo "  OK    origin/main is current with this branch."
+      fi
+    fi
+
     # Is the safety net actually running? A hook that silently stopped firing
     # looks exactly like a session that made no edits, and the difference is
     # everything. Say it out loud so a broken hook is caught on the next start

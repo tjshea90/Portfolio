@@ -6,12 +6,11 @@ Code sessions — a new session may pick this up on a different device, a
 different account, or simply after a previous session's usage ran out
 mid-task. Everything below exists to make that handoff lossless.
 
-This handoff system is adapted from the fantasy-football tracker repo, which
-worked the same problem across three Claude accounts. The mechanics
-(autosave hook, deliberate checkpoint, secret scan, milestone ship gate) are
-the same; only the specific gates in `ship.sh` differ (Gradle/APK instead of
-javac/dex, because this project already had its own release process before
-this migration — see below).
+The handoff mechanism (autosave hook, deliberate checkpoint, secret scan,
+milestone ship gate) is a Claude-Code-native pattern proven on another
+private repo of Tj's with the same requirement — resumable across multiple
+Claude accounts sharing one GitHub repo. `ship.sh`'s specific gates are this
+project's own (Gradle build + the full Kotlin unit suite), not borrowed.
 
 **The project's own standing rules** (the irreplaceable signing keystore,
 the `tools/checkinit.py` invariant, the pinned toolchain, the build traps
@@ -48,6 +47,25 @@ Read the two warnings it can raise:
   change, checkpoint it — then start anything new.
 - **"UNCOMMITTED WORK IS PRESENT"** — the same thing, one step worse: not even
   the hook got to it. `git diff` is what was in flight.
+
+## `main` is the canonical branch — always work there unless told otherwise
+
+Claude Code can assign a session a differently-named local branch (this repo
+has seen `claude/<session-id>`-style names). That's fine *within* a session,
+but it must never become the only place real work lives: a session or
+account that opens this repo without rediscovering that exact name lands on
+whatever `main` has, and if `main` is stale, that looks exactly like data
+loss even though nothing was actually deleted. This happened once already —
+565 commits sat on a feature branch while `main` still showed the original
+README.
+
+So: `tools/push.sh` fast-forwards `origin/main` to match on every successful
+push, automatically, regardless of which branch is checked out — that's the
+actual fix, and it needs no action from you. `tools/resume.sh` reports
+`origin/main`'s sync status on every session start as a sanity check on that
+automation; if it ever says main is behind, that's a bug in push.sh to fix,
+not something to work around by hand. If you're starting genuinely fresh
+(not continuing a specific session) and have a choice, check out `main`.
 
 ## When Tj asks for something new
 

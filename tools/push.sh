@@ -48,6 +48,22 @@ if git push -q origin "HEAD:refs/heads/$BR" >/dev/null 2>&1; then
     git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' 2>/dev/null || true
   git fetch -q origin "$BR:refs/remotes/origin/$BR" >/dev/null 2>&1 || true
   git branch --set-upstream-to="origin/$BR" "$BR" >/dev/null 2>&1 || true
+
+  # KEEP main CURRENT, BEST-EFFORT. Claude Code can assign a different local
+  # branch name to every session (this repo has seen it happen), so a session
+  # that only pushes its own branch leaves the DEFAULT branch stale — and a
+  # future session/account that just opens the repo (rather than rediscovering
+  # a specific branch name) lands on that stale default and sees none of this.
+  # Genuinely lost this once: main sat 565 commits behind for the length of a
+  # whole migration before anyone noticed.
+  #
+  # Plain (non-force) push, so this can only FAST-FORWARD main. If main ever
+  # diverges (something else was pushed there independently), git refuses and
+  # this fails silently — never overwrite unrelated work to keep a convenience
+  # in sync.
+  if [ "$BR" != "main" ]; then
+    git push -q origin "HEAD:refs/heads/main" >/dev/null 2>&1 || true
+  fi
   exit 0
 fi
 exit 1

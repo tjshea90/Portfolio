@@ -1,12 +1,12 @@
-# CHECKPOINT 565 — read me first, then TASKS.md
+# CHECKPOINT 566 — read me first, then TASKS.md
 
-**Written:** 2026-09-10T16:21:15Z · **tests:** all 1 fast checks green (gradle suite: see ship.sh)
+**Written:** 2026-09-10T16:32:35Z · **tests:** all 1 fast checks green (gradle suite: see ship.sh)
 
 ## Just done
-Sent the signing keystore (app/sideload.jks) to Tj directly since it can't be committed to git (blocked by the platform even in this private repo); he's storing it himself. Documented the out-of-band handling in BRIEF.md and CLAUDE.md so a future session knows to ask for it rather than generating a replacement.
+Audited the resume/checkpoint system for Claude-Code (not Cowork) fitness and Portfolio-specific correctness: removed fantasy-football naming from CLAUDE.md/ckpt.sh, fixed hardcoded Cowork paths in tests/README.md, and fixed a real gap - origin/main was 565 commits behind the working branch (any session opening the repo cold would've seen just the README). Brought main current and made tools/push.sh fast-forward main automatically on every push regardless of which branch a session is on; tools/resume.sh now reports main's sync status every session start.
 
 ## Do this next
-Repo migration is done. Waiting on Tj for the next real task; see TASKS.md.
+Verify in the pushed output that origin/main actually advanced (not just the feature branch) - this is the main thing to check after this change.
 
 ## How to resume, exactly
 Open this GitHub repo in a Claude Code session and say "continue".
@@ -21,12 +21,16 @@ finished work, do not ask Tj to re-explain anything — `TASKS.md` carries his
 request in his own words and `git log` carries every step already taken.
 
 ## Uncommitted right now
-     M BRIEF.md
      M CHECKPOINT.md
      M CLAUDE.md
+     M tests/README.md
+     M tools/ckpt.sh
+     M tools/push.sh
+     M tools/resume.sh
 
 ## Last ten checkpoints
 ```
+  424ad4b ckpt 565: Sent the signing keystore (app/sideload.jks) to Tj directly since it can't be 
   04a9d02 ckpt 564: Migrated the Portfolio Android app from its Cowork checkpoint system into this
   fd72725 ckpt 2: Set up the Claude Code resume/checkpoint handoff system, adapted from the fantas
   624d2a9 ckpt 66: v7.7 SHIPPED: versionCode 64, 797 tests 0 failures, same signing cert
@@ -36,5 +40,4 @@ request in his own words and `git log` carries every step already taken.
   74ee4cb ckpt 66: fix EXP3
   7f45902 ckpt 66: fix EXP2
   2ce3d76 ckpt 66: fix EXP1
-  21ee9d2 ckpt 66: fix CRX1
 ```

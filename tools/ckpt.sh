@@ -26,8 +26,8 @@ DID="${1:-}"; NEXT="${2:-}"
 # ---- test state, recorded rather than enforced ------------------------------
 # Never gate on this. The point is to capture the state, whatever it is.
 #
-# DISCOVERED, NOT LISTED — same reasoning as the fantasy-football tracker's
-# ckpt.sh: a hard-coded list silently stops covering a suite added later.
+# DISCOVERED, NOT LISTED — a hard-coded list silently stops covering a suite
+# added later.
 #
 # Only the FAST checks run here, deliberately:
 #   - tools/checkinit.py — pure Python regex, well under a second (see BRIEF.md)
