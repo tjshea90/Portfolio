@@ -41,20 +41,22 @@ instead made it fire immediately.
 mkdir -p /home/user/.claude
 cp tools/session-root-hooks.json /home/user/.claude/settings.json
 ```
-This is idempotent (safe to run even if already done) and takes effect
-immediately — no restart needed, verified live. It loops over every repo
-directly under `/home/user`, so it protects any sibling repos too, not just
-this one. Then verify it actually worked (don't just trust it):
+This is idempotent (safe to run even if already done) — no restart needed.
+NOT perfectly instant, though: confirmed 2026-09-10 in a follow-up session
+that firing can lag a tool call or two behind the edit, not commit
+synchronously with it. So verify over a few tool calls, not just the next
+one:
 ```bash
-# after your first real edit:
-git log -1 --oneline   # expect a fresh "auto-checkpoint:" commit
+# after 2-3 real edits, in a LATER tool call:
+git log --oneline -3   # expect fresh "auto-checkpoint:" commit(s) in there
 ```
-If no such commit appears, the hooks still aren't firing — fall back to
-running `bash tools/ckpt.sh "did" "next"` after every step BY HAND for the
-rest of the session, and say so plainly; that becomes the only safety net.
-If Claude Code changes how it scopes hooks in this environment, this whole
-section becomes unnecessary — but don't assume that without re-running the
-check above.
+If several edits go by with NONE appearing, the hooks aren't firing at all —
+fall back to running `bash tools/ckpt.sh "did" "next"` after every step BY
+HAND for the rest of the session, and say so plainly; that becomes the only
+safety net. Don't conclude "broken" from one immediate check turning up
+nothing — that was a false alarm once already. If Claude Code changes how
+it scopes hooks in this environment, this whole section becomes
+unnecessary — but don't assume that without re-running the check above.
 
 ## Starting a session
 
