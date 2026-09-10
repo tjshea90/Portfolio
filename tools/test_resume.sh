@@ -148,6 +148,17 @@ if [ "${GOT:-0}" -gt 9000 ]; then
 else
   bad "checkpoint number went backwards" "9000 -> ${GOT:-none}"
 fi
+# THE "SESSION FORGOT THE FIRST ACTION" PATH.
+# ckpt.sh must put the hooks back by itself, or a session that never read
+# CLAUDE.md's install step runs to its usage cap with nothing auto-saved.
+# The fixture ckpt.sh above pointed at $TMP/fx-settings.json, which did not
+# exist before it ran.
+if [ -f "$TMP/fx-settings.json" ] && grep -q 'portfolio-checkpoint-hooks' "$TMP/fx-settings.json" 2>/dev/null; then
+  ok "ckpt.sh reinstalls missing hooks by itself"
+else
+  bad "ckpt.sh did NOT repair missing hooks — a session that skips the install step stays unprotected"
+fi
+
 grep -q '^\*\*Branch:\*\*' "$FX/CHECKPOINT.md" && ok "CHECKPOINT.md records its branch" \
   || bad "CHECKPOINT.md does not say which branch the work is on"
 
