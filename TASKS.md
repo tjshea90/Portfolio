@@ -7,7 +7,14 @@
 > automatically starts the tools it needs when it is ready to build the APK.
 > this should be permanent"
 
-## The GitHub question — checked, and the answer is no
+## The GitHub question — Tj was right that it CAN; this repo just never had it
+
+**Decision (Tj, 2026-09-10): add full signed release CI.** He is correct that
+GitHub Actions builds APKs; the finding below was only ever about this
+repo's configuration, not about what GitHub can do. Added
+`.github/workflows/android.yml`.
+
+## What was actually true of this repo
 
 There is **no CI in this repo and there never has been**: no `.github/`
 directory, and `git log --all -- .github` is empty across all 559+ commits.
@@ -23,10 +30,15 @@ efficient answer, not CI):
 - `repo1.maven.org` → 200
 - 30 GB free disk; SDK needs ~2-4 GB
 
-GitHub Actions remains possible but is NOT more efficient here, and has one
-real cost: it needs `app/sideload.jks` uploaded into GitHub Secrets, moving
-the irreplaceable keystore out of Tj's sole custody. Left as a decision for
-Tj, not built.
+The one real cost stands and Tj accepted it: the runner needs
+`app/sideload.jks` as a GitHub Secret. Note it also applies to DEBUG builds
+here — `app/build.gradle.kts` signs both build types with the sideload key,
+so the usual "start with assembleDebug, no secrets needed" advice does not
+work in this repo.
+
+The argument FOR it, which the first pass under-weighted: with CI, Tj can get
+an installable APK with **no Claude session at all** — which is the same goal
+as the whole resume system.
 
 ## The work
 
@@ -43,13 +55,34 @@ Tj, not built.
       `bootstrap.sh` so every future session on any account uses it by default
       instead of the manual step.
 - [x] 5. Cover it in `tools/test_resume.sh`.
-- [~] 6. Prove it end to end by actually provisioning this container and
+- [x] 6. Prove it end to end by actually provisioning this container and
       running a real Gradle build — not by reading the script.
       SDK HALF DONE AND PROVEN: from a cold container, `ensure-build-env.sh`
       installed the SDK by itself in one step (776 MB, android-36,
       local.properties written), and a second run is a 0.26s no-op.
-      SIGNING HALF IN FLIGHT: `bash tools/gradle.sh :app:assembleRelease` is
-      running. Tick this only once the APK exists AND `apksigner`/`keytool`
-      confirms it carries certificate 2E:8C:38:47:...:F3:96:A9:F2.
+      SIGNING HALF ALSO DONE: `bash tools/gradle.sh :app:assembleRelease`
+      succeeded in 4m49s and `apksigner` confirms the APK carries
+      2e8c3847...f396a9f2 — the certificate the phone accepts.
+
+## GitHub Actions (added on Tj's decision)
+
+- [x] 7. `.github/workflows/android.yml` — tests, signed release APK, signature
+      verified on the artifact, uploaded as an artifact and attached to a
+      GitHub Release on `v*` tags. Triggers on TAGS AND MANUAL DISPATCH ONLY:
+      autosave mirrors every commit to main (48 in one two-hour session,
+      measured), so a push trigger would start a run every few seconds and
+      burn the 2,000 free private-repo minutes almost immediately.
+- [x] 8. `tools/verify-apk.sh` — checks the built ARTIFACT's certificate, not
+      just the keystore that went in. `tools/checkkeystore.sh --expected`
+      publishes the fingerprint so CI and local share one copy of it.
+- [ ] 9. **TJ'S ONE MANUAL STEP — nothing works until this is done.** Add the
+      repository secret `SIGNING_KEYSTORE_BASE64` (Settings -> Secrets and
+      variables -> Actions -> New repository secret) with the base64 of
+      `app/sideload.jks`. Claude cannot create secrets. Until then the
+      workflow fails at the "Restore the signing keystore" step by design,
+      with a message saying exactly this.
+- [ ] 10. First real CI run is UNVERIFIED — the workflow has never executed.
+      Watch the first `workflow_dispatch` run and fix whatever the runner
+      disagrees with (SDK package availability is the likeliest).
 
 Ticking a box means: written, tested (name the test) and committed.
