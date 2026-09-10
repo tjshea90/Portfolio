@@ -14,7 +14,7 @@ port the algorithm, run it on real inputs, read the output with your own eyes.
 If you change the Kotlin scorer, change this too and re-run it. Divergence here is not a
 build failure - it is worse than that, it is a harness that agrees with a bug.
 
-    python3 tools_research_sim.py
+    python3 tools/research_sim.py
 """
 import json
 import math

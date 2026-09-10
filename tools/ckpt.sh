@@ -26,13 +26,23 @@ DID="${1:-}"; NEXT="${2:-}"
 # ---- test state, recorded rather than enforced ------------------------------
 # Never gate on this. The point is to capture the state, whatever it is.
 #
-# DISCOVERED, NOT LISTED. Nothing about the project's stack is assumed here —
-# there isn't one yet. Two sources are checked, both optional:
-#   - `npm test`, if package.json declares a "test" script
-#   - tools/test_*.js and tools/test_*.sh, the same convention the
-#     fantasy-football tracker uses, in case tests ever land there directly
-# If neither exists, that is recorded honestly rather than faked as a pass.
+# DISCOVERED, NOT LISTED — same reasoning as the fantasy-football tracker's
+# ckpt.sh: a hard-coded list silently stops covering a suite added later.
+#
+# Only the FAST checks run here, deliberately:
+#   - tools/checkinit.py — pure Python regex, well under a second (see BRIEF.md)
+#   - tools/test_*.js / tools/test_*.sh, if any ever land directly under tools/
+#   - `npm test`, if package.json ever declares one
+# The real unit suite (./gradlew testDebugUnitTest, 797 tests as of v7.7) is
+# NOT run here — a cold Gradle invocation is minutes, not "well under a
+# second", which is what a per-edit checkpoint needs. That's what ship.sh
+# gates on; run it before a release, not after every edit.
 PASS=0; FAIL=0; REDS=""; RAN_ANY=0
+
+if [ -f tools/checkinit.py ]; then
+  RAN_ANY=1
+  if python3 tools/checkinit.py >/dev/null 2>&1; then PASS=$((PASS+1)); else FAIL=$((FAIL+1)); REDS="$REDS checkinit"; fi
+fi
 
 if [ -f package.json ] && command -v npm >/dev/null 2>&1 && command -v node >/dev/null 2>&1 \
    && node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.test ? 0 : 1)" 2>/dev/null; then
@@ -53,7 +63,7 @@ done
 if [ "$RAN_ANY" -eq 0 ]; then
   TESTS="no test suite configured yet"
 elif [ "$FAIL" -eq 0 ]; then
-  TESTS="all $PASS suites green"
+  TESTS="all $PASS fast checks green (gradle suite: see ship.sh)"
 else
   TESTS="$FAIL RED:$REDS ($PASS green)"
 fi
@@ -105,9 +115,9 @@ N=$((N+1))
   # lines instead of history. Nothing is lost either way — `git log` keeps
   # everything, and the auto-checkpoints since the last deliberate one are
   # counted just below.
-  git log --oneline -10 --extended-regexp --grep='^ckpt [0-9]+:' 2>/dev/null | cut -c1-96 | sed 's/^/  /'
+  git log --oneline -10 --extended-regexp --grep='^(ckpt [0-9]+:|ship v)' 2>/dev/null | cut -c1-96 | sed 's/^/  /'
   echo '```'
-  AUTOS="$(git log --oneline --grep='^auto-checkpoint:' "$(git log -1 --format=%H --extended-regexp --grep='^ckpt [0-9]+:' 2>/dev/null)"..HEAD 2>/dev/null | wc -l | tr -d ' ')"
+  AUTOS="$(git log --oneline --grep='^auto-checkpoint:' "$(git log -1 --format=%H --extended-regexp --grep='^(ckpt [0-9]+:|ship v)' 2>/dev/null)"..HEAD 2>/dev/null | wc -l | tr -d ' ')"
   if [ "${AUTOS:-0}" -gt 0 ]; then
     echo
     echo "($AUTOS automatic checkpoint(s) since the last deliberate one — the"

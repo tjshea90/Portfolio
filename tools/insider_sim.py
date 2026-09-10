@@ -9,7 +9,7 @@ wording reads as English across a few hundred filings written by a few hundred f
 This does - it is deliberately a re-implementation rather than a wrapper, so a bug in the
 Kotlin shows up as a disagreement rather than being faithfully reproduced.
 
-    python3 tools_insider_sim.py NVDA AAPL INTC F MSFT ...
+    python3 tools/insider_sim.py NVDA AAPL INTC F MSFT ...
 
 Mirrors net/Form4.kt and net/Insider.kt as of round 55.
 """

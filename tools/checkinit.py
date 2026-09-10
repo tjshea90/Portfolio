@@ -20,13 +20,13 @@ ignored - which is exactly how the second bug shipped. So the rule is now absolu
 needs no analysis to be correct: in this class, every property is declared above init.
 The cost is trivial; the failure mode it prevents is an app that will not start.
 
-Run: python3 checkinit.py   (exit 1 on a violation)
+Run: python3 tools/checkinit.py   (exit 1 on a violation)
 """
 import re
 import sys
 import pathlib
 
-VM = pathlib.Path(__file__).parent / (
+VM = pathlib.Path(__file__).parent.parent / (
     "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt"
 )
 

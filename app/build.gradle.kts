@@ -142,6 +142,6 @@ dependencies {
  */
 val checkInitOrder = tasks.register<Exec>("checkInitOrder") {
     workingDir = rootProject.projectDir
-    commandLine("python3", "checkinit.py")
+    commandLine("python3", "tools/checkinit.py")
 }
 tasks.named("preBuild") { dependsOn(checkInitOrder) }

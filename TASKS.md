@@ -1,8 +1,13 @@
 # TASKS — the current job, in Tj's words
 
-**There is no active job right now.** The resume/checkpoint handoff system
-was just set up (adapted from the fantasy-football tracker); nothing else
-has been built yet.
+**There is no active job right now.** v7.7 (versionCode 64) is shipped —
+797 tests, 0 failures. The last request (round 66, an audit/fix sweep) is
+complete; its full findings are in `audits/round66/` and `git log`.
+
+This round also migrated the project off the old Cowork round-based
+checkpoint system (`ck`/`ck.py`/`RESUME.md`/`state.json`/`watchdog.sh`) and
+onto this GitHub repo with the Claude-Code hook-based checkpoint system in
+`tools/` — see `CLAUDE.md` and `BRIEF.md`.
 
 ## When Tj asks for something new
 
@@ -20,17 +25,15 @@ not just the work but the knowledge of what was asked.
 - [ ] 1b. <second step>
 ```
 
-Ticking a box means: written, tested (if there's a test to name) and
-committed. **Never tick a box you have not verified** — the next session
-will not re-check it.
+Ticking a box means: written, tested (name the test — `tools/checkinit.py`,
+`./gradlew testDebugUnitTest`, or a specific new test) and committed. **Never
+tick a box you have not verified** — the next session will not re-check it.
 
-When a job is finished, archive it (e.g. into a `LADDER.md`, the way the
-fantasy-football tracker does once it has real history to keep) and reset
-this file. This file is printed into every session briefing, so a finished
-job left here is re-read at cost on every cold start, forever.
+When a job is finished, it's already archived by nature of `git log` and
+(for a real audit round) `audits/`; just reset this file. This file is
+printed into every session briefing, so a finished job left here is re-read
+at cost on every cold start, forever.
 
 ## Waiting on Tj
 
-- [ ] Tell Claude what the portfolio site should be: stack/framework,
-      hosting or deploy target, and what content/pages it needs. That becomes
-      the first real job in this file.
+- [ ] Tell Claude what to work on next.

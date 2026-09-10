@@ -16,6 +16,13 @@ __pycache__/
 .env.local
 .env.*.local
 
+# The release-signing keystore. This is NOT a build artifact — it is
+# intentionally excluded from git (the platform's own safety checks refuse
+# to commit it even to this private repo). It must exist locally at this
+# path before ship.sh or ./gradlew assembleRelease will work. See BRIEF.md
+# ("the keystore is irreplaceable") for why it can never be regenerated.
+app/sideload.jks
+
 # OS / editor noise
 .DS_Store
 *.log

@@ -80,7 +80,7 @@ BRIEF="$(
     #
     # The tell: commits after the newest 'ckpt N:'. That's the only one a
     # session makes on purpose.
-    LASTCKPT="$(git log -1 --format=%H --extended-regexp --grep='^ckpt [0-9]+:' 2>/dev/null || true)"
+    LASTCKPT="$(git log -1 --format=%H --extended-regexp --grep='^(ckpt [0-9]+:|ship v)' 2>/dev/null || true)"
     if [ -n "$LASTCKPT" ]; then
       SINCE="$(git rev-list --count "$LASTCKPT"..HEAD 2>/dev/null || echo 0)"
       if [ "${SINCE:-0}" -gt 0 ]; then

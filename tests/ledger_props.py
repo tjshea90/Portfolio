@@ -1,7 +1,8 @@
 """Property tests over domain/Ledger.kt, re-run and extended for round 46."""
-import os, random, sys, importlib.util
+import os, random, sys, pathlib, importlib.util
 ZEROQ = os.environ.get('ZEROQ', '1') == '1'
-spec = importlib.util.spec_from_file_location("L", "/home/claude/portfolio/tools_ledger_port.py")
+LEDGER_PORT = pathlib.Path(__file__).resolve().parent.parent / "tools/ledger_port.py"
+spec = importlib.util.spec_from_file_location("L", LEDGER_PORT)
 L = importlib.util.module_from_spec(spec); spec.loader.exec_module(L)
 
 SYMS = ["NVDA", "CSCO", "SOXQ", "BA", "ONDS"]

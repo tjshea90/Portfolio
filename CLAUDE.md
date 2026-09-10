@@ -1,15 +1,30 @@
 # Portfolio — working agreement
 
-Tj's personal portfolio site. Worked on across Claude Code sessions — a new
-session may pick this up on a different device, a different account, or
-simply after a previous session's usage ran out mid-task. Everything below
-exists to make that handoff lossless.
+Tj's personal Android stock/ETF portfolio tracker (Kotlin + Jetpack Compose,
+package `com.tj.portfolio`), sideloaded on his phone. Worked on across Claude
+Code sessions — a new session may pick this up on a different device, a
+different account, or simply after a previous session's usage ran out
+mid-task. Everything below exists to make that handoff lossless.
 
 This handoff system is adapted from the fantasy-football tracker repo, which
 worked the same problem across three Claude accounts. The mechanics
-(autosave hook, deliberate checkpoint, secret scan) are identical; the
-project-specific parts (the Android build gate, the scoring-engine rules)
-were dropped because they don't apply here.
+(autosave hook, deliberate checkpoint, secret scan, milestone ship gate) are
+the same; only the specific gates in `ship.sh` differ (Gradle/APK instead of
+javac/dex, because this project already had its own release process before
+this migration — see below).
+
+**The project's own standing rules** (the irreplaceable signing keystore,
+the `tools/checkinit.py` invariant, the pinned toolchain, the build traps
+that have cost real time before) are printed at session start by
+`bootstrap.sh` and written in full in `BRIEF.md`. They are not repeated here.
+Do not violate them.
+
+This project moved here from a Cowork container, where it was worked for 66
+rounds using a round-based checkpoint tarball system (`RESUME.md`,
+`state.json`, `ck`/`ck.py`, `watchdog.sh`). That system is retired — its
+mechanics are exactly what `tools/` below replaces — but its full history
+(559 commits) was imported intact, so `git log` still carries every round.
+`audits/round66/` holds the last round's detailed findings.
 
 ## Starting a session
 
@@ -58,15 +73,18 @@ survives a usage cap landing mid-change. You do not call it.
 **Run this after every completed step, not at the end of the session.** The
 autosave hook can preserve your *files* but it cannot know your *intent* —
 "what comes next" is the one thing no diff can reconstruct and the one thing
-the next session most needs. It runs whatever test suite exists (or records
-honestly that none does yet), rewrites `CHECKPOINT.md`, commits and pushes.
-Skipping it is how a handoff loses a day even though every file was saved.
+the next session most needs. It runs the FAST checks only (`tools/checkinit.py`
+and anything under `tools/test_*`), rewrites `CHECKPOINT.md`, commits and
+pushes. Skipping it is how a handoff loses a day even though every file was
+saved.
 
-There is no milestone-level `ship.sh` here (the fantasy-football tracker's
-is an Android release gate — APK dex checks, manifest agreement — none of
-which applies to a portfolio site). If the project later grows a real
-build/deploy process worth gating on, add one then; don't invent one before
-there's anything to gate.
+**3. Milestone — `bash ship.sh "note"`.** Full release gate: `tools/checkinit.py`,
+the entire Gradle unit suite (797 tests as of v7.7), a signed release build
+against the one keystore Android will accept as an in-place update, and a
+`versionCode` strictly higher than every previous ship. Produces a committed
+APK under `releases/` and a `BUILDLOG.md` entry. Use at real versions, not
+mid-task — a cold Gradle build takes minutes, which is why `ckpt.sh`
+deliberately does not run it.
 
 ## Before your usage runs out
 
@@ -92,9 +110,19 @@ has to be rotated, not deleted: GitHub keeps commit objects reachable by SHA
 even after history is rewritten. Keep real secrets in a local, gitignored
 `.env` — see `.gitignore`.
 
+## Building the APK
+
+`bash tools/setup-android-sdk.sh` once per fresh container (~5 min, downloads
+the Android SDK). Then `./gradlew :app:assembleRelease` or, for a full
+gated release, `bash ship.sh "note"`. Read BRIEF.md's build traps first —
+several failures that look like code problems (a blanked
+`JAVA_TOOL_OPTIONS`, two concurrent Gradle builds, a cold Maven Central 429)
+are not.
+
 ## Project rules
 
-*(none recorded yet — the stack, hosting/deploy target, and content
-structure haven't been decided. Add them here once they are, and
-`bootstrap.sh` will start printing them into every session's briefing
-automatically.)*
+See `BRIEF.md` for the full list: the irreplaceable signing keystore, the
+`tools/checkinit.py` invariant, the pinned toolchain versions, the build
+traps, and the locked architecture decisions (market-data source order,
+caching policy, accounting method, and why). `bootstrap.sh` prints the
+short version at every session start.
