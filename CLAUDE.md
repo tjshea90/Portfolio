@@ -148,13 +148,15 @@ itself still works, in about a second), rewrites `CHECKPOINT.md`, commits and
 pushes. It also repairs the hooks if they are missing. Skipping it is how a handoff loses everything since the last run,
 not just intent.
 
-**3. Milestone — `bash ship.sh "note"`.** Full release gate: `tools/checkinit.py`,
-the entire Gradle unit suite (797 tests as of v7.7), a signed release build
-against the one keystore Android will accept as an in-place update, and a
-`versionCode` strictly higher than every previous ship. Produces a committed
-APK under `releases/` and a `BUILDLOG.md` entry. Use at real versions, not
-mid-task — a cold Gradle build takes minutes, which is why `ckpt.sh`
-deliberately does not run it.
+**3. Milestone — `bash ship.sh "note"`.** Cuts a release. It runs the full gate
+HERE (`tools/checkinit.py`, the whole Gradle unit suite, and a versionCode
+strictly higher than every code in `BUILDLOG.md`), then tags the commit and
+pushes the tag. **GitHub builds and signs the APK**, not this container — see
+below. A red suite must never reach a runner, which is why the suite runs
+locally first even though the workflow runs it again.
+
+`bash ship.sh --local "note"` is the fallback for when GitHub is unavailable:
+it builds and signs here instead, and needs the keystore present.
 
 ## Before your usage runs out
 
@@ -180,89 +182,45 @@ has to be rotated, not deleted: GitHub keeps commit objects reachable by SHA
 even after history is rewritten. Keep real secrets in a local, gitignored
 `.env` — see `.gitignore`.
 
-## Building the APK
+## Releasing — GitHub builds every APK, Claude writes the code
 
-A `git clone` alone is not enough to build a release: `app/sideload.jks`
-(the signing keystore) is intentionally not in this repo — see BRIEF.md's
-"the keystore is irreplaceable" — so it has to be supplied at that exact
-path first, out of band, by Tj. If it's missing, say so; do not generate a
-replacement.
-
-**The container provisions itself — do not run `tools/setup-android-sdk.sh`
-by hand, and do not call `./gradlew` directly.** Use:
+Tj's rule, 2026-09-10: **GitHub makes all future APKs; Claude codes them.**
 
 ```bash
-bash tools/gradle.sh testDebugUnitTest      # or any gradle task
-bash ship.sh "note"                         # full gated release
+# 1. bump versionCode AND versionName in app/build.gradle.kts
+bash ship.sh "what changed this release"      # gates here, tags, pushes the tag
+# 2. watch https://github.com/tjshea90/Portfolio/actions until the run is GREEN
+bash tools/record-release.sh v7.9 "what changed this release"
 ```
 
-Both call `tools/ensure-build-env.sh` first, which installs the Android SDK
-if this container does not have one (~5 min, once), writes
-`local.properties`, and verifies the signing keystore. It is idempotent and
-adds ~0.3s once the container is ready, so there is never a reason to skip
-it. `ship.sh` additionally treats a missing or WRONG keystore as fatal
-before it builds anything.
+The `v*` tag fires `.github/workflows/android.yml`, which builds, signs with
+the keystore held in **GitHub Secrets**, verifies the certificate on the
+artifact it just produced, and publishes it under Releases. Tj downloads it
+there (signed in to GitHub — the repo is private, so Release assets are not
+anonymously downloadable).
 
-The only thing that cannot be provisioned is `app/sideload.jks` itself —
-only Tj has it. `tools/checkkeystore.sh` verifies it by certificate
-fingerprint, so a regenerated key is caught even when its DN matches.
+**Why the two steps.** `BUILDLOG.md` is load-bearing: both `ship.sh` and the
+workflow gate the next versionCode against it, so a line in it is a claim that
+a release EXISTS. `ship.sh` finishes before the build does, so recording it
+there would make the file lie whenever a run failed. `tools/record-release.sh`
+writes the line only once the run is green. **Never write that line by hand,
+and never before the run is green.**
 
-Read BRIEF.md's build traps before fighting a build failure — several that
-look like code problems (a blanked `JAVA_TOOL_OPTIONS`, two concurrent
-Gradle builds, a cold Maven Central 429) are not. `ensure-build-env.sh`
-already names the network case when SDK install fails.
+**The APK is no longer committed.** `releases/` held ~8 MB per version that
+every future session cloned before reading a line of code; GitHub Releases hold
+the binaries now. `BUILDLOG.md` is the record.
 
-## GitHub Actions builds APKs too (added 2026-09-10)
+**The keystore is no longer needed to release.** GitHub signs, so a fresh
+container on any Claude account can cut a full signed release without
+`app/sideload.jks` ever being present. It is still required for
+`ship.sh --local`, for `:app:assembleRelease` here, and it is still the one
+thing that must never be regenerated (BRIEF.md).
 
-`.github/workflows/android.yml` runs the tests, builds a SIGNED release APK,
-verifies the artifact's certificate and publishes it — as a workflow
-artifact, and as a GitHub Release on a `v*` tag. The point is that Tj can get
-an installable build with **no Claude session at all**.
-
-### The rule for spending GitHub's free minutes
-
-**Only spend them when actually building a new installable version.** 2,000
-minutes/month, ~12 per full build. Concretely:
-
-- A manual run defaults to **gates only** (`full_build` off): checkinit,
-  keystore restore, keystore fingerprint, versionCode. Measured at **18
-  seconds and 0 billable minutes** — use this freely to confirm the setup
-  still works.
-- A **full build** costs real minutes and happens two ways only: tick
-  `full_build` on a manual run, or push a `v*` tag. Do neither unless a
-  release is genuinely intended.
-- Cheap gates run FIRST, so a run destined to fail costs ~1 minute rather
-  than ~12. Do not reorder them below the build.
-- The versionCode gate is **fatal on a full build**: an APK whose versionCode
-  is not higher than the last shipped cannot install on the phone, so
-  building one is minutes spent on nothing.
-
-One quirk worth knowing: if a BROKEN workflow YAML ever gets committed,
-GitHub creates a failed run per push to report the parse error, even with no
-push trigger — it cannot read the triggers of a file it cannot parse. That
-happened once (two runs, both **zero jobs and zero billable minutes**, so
-noise rather than cost) because autosave committed a half-edited workflow
-before the checkpoint caught it. `tools/test_resume.sh` validates this YAML,
-so `tools/ckpt.sh` catches it; autosave deliberately has no gate and never
-will.
-
-**It triggers on tags and manual dispatch ONLY. Never add a `push` trigger.**
-`tools/autosave.sh` commits after every tool call and `tools/push.sh` mirrors
-each to main — 48 commits in one two-hour session, measured. A push trigger
-would start a run every few seconds and exhaust the free minutes almost
-immediately.
-
-`ship.sh` is still the release of record: it owns versionCode discipline,
-`BUILDLOG.md` and the committed APK under `releases/`. The workflow
-deliberately **commits nothing** — a workflow that pushed would retrigger the
-autosave/mirror machinery and race with whatever session is running.
-
-The workflow needs the repository secret `SIGNING_KEYSTORE_BASE64` (base64 of
-`app/sideload.jks`). Claude cannot create secrets; only Tj can. Without it the
-workflow fails by design at "Restore the signing keystore" and says so. Note
-this applies to debug builds too — `app/build.gradle.kts` signs BOTH build
-types with the sideload key, so the usual "assembleDebug needs no secrets"
-advice does not hold here.
+**Building locally at all** (tests, a debug APK, `--local`): use
+`bash tools/gradle.sh <task>` and never `./gradlew` directly — it installs the
+Android SDK if this container has none (~5 min, once) and verifies the
+keystore. Read BRIEF.md's build traps before fighting a build failure; several
+that look like code problems are not.
 
 ## Project rules
 
