@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 00:41:38 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 00:59:16 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 1 still open, 35 fixed
+## 5. Open findings — 13 still open, 35 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -87,6 +87,18 @@ commit, so `git log --oneline` is the history of this round and
 - [x] PUI6 (low) WatchlistScreen PRICE column header is an unweighted child after a weighted Spacer (measures to ~8dp and renders empty at large font scale) and labels a right-hand price column that no longer exists  — Watchlist header: one weighted label, dead PRICE column removed
 - [x] PUI7 (low) StockRow watch menu reads row.watchOnly, never true for a held row, so a held+watched symbol always says 'Also watch this' and the toggle is one-way with an untrue toast  — Row.watched added and used by the menu and the toggle - held+watched symbols can now be un-watched
 - [x] AUD1 (med) redText in dark theme was brand Red at 4.41:1 on the StatCard surfaceVariant - under AA. Found by the new ContrastTest  — New RedTextDark 0xFFF2606F: 5.20:1 on surfaceVariant, 6.06:1 on background
+- [ ] ETF1 (high) EtfScore: 0.0 is the sentinel for 'not published', so a flat/absent YTD is DROPPED from the weighted average - and because the average rescales, dropping the weakest horizon RAISES the score. A missing YTD scores like +15pct YTD. The list systematically prefers funds with less complete data
+- [ ] ETF2 (high) EtfScreener.fetch returns emptyList() for both 'past the end' and 'no host answered', so fetchAll's empty-page stop silently truncates 523 funds to 200 on a transient 429 - and buildEtfs only warns when a list returns nothing at all
+- [ ] ETF3 (high) EtfExposure.keyOf tests region BEFORE asset class with no bond guard, so BNDX/BNDW (international/world BONDS) get key 'Global equity' and are DELETED as duplicates of VT. Same for IAGG vs BND
+- [ ] ETF4 (med) Every term that could separate two S&P500 trackers is saturated for large funds, so the exposure-group winner is decided by third-decimal noise or, on the integer tie, by Yahoo's screen order - and dedupe now DELETES the loser
+- [ ] ETF5 (med) ramp clamps a negative long-run return to 0 points but 'possible' still counts its weight, so the 4pt YTD term scales to 9.71 of 34 exactly for funds with the worst long-run records
+- [ ] ETF6 (med) expenseRatio > 0.0 treats a genuinely free fund (BKLC, BKAG at 0.00pct) as 'unknown': 20 cost points forfeited and a confidence penalty, scoring identically to a 0.85pct fund
+- [ ] ETF7 (med) One key 'Global equity' covers both all-world INCLUDING the US (VT, ACWI) and all-world EX-US (VXUS, IXUS, VEU, ACWX) - opposite answers to the same question, and the ex-US half is deleted
+- [ ] ETF8 (med) isLeveragedOrInverse is applied only on the screener path, so a leveraged fund Claude adds (TQQQ) survives on a list whose own sources note says leveraged and inverse funds are excluded
+- [ ] CHT1 (med) Two-finger pan compares centroidX across frames even when the POINTER COUNT changed, so a third finger landing reports a quarter-span pan that never happened
+- [ ] CHT2 (med) GestureMode.ZOOM latches until every finger lifts: one finger of a pinch leaving leaves the chart inert and consuming, so neither the chart nor the page beneath it can move
+- [ ] CHT3 (med) nearestIndex's off-screen clamp is skipped when the window falls between two candles, so the readout prints a price and date from weeks outside the window with no crosshair anywhere
+- [ ] CHT4 (low) canPanNow omits windowBounds != null while pan() requires it, so the caption promises a pan that cannot exist and the 350ms hold still arms and consumes
 
 ## 6. Version
 
@@ -97,16 +109,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 00:26:29 UTC  finding PUI5: PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on 
-- 2026-09-10 00:26:29 UTC  finding PUI6: WatchlistScreen PRICE column header is an unweighted child after a weighted Spac
-- 2026-09-10 00:26:29 UTC  finding PUI7: StockRow watch menu reads row.watchOnly, never true for a held row, so a held+wa
-- 2026-09-10 00:37:20 UTC  PUI1 fixed: PositionFields extracted + Fmt.exact seeds; Fmt.exact now rounds to 12 sig digits so a quotient does not seed 17 digits
-- 2026-09-10 00:37:22 UTC  PUI2 fixed: BigLine: all three children weighted 1:2, figures via AutoFitNumber so nothing measures to zero and nothing clips
-- 2026-09-10 00:37:23 UTC  PUI3 fixed: Reconciliation note now names dividends, interest and fees so the card's own arithmetic adds up
-- 2026-09-10 00:37:25 UTC  PUI4 fixed: New rowRule colour: 3.14:1 light / 3.07:1 dark, replacing outline at 1.24:1 - the separator is finally visible
-- 2026-09-10 00:37:26 UTC  PUI5 fixed: Dividends figure now greenText not Green
-- 2026-09-10 00:37:28 UTC  PUI6 fixed: Watchlist header: one weighted label, dead PRICE column removed
-- 2026-09-10 00:37:29 UTC  PUI7 fixed: Row.watched added and used by the menu and the toggle - held+watched symbols can now be un-watched
-- 2026-09-10 00:37:31 UTC  finding AUD1: redText in dark theme was brand Red at 4.41:1 on the StatCard surfaceVariant - u
-- 2026-09-10 00:37:31 UTC  AUD1 fixed: New RedTextDark 0xFFF2606F: 5.20:1 on surfaceVariant, 6.06:1 on background
+- 2026-09-10 00:59:16 UTC  finding ETF1: EtfScore: 0.0 is the sentinel for 'not published', so a flat/absent YTD is DROPP
+- 2026-09-10 00:59:16 UTC  finding ETF2: EtfScreener.fetch returns emptyList() for both 'past the end' and 'no host answe
+- 2026-09-10 00:59:16 UTC  finding ETF3: EtfExposure.keyOf tests region BEFORE asset class with no bond guard, so BNDX/BN
+- 2026-09-10 00:59:16 UTC  finding ETF4: Every term that could separate two S&P500 trackers is saturated for large funds,
+- 2026-09-10 00:59:16 UTC  finding ETF5: ramp clamps a negative long-run return to 0 points but 'possible' still counts i
+- 2026-09-10 00:59:16 UTC  finding ETF6: expenseRatio > 0.0 treats a genuinely free fund (BKLC, BKAG at 0.00pct) as 'unkn
+- 2026-09-10 00:59:16 UTC  finding ETF7: One key 'Global equity' covers both all-world INCLUDING the US (VT, ACWI) and al
+- 2026-09-10 00:59:16 UTC  finding ETF8: isLeveragedOrInverse is applied only on the screener path, so a leveraged fund C
+- 2026-09-10 00:59:16 UTC  finding CHT1: Two-finger pan compares centroidX across frames even when the POINTER COUNT chan
+- 2026-09-10 00:59:16 UTC  finding CHT2: GestureMode.ZOOM latches until every finger lifts: one finger of a pinch leaving
+- 2026-09-10 00:59:16 UTC  finding CHT3: nearestIndex's off-screen clamp is skipped when the window falls between two can
+- 2026-09-10 00:59:16 UTC  finding CHT4: canPanNow omits windowBounds != null while pan() requires it, so the caption pro
 
