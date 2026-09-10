@@ -30,20 +30,26 @@ Tj, not built.
 
 ## The work
 
-- [ ] 1. `tools/ensure-build-env.sh` — one idempotent entry point that brings
+- [x] 1. `tools/ensure-build-env.sh` — one idempotent entry point that brings
       the container to a buildable state: Android SDK (installs it if absent),
       `local.properties`, `ANDROID_HOME`, java, and the signing keystore
       (verified by fingerprint — this one cannot be auto-provisioned, so it
       must fail loudly and clearly). Near-instant when already ready.
-- [ ] 2. Wire it into `ship.sh`, replacing the current hard-fail that just
+- [x] 2. Wire it into `ship.sh`, replacing the current hard-fail that just
       tells a human to go run `tools/setup-android-sdk.sh` by hand.
-- [ ] 3. `tools/gradle.sh` — a wrapper so ANY gradle work auto-provisions, not
+- [x] 3. `tools/gradle.sh` — a wrapper so ANY gradle work auto-provisions, not
       just a full ship. This is what makes it "always", per the request.
-- [ ] 4. Make it permanent: committed to the repo, and named in `CLAUDE.md` +
+- [x] 4. Make it permanent: committed to the repo, and named in `CLAUDE.md` +
       `bootstrap.sh` so every future session on any account uses it by default
       instead of the manual step.
-- [ ] 5. Cover it in `tools/test_resume.sh`.
-- [ ] 6. Prove it end to end by actually provisioning this container and
+- [x] 5. Cover it in `tools/test_resume.sh`.
+- [~] 6. Prove it end to end by actually provisioning this container and
       running a real Gradle build — not by reading the script.
+      SDK HALF DONE AND PROVEN: from a cold container, `ensure-build-env.sh`
+      installed the SDK by itself in one step (776 MB, android-36,
+      local.properties written), and a second run is a 0.26s no-op.
+      SIGNING HALF IN FLIGHT: `bash tools/gradle.sh :app:assembleRelease` is
+      running. Tick this only once the APK exists AND `apksigner`/`keytool`
+      confirms it carries certificate 2E:8C:38:47:...:F3:96:A9:F2.
 
 Ticking a box means: written, tested (name the test) and committed.
