@@ -40,10 +40,13 @@ plus a release.
       for one frame instead of killing the process.
       NOTE: the `FeedScreen` dedupe above is a real crash class but was NOT this
       crash. It is kept as a separate, defensible fix — not credited with this.
-- [ ] 3. Fix whatever 1 and 2 turn out to be, with a regression test for each.
-- [ ] 4. Bump versionCode past 64 (v7.7 shipped code 64) and versionName.
-- [ ] 5. Ship: full unit suite green, signed release APK, and send the APK to
-      Tj in the chat.
+- [x] 3. Fixed, with regression tests: `DetailTabCrashTest` (reproduces the real
+      crash through the actual composable) and `ChartAxisYearTest`.
+- [x] 4. versionCode 65 / versionName 7.8.
+- [x] 5. SHIPPED v7.8 (code 65): 806 tests 0 failures, signed with the same
+      certificate as every previous release (verified on the artifact itself
+      with `tools/verify-apk.sh`), committed to `releases/` and pushed. APK
+      sent to Tj in the chat.
 
 Ticking a box means: written, tested (name the test) and committed.
 
