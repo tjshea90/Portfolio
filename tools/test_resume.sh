@@ -213,6 +213,45 @@ else
   ok "no build path asks a human to install the SDK by hand"
 fi
 
+# ---- CI must never be wired to fire on every autosave ------------------------
+# autosave mirrors every commit to main; a push trigger would start a run every
+# few seconds. This is the one mistake that would make CI actively harmful.
+WF=".github/workflows/android.yml"
+if [ -f "$WF" ]; then
+  if python3 - "$WF" <<'PY' >/dev/null 2>&1
+import sys
+try: import yaml
+except ImportError: sys.exit(0)
+w = yaml.safe_load(open(sys.argv[1]))
+on = w.get(True, w.get("on"))          # bare `on:` parses as the boolean True
+push = (on or {}).get("push") or {}
+assert "branches" not in push, "workflow has a branch push trigger"
+assert "tags" in push or "workflow_dispatch" in (on or {}), "no tag/dispatch trigger"
+PY
+  then ok "CI workflow triggers on tags/dispatch only, never on every push"
+  else bad "CI workflow would run on branch pushes — autosave would fire it constantly"
+  fi
+  case "$(cat "$WF")" in
+    *"tools/checkkeystore.sh"*) ok "CI verifies the keystore with the repo's own check" ;;
+    *) bad "CI does not verify the signing keystore" ;;
+  esac
+  case "$(cat "$WF")" in
+    *"tools/verify-apk.sh"*) ok "CI verifies the built APK's certificate" ;;
+    *) bad "CI publishes an APK without checking what signed it" ;;
+  esac
+  case "$(cat "$WF")" in
+    *"git push"*|*"git commit"*) bad "CI commits or pushes — it would retrigger autosave and race live sessions" ;;
+    *) ok "CI commits nothing" ;;
+  esac
+fi
+
+# verify-apk.sh and checkkeystore.sh must agree on the fingerprint, always.
+EXP="$(bash tools/checkkeystore.sh --expected 2>/dev/null | tr -d ': ' | tr 'A-Z' 'a-z')"
+case "$EXP" in
+  2e8c38472d1657b7*) ok "the expected certificate is published from one place" ;;
+  *) bad "checkkeystore --expected did not return the shipped certificate" ;;
+esac
+
 # ---- 6. the secret scan still has teeth --------------------------------------
 S="$TMP/secret"; mkdir -p "$S"; cp -r tools "$S/tools"
 ( cd "$S" && git init -q . && git add -A >/dev/null 2>&1 && git commit -qm init >/dev/null 2>&1 )

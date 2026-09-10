@@ -212,12 +212,30 @@ look like code problems (a blanked `JAVA_TOOL_OPTIONS`, two concurrent
 Gradle builds, a cold Maven Central 429) are not. `ensure-build-env.sh`
 already names the network case when SDK install fails.
 
-**There is no CI. GitHub does not build these APKs** — checked 2026-09-10:
-no `.github/` directory, and `git log --all -- .github` is empty across the
-whole history. Every APK, v7.7 included, was built in a Claude container by
-`ship.sh` and committed to `releases/`. Adding GitHub Actions would require
-uploading the keystore into GitHub Secrets, which is Tj's decision to make,
-not a default to assume.
+## GitHub Actions builds APKs too (added 2026-09-10)
+
+`.github/workflows/android.yml` runs the tests, builds a SIGNED release APK,
+verifies the artifact's certificate and publishes it — as a workflow
+artifact, and as a GitHub Release on a `v*` tag. The point is that Tj can get
+an installable build with **no Claude session at all**.
+
+**It triggers on tags and manual dispatch ONLY. Never add a `push` trigger.**
+`tools/autosave.sh` commits after every tool call and `tools/push.sh` mirrors
+each to main — 48 commits in one two-hour session, measured. A push trigger
+would start a run every few seconds and exhaust the free minutes almost
+immediately.
+
+`ship.sh` is still the release of record: it owns versionCode discipline,
+`BUILDLOG.md` and the committed APK under `releases/`. The workflow
+deliberately **commits nothing** — a workflow that pushed would retrigger the
+autosave/mirror machinery and race with whatever session is running.
+
+The workflow needs the repository secret `SIGNING_KEYSTORE_BASE64` (base64 of
+`app/sideload.jks`). Claude cannot create secrets; only Tj can. Without it the
+workflow fails by design at "Restore the signing keystore" and says so. Note
+this applies to debug builds too — `app/build.gradle.kts` signs BOTH build
+types with the sideload key, so the usual "assembleDebug needs no secrets"
+advice does not hold here.
 
 ## Project rules
 

@@ -39,6 +39,11 @@ band. This means `git clone` alone does not reproduce a buildable checkout:
 missing, say so plainly rather than generating a replacement — a fresh
 keystore is exactly the "erases the portfolio" failure above.
 
+It is ALSO needed by GitHub Actions, as the repository secret
+`SIGNING_KEYSTORE_BASE64` (base64 of the same file) — see
+`.github/workflows/android.yml`. GitHub Secrets are write-only, so that is
+not a backup: Tj still holds the only retrievable copy.
+
 `bootstrap.sh` now checks this at every session start and prints one line:
 present-and-correct, missing, or **WRONG**. The wrong case is the one that
 matters — a different key builds and installs perfectly and only fails to
