@@ -213,6 +213,13 @@ else
   ok "no build path asks a human to install the SDK by hand"
 fi
 
+# ship.sh must leave its next step ON DISK - an interruption between the push and the
+# API trigger would otherwise lose the only instruction that says what to do next.
+case "$(grep -v '^[[:space:]]*#' ship.sh)" in
+  *"tools/ckpt.sh"*"actions_run_trigger"*) ok "ship.sh writes the trigger step into CHECKPOINT.md" ;;
+  *) bad "ship.sh only prints its next step — an interruption there loses it" ;;
+esac
+
 # ---- the release seam: a build GitHub made but nobody recorded --------------------
 # BUILDLOG.md gates the NEXT release's versionCode. A session cut off between GitHub
 # publishing and tools/record-release.sh leaves it missing an entry, and then the next

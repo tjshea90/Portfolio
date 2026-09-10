@@ -126,6 +126,21 @@ if ! bash tools/push.sh; then
   exit 1
 fi
 echo "  OK    commit pushed"
+
+# LEAVE THE NEXT STEP ON DISK, NOT JUST ON SCREEN.
+# The seam: this script finishes, and the build still has to be triggered through the
+# GitHub API. A usage cap landing in that gap would leave a gated, pushed, unreleased
+# commit whose only instruction was printed to a terminal nobody will ever read again.
+# Writing it as the checkpoint's "Do this next" means the next session - on any account -
+# is told exactly this by tools/resume.sh before it does anything else.
+bash tools/ckpt.sh \
+  "gated v$VNAME (code $VCODE) and pushed it: checkinit, the full unit suite and the
+versionCode check all passed here. NOT yet built - GitHub has not been asked." \
+  "TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
+android.yml, ref main, inputs {\"full_build\": \"true\"}. When that run is green,
+send Tj the APK from the Release and then run:
+  bash tools/record-release.sh v$VNAME \"$NOTE\"" >/dev/null 2>&1
+echo "  OK    next step recorded in CHECKPOINT.md (survives an interruption here)"
 echo
 echo "== v$VNAME (code $VCODE) is ready for GitHub to build =="
 echo
