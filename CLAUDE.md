@@ -25,6 +25,37 @@ mechanics are exactly what `tools/` below replaces — but its full history
 (559 commits) was imported intact, so `git log` still carries every round.
 `audits/round66/` holds the last round's detailed findings.
 
+## FIRST ACTION OF EVERY SESSION — install the hooks, don't assume they exist
+
+**CONFIRMED 2026-09-10: this repo's own `.claude/settings.json` does NOT get
+loaded by Claude Code in this environment** (Claude Code on the web, a
+multi-repo container under `/home/user`). `CLAUDE_PROJECT_DIR` is unset, and
+the harness only checks ONE project root for hooks — this repo being in a
+subdirectory of it isn't enough. Verified by direct test: an Edit-tool
+change produced no autosave commit across several subsequent tool calls,
+and writing the identical hook config to `/home/user/.claude/settings.json`
+instead made it fire immediately.
+
+**So, before anything else this session, run this once:**
+```bash
+mkdir -p /home/user/.claude
+cp tools/session-root-hooks.json /home/user/.claude/settings.json
+```
+This is idempotent (safe to run even if already done) and takes effect
+immediately — no restart needed, verified live. It loops over every repo
+directly under `/home/user`, so it protects any sibling repos too, not just
+this one. Then verify it actually worked (don't just trust it):
+```bash
+# after your first real edit:
+git log -1 --oneline   # expect a fresh "auto-checkpoint:" commit
+```
+If no such commit appears, the hooks still aren't firing — fall back to
+running `bash tools/ckpt.sh "did" "next"` after every step BY HAND for the
+rest of the session, and say so plainly; that becomes the only safety net.
+If Claude Code changes how it scopes hooks in this environment, this whole
+section becomes unnecessary — but don't assume that without re-running the
+check above.
+
 ## Starting a session
 
 A `SessionStart` hook has already run `tools/resume.sh`, which pulled the
