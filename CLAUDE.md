@@ -79,22 +79,45 @@ from his side he already explained it.
 Tick a box only when it is written, tested (name the test, if one applies)
 and committed. The next session will not re-verify a ticked box.
 
-## Saving work — two levels, and you are responsible for the second one
+## Saving work — VERIFY THE HOOK BEFORE TRUSTING IT
 
-**1. Automatic (hooks — happens without you).** `tools/autosave.sh` commits
-and pushes after every file edit and every bash command, and again on Stop.
-It has no gate and runs no tests: a broken half-edit that is committed is
-recoverable, the same edit uncommitted dies with the session. This is what
-survives a usage cap landing mid-change. You do not call it.
+**CONFIRMED 2026-09-10: in this environment (Claude Code on the web, a
+multi-repo container under `/home/user`), the PostToolUse/SessionStart hooks
+in `.claude/settings.json` do NOT fire.** `CLAUDE_PROJECT_DIR` is unset, and
+there is no `.claude/settings.json` at `/home/user` itself (only inside this
+repo and the sibling one) — the harness appears to only load hooks from one
+designated project root for the whole session, not from a subdirectory repo.
+Direct test: an Edit-tool change to `TASKS.md` produced NO autosave commit
+across multiple subsequent tool calls. This is not a one-off — the same
+absence of autosave commits holds across this entire session's history.
+
+**So: do not assume level 1 below is running. Verify it, every session,
+before relying on it:**
+```bash
+# after your FIRST real edit this session:
+git log -1 --oneline   # if it's not a fresh "auto-checkpoint:" commit, hooks are NOT firing
+```
+If they're not firing, **level 2 (manual `ckpt.sh`) is the ONLY safety net
+you have** — treat "run it after every completed step" as load-bearing, not
+optional, and say so to Tj so he knows the automatic layer isn't covering
+him. If Claude Code ever starts honoring these hooks in this environment
+(a platform fix, a settings change, a differently-scoped session), this
+whole section becomes moot and level 1 resumes being real protection — but
+don't assume that's true without re-running the check above.
+
+**1. Automatic (hooks — when they fire).** `tools/autosave.sh` commits and
+pushes after every file edit and every bash command, and again on Stop. It
+has no gate and runs no tests: a broken half-edit that is committed is
+recoverable, the same edit uncommitted dies with the session. This is what's
+*supposed to* survive a usage cap landing mid-change, when it's running.
 
 **2. Deliberate — `bash tools/ckpt.sh "what I just did" "what comes next"`.**
-**Run this after every completed step, not at the end of the session.** The
-autosave hook can preserve your *files* but it cannot know your *intent* —
-"what comes next" is the one thing no diff can reconstruct and the one thing
-the next session most needs. It runs the FAST checks only (`tools/checkinit.py`
-and anything under `tools/test_*`), rewrites `CHECKPOINT.md`, commits and
-pushes. Skipping it is how a handoff loses a day even though every file was
-saved.
+**Run this after every completed step, not at the end of the session** —
+right now, this is doing the job level 1 was supposed to do, not just
+supplementing it. It runs the FAST checks only (`tools/checkinit.py` and
+anything under `tools/test_*`), rewrites `CHECKPOINT.md`, commits and
+pushes. Skipping it is how a handoff loses everything since the last run,
+not just intent.
 
 **3. Milestone — `bash ship.sh "note"`.** Full release gate: `tools/checkinit.py`,
 the entire Gradle unit suite (797 tests as of v7.7), a signed release build
