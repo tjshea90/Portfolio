@@ -30,6 +30,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -108,6 +110,83 @@ enum class DetailTab(val label: String) {
 fun visibleTabs(isFund: Boolean): List<DetailTab> =
     if (isFund) DetailTab.entries
     else DetailTab.entries.filter { it != DetailTab.HOLDINGS }
+
+/**
+ * The tab strip, extracted so the crash below can be reproduced in a test.
+ *
+ * ============================================================================
+ * THE CRASH THIS FIXES - it killed the app from TJ's phone, twice in a minute.
+ * ============================================================================
+ *
+ *     java.lang.IndexOutOfBoundsException: Index 5 out of bounds for length 5
+ *         at androidx.compose.material3.TabRowKt$ScrollableTabRow$1.invoke(TabRow.kt:1409)
+ *
+ * Material3's DEFAULT indicator is `tabPositions[selectedTabIndex]`, and those two values
+ * come from different places: `selectedTabIndex` is read during composition, while
+ * `tabPositions` is produced by the strip's own measure pass. They are equal in length only
+ * while the number of tabs is constant.
+ *
+ * It is not constant here. [visibleTabs] hides Holdings on anything that is not a fund, and
+ * `isFund` is not known when the screen opens - it arrives with the holdings lookup, about a
+ * second later. So:
+ *
+ *   1. open a stock: fund status unknown, FIVE tabs, indices 0..4
+ *   2. tap News - the last one - index 4, and its headlines start loading
+ *   3. the lookup returns "fund": `tabs` grows to SIX, so `indexOf(NEWS)` is now 5
+ *   4. the strip recomposes with `selectedTabIndex = 5` while `tabPositions` still holds
+ *      the five entries the previous measure pass produced - and the default indicator
+ *      reads `tabPositions[5]`. Length 5. Dead.
+ *
+ * Which is exactly what TJ reported: pressing News "on some stocks" - the ones that turn
+ * out to be funds - "loaded for a second then the whole app crashed and closed".
+ *
+ * `coerceAtLeast(0)` did not help: that guards `indexOf` returning -1 when the list SHRINKS
+ * under a selection. This is the list GROWING, where `indexOf` is perfectly valid and it is
+ * the position list that is behind.
+ *
+ * THE FIX IS TO INDEX THE LIST WE WERE ACTUALLY HANDED. A custom indicator clamps to
+ * `positions.lastIndex`, so a one-frame disagreement paints the indicator under the wrong
+ * tab for a single frame instead of taking the process down. Never trust `selectedTabIndex`
+ * as an index into `tabPositions`.
+ */
+@Composable
+internal fun DetailTabRow(
+    tabs: List<DetailTab>,
+    selected: DetailTab,
+    onSelect: (DetailTab) -> Unit
+) {
+    // INDEXED INTO THE VISIBLE LIST, NOT THE ENUM. `tab.ordinal` was fine while every tab was
+    // always shown; with Holdings hidden on ordinary shares the ordinals no longer match the
+    // tabs on screen, and the indicator would sit under the wrong one.
+    val index = tabs.indexOf(selected).coerceAtLeast(0)
+    ScrollableTabRow(
+        selectedTabIndex = index,
+        edgePadding = 8.dp,
+        containerColor = MaterialTheme.colorScheme.background,
+        indicator = { positions ->
+            // The whole point: bound by what THIS list actually contains.
+            if (positions.isNotEmpty()) {
+                TabRowDefaults.SecondaryIndicator(
+                    Modifier.tabIndicatorOffset(positions[index.coerceAtMost(positions.lastIndex)])
+                )
+            }
+        }
+    ) {
+        tabs.forEach { t ->
+            Tab(
+                selected = selected == t,
+                onClick = { onSelect(t) },
+                text = {
+                    Text(
+                        t.label,
+                        fontSize = 14.sp,
+                        fontWeight = if (selected == t) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            )
+        }
+    }
+}
 
 /**
  * Everything about one symbol.
@@ -648,30 +727,7 @@ fun DetailScreen(
 
         Spacer(Modifier.height(6.dp))
 
-        ScrollableTabRow(
-            // INDEXED INTO THE VISIBLE LIST, NOT THE ENUM. `tab.ordinal` was fine while every
-            // tab was always shown; with Holdings hidden on ordinary shares the ordinals no
-            // longer match the tabs on screen, and the indicator would sit under the wrong
-            // one. `coerceAtLeast(0)` covers the instant after a fund's data arrives, when
-            // the list grows underneath a selection that is briefly not in it.
-            selectedTabIndex = tabs.indexOf(tab).coerceAtLeast(0),
-            edgePadding = 8.dp,
-            containerColor = MaterialTheme.colorScheme.background
-        ) {
-            tabs.forEach { t ->
-                Tab(
-                    selected = tab == t,
-                    onClick = { tab = t },
-                    text = {
-                        Text(
-                            t.label,
-                            fontSize = 14.sp,
-                            fontWeight = if (tab == t) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                )
-            }
-        }
+        DetailTabRow(tabs, tab) { tab = it }
 
         Refreshable(
             refreshing = state.pulling(PULL_PRICES),
