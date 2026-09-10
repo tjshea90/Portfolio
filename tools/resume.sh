@@ -35,7 +35,11 @@ for a in "$@"; do [ "$a" = "--text" ] && TEXT_MODE=1; done
 # appear — and that is exactly the case where the hooks are missing and every
 # edit for the rest of the session would go unsaved. Idempotent and silent
 # when already correct, so it costs nothing in the normal case.
-bash tools/install-hooks.sh --quiet >/dev/null 2>&1 || true
+# CLAUDE_HOOKS_ACTIVE is set by tools/hooks/lib.sh, i.e. when this is running
+# FROM the hook — in which case the hooks obviously work and there is nothing
+# to repair.
+[ -z "${CLAUDE_HOOKS_ACTIVE:-}" ] && bash tools/install-hooks.sh --quiet >/dev/null 2>&1
+true
 
 BRIEF="$(
   echo "=============================================================================="

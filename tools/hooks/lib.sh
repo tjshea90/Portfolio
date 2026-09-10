@@ -36,6 +36,12 @@ hook_collect() {
   per=$(( budget / n ))
   [ "$per" -lt 12 ] && per=12
 
+  # Tells the scripts below that the hooks are demonstrably firing — they are
+  # what is running us. Without it every repo's resume.sh would try to repair
+  # the hook install on every session start, and two repos carrying different
+  # versions of the template would overwrite each other's config in turn.
+  export CLAUDE_HOOKS_ACTIVE=1
+
   for d in "${repos[@]}"; do
     local out
     out="$( cd "$d" && timeout "$per" bash "$script" --text 2>/dev/null || true )"
