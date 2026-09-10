@@ -25,6 +25,37 @@ AHOME="${ANDROID_HOME:-/root/android-sdk}"
 [ -d "$AHOME/platforms" ] \
   && echo "  OK    android sdk present at $AHOME" \
   || echo "  note  no android sdk yet — run: bash tools/setup-android-sdk.sh (~5 min, once)"
+# --- the signing keystore (BRIEF.md: "the keystore is irreplaceable") ---
+# Deliberately NOT in git, so a fresh container never has it and no build can
+# produce an installable APK until Tj supplies it. Reporting that HERE, at
+# session start, saves a session discovering it minutes into a failed Gradle
+# run — and the fingerprint check catches the genuinely dangerous case, which
+# is not a MISSING keystore but a WRONG one: a different key builds and
+# installs perfectly, it just cannot update the phone in place, and Android
+# only says so at install time. Costs ~0.3s.
+KS_FP="2E:8C:38:47:2D:16:57:B7:D2:56:22:66:C6:D7:E1:D8:E6:F0:3D:76:66:BD:10:E1:CB:50:5B:1C:F3:96:A9:F2"
+if [ -f app/sideload.jks ]; then
+  if command -v keytool >/dev/null 2>&1; then
+    GOT="$(keytool -list -keystore app/sideload.jks -storepass portfolio 2>/dev/null \
+           | sed -n 's/.*SHA-256): *//p' | tr -d ' \r' | head -1)"
+    if [ "$GOT" = "$KS_FP" ]; then
+      echo "  OK    signing keystore present and matches the shipped certificate"
+    elif [ -z "$GOT" ]; then
+      echo "  WARN  app/sideload.jks is present but unreadable with the documented"
+      echo "        password — treat it as the wrong file; do NOT ship with it."
+    else
+      echo "  !!    app/sideload.jks is the WRONG KEYSTORE. Signing with it produces"
+      echo "        an APK that CANNOT update the phone in place — installing it"
+      echo "        erases the portfolio. Ask Tj for the right file; never generate"
+      echo "        a replacement. Expected ...${KS_FP##*:*:*:}, got ...${GOT##*:*:*:}"
+    fi
+  else
+    echo "  OK    signing keystore present (no keytool here to verify its fingerprint)"
+  fi
+else
+  echo "  note  no signing keystore — app/sideload.jks is not in git and must be"
+  echo "        supplied by Tj before any APK build. Never generate a replacement."
+fi
 [ -f app/build/outputs/apk/release/app-release.apk ] && echo "  OK    a release APK exists in app/build/ (unshipped)" || echo "  note  no unshipped build output — releases/ holds the last shipped APK"
 
 # --- the checkpoint history ---
