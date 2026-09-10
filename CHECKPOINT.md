@@ -1,22 +1,22 @@
-# CHECKPOINT 596 — read me first, then TASKS.md
+# CHECKPOINT 597 — read me first, then TASKS.md
 
-**Written:** 2026-09-10T21:21:18Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/resume-function-claude-code-q3cbja` · **builds on:** `3adcc05` (this checkpoint is the commit after it)
+**Written:** 2026-09-10T21:25:55Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/resume-function-claude-code-q3cbja` · **builds on:** `132a15c` (this checkpoint is the commit after it)
 
 ## Just done
-SHIPPED v7.8 (versionCode 65). All ship gates green: checkinit, build environment (SDK + keystore fingerprint), 806 unit tests 0 failures, signed release build, versionCode 65 higher than every previous ship, APK committed to releases/ and pushed to GitHub. Verified the SHIPPED ARTIFACT itself with tools/verify-apk.sh - Portfolio-v7.8.apk carries certificate 2e8c3847...f396a9f2, the one the phone accepts as an in-place update, so it will not erase the portfolio. Contents: the ScrollableTabRow IndexOutOfBounds crash fix (root-caused from Tj's own device crash log), chart axis labels carrying the year when a window spans calendar years, and the FeedScreen dedupe-by-render-key hardening. Both of Tj's reports are now answered: the chart comparison was CORRECT all along and the axis was hiding why the numbers moved; the news crash was the tab strip, not the news.
+Made the CI versionCode gate distinguish a DOWNGRADE from a REBUILD, so GitHub can build the already-shipped v7.8. The gate was copied from ship.sh as '-le', which is the right test for SHIPPING (a new release whose code is not higher is not a new release) but the wrong test for a workflow whose job is producing an installable artifact of a version that has already been decided. What Android actually rejects is a LOWER versionCode (INSTALL_FAILED_VERSION_DOWNGRADE); an EQUAL one is a reinstall of the same version and is data-preserving as long as the certificate matches, which the keystore gate immediately above has already proved. So CI now fails only on '-lt' and warns on '-eq', while ship.sh keeps '-le' untouched. Recorded the distinction in BRIEF.md rather than silently contradicting its one-line rule: that rule is about shipping and is deliberately stricter than the platform's actual behaviour, and the two gates now differ on purpose rather than by accident.
 
 ## Do this next
-Nothing outstanding. If Tj reports the crash again after installing v7.8, get Settings -> Crash log again - the tab-strip fix is verified by a test that reproduces the exact stack, but a second, different crash would show up there. TASKS.md can be reset to 'no active job' once he confirms the build installs.
+Push, then trigger the workflow with full_build=true to have GitHub actually build v7.8 - this is the first time the FULL path will run on a runner, so expect the Android SDK package step to be the likeliest thing to need fixing. Verify the produced artifact's certificate, do not assume it.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
-     M TASKS.md
 
 ## Last ten checkpoints
 ```
+  90b926f ckpt 596: SHIPPED v7.8 (versionCode 65). All ship gates green: checkinit, build environm
   3adcc05 ship v7.8: Chart axis labels now carry the year when a window spans calendar years - a p
   66e50e1 ckpt 595: Fixed my own broken regression test rather than the code: DetailTabCrashTest's
   5e88705 ckpt 594: ROOT-CAUSED the crash from the device log Tj sent - and it was NOT what I gues
@@ -26,5 +26,7 @@ Nothing outstanding. If Tj reports the crash again after installing v7.8, get Se
   ce48c8f ckpt 590: CI IS LIVE AND VERIFIED. Tj added the SIGNING_KEYSTORE_BASE64 secret and run #
   e7eb17f ckpt 589: Restructured the CI workflow so it cannot waste GitHub's free minutes, then va
   1d9b76c ckpt 588: Added GitHub Actions signed-release CI on Tj's decision, and closed the local 
-  f42b374 ckpt 587: Ticked TASKS.md 1-5 (all written, tested via tools/test_resume.sh's 19 checks,
 ```
+
+(1 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
