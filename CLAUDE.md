@@ -219,6 +219,24 @@ verifies the artifact's certificate and publishes it — as a workflow
 artifact, and as a GitHub Release on a `v*` tag. The point is that Tj can get
 an installable build with **no Claude session at all**.
 
+### The rule for spending GitHub's free minutes
+
+**Only spend them when actually building a new installable version.** 2,000
+minutes/month, ~12 per full build. Concretely:
+
+- A manual run defaults to **gates only** (`full_build` off): checkinit,
+  keystore restore, keystore fingerprint, versionCode. Measured at **18
+  seconds and 0 billable minutes** — use this freely to confirm the setup
+  still works.
+- A **full build** costs real minutes and happens two ways only: tick
+  `full_build` on a manual run, or push a `v*` tag. Do neither unless a
+  release is genuinely intended.
+- Cheap gates run FIRST, so a run destined to fail costs ~1 minute rather
+  than ~12. Do not reorder them below the build.
+- The versionCode gate is **fatal on a full build**: an APK whose versionCode
+  is not higher than the last shipped cannot install on the phone, so
+  building one is minutes spent on nothing.
+
 **It triggers on tags and manual dispatch ONLY. Never add a `push` trigger.**
 `tools/autosave.sh` commits after every tool call and `tools/push.sh` mirrors
 each to main — 48 commits in one two-hour session, measured. A push trigger

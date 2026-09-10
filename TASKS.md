@@ -75,14 +75,20 @@ as the whole resume system.
 - [x] 8. `tools/verify-apk.sh` — checks the built ARTIFACT's certificate, not
       just the keystore that went in. `tools/checkkeystore.sh --expected`
       publishes the fingerprint so CI and local share one copy of it.
-- [ ] 9. **TJ'S ONE MANUAL STEP — nothing works until this is done.** Add the
+- [x] 9. **DONE — Tj added it.** (was: TJ'S ONE MANUAL STEP — nothing works until this is done.** Add the
       repository secret `SIGNING_KEYSTORE_BASE64` (Settings -> Secrets and
       variables -> Actions -> New repository secret) with the base64 of
       `app/sideload.jks`. Claude cannot create secrets. Until then the
       workflow fails at the "Restore the signing keystore" step by design,
       with a message saying exactly this.
-- [ ] 10. First real CI run is UNVERIFIED — the workflow has never executed.
-      Watch the first `workflow_dispatch` run and fix whatever the runner
-      disagrees with (SDK package availability is the likeliest).
+- [x] 10. First CI run DONE — gates-only dispatch succeeded in 18 seconds for
+      0 billable minutes. checkinit ok, keystore restored and fingerprint
+      matched, versionCode correctly warned (64 vs 64 shipped), keystore wiped
+      from the workspace. Bumped actions/checkout and actions/setup-java to v5
+      after the run warned they were deprecated on Node 20.
+- [ ] 11. The FULL build path is still unverified on a runner — only the gates
+      have run there. It needs a versionCode bump past 64 first, so it will be
+      proven by the next real release, not before. Expect the Android SDK
+      package step to be the likeliest thing to need fixing.
 
 Ticking a box means: written, tested (name the test) and committed.
