@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 01:08:12 UTC",
+  "updated": "2026-09-10 01:08:13 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -381,8 +381,8 @@
       "id": "ETF8",
       "text": "isLeveragedOrInverse is applied only on the screener path, so a leveraged fund Claude adds (TQQQ) survives on a list whose own sources note says leveraged and inverse funds are excluded",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Leveraged/inverse funds dropped on the Claude path too, once the quote fill supplies a name; prompt now says not to add them"
     },
     {
       "id": "CHT1",
@@ -991,6 +991,7 @@
     "2026-09-10 01:03:37 UTC  ETF3 fixed: Asset class tested before region, with a bond-word guard; 'aggregate bond' now requires the name not to be international/global/world/ex-US",
     "2026-09-10 01:03:37 UTC  ETF7 fixed: Global equity split into 'incl US' and 'ex-US', ex-US tested first so 'All-World ex-US' reads correctly",
     "2026-09-10 01:08:12 UTC  ETF2 fixed: fetch returns null for 'nobody answered' vs emptyList for 'end of list'; fetchAll reports completeness and buildEtfs warns when a screen answered only part of its pages",
-    "2026-09-10 01:08:12 UTC  ETF4 fixed: Explicit Research.ETF_ORDER: score, then cost, then size, then ticker - fully deterministic, unknown fee sorts last"
+    "2026-09-10 01:08:12 UTC  ETF4 fixed: Explicit Research.ETF_ORDER: score, then cost, then size, then ticker - fully deterministic, unknown fee sorts last",
+    "2026-09-10 01:08:13 UTC  ETF8 fixed: Leveraged/inverse funds dropped on the Claude path too, once the quote fill supplies a name; prompt now says not to add them"
   ]
 }
