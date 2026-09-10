@@ -213,6 +213,38 @@ else
   ok "no build path asks a human to install the SDK by hand"
 fi
 
+# ---- the release seam: a build GitHub made but nobody recorded --------------------
+# BUILDLOG.md gates the NEXT release's versionCode. A session cut off between GitHub
+# publishing and tools/record-release.sh leaves it missing an entry, and then the next
+# version can reuse a code that is already on the phone. Nothing else reports that state.
+RS="$TMP/relseam"; mkdir -p "$RS/app" "$RS/tools"
+cp -r tools/. "$RS/tools/"; rm -f "$RS"/tools/test_*.sh
+cp bootstrap.sh CHECKPOINT.md TASKS.md "$RS/" 2>/dev/null
+printf 'android {\n  versionCode = 65\n  versionName = "7.8"\n}\n' > "$RS/app/build.gradle.kts"
+printf '# BUILDLOG\n\n| v7.7 | code 64 | x | y\n' > "$RS/BUILDLOG.md"
+( cd "$RS" && git init -q . && git add -A >/dev/null 2>&1 && git commit -qm init >/dev/null 2>&1   && git tag v7.8 >/dev/null 2>&1 )
+case "$( cd "$RS" && bash tools/resume.sh --text 2>/dev/null )" in
+  *"WAS RELEASED BUT NEVER RECORDED"*) ok "resume.sh catches a release GitHub made but nobody recorded" ;;
+  *) bad "an unrecorded release is invisible — the next version could reuse a shipped code" ;;
+esac
+# ...and stays quiet once it IS recorded.
+printf '| v7.8 | code 65 | x | y\n' >> "$RS/BUILDLOG.md"
+case "$( cd "$RS" && bash tools/resume.sh --text 2>/dev/null )" in
+  *"WAS RELEASED BUT NEVER RECORDED"*) bad "resume.sh warns about a release that IS recorded" ;;
+  *) ok "the unrecorded-release warning clears once it is recorded" ;;
+esac
+# The check reads tags, so the fetch has to bring tags in at all.
+case "$(cat tools/resume.sh)" in
+  *"fetch -q --tags"*) ok "resume.sh fetches tags, which is how releases are visible" ;;
+  *) bad "resume.sh fetches branches only — GitHub-made release tags would never arrive" ;;
+esac
+
+# ---- GitHub storage is not spent twice on the same APK ---------------------------
+case "$(grep -v '^[[:space:]]*#' .github/workflows/android.yml)" in
+  *"if: failure()"*) ok "the APK artifact is kept only when a run fails" ;;
+  *) bad "every build uploads a duplicate of the Release asset" ;;
+esac
+
 # ---- GitHub builds the APKs now, and BUILDLOG must not be able to lie ---------
 # Tj's rule, 2026-09-10: GitHub makes all future APKs, Claude codes them. These guard the
 # mechanism rather than the intention.
