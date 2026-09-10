@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 13:21:38 UTC",
+  "updated": "2026-09-10 13:21:39 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -591,8 +591,8 @@
       "id": "EXP3",
       "text": "The 52-week high/low sheets compute distance without clamping, so a new high reads 'within -4.2% of its 52-week high' - the ETF and Research models clamp the identical expression",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "A new 52-week high or low now says so, instead of reporting a negative distance inside a sentence that only works for a positive one"
     }
   ],
   "log": [
@@ -1229,6 +1229,7 @@
     "2026-09-10 13:21:36 UTC  CRX2 fixed: Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code",
     "2026-09-10 13:21:36 UTC  CRX1 fixed: 'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code",
     "2026-09-10 13:21:37 UTC  EXP1 fixed: Pull-to-refresh on Settings now bumps infoTick, so the request counter updates the way the card says it does",
-    "2026-09-10 13:21:38 UTC  EXP2 fixed: refreshStatus reports the two paused states - no prices on screen, and prices final for the session - instead of promising a tick that is not happening"
+    "2026-09-10 13:21:38 UTC  EXP2 fixed: refreshStatus reports the two paused states - no prices on screen, and prices final for the session - instead of promising a tick that is not happening",
+    "2026-09-10 13:21:39 UTC  EXP3 fixed: A new 52-week high or low now says so, instead of reporting a negative distance inside a sentence that only works for a positive one"
   ]
 }
