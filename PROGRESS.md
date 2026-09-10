@@ -702,3 +702,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-10 00:41:11 UTC  checkpoint 66  commit 2ceb8b5  ck: gc git before archiving, exclude jars, slim fallback under the upload limit
 2026-09-10 00:59:17 UTC  checkpoint 66  commit 9684a0b  Audit batch 2: 8 ETF-scoring findings (3 HIGH) + 4 chart-gesture findings, all written to audits/round66/
 2026-09-10 01:03:35 UTC  checkpoint 66  commit 74b756f  fix ETF1
+2026-09-10 01:03:36 UTC  checkpoint 66  commit 26d83a1  fix ETF5
