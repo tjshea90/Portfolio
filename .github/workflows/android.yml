@@ -125,7 +125,8 @@ jobs:
           fi
 
       - name: Gates passed
-        run: echo "All gates green. Full build this run: ${{ steps.mode.outputs.full }}" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo "All gates green. Full build this run — ${{ steps.mode.outputs.full }}" >> "$GITHUB_STEP_SUMMARY"
 
       # ---- everything below costs real minutes and only runs for a release ----
 
