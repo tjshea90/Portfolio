@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 00:26:29 UTC",
+  "updated": "2026-09-10 00:37:20 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -276,8 +276,8 @@
       "id": "PUI1",
       "text": "RowActions.EditPositionDialog seeds shares/avgCost with display formatters (Fmt.shares/Fmt.priceBare) so Save with no edit writes a ROUNDED override - same bug TxnEditor fixed with Fmt.exact",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "PositionFields extracted + Fmt.exact seeds; Fmt.exact now rounds to 12 sig digits so a quotient does not seed 17 digits"
     },
     {
       "id": "PUI2",
@@ -872,6 +872,7 @@
     "2026-09-10 00:26:29 UTC  finding PUI4: RowSeparator thickened to 5dp but still painted in colorScheme.outline at 1.24:1",
     "2026-09-10 00:26:29 UTC  finding PUI5: PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on ",
     "2026-09-10 00:26:29 UTC  finding PUI6: WatchlistScreen PRICE column header is an unweighted child after a weighted Spac",
-    "2026-09-10 00:26:29 UTC  finding PUI7: StockRow watch menu reads row.watchOnly, never true for a held row, so a held+wa"
+    "2026-09-10 00:26:29 UTC  finding PUI7: StockRow watch menu reads row.watchOnly, never true for a held row, so a held+wa",
+    "2026-09-10 00:37:20 UTC  PUI1 fixed: PositionFields extracted + Fmt.exact seeds; Fmt.exact now rounds to 12 sig digits so a quotient does not seed 17 digits"
   ]
 }

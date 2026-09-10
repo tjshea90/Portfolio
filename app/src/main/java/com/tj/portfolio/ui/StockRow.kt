@@ -296,8 +296,10 @@ fun StockRowItem(
                     onClick = { menu = false; onAction(RowAction.ADD_TXN) }
                 )
             }
+            // `row.watched`, NOT `row.watchOnly` (Round 66 audit, PUI-7) - the two differ for
+            // a symbol that is both held and watched. See [Row.watched].
             DropdownMenuItem(
-                text = { Text(if (row.watchOnly) "Remove from watchlist" else "Also watch this") },
+                text = { Text(if (row.watched) "Remove from watchlist" else "Also watch this") },
                 onClick = { menu = false; onAction(RowAction.WATCH_TOGGLE) }
             )
             if (!row.watchOnly) {

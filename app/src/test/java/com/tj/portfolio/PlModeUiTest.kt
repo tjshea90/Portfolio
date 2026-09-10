@@ -68,7 +68,7 @@ class PlModeUiTest {
             marketState = "OPEN", spark = listOf(266.0, 268.26),
             quoteTime = 1_756_000_000_000L, updated = System.currentTimeMillis()
         ),
-        false, ""
+        false, sessionLabel = ""
     )
 
     private fun show(content: @Composable () -> Unit) {

@@ -59,8 +59,14 @@ import androidx.compose.ui.unit.sp
  * Making this line heavier without also making the inner one lighter would have left both
  * shouting; the hierarchy is what was missing, not the weight.
  *
- * So: 3dp and full-strength here, with 5dp of air either side, against 1dp at 45% opacity
- * inside the row. Same two elements, now unambiguous about which is which.
+ * So: [ROW_RULE] dp in [rowRule] here, with [ROW_GAP] dp of air either side, against 1dp of
+ * `outline` at 45% opacity inside the row. Same two elements, now unambiguous about which is
+ * which.
+ *
+ * THE COLOUR IS THE OTHER HALF OF IT (Round 66 audit, PUI-4). This bar was painted in
+ * `colorScheme.outline` through both thickness bumps, and `outline` measures 1.24:1 against
+ * the light background - so what changed each round was the WIDTH of a strip that was very
+ * nearly invisible either way. See [rowRule] for the numbers.
  */
 @Composable
 fun RowSeparator(modifier: Modifier = Modifier) {
@@ -68,7 +74,7 @@ fun RowSeparator(modifier: Modifier = Modifier) {
     androidx.compose.material3.HorizontalDivider(
         modifier = modifier,
         thickness = ROW_RULE.dp,
-        color = MaterialTheme.colorScheme.outline
+        color = rowRule
     )
     Spacer(Modifier.height(ROW_GAP.dp))
 }
@@ -90,7 +96,8 @@ private const val ROW_GAP = 7
  * two-part block with its own internal divider ([InRowDivider]), so the line between two
  * DIFFERENT stocks has to be unmistakably heavier than the line inside one of them or the
  * eye groups the wrong halves together. At 5dp against that 1dp hairline the ratio is five
- * to one and no longer ambiguous at a glance.
+ * to one in thickness - and, since PUI-4 gave this bar [rowRule] and left the inner one on
+ * `outline` at 45%, about nine to one in contrast as well.
  */
 private const val ROW_RULE = 5
 

@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 00:26:29 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 00:37:20 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 8 still open, 27 fixed
+## 5. Open findings — 7 still open, 28 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -79,7 +79,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] R3 (med) 'cheap for that growth' is printed for a company whose forward EPS is BELOW trailing, when the growth term scored zero  — the valuation line only claims growth when the growth term scored, and says plainly when earnings are not growing
 - [x] R4 (med) 'most shorted' and 'day losers' are printed among the reasons a stock is rated a good BUY, though neither screen scores anything  — only the four screens that actually score are named among the reasons to buy
 - [ ] R6 (low) Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and EtfScreener still describe the Worst list, the short-vehicle lookup, a two-list ETF plan and a RESEARCH_TAB index that has moved
-- [ ] PUI1 (high) RowActions.EditPositionDialog seeds shares/avgCost with display formatters (Fmt.shares/Fmt.priceBare) so Save with no edit writes a ROUNDED override - same bug TxnEditor fixed with Fmt.exact
+- [x] PUI1 (high) RowActions.EditPositionDialog seeds shares/avgCost with display formatters (Fmt.shares/Fmt.priceBare) so Save with no edit writes a ROUNDED override - same bug TxnEditor fixed with Fmt.exact  — PositionFields extracted + Fmt.exact seeds; Fmt.exact now rounds to 12 sig digits so a quotient does not seed 17 digits
 - [ ] PUI2 (med) PortfolioScreen.BigLine weights only the label and leaves two unweighted figures after it - at large font scale the label measures to 0dp and vanishes; sub has no overflow so it clips with no ellipsis
 - [ ] PUI3 (med) PortfolioScreen reconciliation note claims Since-you-started = broker Total G/L + banked profit, but totalGain also contains dividends/interest/fees so the stated arithmetic does not add up
 - [ ] PUI4 (med) RowSeparator thickened to 5dp but still painted in colorScheme.outline at 1.24:1 (light) / 1.37:1 (dark) - TJ's 'even thicker' request is blocked by the COLOUR, not the thickness
@@ -96,7 +96,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-09 19:38:39 UTC  H2 fixed: Screener, EtfScreener and FundamentalsFeed skip a cooling host instead of abandoning the call, matching what ChartFeed already documented; one 429 on query1 no longer empties the Research and ETF tabs
 - 2026-09-09 19:38:40 UTC  H3 fixed: YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401
 - 2026-09-09 19:38:42 UTC  H4 fixed: the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests
 - 2026-09-09 19:48:11 UTC  R2 fixed: Trending rows outside the nine screeners had no price/name/change - loadResearch now awaits one batched fill
@@ -108,4 +107,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 00:26:29 UTC  finding PUI5: PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on 
 - 2026-09-10 00:26:29 UTC  finding PUI6: WatchlistScreen PRICE column header is an unweighted child after a weighted Spac
 - 2026-09-10 00:26:29 UTC  finding PUI7: StockRow watch menu reads row.watchOnly, never true for a held row, so a held+wa
+- 2026-09-10 00:37:20 UTC  PUI1 fixed: PositionFields extracted + Fmt.exact seeds; Fmt.exact now rounds to 12 sig digits so a quotient does not seed 17 digits
 

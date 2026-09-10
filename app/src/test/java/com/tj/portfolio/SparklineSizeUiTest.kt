@@ -66,7 +66,7 @@ class SparklineSizeUiTest {
             spark = (0 until 78).map { 230.0 - it * 0.06 },
             quoteTime = 1_756_000_000_000L, updated = System.currentTimeMillis()
         ),
-        false, ""
+        false, sessionLabel = ""
     )
 
     private fun show(width: Int = 411, fontScale: Float = 1f, content: @Composable () -> Unit) {
@@ -268,7 +268,7 @@ class SparklineSizeUiTest {
             marketState = "CLOSED", spark = (0 until 78).map { 230.0 - it * 0.06 },
             quoteTime = 1_756_000_000_000L, updated = System.currentTimeMillis()
         ),
-        true, ""
+        true, watched = true, sessionLabel = ""
     )
 
     /** The rendered height of an exact string, in pixels. */

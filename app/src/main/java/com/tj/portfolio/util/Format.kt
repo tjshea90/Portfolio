@@ -124,11 +124,35 @@ object Fmt {
      * which produces the shortest decimal that reads back as the same double: "230.115".
      * `stripTrailingZeros` then removes the "5.0" tail, and `toPlainString` keeps a very
      * small or very large number out of scientific notation, which no parser here accepts.
+     *
+     * ---- AND WHY IT IS THEN ROUNDED TO 12 SIGNIFICANT DIGITS (Round 66 audit, PUI-1)
+     *
+     * "The shortest decimal that reads back as the same double" is the right rule only when
+     * the double is one somebody typed. Half the values seeded into these boxes are the
+     * result of a DIVISION - `avgCost` is `costBasis / shares`, `unitPriceFromTotal` is a net
+     * over a quantity - and a quotient is very often a double that no short decimal names.
+     * 3,000 shares bought for $1,270.65 average `1270.65 / 3000.0`, whose nearest double is
+     * not 0.42355 but 0.42355000000000004, so the shortest faithful decimal is exactly that:
+     * seventeen digits in an edit box, over a price of forty-two cents.
+     *
+     * A double carries about 15-17 significant digits and the noise from an arithmetic like
+     * that lands in the last one or two, so rounding to 12 removes it and touches nothing
+     * else: no price, share count or quantity this app can hold needs more, and 12 digits is
+     * a relative error of 1e-12, which on a $100,000 position is a ten-millionth of a cent.
+     * The old behaviour never wrote a wrong number - it just showed an unreadable one, which
+     * in a box the user is invited to edit is its own kind of wrong.
+     *
+     * `MathContext` counts SIGNIFICANT digits, not decimal places, which is what makes it
+     * safe across magnitudes: `setScale(12)` would leave 12345.678900000001 untouched (its
+     * noise is at the twelfth decimal) while mangling a genuinely small value.
      */
     fun exact(v: Double): String {
         if (v == 0.0) return "0"
         if (!v.isFinite()) return ""
-        return java.math.BigDecimal.valueOf(v).stripTrailingZeros().toPlainString()
+        return java.math.BigDecimal.valueOf(v)
+            .round(java.math.MathContext(12))
+            .stripTrailingZeros()
+            .toPlainString()
     }
 
     fun compact(v: Double): String {

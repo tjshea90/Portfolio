@@ -688,3 +688,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-09 19:48:14 UTC  checkpoint 66  commit b7f16f6  R2 fixed: priceless research rows filled on rebuild (+8 tests)
 2026-09-09 19:51:16 UTC  checkpoint 66  commit effec14  R2 verified: 732 tests 0 failures, lint + checkInitOrder clean
 2026-09-09 19:51:26 UTC  checkpoint 66  commit b89ea4f  14 doing
+2026-09-10 00:26:38 UTC  checkpoint 66  commit 642bf60  portfolio-ui audit returned 7 findings (1 HIGH); detail-ui and research-ui agents died on session limit

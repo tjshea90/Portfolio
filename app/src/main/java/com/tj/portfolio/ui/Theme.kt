@@ -141,13 +141,29 @@ fun scoreColor(score: Int): Color {
 val GreenTextLight = Color(0xFF0A8055)
 val RedTextLight = Color(0xFFC62B3C)
 
+/**
+ * RED AS TEXT ON THE DARK THEME - not the brand red (Round 66 audit, found by [ContrastTest]).
+ *
+ * The dark half of this rule used to be `Red` itself, on the reasoning that a bright colour
+ * is legible on a dark ground. It is, on the BACKGROUND (5.14:1). The `StatCard` is
+ * `surfaceVariant`, two shades lighter, and there `Red` measures **4.41:1** - a hair under
+ * the 4.5:1 AA asks of body text, on the one figure in the app it is most expensive to
+ * misread. Every losing number on the portfolio card sat just below the line, in the dark
+ * theme, which is the theme this palette was tuned in.
+ *
+ * `0xFFF2606F` is the same hue lifted just far enough: 5.20:1 on `surfaceVariant`, 6.06:1 on
+ * the background. `Red` is untouched, so the chart, the sparklines and every drawn shape keep
+ * the brand colour - the split is text versus fill, exactly as for [greenText].
+ */
+val RedTextDark = Color(0xFFF2606F)
+
 /** Green as TEXT: darker on a light background, the brand colour on a dark one. */
 val greenText: Color
     @Composable get() = if (LocalDarkTheme.current) Green else GreenTextLight
 
-/** Red as TEXT, on the same rule. */
+/** Red as TEXT, on the same rule. See [RedTextDark] for why the dark half is not `Red`. */
 val redText: Color
-    @Composable get() = if (LocalDarkTheme.current) Red else RedTextLight
+    @Composable get() = if (LocalDarkTheme.current) RedTextDark else RedTextLight
 
 /**
  * The colour for a signed FIGURE - which is text, so it follows the rule above.
@@ -160,6 +176,29 @@ fun signColor(v: Double): Color = if (v >= 0) greenText else redText
 
 /** The same decision for a drawn shape, where the brand colours are correct as they stand. */
 fun signFill(v: Double): Color = if (v >= 0) Green else Red
+
+/**
+ * THE LINE BETWEEN ONE STOCK AND THE NEXT, AS A COLOUR (Round 66 audit, PUI-4).
+ *
+ * ---- WHY THIS IS NOT `colorScheme.outline`
+ *
+ * It was, and that is why two rounds of making the bar THICKER did not make it read as more
+ * separated. TJ asked twice - *"make the separation between stocks a little more
+ * pronounced"*, then *"make the separation bars between stocks even thicker"* - and the rule
+ * went 1dp, 3dp, 5dp in reply. Measured, the problem was never the thickness: `outline` is
+ * #E3E7EC on a white background, which is a contrast ratio of **1.24:1**, and #272C34 on the
+ * dark background, **1.37:1**. A 5dp band at 1.24:1 is a slightly-off-white strip, not a
+ * rule. Going to 7dp would have made a wider slightly-off-white strip.
+ *
+ * These two are measured at **3.14:1** (light) and **3.07:1** (dark) against their own
+ * backgrounds - just past the 3:1 WCAG asks of a non-text graphic, and deliberately not
+ * further: a divider that out-contrasts the text it separates reads as a table border.
+ *
+ * `outline` is left exactly as it was, because [InRowDivider] uses it and the hierarchy
+ * between the two lines is the whole point - see [RowSeparator].
+ */
+val rowRule: Color
+    @Composable get() = if (LocalDarkTheme.current) Color(0xFF5A616C) else Color(0xFF8A929E)
 
 private val LightColors = lightColorScheme(
     primary = Accent,

@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -314,13 +315,31 @@ internal fun SummaryHeader(
                     signColor(t?.realized ?: 0.0)
                 )
                 if ((t?.dividends ?: 0.0) > 0.0) {
-                    KeyValue("Dividends and interest", Fmt.usd(t!!.dividends), Green)
+                    // `greenText`, not `Green` (Round 66 audit, PUI-5). This was the one coloured
+                    // figure on the card not going through `signColor`, and the brand green
+                    // measures 2.02:1 on the light StatCard - see the rule at [greenText].
+                    KeyValue("Dividends and interest", Fmt.usd(t!!.dividends), greenText)
                 }
                 Spacer(Modifier.height(6.dp))
+                // ---- THE NOTE HAS TO NAME EVERY COMPONENT (Round 66 audit, PUI-3).
+                //
+                // It used to say "Since you started" was the banked profit plus the gain on
+                // what you still hold - and then the card printed all three numbers, so the
+                // arithmetic could be checked, and it did not add up. `totalGain` is
+                // `equity - netDeposits` (Ledger.totals), and `equity` includes cash, which
+                // carries dividends, interest and fees; `netDeposits` counts only deposits
+                // and withdrawals. Deposit $10,000, buy $9,000 of stock now worth $9,500,
+                // take a $50 dividend: the card says +$550, the note's two lines say $500 and
+                // $0, and the missing $50 is sitting on its own row two lines above.
+                //
+                // A figure the user cannot reconcile reads as a figure that is wrong, which
+                // is the whole reason this card shows its working.
                 Text(
-                    "\"Since you started\" adds the profit you already banked to the gain on " +
-                        "what you still hold. A broker's \"Total G/L\" usually shows only the " +
-                        "second line, which is why the two differ.",
+                    "\"Since you started\" is everything that happened to the money you put " +
+                        "in: the gain on what you still hold, plus the profit you already " +
+                        "banked, plus dividends and interest, less fees. A broker's " +
+                        "\"Total G/L\" usually shows only the first of those, which is why " +
+                        "the two differ.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -380,16 +399,30 @@ private fun BigLine(
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ---- THE LABEL YIELDS, THE NUMBERS DO NOT (Round 63 sweep).
+        // ---- EVERY CHILD IS WEIGHTED, SO NOTHING CAN BE MEASURED AT ZERO (Round 66 audit, PUI-2).
         //
-        // The weighted `Spacer` used to sit BETWEEN the label and the figures, which protects
-        // neither: `Row` measures every unweighted child in order against whatever width is
-        // left, so a label that grew with the font scale ate the row and `sub` - the
-        // percentage in dollar mode, the DOLLARS in percent mode - was measured at zero width
-        // and disappeared. It broke at about 1.3x, which is one step up the slider.
+        // THE HISTORY, BECAUSE THIS ROW HAS NOW BROKEN TWICE THE SAME WAY. `Row` measures
+        // unweighted children in index order against whatever width is LEFT, then divides the
+        // remainder among the weighted ones. Round 63 found `sub` - the percentage in dollar
+        // mode, the DOLLARS in percent mode - measured at zero width and gone, because a
+        // label that grew with the font scale had eaten the row ahead of it. The fix moved
+        // the weight onto the LABEL, and its comment claimed "both figures are measured first
+        // at full constraints".
         //
-        // Weighting the LABEL instead reverses the measurement order: both figures are
-        // measured first at full constraints, and the label takes what is left and ellipsises.
+        // Only `lead` was. `sub` was still unweighted and still second, so it was measured
+        // against what `lead` left; and the label, now the only weighted child, was the one
+        // that could resolve to 0dp. On a 411dp phone at font scale 2.0 the two figures come
+        // to about 376dp of the 379dp available, so "Today" and "Since you started" both
+        // vanished - leaving two bare coloured numbers on a card whose own note says that two
+        // numbers with nothing saying which is which is a guess. `sub` had `softWrap = false`
+        // and no `overflow`, so on a 360dp phone it additionally CLIPPED - "+24." with no
+        // ellipsis, the silent truncation [AutoFitNumber] exists to prevent.
+        //
+        // Weighting all three removes the ordering entirely: the split is 1:2, computed
+        // before anything is measured, so no child can be starved by another's size. The
+        // figures then shrink a point at a time inside their share rather than disappearing,
+        // and only the label ellipsises - which is the right one to lose, because a label is
+        // recoverable from context and a figure is not.
         Text(
             label,
             style = MaterialTheme.typography.bodyLarge,
@@ -399,18 +432,29 @@ private fun BigLine(
             modifier = Modifier.weight(1f)
         )
         Spacer(Modifier.width(8.dp))
-        Text(
-            lead, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = color,
-            softWrap = false
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            sub,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.SemiBold,
-            color = color,
-            softWrap = false
-        )
+        Row(
+            modifier = Modifier.weight(2f),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AutoFitNumber(
+                lead,
+                color = color,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 20.sp),
+                fontWeight = FontWeight.Bold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.weight(1.6f, fill = false)
+            )
+            Spacer(Modifier.width(10.dp))
+            AutoFitNumber(
+                sub,
+                color = color,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+        }
     }
     // The reconciliation line. Only rendered when the two figures actually differ, so on an
     // ordinary day with no same-day buys the card stays exactly as clean as it was.

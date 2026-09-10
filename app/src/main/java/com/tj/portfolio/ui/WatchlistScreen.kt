@@ -142,16 +142,24 @@ fun WatchlistScreen(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // ---- ONE LABEL, WEIGHTED (Round 66 audit, PUI-6).
+            //
+            // There was a "PRICE" heading here, right-aligned behind a weighted `Spacer`. Two
+            // things were wrong with it. It labelled a column that no longer exists: since
+            // `StockRowItem` gained the full-width `PriceBlock`, the price sits under its own
+            // "CURRENT PRICE" heading inside each row and nothing is right-aligned under this
+            // one. And it was an UNWEIGHTED child placed after a weighted one, which is the
+            // measurement trap fixed three separate times elsewhere in this file's
+            // neighbours - `Row` measures unweighted children in index order against what is
+            // left, so at a large font scale the count label took the row and "PRICE" was
+            // measured at a few dp and rendered empty anyway.
             Text(
                 "${rows.size} SYMBOL${if (rows.size == 1) "" else "S"} - LONG-PRESS FOR OPTIONS",
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.weight(1f))
-            Text(
-                "PRICE",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)

@@ -74,7 +74,7 @@ class UiTest {
     private fun row(
         q: Quote? = quote(), p: Position? = position(),
         watchOnly: Boolean = false, session: String = ""
-    ) = Row("NVDA", q?.name ?: "", p, q, watchOnly, session)
+    ) = Row("NVDA", q?.name ?: "", p, q, watchOnly, watched = watchOnly, sessionLabel = session)
 
     /** Renders content at a given font scale, inside the app's own theme. */
     private fun show(fontScale: Float = 1f, dark: Boolean = false, content: @Composable () -> Unit) {

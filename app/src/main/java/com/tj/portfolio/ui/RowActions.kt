@@ -52,8 +52,12 @@ fun RowActionHost(
         RowAction.OPEN -> LaunchedEffect(pending) { onOpen(symbol); onDone() }
         RowAction.NEWS -> LaunchedEffect(pending) { onNews(symbol); onDone() }
 
+        // `row.watched`, NOT `row.watchOnly` (Round 66 audit, PUI-7). Reading `watchOnly`
+        // here made the toggle one-way for a held-and-watched symbol: the branch always took
+        // `addWatch`, which is a no-op write on a row already there, and then toasted that it
+        // had been added. See [Row.watched].
         RowAction.WATCH_TOGGLE -> LaunchedEffect(pending) {
-            if (row?.watchOnly == true) {
+            if (row?.watched == true) {
                 vm.removeWatch(symbol)
                 vm.toast("$symbol removed from watchlist")
             } else {
@@ -90,6 +94,36 @@ fun RowActionHost(
     }
 }
 
+/**
+ * WHAT THE POSITION EDITOR PUTS IN ITS BOXES (Round 66 audit, PUI-1).
+ *
+ * Extracted for the same reason [TxnFields] was: these two strings decide what an untouched
+ * Save writes to the ledger, and testing them through an `AlertDialog` in Robolectric is slow
+ * enough here to be flaky. Pure functions, so the seeds can be checked directly.
+ */
+internal object PositionFields {
+
+    /**
+     * The share count, or "" when there is nothing to seed.
+     *
+     * [Fmt.exact], never [Fmt.shares]. `shares` is `#,##0.####`, which silently rounds a
+     * fractional DRIP holding of 12.345678 to "12.3457" - and this box is saved back as an
+     * override, so the display rounding would become the position.
+     */
+    fun shares(shares: Double): String =
+        if (shares > 0) Fmt.exact(shares) else ""
+
+    /**
+     * The average cost, or "" when there is nothing to seed.
+     *
+     * [Fmt.exact], never [Fmt.priceBare]. `avgCost` is `costBasis / shares`, so it is
+     * routinely a long decimal - 0.42355 from $1,270.65 over 3,000 shares - and `priceBare`
+     * would seed "0.424", which saves as a $1.35 change to the cost basis.
+     */
+    fun cost(avgCost: Double): String =
+        if (avgCost > 0) Fmt.exact(avgCost) else ""
+}
+
 /** Direct edit of the computed position: share count and average cost. */
 @Composable
 private fun EditPositionDialog(
@@ -100,11 +134,24 @@ private fun EditPositionDialog(
 ) {
     // keyed on the symbol: without it, opening the dialog for a second stock without the
     // host passing through null in between would show the first stock's numbers
+    // ---- SEEDED WITH `Fmt.exact`, NOT A DISPLAY FORMATTER (Round 66 audit, PUI-1).
+    //
+    // THE BUG THIS FIXES. These two boxes are pre-filled with the position's current numbers
+    // and saved straight back as an `Override`, so whatever rounding the seed applies becomes
+    // a PERMANENT change to the ledger - written by pressing Save without typing anything.
+    // `Fmt.shares` is `#,##0.####` and `Fmt.priceBare` gives two or three decimals, and
+    // `avgCost` is `costBasis / shares`, which almost never lands that short: 3,000 shares
+    // bought for $1,270.65 is an average of 0.42355, seeded as "0.424", and saving that writes
+    // a cost basis of $1,272.00. A $1.35 change to the position, from an edit nobody made.
+    //
+    // This is the identical bug the transaction editor had and fixed in this same round -
+    // `Fmt.exact` was written for it, and the KDoc at [Fmt.exact] tells the story. The other
+    // editor that writes to the ledger was missed.
     var shares by remember(symbol) {
-        mutableStateOf(if ((row?.shares ?: 0.0) > 0) Fmt.shares(row!!.shares) else "")
+        mutableStateOf(PositionFields.shares(row?.shares ?: 0.0))
     }
     var cost by remember(symbol) {
-        mutableStateOf(if ((row?.avgCost ?: 0.0) > 0) Fmt.priceBare(row!!.avgCost) else "")
+        mutableStateOf(PositionFields.cost(row?.avgCost ?: 0.0))
     }
     val hasOverride = remember(symbol) { vm.overrideFor(symbol) != null }
 
