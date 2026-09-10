@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 01:16:14 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 05:25:25 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 1 still open, 47 fixed
+## 5. Open findings — 9 still open, 47 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -99,6 +99,14 @@ commit, so `git log --oneline` is the history of this round and
 - [x] CHT2 (med) GestureMode.ZOOM latches until every finger lifts: one finger of a pinch leaving leaves the chart inert and consuming, so neither the chart nor the page beneath it can move  — A pinch down to one finger becomes a PAN (never a scrub) instead of latching in ZOOM and consuming forever
 - [x] CHT3 (med) nearestIndex's off-screen clamp is skipped when the window falls between two candles, so the readout prints a price and date from weeks outside the window with no crosshair anywhere  — pointAt returns NO_SCRUB when the nearest point falls outside the axis, so the readout and the crosshair never disagree
 - [x] CHT4 (low) canPanNow omits windowBounds != null while pan() requires it, so the caption promises a pan that cannot exist and the 350ms hold still arms and consumes  — canPanNow includes windowBounds != null, so the caption and the 350ms hold match what pan() can actually do
+- [ ] RES1 (high) No migration for the research cache: a Claude-added fund written by the previous build still deserializes with score=conviction*10, draws as an app SCORE badge, and carryEtfExplanations pins it at row 1 above every fund the app measured, forever
+- [ ] RES2 (med) The 'where these numbers come from' note omits Nasdaq - the source of the analyst consensus and price target that 30pct of an enriched Best score is blended from
+- [ ] RES3 (med) One-fund-per-exposure is applied only on the screener path, but the tab blurb states it as an unconditional fact - and the app asks Claude for AGG and BND by name, which are the same exposure
+- [ ] RES4 (low) ResearchRow.followed is dead: nothing writes or reads it and it is not in the JSON codec, but its KDoc claims it drives the FOLLOWING chip
+- [ ] RES5 (med) resetResearchPaging() has zero callers, so a page count of 40 survives a rebuild and the next TTL rebuild fires up to 50 Nasdaq requests with no user action
+- [ ] RES6 (low) The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the Section enum - two lists in two files, so the guard does not protect the array access it was written for
+- [ ] RES7 (med) enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back the pre-suspension snapshot - a Claude import landing in that window is silently discarded AND persisted as lost
+- [ ] RES8 (low) Seven comment sites still count three stock lists or four sections after the Worst deletion, including the data model header a maintainer reads first
 
 ## 6. Version
 
@@ -109,16 +117,16 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 01:03:35 UTC  ETF1 fixed: YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points
-- 2026-09-10 01:03:35 UTC  ETF5 fixed: Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x
-- 2026-09-10 01:03:36 UTC  ETF6 fixed: expenseRatio sentinel is -1.0 through EtfRow, EtfFacts, parse, toJson/fromJson, the card and the Claude prompt; oneYearPct no longer opens the return block
-- 2026-09-10 01:03:37 UTC  ETF3 fixed: Asset class tested before region, with a bond-word guard; 'aggregate bond' now requires the name not to be international/global/world/ex-US
-- 2026-09-10 01:03:37 UTC  ETF7 fixed: Global equity split into 'incl US' and 'ex-US', ex-US tested first so 'All-World ex-US' reads correctly
-- 2026-09-10 01:08:12 UTC  ETF2 fixed: fetch returns null for 'nobody answered' vs emptyList for 'end of list'; fetchAll reports completeness and buildEtfs warns when a screen answered only part of its pages
-- 2026-09-10 01:08:12 UTC  ETF4 fixed: Explicit Research.ETF_ORDER: score, then cost, then size, then ticker - fully deterministic, unknown fee sorts last
-- 2026-09-10 01:08:13 UTC  ETF8 fixed: Leveraged/inverse funds dropped on the Claude path too, once the quote fill supplies a name; prompt now says not to add them
 - 2026-09-10 01:16:02 UTC  CHT1 fixed: centroidN tracks how many pointers the pan reference was measured over; a frame with a different count re-seeds instead of reporting a phantom pan
 - 2026-09-10 01:16:03 UTC  CHT2 fixed: A pinch down to one finger becomes a PAN (never a scrub) instead of latching in ZOOM and consuming forever
 - 2026-09-10 01:16:04 UTC  CHT3 fixed: pointAt returns NO_SCRUB when the nearest point falls outside the axis, so the readout and the crosshair never disagree
 - 2026-09-10 01:16:05 UTC  CHT4 fixed: canPanNow includes windowBounds != null, so the caption and the 350ms hold match what pan() can actually do
+- 2026-09-10 05:25:24 UTC  finding RES1: No migration for the research cache: a Claude-added fund written by the previous
+- 2026-09-10 05:25:24 UTC  finding RES2: The 'where these numbers come from' note omits Nasdaq - the source of the analys
+- 2026-09-10 05:25:24 UTC  finding RES3: One-fund-per-exposure is applied only on the screener path, but the tab blurb st
+- 2026-09-10 05:25:24 UTC  finding RES4: ResearchRow.followed is dead: nothing writes or reads it and it is not in the JS
+- 2026-09-10 05:25:24 UTC  finding RES5: resetResearchPaging() has zero callers, so a page count of 40 survives a rebuild
+- 2026-09-10 05:25:24 UTC  finding RES6: The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the 
+- 2026-09-10 05:25:25 UTC  finding RES7: enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back th
+- 2026-09-10 05:25:25 UTC  finding RES8: Seven comment sites still count three stock lists or four sections after the Wor
 
