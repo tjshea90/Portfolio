@@ -9,16 +9,25 @@
 Screen recording attached (19 MB mp4, 2026-09-10 17:01). Two suspected bugs
 plus a release.
 
-- [ ] 1. **Chart vs SPY comparison.** When the chart is panned/scrubbed, the
+- [x] 1. **Chart vs SPY comparison — ANSWER: the numbers are CORRECT.** When the chart is panned/scrubbed, the
       stock's performance appears inconsistent relative to the SPY comparison
       line. Determine whether the two series are being rebased to the same
       start point as the visible window changes, or whether SPY stays pinned
       to the original range while the stock re-normalises (or vice versa).
       Answer Tj's actual question: IS the displayed comparison correct?
-- [ ] 2. **News crash.** Pressing News on some stocks loads for ~1s then the
-      whole app dies. Find the crash. `app/src/main/java/com/tj/portfolio/
-      net/News.kt` and whatever renders it. Check util/CrashLog.kt for a
-      recorded stack trace first — this app logs its own crashes.
+- [~] 2. **News crash — one real crash class removed, root cause NOT confirmed.** Pressing News on some stocks loads for ~1s then the
+      Ruled OUT: the stock page's News list is already deduped by `newsKey`,
+      the same expression it is keyed by, so it cannot throw on a duplicate key.
+      FOUND AND FIXED: `FeedScreen`'s `shown` list is keyed by `FeedItem.id`
+      but was NOT deduped by it — it relied on the upstream merge, which
+      de-duplicates by `News.dedupeKey` (normalised title, 70 alphanumerics)
+      instead. Those disagree on punctuation-heavy headlines, so two stories can
+      survive the merge and still share an id, which is the exact crash class
+      `util/CrashLog.kt` was written for. Now `distinctBy { it.id }`, matching
+      what the news list already does.
+      NOT PROVEN to be Tj's crash. **Ask Tj for Settings → Crash log**, which
+      records the real stack trace on the device. Do not tick this box on the
+      strength of the fix above.
 - [ ] 3. Fix whatever 1 and 2 turn out to be, with a regression test for each.
 - [ ] 4. Bump versionCode past 64 (v7.7 shipped code 64) and versionName.
 - [ ] 5. Ship: full unit suite green, signed release APK, and send the APK to
