@@ -500,8 +500,8 @@
       "id": "REG5",
       "text": "The contrast fix changed only the redText accessor; ~8 hard-coded color = Red text sites remain, including one on a StatCard at the 4.41:1 the fix measured",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)"
     },
     {
       "id": "REG6",
@@ -1176,6 +1176,7 @@
     "2026-09-10 06:01:36 UTC  REG1 fixed: EtfRow.merge now tests >= 0 like every other reader of the fee sentinel",
     "2026-09-10 06:01:37 UTC  REG2 fixed: Migration scoped to the etfs array and to the full fingerprint: no facts, a paragraph, and a score that is a positive multiple of ten. Three tests guard the rows it must not touch",
     "2026-09-10 06:01:38 UTC  REG3 fixed: DetailScreen's watch button now reads row.watched and says 'Remove from watchlist' when that is what it will do",
-    "2026-09-10 06:01:39 UTC  REG4 fixed: The 'same exposure' line is PREPENDED on the import path too, so it survives reasons.take(6)"
+    "2026-09-10 06:01:39 UTC  REG4 fixed: The 'same exposure' line is PREPENDED on the import path too, so it survives reasons.take(6)",
+    "2026-09-10 06:01:39 UTC  REG5 fixed: All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)"
   ]
 }

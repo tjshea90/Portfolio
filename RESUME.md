@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 10 still open, 59 fixed
+## 5. Open findings — 9 still open, 60 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -111,7 +111,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] REG2 (high) The v1-to-v2 migration treats 'no reasons and no etf' as 'app did not score it', but ResearchScore.best can return a positive score with zero reasons - such a Best row is relabelled CLAUDE n/10 and its real score destroyed  — Migration scoped to the etfs array and to the full fingerprint: no facts, a paragraph, and a score that is a positive multiple of ten. Three tests guard the rows it must not touch
 - [x] REG3 (high) PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched symbol it now REMOVES from the watchlist while saying Also watch  — DetailScreen's watch button now reads row.watched and says 'Remove from watchlist' when that is what it will do
 - [x] REG4 (med) oneFundPerExposure APPENDS the 'Same exposure as' line, but the card renders reasons.take(6) and EtfScore already emits six - so the line is never drawn and an imported fund vanishes with no explanation  — The 'same exposure' line is PREPENDED on the import path too, so it survives reasons.take(6)
-- [ ] REG5 (med) The contrast fix changed only the redText accessor; ~8 hard-coded color = Red text sites remain, including one on a StatCard at the 4.41:1 the fix measured
+- [x] REG5 (med) The contrast fix changed only the redText accessor; ~8 hard-coded color = Red text sites remain, including one on a StatCard at the 4.41:1 the fix measured  — All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)
 - [ ] REG6 (low) CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seconds, so a legitimate leftmost-candle scrub is refused after a pan
 - [ ] DET1 (med) Price target card prints an unreported targetLow/High as $0.00 and feeds that zero into the spread sentence, fabricating 'the professionals genuinely disagree'
 - [ ] DET2 (med) Realized P/L is rendered only inside the 'you still hold shares' branch, so closing a position hides its realized profit on the one screen that promises the number
@@ -130,7 +130,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 05:54:28 UTC  finding REG6: CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seco
 - 2026-09-10 05:54:28 UTC  finding DET1: Price target card prints an unreported targetLow/High as $0.00 and feeds that ze
 - 2026-09-10 05:54:28 UTC  finding DET2: Realized P/L is rendered only inside the 'you still hold shares' branch, so clos
 - 2026-09-10 05:54:28 UTC  finding DET4: loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minu
@@ -142,4 +141,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 06:01:37 UTC  REG2 fixed: Migration scoped to the etfs array and to the full fingerprint: no facts, a paragraph, and a score that is a positive multiple of ten. Three tests guard the rows it must not touch
 - 2026-09-10 06:01:38 UTC  REG3 fixed: DetailScreen's watch button now reads row.watched and says 'Remove from watchlist' when that is what it will do
 - 2026-09-10 06:01:39 UTC  REG4 fixed: The 'same exposure' line is PREPENDED on the import path too, so it survives reasons.take(6)
+- 2026-09-10 06:01:39 UTC  REG5 fixed: All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)
 
