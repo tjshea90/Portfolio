@@ -32,6 +32,10 @@ BRIEF="$(
   echo
 
   if [ -d .git ]; then
+    # See tools/autosave.sh for why: a lock from a hook this SESSION already
+    # killed (its own 60s timeout) would otherwise wedge the 'git pull' below.
+    find .git -name '*.lock' -mmin +2 -delete 2>/dev/null || true
+
     timeout 25 git fetch -q origin >/dev/null 2>&1 || echo "  NOTE  could not reach GitHub — working from the local checkout only."
 
     DIRTY="$(git status --porcelain 2>/dev/null)"

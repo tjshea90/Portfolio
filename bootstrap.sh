@@ -28,12 +28,13 @@ AHOME="${ANDROID_HOME:-/root/android-sdk}"
 [ -f app/build/outputs/apk/release/app-release.apk ] && echo "  OK    a release APK exists in app/build/ (unshipped)" || echo "  note  no unshipped build output — releases/ holds the last shipped APK"
 
 # --- the checkpoint history ---
+# Dirty-tree / mid-change detection is NOT duplicated here — tools/resume.sh
+# (the caller) already checks this in detail, with the actual file list, and
+# prints it BEFORE calling this script. Saying it twice would just spend
+# context repeating one fact; bootstrap.sh only adds what resume.sh doesn't
+# already know.
 if [ -d .git ]; then
   echo "  OK    checkpoint history present ($(git rev-list --count HEAD 2>/dev/null || echo 0) checkpoints)"
-  if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-    echo "  NOTE  uncommitted edits are present — the last session may have been"
-    echo "        interrupted mid-change. 'git status' and 'git diff' show what."
-  fi
 else
   echo "  WARN  no .git — checkpoint history was lost. Run: git init && bash tools/ckpt.sh 'resumed'"
 fi

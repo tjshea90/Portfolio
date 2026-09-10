@@ -25,6 +25,18 @@ set -uo pipefail
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$D" || exit 0
 [ -d .git ] || exit 0
 
+# A STALE LOCK MUST NEVER WEDGE THE SAFETY NET.
+# This hook has a 60s timeout. If Claude Code kills it mid `git commit`
+# (network hiccup, slow disk, whatever), git can leave a `*.lock` file
+# behind — and every commit for the REST OF THE SESSION then fails silently
+# until something removes it, which is exactly the "usage ran out and
+# nothing after that point was saved" failure this file exists to prevent.
+# A fresh container never inherits one from a past session (nothing here
+# is tracked in git, so a clone can't carry it in) — this only guards
+# against THIS session's own hook timing out. Anything older than the
+# timeout is unambiguously dead, not just slow, so it's safe to clear.
+find .git -name '*.lock' -mmin +2 -delete 2>/dev/null || true
+
 git add -A >/dev/null 2>&1
 
 if ! git diff --cached --quiet 2>/dev/null; then

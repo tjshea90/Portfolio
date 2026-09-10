@@ -37,7 +37,11 @@ fi
 [ "${AHEAD:-1}" -eq 0 ] && exit 0
 
 # Explicit destination: works whether or not tracking is configured.
-if git push -q origin "HEAD:refs/heads/$BR" >/dev/null 2>&1; then
+# `timeout` bounds this well under the caller's 60s hook budget — a hung
+# connection should fail fast and cleanly (commit stays local, retried on the
+# next tool call) rather than silently eating the whole hook slot with no
+# result either way.
+if timeout 45 git push -q origin "HEAD:refs/heads/$BR" >/dev/null 2>&1; then
   # Self-heal, so the cheap check above starts working and this stops paying
   # for a network round trip on every tool call. The root cause seen here was
   # an EMPTY remote.origin.fetch: `git clone --depth 1` of a repo with no
@@ -46,7 +50,7 @@ if git push -q origin "HEAD:refs/heads/$BR" >/dev/null 2>&1; then
   # has this set already, so this is a no-op almost everywhere.
   git config --get-all remote.origin.fetch >/dev/null 2>&1 || \
     git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*' 2>/dev/null || true
-  git fetch -q origin "$BR:refs/remotes/origin/$BR" >/dev/null 2>&1 || true
+  timeout 10 git fetch -q origin "$BR:refs/remotes/origin/$BR" >/dev/null 2>&1 || true
   git branch --set-upstream-to="origin/$BR" "$BR" >/dev/null 2>&1 || true
 
   # KEEP main CURRENT, BEST-EFFORT. Claude Code can assign a different local
@@ -62,7 +66,7 @@ if git push -q origin "HEAD:refs/heads/$BR" >/dev/null 2>&1; then
   # this fails silently — never overwrite unrelated work to keep a convenience
   # in sync.
   if [ "$BR" != "main" ]; then
-    git push -q origin "HEAD:refs/heads/main" >/dev/null 2>&1 || true
+    timeout 10 git push -q origin "HEAD:refs/heads/main" >/dev/null 2>&1 || true
   fi
   exit 0
 fi

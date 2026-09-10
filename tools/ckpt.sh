@@ -20,6 +20,10 @@
 set -uo pipefail
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$D" || exit 1
 
+# See tools/autosave.sh for why: a lock left by a killed git process would
+# otherwise wedge every commit for the rest of the session.
+find .git -name '*.lock' -mmin +2 -delete 2>/dev/null || true
+
 DID="${1:-}"; NEXT="${2:-}"
 [ -z "$DID" ] && { echo "usage: bash tools/ckpt.sh \"what I just did\" \"what comes next\""; exit 1; }
 
