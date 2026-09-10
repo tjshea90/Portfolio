@@ -91,17 +91,13 @@ N=$((N+1))
   echo "## Do this next"
   echo "${NEXT:-see the first unticked box in TASKS.md}"
   echo
-  echo "## How to resume, exactly"
-  echo "Open this GitHub repo in a Claude Code session and say \"continue\"."
-  echo "The SessionStart hook runs tools/resume.sh, which pulls the latest and"
-  echo "prints this file automatically — nothing has to be attached, uploaded"
-  echo "or explained. If that briefing did not appear, run it by hand:"
-  echo '```bash'
-  echo "bash tools/resume.sh       # pull + this file + TASKS.md + the rules"
-  echo '```'
-  echo "Then continue from **Do this next** above. Do not re-plan, do not re-read"
-  echo "finished work, do not ask Tj to re-explain anything — \`TASKS.md\` carries his"
-  echo "request in his own words and \`git log\` carries every step already taken."
+  # Not "how to resume" boilerplate here on purpose — CLAUDE.md already covers
+  # that (and CLAUDE.md loads as project instructions every session
+  # regardless of whether this hook fires), so repeating it in every single
+  # checkpoint forever would be pure overhead. One line is enough: it's the
+  # thing CLAUDE.md can't say because CLAUDE.md doesn't know when this was
+  # written.
+  echo "*(resuming? read CLAUDE.md's \"Starting a session\" — this file is only step 1 of that.)*"
   echo
   echo "## Uncommitted right now"
   if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
