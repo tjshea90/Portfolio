@@ -570,8 +570,8 @@
       "id": "CRX1",
       "text": "todayShares/todayCost are never reduced by a SELL, so a same-day round trip fabricates a day gain on the shares still held and the portfolio Today headline is wrong by that amount",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code"
     },
     {
       "id": "EXP1",
@@ -1226,6 +1226,7 @@
     "2026-09-10 13:13:28 UTC  finding EXP1: Settings' request-counter card says to pull down to update it, but the value is ",
     "2026-09-10 13:13:28 UTC  finding EXP2: refreshStatus claims 'updating every 15s' on the Settings tab, which is exactly ",
     "2026-09-10 13:13:28 UTC  finding EXP3: The 52-week high/low sheets compute distance without clamping, so a new high rea",
-    "2026-09-10 13:21:36 UTC  CRX2 fixed: Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code"
+    "2026-09-10 13:21:36 UTC  CRX2 fixed: Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code",
+    "2026-09-10 13:21:36 UTC  CRX1 fixed: 'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code"
   ]
 }

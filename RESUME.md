@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 5 still open, 69 fixed
+## 5. Open findings — 4 still open, 70 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -121,7 +121,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] DET7 (low) refreshEverything force-reloads the fund register only when the Holdings tab is selected, but that tab exists only once the register loaded - so pull-to-refresh cannot recover a failed lookup  — Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed
 - [x] DET8 (low) OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stock in place opens the new one at the previous one's scroll offset  — OverviewTab's scroll state keyed on the symbol
 - [x] CRX2 (high) MERGE restore matches each incoming row against rows THIS restore just inserted, so N genuinely identical transactions in a backup collapse to one - silent data loss in the one path that exists to recover lost transactions  — Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code
-- [ ] CRX1 (med) todayShares/todayCost are never reduced by a SELL, so a same-day round trip fabricates a day gain on the shares still held and the portfolio Today headline is wrong by that amount
+- [x] CRX1 (med) todayShares/todayCost are never reduced by a SELL, so a same-day round trip fabricates a day gain on the shares still held and the portfolio Today headline is wrong by that amount  — 'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code
 - [ ] EXP1 (med) Settings' request-counter card says to pull down to update it, but the value is in a remember whose keys pull-to-refresh never changes - frozen at tab-open
 - [ ] EXP2 (med) refreshStatus claims 'updating every 15s' on the Settings tab, which is exactly where the poll loop skips the quote pass - and the paragraph six lines below says the opposite
 - [ ] EXP3 (med) The 52-week high/low sheets compute distance without clamping, so a new high reads 'within -4.2% of its 52-week high' - the ETF and Research models clamp the identical expression
@@ -135,7 +135,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 06:01:42 UTC  DET2 fixed: A closed position now shows what it made, in its own card, on the watchlist branch
 - 2026-09-10 06:01:42 UTC  DET4 fixed: The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged
 - 2026-09-10 06:01:43 UTC  DET5 fixed: Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter
 - 2026-09-10 06:01:44 UTC  DET6 fixed: The caveat compares the computed cash against the typed total, so it fires only when they really disagree
@@ -147,4 +146,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 13:13:28 UTC  finding EXP2: refreshStatus claims 'updating every 15s' on the Settings tab, which is exactly 
 - 2026-09-10 13:13:28 UTC  finding EXP3: The 52-week high/low sheets compute distance without clamping, so a new high rea
 - 2026-09-10 13:21:36 UTC  CRX2 fixed: Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code
+- 2026-09-10 13:21:36 UTC  CRX1 fixed: 'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code
 
