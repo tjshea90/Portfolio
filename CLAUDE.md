@@ -237,6 +237,15 @@ minutes/month, ~12 per full build. Concretely:
   is not higher than the last shipped cannot install on the phone, so
   building one is minutes spent on nothing.
 
+One quirk worth knowing: if a BROKEN workflow YAML ever gets committed,
+GitHub creates a failed run per push to report the parse error, even with no
+push trigger — it cannot read the triggers of a file it cannot parse. That
+happened once (two runs, both **zero jobs and zero billable minutes**, so
+noise rather than cost) because autosave committed a half-edited workflow
+before the checkpoint caught it. `tools/test_resume.sh` validates this YAML,
+so `tools/ckpt.sh` catches it; autosave deliberately has no gate and never
+will.
+
 **It triggers on tags and manual dispatch ONLY. Never add a `push` trigger.**
 `tools/autosave.sh` commits after every tool call and `tools/push.sh` mirrors
 each to main — 48 commits in one two-hour session, measured. A push trigger
