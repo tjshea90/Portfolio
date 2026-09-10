@@ -54,10 +54,23 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # Resolve sdkmanager explicitly rather than trusting PATH: runner images
+      # move it between releases, and a "command not found" here reads like a
+      # code failure when it is nothing of the sort.
       - name: Android SDK packages
         run: |
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
+          SDKM="$(command -v sdkmanager || true)"
+          for c in "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+                   "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"; do
+            [ -n "$SDKM" ] && break
+            [ -x "$c" ] && SDKM="$c"
+          done
+          if [ -z "$SDKM" ]; then
+            echo "::error::sdkmanager not found on this runner ($ANDROID_HOME)."
+            exit 1
+          fi
+          yes | "$SDKM" --licenses >/dev/null 2>&1 || true
+          "$SDKM" "platforms;android-36" "build-tools;36.0.0" >/dev/null
 
       # The same guard the local build runs — see BRIEF.md. Calling the repo's
       # own script rather than restating it is deliberate: a check that exists
