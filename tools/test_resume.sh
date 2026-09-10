@@ -285,9 +285,14 @@ PY
     *"tools/verify-apk.sh"*) ok "CI verifies the built APK's certificate" ;;
     *) bad "CI publishes an APK without checking what signed it" ;;
   esac
-  case "$(cat "$WF")" in
+  # COMMENTS STRIPPED FIRST. This matched the workflow's own PROSE once: a comment
+  # explaining that `git push origin v7.8` returns 403 from a Claude container tripped a
+  # check meant to catch the workflow actually RUNNING a push. A test that reads
+  # documentation as behaviour will keep crying wolf as the file gets better commented.
+  WF_CODE="$(grep -v '^[[:space:]]*#' "$WF")"
+  case "$WF_CODE" in
     *"git push"*|*"git commit"*) bad "CI commits or pushes — it would retrigger autosave and race live sessions" ;;
-    *) ok "CI commits nothing" ;;
+    *) ok "CI runs no git commit or push" ;;
   esac
 fi
 
