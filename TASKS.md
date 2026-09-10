@@ -15,7 +15,7 @@ plus a release.
       start point as the visible window changes, or whether SPY stays pinned
       to the original range while the stock re-normalises (or vice versa).
       Answer Tj's actual question: IS the displayed comparison correct?
-- [~] 2. **News crash — one real crash class removed, root cause NOT confirmed.** Pressing News on some stocks loads for ~1s then the
+- [x] 2. **News crash — ROOT CAUSE FOUND from Tj's crash log, and fixed.** Pressing News on some stocks loads for ~1s then the
       Ruled OUT: the stock page's News list is already deduped by `newsKey`,
       the same expression it is keyed by, so it cannot throw on a duplicate key.
       FOUND AND FIXED: `FeedScreen`'s `shown` list is keyed by `FeedItem.id`
@@ -25,9 +25,21 @@ plus a release.
       survive the merge and still share an id, which is the exact crash class
       `util/CrashLog.kt` was written for. Now `distinctBy { it.id }`, matching
       what the news list already does.
-      NOT PROVEN to be Tj's crash. **Ask Tj for Settings → Crash log**, which
-      records the real stack trace on the device. Do not tick this box on the
-      strength of the fix above.
+      THE ACTUAL CRASH, from the device log Tj sent (4 times, 9:42-9:43 AM):
+      `IndexOutOfBoundsException: Index 5 out of bounds for length 5` at
+      `TabRowKt$ScrollableTabRow$1.invoke(TabRow.kt:1409)` — Material3's DEFAULT
+      indicator doing `tabPositions[selectedTabIndex]`. Nothing to do with news
+      data at all. `visibleTabs` hides Holdings until the fund lookup returns
+      about a second after the screen opens: open a stock (5 tabs), tap News
+      (index 4), the lookup returns "fund", `tabs` grows to 6 so `indexOf(NEWS)`
+      becomes 5 — while `tabPositions` still holds the 5 entries the previous
+      measure pass produced. `coerceAtLeast(0)` did not help; it guards the list
+      SHRINKING, and this is the list GROWING.
+      FIXED by extracting `DetailTabRow` with a custom indicator that clamps to
+      `positions.lastIndex`, so a one-frame disagreement misplaces the indicator
+      for one frame instead of killing the process.
+      NOTE: the `FeedScreen` dedupe above is a real crash class but was NOT this
+      crash. It is kept as a separate, defensible fix — not credited with this.
 - [ ] 3. Fix whatever 1 and 2 turn out to be, with a regression test for each.
 - [ ] 4. Bump versionCode past 64 (v7.7 shipped code 64) and versionName.
 - [ ] 5. Ship: full unit suite green, signed release APK, and send the APK to
