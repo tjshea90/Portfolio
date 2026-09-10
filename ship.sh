@@ -35,21 +35,27 @@ if ! python3 tools/checkinit.py; then
 fi
 echo "  OK    checkinit"
 
-# ---- the SDK must be present -------------------------------------------------
+# ---- the build environment provisions ITSELF ---------------------------------
+# This used to hard-fail with "no Android SDK — run tools/setup-android-sdk.sh",
+# which put a manual step between a ready session and a release in a project
+# whose whole point is surviving handoffs without manual steps. Every session
+# gets a fresh container, so that fired on the FIRST ship in every container.
+# tools/ensure-build-env.sh installs the SDK if it is missing (~5 min, once)
+# and is near-instant afterwards. --release also makes a missing or WRONG
+# signing keystore fatal here, rather than letting Gradle fail deep in the
+# build or, worse, produce an APK that cannot update the phone.
 export ANDROID_HOME="${ANDROID_HOME:-/root/android-sdk}"
-if [ ! -d "$ANDROID_HOME/platforms" ]; then
-  echo "  FAIL  no Android SDK at \$ANDROID_HOME ($ANDROID_HOME)."
-  echo "        Run: bash tools/setup-android-sdk.sh"
+if ! bash tools/ensure-build-env.sh --release; then
+  echo "  FAIL  build environment not ready. Not shipping this."
   exit 1
 fi
-[ -f local.properties ] || echo "sdk.dir=$ANDROID_HOME" > local.properties
 
 # ---- the full unit suite must be green ---------------------------------------
 # Backgrounded and given real time: a cold container downloads Gradle itself
 # plus every dependency, and Maven Central can 429 on a cold pull — see
 # BRIEF.md's build traps before "fixing" a failure here that is really that.
-echo "  ..    running ./gradlew testDebugUnitTest (797 tests as of v7.7 — can take minutes cold)"
-if ! ./gradlew testDebugUnitTest --console=plain > /tmp/ship-test.log 2>&1; then
+echo "  ..    running gradle testDebugUnitTest (797 tests as of v7.7 — can take minutes cold)"
+if ! bash tools/gradle.sh testDebugUnitTest --console=plain > /tmp/ship-test.log 2>&1; then
   echo "  FAIL  the unit suite is red. Not shipping this."
   grep -E 'FAILED|error:' /tmp/ship-test.log | head -20 | sed 's/^/          /'
   echo "        full log: /tmp/ship-test.log"
@@ -58,8 +64,8 @@ fi
 echo "  OK    unit suite green"
 
 # ---- the release build itself -------------------------------------------------
-echo "  ..    running ./gradlew :app:assembleRelease"
-if ! ./gradlew :app:assembleRelease --console=plain > /tmp/ship-build.log 2>&1; then
+echo "  ..    running gradle :app:assembleRelease"
+if ! bash tools/gradle.sh :app:assembleRelease --console=plain > /tmp/ship-build.log 2>&1; then
   echo "  FAIL  the release build did not succeed. Not shipping this."
   tail -30 /tmp/ship-build.log | sed 's/^/          /'
   echo "        full log: /tmp/ship-build.log"
