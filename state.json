@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 01:16:05 UTC",
+  "updated": "2026-09-10 01:16:14 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -10,8 +10,8 @@
     "next_code": 62
   },
   "now": {
-    "step": "Audit batch 2: ETF scoring correctness + PriceChart gestures",
-    "next": "Then research UI, detail screens, settings/Explain, cross-cutting, round66-diff"
+    "step": "Audit batch 3: research screen + detail screens",
+    "next": "Then settings/Explain, cross-cutting, round66-diff, then ship v7.7"
   },
   "tasks": [
     {

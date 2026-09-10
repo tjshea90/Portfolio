@@ -715,3 +715,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-10 01:16:04 UTC  checkpoint 66  commit 940916a  fix CHT2
 2026-09-10 01:16:05 UTC  checkpoint 66  commit 7d960c6  fix CHT3
 2026-09-10 01:16:06 UTC  checkpoint 66  commit f7a356e  fix CHT4
+2026-09-10 01:16:06 UTC  checkpoint 66  commit 2050372  All 4 chart-gesture findings fixed; 4 new tests, each verified to fail on the pre-fix code. 775 tests, 0 failures
