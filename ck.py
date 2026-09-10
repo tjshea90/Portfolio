@@ -201,14 +201,32 @@ def write_resume(s):
 
 # ---------------------------------------------------------------- archive
 
+# The chat upload ceiling. A checkpoint the user cannot ATTACH is not a checkpoint -
+# the whole contract is "hand it to a new session and carry on" - so the archive step
+# treats crossing this as a failure to be repaired, not a warning to be printed.
+DELIVER_LIMIT = 29 * 1024 * 1024
+
+TAR_EXCLUDES = ("--exclude='.gradle' --exclude='build' --exclude='.kotlin' "
+                "--exclude='*.apk' --exclude='*.jar' --exclude='*.aar' "
+                "--exclude='*.zip' --exclude='__pycache__'")
+
+
 def archive(s, note):
     OUT.mkdir(parents=True, exist_ok=True)
     n = s["round"]
     name = f"portfolio-checkpoint-{n}.tar.gz"
     dst = OUT / name
-    r = sh(f"cd /home/claude && tar --exclude='.gradle' --exclude='build' "
-           f"--exclude='.kotlin' --exclude='*.apk' --exclude='__pycache__' "
-           f"-czf {dst} portfolio")
+
+    # ---- PACK THE GIT OBJECTS FIRST (round 66).
+    #
+    # The watchdog commits every three minutes and every `save` commits again, so `.git`
+    # fills with LOOSE objects - one whole compressed copy of PortfolioViewModel.kt, 290 KB
+    # of it, for every commit that touched it. By round 66 that was 40 MB of the tarball and
+    # the checkpoint had quietly grown past what the chat would accept. `gc` repacks the same
+    # history into deltas: 40 MB became 5.9 MB, with nothing lost.
+    sh("cd /home/claude/portfolio && git gc --quiet --prune=now")
+
+    r = sh(f"cd /home/claude && tar {TAR_EXCLUDES} -czf {dst} portfolio")
     if r.returncode != 0:
         print("ARCHIVE FAILED:", r.stderr[-800:])
         return None
@@ -224,9 +242,28 @@ def archive(s, note):
     if kt < 30:
         print(f"CHECKPOINT INCOMPLETE — only {kt} Kotlin sources")
         return None
+    # ---- AND IT HAS TO FIT (round 66).
+    #
+    # If the full archive is over the upload ceiling, build a second one WITHOUT `.git` and
+    # deliver that. History is what git is for; a cold resume needs RESUME.md, state.json and
+    # the sources, all of which are still in there. Better a checkpoint that arrives without
+    # its history than one that does not arrive.
+    deliver_src, deliver_name = dst, name
+    size = dst.stat().st_size
+    if size > DELIVER_LIMIT:
+        slim = OUT / f"portfolio-checkpoint-{n}-slim.tar.gz"
+        r2 = sh(f"cd /home/claude && tar {TAR_EXCLUDES} --exclude='.git' -czf {slim} portfolio")
+        if r2.returncode == 0 and slim.stat().st_size <= DELIVER_LIMIT:
+            deliver_src, deliver_name = slim, slim.name
+            print(f"full archive is {size // 1024} KB, over the upload limit - "
+                  f"delivering {slim.name} ({slim.stat().st_size // 1024} KB, no git history)")
+        else:
+            print(f"WARNING: {size // 1024} KB archive exceeds the upload limit and the "
+                  f"slim build did not help. The tree is too big to hand over as one file.")
+
     try:
         DELIVER.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(dst, DELIVER / name)
+        shutil.copy2(deliver_src, DELIVER / deliver_name)
     except Exception as e:
         print(f"(could not copy to {DELIVER}: {e})")
     return dst, kt
