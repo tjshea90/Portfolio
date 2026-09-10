@@ -707,3 +707,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-10 01:03:37 UTC  checkpoint 66  commit 57eae8d  fix ETF3
 2026-09-10 01:03:38 UTC  checkpoint 66  commit edf8746  fix ETF7
 2026-09-10 01:03:38 UTC  checkpoint 66  commit d3eb1c1  ETF scoring: 5 of 8 findings fixed, tests rewritten around the real invariants
+2026-09-10 01:08:12 UTC  checkpoint 66  commit 38f62b0  fix ETF2
