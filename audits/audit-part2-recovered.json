@@ -1,0 +1,161 @@
+{
+ "review:etf-accuracy": {
+  "area": "ETF ranking (EtfScore, EtfScreener, EtfExposure, EtfModels, Research ETF half, ResearchScreen ETFs tab)",
+  "findings": [
+   {
+    "file": "/home/claude/portfolio/app/src/main/java/com/tj/portfolio/net/EtfScreener.kt",
+    "line": 124,
+    "severity": "high",
+    "category": "correctness",
+    "title": "fetchAll stops paging on the PARSED row count, so one non-fund row truncates the universe to 100",
+    "failure": "`fetchAll` stops early with `if (page.size < MAX_COUNT) break`, but `page` is what `parse` returned AFTER dropping every quote whose `quoteType != \"ETF\"` and every blank/`^` symbol (EtfScreener.kt:141-143). `parse`'s own comment at line 138 says these screens \"return the occasional non-fund\". So if Yahoo's page 0 of `top_etfs_us` carries 100 quotes and a single one is typed EQUITY, `page.size` is 99, the loop breaks, and Research.buildEtfs ranks 99 funds instead of the 523 it planned six pages for - silently, with no warning (warnings only fire when a list returns nothing at all). The same one-row truncation cuts `bond_etfs` from 377 to 100. The screen and ETF_SOURCES then claim \"about 850 funds screened\" over a universe of ~130, and the top of the list is whatever happened to be on Yahoo's first page. The bundled test fixture demonstrates the exact shape: 4 quotes in, 3 rows out (EtfTest.kt:65-68).",
+    "fix": "Stop on the raw response instead of the filtered rows: either have `fetch`/`parse` report how many quotes Yahoo actually returned, or simply delete the `page.size < MAX_COUNT` line and rely on the empty-page stop that `fetch` already documents at line 92-96. `pages` is bounded at 6, so the worst case is one extra request per list."
+   },
+   {
+    "file": "/home/claude/portfolio/app/src/main/java/com/tj/portfolio/net/EtfExposure.kt",
+    "line": 82,
+    "severity": "high",
+    "category": "correctness",
+    "title": "The US size ladder is tested before the region checks, so non-US funds get a \"US small cap\" key and are merged with US funds",
+    "failure": "`keyOf` checks ` small cap ` (line 82) and ` mid cap ` (line 84) before ` emerging markets ` / ` eafe ` / ` all world ` (lines 88-93), so the first match wins and the region words are never reached. Real pairs that now collapse to one row: \"iShares MSCI EAFE Small-Cap ETF\" (SCZ) and \"iShares Core S&P Small-Cap ETF\" (IJR) both key to \"US small cap\"; \"Vanguard FTSE All-World ex-US Small-Cap ETF\" (VSS) does too. Two more over-groups exist for the same reason - one key that is coarser than the decision: \"SPDR Gold Shares\" (bullion) and \"VanEck Gold Miners ETF\" (mining equities) both key to \"Gold\" at line 107, and \"iShares 0-3 Month Treasury Bond ETF\" (SGOV, duration ~0.1) and \"iShares 20+ Year Treasury Bond ETF\" (TLT, duration ~17) both key to \"Bonds - Treasuries\" at line 98. The loser is dropped from the page and the winner's card prints \"Same exposure as SCZ - this one scored highest of them\" (Research.kt:296), which is false. This is exactly the OVER-grouping failure the file's own KDoc (lines 30-34) says is the one that matters, on the list TJ is about to buy from.",
+    "fix": "Move the ` emerging markets ` / ` developed markets ` / ` eafe ` / ` total world ` / ` all world ` / ` acwi ` branches above the US size ladder; add ` miners ` and ` mining ` to the `tilted` list so bullion and miners never share a key; and either fold the maturity words into the Treasury/corporate/municipal keys or drop the bare ` treasury ` grouping."
+   },
+   {
+    "file": "/home/claude/portfolio/app/src/main/java/com/tj/portfolio/net/Research.kt",
+    "line": 296,
+    "severity": "medium",
+    "category": "feature-drift",
+    "title": "The \"Same exposure as ...\" line is appended last and cut off by the card's six-reason limit",
+    "failure": "`toEtfRow` appends the alternatives line to the END of `sc.reasons`, and `ResearchCard` renders `r.reasons.take(6)` (ResearchScreen.kt:649). EtfScore.best already emits, for any normal large fund: returns, cost, size, trend, yield (fires at >0.5%), and \"Found in ...\" (fires always, since every parsed row carries a list id) - six lines before the exposure line is added. So for VOO, the flagship case the whole Round 66 feature was written for, \"Same exposure as IVV, SPLG\" is the seventh line and never renders. The section blurb (ResearchScreen.kt:100-101) and ETF_SOURCES (Research.kt:276-277) both promise \"the rest are named on its card\", so the user sees eight funds silently missing from a forty-row list with nothing on screen explaining where they went.",
+    "fix": "Prepend rather than append: `listOf(line) + sc.reasons` in `toEtfRow`, so the alternatives survive the `take(6)`."
+   },
+   {
+    "file": "/home/claude/portfolio/app/src/main/java/com/tj/portfolio/net/EtfScore.kt",
+    "line": 183,
+    "severity": "medium",
+    "category": "correctness",
+    "title": "Return normalisation gates on the sum of available weights, not on whether a three-year record exists",
+    "failure": "`s += if (possible >= 20.0) earned * 34.0 / possible else earned`. The comment above it says the fund is \"scored on the record it HAS, so long as that record is at least three years\", but 20.0 is only reachable as 3Y+1Y+YTD (10+6+4) or with a 5Y term - so a fund WITH a three-year record still falls off the normalised path whenever one short-run figure is absent. Concrete non-monotonicity: a fund with 3Y=20%/yr and 1Y=+30% and no published `ytdReturn` gets possible=16, raw, s=16.0. The identical fund with a near-worthless YTD of +0.5% gets possible=20, normalised, s=(10+6+0.08)*34/20=27.3 - eleven points MORE for reporting a figure that earned almost nothing. A fund whose YTD is absent is capped at 16 of the 34 return points despite a full three-year record.",
+    "fix": "Gate on the record rather than on the weight sum: `s += if (r.threeYearAnnualPct != 0.0 || r.fiveYearAnnualPct != 0.0) earned * 34.0 / possible else earned`. This keeps both Round 66 tests green (the eighteen-month hot fund still has neither long term and stays on the raw path)."
+   },
+   {
+    "file": "/home/claude/portfolio/app/src/main/java/com/tj/portfolio/ui/ResearchScreen.kt",
+    "line": 759,
+    "severity": "medium",
+    "category": "correctness",
+    "title": "The \"1Y\" cell is a price-only return shown and scored beside NAV total returns",
+    "failure": "`oneYearPct` is `fiftyTwoWeekChangePercent` (EtfScreener.kt:169) - a price change with dividends excluded - while `5Y / yr` and `3Y / yr` in the same grid row are `annualReturnNavY3/Y5`, NAV TOTAL returns, and YTD is a total return. The three cells are labelled and styled identically. For a fund yielding 4%, a +10% total-return year prints as \"+6.00%\" under \"1Y\"; for a high-yield bond fund yielding 7%, a +9% year prints as \"+2.00%\". The same number is then scored: EtfScore.kt:165 ramps it 0-30 for 6 points and EtfScore.kt:191 writes \"Returned X% over 1y\", so every income-oriented fund is systematically marked down against a growth fund with the same total return, on a list whose stated weighting is total return. EtfScreener.kt:167 admits the substitution; nothing the user sees does.",
+    "fix": "Relabel the cell \"1Y price\" and the reason line \"...over 1y (price only)\" - the app's rule elsewhere is not to fabricate a figure - or drop the 1Y term from the score and keep only the NAV-based horizons."
+   },
+   {
+    "file": "/home/claude/portfolio/app/src/main/java/com/tj/portfolio/net/EtfScreener.kt",
+    "line": 14,
+    "severity": "low",
+    "category": "doc-drift",
+    "title": "The EtfScreener header still documents the deleted two-list design, and contradicts its own measurement",
+    "failure": "The file KDoc (lines 8, 14-21, 25-30) says \"keyless, six requests for ~600 funds\", \"WHY THESE TWO LISTS\", and that `top_etfs_us` and `top_performing_etfs` \"first hundred rows overlap by SEVEN ... so taking both is not redundancy\". `Lists.TOP_PERFORMING_UNUSED` twenty lines below says the opposite - \"returns exactly the same 523 symbols as TOP_ETFS, in a different order\" - and `Research.buildEtfs` (Research.kt:203-207) fetches three lists (TOP_ETFS x6, BOND x3, COMMODITY x1) for up to ten requests and ~850 funds. A reader trusting the header would re-add the duplicate list the code was changed to remove. In the same vein, EtfScore's KDoc (lines 21-22) says \"Five-year and three-year ... carry more than YTD, and YTD carries more than three months\": there is no three-month term in the scorer (`threeMonthPct` is parsed at EtfScreener.kt:165 and merged at EtfModels.kt:92 but never read), and the 1-year term - weight 6, larger than YTD's 4 - is not mentioned at all.",
+    "fix": "Rewrite the EtfScreener header for the three lists actually fetched and the ~10 requests they cost, keeping only the TOP_PERFORMING_UNUSED measurement; and correct EtfScore's factor list to name the four horizons that exist (5Y 14, 3Y 10, 1Y 6, YTD 4)."
+   }
+  ]
+ },
+ "review:research-accuracy": {
+  "area": "Accuracy of the stock research shown (net/Research.kt, net/ResearchScore.kt, net/ResearchBridge.kt, net/Screener.kt, data/ResearchModels.kt, plus the ETF plumbing they feed)",
+  "findings": [
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/ResearchBridge.kt",
+    "line": 373,
+    "severity": "high",
+    "category": "correctness",
+    "title": "Claude's conviction is displayed as the app's own SCORE and sorts added funds to the top of Best ETFs",
+    "failure": "`section()` turns Claude's `conviction` into `score = conviction * 10`. `ResearchBridge.merge` appends those rows, and `applyResearchAnswer` (PortfolioViewModel.kt:5041) re-sorts the whole ETF list `sortedByDescending { it.score }`. `ResearchCard` then draws that number in the same circle labelled \"SCORE\", with `contentDescription = \"Score N out of 100\"` (ResearchScreen.kt:582), and the ETF blurb above it says the list is \"Funds ranked on five- and three-year annualised returns... then expense ratio, fund size, dollar volume...\". So a fund Claude adds with `\"conviction\": 10` lands as row 1 of Best ETFs showing SCORE 100, above every fund the app actually screened, with no EtfFactsGrid (its `etf` is null) and no reason lines. Nothing on screen distinguishes 100 computed from a five-year NAV return and expense ratio from 100 a model asserted. This directly contradicts the stated design in ResearchModels.kt:12-15 (\"Claude never decides the ranking... a score a language model invents cannot be checked against anything\") and merge's own KDoc at ResearchBridge.kt:386, which says conviction \"only orders rows Claude added\". TJ said this is the section he is going to buy from.",
+    "fix": "Keep conviction out of the displayed `score`: add a separate `conviction` field on ResearchRow, sort added rows by it, and render the circle as an em dash (or a \"CLAUDE\" badge) for any row with no app `reasons`, so the number in the circle is always the app's arithmetic."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/Research.kt",
+    "line": 386,
+    "severity": "medium",
+    "category": "correctness",
+    "title": "Trending rows for symbols outside the nine equity screeners carry no price, name or day change",
+    "failure": "`buildTrending` takes its candidate set from the social feed, Yahoo trending and the news hits, but reads price/name/changePct only from `universe` (`q?.price ?: 0.0`). `universe` comes from `Screener.parse`, which drops everything that is not `quoteType == \"EQUITY\"` (Screener.kt:95) and is only 50 deep per list. SPY and QQQ are routinely the two most-mentioned tickers on r/wallstreetbets and are ETFs, so they are guaranteed to be absent; so is any WSB name that happens not to be in a top-50 gainers/losers/most-active/most-shorted cut that day. Those rows render as a bare ticker with a score and reason lines, no company name, no price, no percentage, and go into the Claude prompt the same way under the header \"Prices in USD, as of the app's last refresh\". Nothing ever fills them: `fillResearchPrices` is only called from `applyResearchAnswer` after an import.",
+    "fix": "At the end of `loadResearch`, do what the import path already does - collect the built rows with `price <= 0` and call the existing `fillResearchPrices`, which is one batched `MarketData.quotes` request."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/ResearchScore.kt",
+    "line": 95,
+    "severity": "medium",
+    "category": "correctness",
+    "title": "\"cheap for that growth\" is printed for a company whose forward EPS is below trailing",
+    "failure": "The growth term computes `g = epsGrowth`; when forward EPS is below trailing, `g` is negative, `ramp` returns 0 points and no growth reason line is added. The valuation block then unconditionally adds \"Forward P/E X - cheap/reasonable for that growth\" for any `forwardPe <= 25`. Concretely: epsTtm 5.0, epsForward 4.0 (earnings shrinking 20%), forwardPe 11.0, price 44 above a 42 fifty-day above a 40 two-hundred-day, cap 2e10, 3M volume 3e6 - the row passes `build`'s filter, scores ~63, confidence 100, and its top reason line reads \"Forward P/E 11.00 - cheap for that growth\" when the arithmetic that produced the score awarded zero for growth. That is a reason line asserting something the scorer explicitly refused to credit.",
+    "fix": "Track whether the growth term actually scored (or reuse `g > 0.05` / the turnaround branch) and drop the trailing \"for that growth\" when it did not - e.g. \"Forward P/E 11.00 - cheap\" otherwise."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/ResearchScore.kt",
+    "line": 148,
+    "severity": "medium",
+    "category": "correctness",
+    "title": "\"most shorted\" and \"day losers\" are printed as reasons for a Best score they earn nothing for",
+    "failure": "Only four of the nine screeners score anything (UNDERVALUED_GROWTH 5, GROWTH_TECH 4, UNDERVALUED_LARGE 3, MOST_ACTIVE 2, lines 143-146), but the reason sentence is built from `r.lists.filter { it != Screener.Lists.DAY_GAINERS }` - so DAY_LOSERS, MOST_SHORTED, SMALL_CAP_GAINERS and AGGRESSIVE_SMALL all get named. A stock that turned up only in `day_losers` and `most_shorted_stocks` scores 0 points from `listPts` yet its Best card prints \"On Yahoo's day losers and most shorted screen\" in the list of reasons the app rates it a good buy. Heavy short interest read as a bullish reason is exactly the kind of confident, plausible, wrong line the file's own header warns about.",
+    "fix": "Build the sentence from the screens that actually scored - collect the ids as they add points and join those - instead of filtering one id out of `r.lists`."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/EtfScreener.kt",
+    "line": 169,
+    "severity": "medium",
+    "category": "correctness",
+    "title": "The fund card's \"1Y\" cell is a 52-week price change shown beside 3Y/5Y NAV total returns",
+    "failure": "`oneYearPct` is parsed from `fiftyTwoWeekChangePercent`, a price-only return, while `threeYearAnnualPct`/`fiveYearAnnualPct` come from `annualReturnNavY3/Y5`, which are NAV total returns. `EtfFactsGrid` puts them in one row as \"5Y / yr\", \"3Y / yr\", \"1Y\" (ResearchScreen.kt:757-759) with nothing saying the third is a different basis, and `ResearchBridge.bundleJson` hands Claude the same figure as `oneYearPct` next to `threeYearAnnualisedPct`. Three of the ten screener pages are the bond list, and for income funds the gap is the whole yield: a 4.5%-yielding short-Treasury fund whose price is flat shows \"1Y -0.30%\" in red on a card whose other two cells are total returns, and loses the 0-6 point one-year term (EtfScore.kt:165) for a year in which it actually returned about +4%.",
+    "fix": "Label the cell \"1Y price\" (and rename the bundle key to `oneYearPriceChangePct`) so the basis is stated, or drop the term rather than mixing bases in one row."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/Research.kt",
+    "line": 446,
+    "severity": "low",
+    "category": "comment-drift",
+    "title": "Several comments still describe the deleted Worst section, the short-vehicle lookup and the old ETF list plan",
+    "failure": "`enrichAnalyst`'s KDoc still opens \"Second stage: analyst coverage, and for the Worst list the listed way to bet against the name\" - there is no Worst list and no second per-row stage. Same drift elsewhere: ResearchModels.kt:237 (\"analyst consensus, the short vehicle lookup\"); PortfolioViewModel.kt:4821 (\"then the inverse-ETF search over the page only\"); Http.kt:413 (\"one in `enrichShortVehicles`. Six budgets\"); Db.kt:1625 says RESEARCH_TAB is \"0 = trending, 1 = best, 2 = worst\" when index 2 is now the ETFs tab; ResearchScore.kt:305 says `grade` is \"used as the row's headline label\" but nothing in the app calls it. Separately, EtfScreener.kt:15-30 still argues \"WHY THESE TWO LISTS... taking both is not redundancy\" and \"three pages of each list is six requests\", which the same file's `TOP_PERFORMING_UNUSED` note (line 50-58) and `Research.buildEtfs` (ten requests across three lists) both directly contradict. Research.kt:33 also claims the analyst call happens \"ONLY for the rows the user can actually see\", while `enrichPass` deliberately enriches a window of `shown + PAGE`.",
+    "fix": "Delete the Worst/short-vehicle clauses, correct the Db key comment to \"2 = ETFs\", drop or wire up `grade`, replace the EtfScreener header's two-list argument with the current three-list/ten-request plan, and say \"the visible page plus the next one\" in Research.kt's header."
+   }
+  ]
+ },
+ "review:http-cache": {
+  "area": "Network layer and caching (net/Http.kt, MarketData.kt, Screener.kt, FundamentalsFeed.kt, SymbolSearch.kt, plus EtfScreener/YahooAuth/Research and the Db-backed HTTP cache).\n\nTTL AND CACHE-BOUND INVENTORY (every one found; all judged sane against \"cache as big as needed, refresh liberally\" unless flagged below).\nHTTP transport - Http.kt: rate-limit backoff 30s/1m/2m/4m/8m/10m cap (:52, see finding 4); unreachable backoff 15s/30s/1m/2m/4m/5m cap after 3 consecutive failures (:71,:73); Retry-After honoured, clamped to 6h (:163); MAX_PER_HOST 4 concurrent (:427); read ceiling 4,000,000 chars (:634).\nConditional-GET cache: memory 48 entries (:264), 120,000 chars per body (:296), 1,500,000 chars total ~3MB (:312); disk body cap 800,000 chars (:297); Db http_cache 24,000,000 chars (Db.kt:312) with 30-day retention measured by LAST USE (Db.kt:315), purged once per launch, oldest 25% dropped when over budget. Sound - the split memory/disk limits and the touch-on-304 are correct.\nSession/auth: YahooAuth crumb TTL 12h (:41), min re-mint interval 60s (:40, see finding 3).\nQuotes: BATCH_SIZE 50, BATCH_FAILURES_BEFORE_GIVING_UP 3, FALLBACK_PARALLELISM 5 (MarketData.kt:54,:62,:168); per-symbol fallback RetryClock 30s..5m; poll default 15s, floor 5s (PortfolioViewModel refreshSecs); SPARK_REFRESH_MS 5m; STALE_TAPE_MS 15m; CLOSED_MARKET_MAX_AGE_MS 6h; RESUME_REFRESH_GRACE_MS 4s.\nFeature TTLs: FundamentalsFeed CORE 6h (:44) / RATINGS 12h (:61); Research 30m (:50) / ETF 6h (:159); HoldingsModels 12h; ChartRange 1D 5m, 5D 30m, 1M 30m, 6M 6h, 1Y 12h, 5Y 24h, MAX 24h, Overnight 5m; FIGURE_MAX_AGE_MS 24h; SOCIAL_REFRESH_MS 15m; INSIDER_REFRESH_SECS 1800 and INSIDER_SYMBOL_TTL_MS 30m; ADVICE_NEWS_TTL_MS 20m; DEEP_NEWS_TTL_MS 5m; NEWS_VISIBLE_GRACE_MS 5m.\nCaps/retention: MAX_FEED_ITEMS 400, MAX_SYMBOL_NEWS 60, MAX_INSIDER_FILINGS 500, MAX_INSIDER_SKIP 4000, MAX_RATINGS 120, SymbolSearch memo 48 terms (session-lifetime, no TTL - correct, a ticker lookup is immutable), chart_cache 400 rows, news 31 days, quotes/fundamentals 30 days.\nNone of these constants is individually too short or too long. The one path polled far faster than its data can change is not governed by a TTL at all - it is the Stooq/Finnhub fallback in finding 1, which inherits the 15-second quote cadence for data Stooq itself marks DELAYED.\nNo unbounded memory cache found (Http.hosts/hostGates/meters are keyed by a fixed set of ~12 hosts); no per-row allocation hot spot worth reporting (News.stripHtml's literal replaces return `this` when the entity is absent, and the Research relevance loops were already hoisted).",
+  "findings": [
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/MarketData.kt",
+    "line": 144,
+    "severity": "high",
+    "category": "efficiency",
+    "title": "A Yahoo cooldown redirects the whole 15-second quote poll onto Finnhub/Stooq",
+    "failure": "When both query1 and query2 are in a local cooldown, batchYahoo sends nothing and returns INCONCLUSIVE (line 225). quotes() then still computes `missing` = every symbol and runs the per-symbol chain on all of them. yahoo() sends nothing (both hosts cooling, line 342), so every symbol falls straight through to finnhub() and then stooq(). On a 20-symbol portfolio at the default 15-second poll that is 20 requests a tick, ~80/min, to one third-party host for the whole cooldown - 4-10 minutes normally, up to 6 hours if Yahoo sent a Retry-After (Http.kt:163). Finnhub's free tier is 60/min, so it 429s, Http cools it too, and the entire load lands on stooq.com, whose rows MarketData itself labels \"DELAYED\" (line 495) - so re-asking every 15 seconds cannot return anything new. This is the exact traffic shape the batch endpoint was introduced to remove, resurrected by the app's own throttle. The comment at lines 111-115 already states that our own cooldowns \"are exactly the moments when falling back to one request per symbol makes the situation worse rather than better\", but nothing acts on it: the INCONCLUSIVE verdict only suppresses the batchFailures counter (line 118), it does not suppress the fallback.",
+    "fix": "Add a fourth Batch value (e.g. COOLING) returned by the `throttled >= 2` branch at line 225, and in quotes() return `got.values.toList()` without running the fallback when the verdict is COOLING. A real batch failure (Batch.FAILED) keeps the fallback exactly as it is."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/Screener.kt",
+    "line": 76,
+    "severity": "high",
+    "category": "correctness",
+    "title": "A cooldown on query1 alone empties the Research and ETF tabs while query2 is idle",
+    "failure": "Http arms cooldowns PER HOST (Http.kt:133, :455), and query1 is always tried first everywhere. These four sites abandon the entire call when the first host is cooling - Screener.fetch:76, Screener.trendingSymbols:153, EtfScreener.fetch:88, FundamentalsFeed.yahooFetch:208 - on the stated reasoning \"the throttle is on us, not it\". That is precisely the reasoning MarketData.yahoo:330-341 and ChartFeed.series:27-34 both document as factually wrong and already fixed, so these comments have drifted from what Http does. Concretely: one 429 from query1 anywhere in the app (the quote batch, a chart, a quoteSummary all share that host) makes all nine Screener.fetch calls in Research.build return empty, `universe` is empty, and the Research tab shows \"None of the market screens answered\" for the full cooldown with a perfectly healthy query2 unused. buildEtfs fails the same way (\"Yahoo's fund screens did not answer\"), and the Stats/Analysts tabs silently drop to the Nasdaq/Finviz fallbacks.",
+    "fix": "Replace `return emptyList()` with `continue` at Screener.kt:76 and :153 and EtfScreener.kt:88, and `return YahooReply(null, r.code)` with `continue` at FundamentalsFeed.kt:208 - the same shape ChartFeed.series already uses. With both hosts cooling the loop falls through to the same empty result and still sends nothing."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/YahooAuth.kt",
+    "line": 103,
+    "severity": "high",
+    "category": "efficiency",
+    "title": "invalidate() zeroes mintedAt, so the handshake-loop guard can never fire",
+    "failure": "MIN_INTERVAL_MS is documented at line 40 as \"Re-mint at most this often, so a bad run cannot turn into a handshake loop\", and the comment at lines 76-82 says the guard exists specifically for the case where no crumb has been minted yet. invalidate() sets `mintedAt = 0L`, so the guard at line 83 (`n - mintedAt < MIN_INTERVAL_MS`) is dead on every path that follows an invalidate - which is every 401. If Yahoo answers 401 persistently (a crumb-scheme change, or the A3 cookie not being stored because something else already claimed CookieHandler.getDefault), batchYahoo invalidates on every tick (MarketData.kt:216) and the next tick pays a fresh fc.yahoo.com request plus up to two getcrumb requests before the batch request 401s again. 401 is not in Http's rate-limit set (Http.kt:519), so no cooldown ever arms and nothing stops it: ~3 handshake requests every 15 seconds, indefinitely, plus the per-symbol fallback storm that the INCONCLUSIVE verdict triggers. FundamentalsFeed.yahooFetch multiplies it further - two attempts x two module sets is up to four full handshakes for one core() call.",
+    "fix": "In invalidate(), clear only the crumb: drop the `mintedAt = 0L` line. A genuinely expired crumb is 12 hours old so the interval guard passes and it re-mints at once; a mint less than a minute old returns blank and the caller already treats a blank crumb as INCONCLUSIVE for that pass."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/net/Http.kt",
+    "line": 161,
+    "severity": "medium",
+    "category": "correctness",
+    "title": "Rate-limit backoff escalates per 429 response, not per cooldown",
+    "failure": "backoffMs's KDoc (line 51) documents the ladder \"30s, 1m, 2m, 4m, 8m, then held at 10m\", and the neighbouring noteUnreachable calls the distinction \"ESCALATION IS PER COOLDOWN, NOT PER REQUEST\" load-bearing (lines 63-68) and implements it with the `now >= st.until` guard at line 213. noteRateLimited has no such guard. MAX_PER_HOST is 4, so a burst - Research.build's four concurrent screener calls under its Semaphore(4), or four per-symbol RSS pulls - has four requests in flight when the host answers 429, `st.strikes` jumps 0 to 4 within milliseconds, and the FIRST rate-limit event arms backoffMs(4) = 4 minutes instead of the documented 30 seconds. When that lapses the same four go out together again and strikes reaches the 10-minute ceiling on the second event, so the ladder's middle rungs are unreachable in practice and every Yahoo-dependent screen is frozen for minutes over what may have been a single-second throttle. NetLogicTest has \"one burst of failures earns only the first backoff step\" for the unreachable path and nothing equivalent for this one.",
+    "fix": "Mirror noteUnreachable: `if (now >= st.until) st.strikes += 1`, then `st.until = maxOf(st.until, now + maxOf(backoffMs(st.strikes), theirs))` - one step per cooldown, with a longer server Retry-After still winning."
+   }
+  ]
+ }
+}

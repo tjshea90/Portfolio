@@ -1,10 +1,14 @@
-# Dependencies / build output — added ahead of any actual stack decision so
-# the checkpoint system never has a reason to commit either.
-node_modules/
-dist/
+# Android/Gradle build output — the release APK we deliberately keep lives
+# under releases/, which none of this touches.
 build/
-.next/
-out/
+.gradle/
+.kotlin/
+app/build/
+local.properties
+
+# The old Cowork-native checkpoint state (superseded by tools/ + CHECKPOINT.md).
+.ck/
+__pycache__/
 
 # Local secrets — keep real credentials out of the repo entirely; see
 # tools/secretscan.sh and CLAUDE.md's "Credentials" section.
