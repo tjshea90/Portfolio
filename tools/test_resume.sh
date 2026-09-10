@@ -213,6 +213,41 @@ else
   ok "no build path asks a human to install the SDK by hand"
 fi
 
+# ---- GitHub builds the APKs now, and BUILDLOG must not be able to lie ---------
+# Tj's rule, 2026-09-10: GitHub makes all future APKs, Claude codes them. These guard the
+# mechanism rather than the intention.
+case "$(cat ship.sh)" in
+  *"refs/tags/"*) ok "ship.sh releases by tagging, so GitHub does the build" ;;
+  *) bad "ship.sh no longer tags — the release would never reach GitHub" ;;
+esac
+
+# assembleRelease may still appear, but ONLY behind the --local fallback.
+if grep -q 'assembleRelease' ship.sh && ! grep -q 'LOCAL' ship.sh; then
+  bad "ship.sh builds the APK locally with no --local guard"
+else
+  ok "a local build in ship.sh is gated behind --local"
+fi
+
+# BUILDLOG is the only versionCode record once APKs stop being committed; reading
+# releases/*.apk would report 0 on a repo that no longer has any.
+case "$(cat ship.sh)" in
+  *'releases/Portfolio-v*.apk'*) bad "ship.sh still derives versionCode from committed APKs" ;;
+  *) ok "ship.sh gates versionCode against BUILDLOG.md, not committed APKs" ;;
+esac
+
+[ -x tools/record-release.sh ] && ok "tools/record-release.sh exists and is executable" \
+  || bad "tools/record-release.sh is missing — a green run could never be recorded"
+
+# It must refuse to record without being told what was released.
+( bash tools/record-release.sh >/dev/null 2>&1 ) \
+  && bad "record-release.sh accepted empty arguments" \
+  || ok "record-release.sh refuses to record an unnamed release"
+
+case "$(cat .github/workflows/android.yml 2>/dev/null)" in
+  *"gh release create"*) ok "the workflow publishes the APK as a GitHub Release" ;;
+  *) bad "the workflow builds an APK but never publishes it anywhere Tj can reach" ;;
+esac
+
 # ---- CI must never be wired to fire on every autosave ------------------------
 # autosave mirrors every commit to main; a push trigger would start a run every
 # few seconds. This is the one mistake that would make CI actively harmful.
