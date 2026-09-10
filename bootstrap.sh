@@ -47,7 +47,9 @@ if [ -f app/sideload.jks ]; then
       echo "  !!    app/sideload.jks is the WRONG KEYSTORE. Signing with it produces"
       echo "        an APK that CANNOT update the phone in place — installing it"
       echo "        erases the portfolio. Ask Tj for the right file; never generate"
-      echo "        a replacement. Expected ...${KS_FP##*:*:*:}, got ...${GOT##*:*:*:}"
+      echo "        a replacement."
+      echo "          expected $KS_FP"
+      echo "          got      $GOT"
     fi
   else
     echo "  OK    signing keystore present (no keytool here to verify its fingerprint)"
