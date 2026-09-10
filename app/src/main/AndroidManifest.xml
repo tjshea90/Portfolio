@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Portfolio">
+        <!--
+          ROTATION IS HANDLED IN COMPOSE, NOT BY A RESTART (Round 64).
+
+          TJ asked for a chart that "can rotate landscape or portrait with the phone
+          sensors". Without this line every rotation DESTROYS and recreates the activity,
+          and this app's navigation is a `remember`ed stack inside the composition - so
+          turning the phone would have closed the stock, thrown away the zoom window and
+          landed back on the portfolio list. Declaring the configuration changes the
+          activity handles keeps the process, the composition and everything in it, and
+          Compose re-lays-out for the new size on its own, which is what it is for.
+
+          `screenSize` and `smallestScreenSize` are the two that actually matter for a
+          rotation on a modern device; the rest are listed because each one left out is a
+          different way to lose the screen (a font-scale change in Settings, dark mode
+          being toggled, a keyboard appearing). `fontWeightAdjustment` is the accessibility
+          "Bold text" switch - left out of the first version of this line, and it destroyed
+          the navigation stack exactly like the others would have.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard|navigation|uiMode|density|fontScale|fontWeightAdjustment|colorMode|layoutDirection|locale"
+            android:theme="@style/Theme.Portfolio">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

@@ -1,0 +1,151 @@
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 13:37:54 UTC)
+
+You are picking up a long-running Android project that was interrupted.
+Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
+it is 240 KB of round history. This file plus `state.json` is the live state;
+CHECKPOINT.md sections 0-5 (lines 1-530) are the only part worth reading cold,
+and only if you need the architecture.
+
+## 1. Bring the container back up
+
+```bash
+cd /home/claude && tar xzf <the checkpoint tarball>   # if the tree is missing
+bash /home/claude/portfolio/setup-env.sh              # Android SDK, ~2 min, once
+export ANDROID_HOME=/root/android-sdk
+bash /home/claude/portfolio/watchdog.sh &             # restart the 3-min autosave
+./ck status                                           # where the work stopped
+```
+
+Build traps that have cost real time before are in CHECKPOINT.md lines 22-60.
+The short version: never blank `JAVA_TOOL_OPTIONS`; never run two Gradle builds
+at once or kill one mid-flight; always background the build with
+`setsid nohup ./gradlew ... > /home/claude/build.log 2>&1 < /dev/null & disown`.
+
+## 2. The request this round is answering
+
+> Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.
+
+## 3. WHERE THE WORK STOPPED
+
+- **In flight:** Final audit batch: settings/Explain, cross-cutting data layer, and a second adversarial pass over the newest 13 fixes
+- **Next action:** Then bump to v7.7, full regression, signed APK, deliver
+
+Uncommitted edits, if any, are shown by `git status`; every checkpoint is a
+commit, so `git log --oneline` is the history of this round and
+`git show HEAD` is exactly what the last save changed.
+
+## 4. Task ledger — 8/11 done
+
+- [x] T0  Baseline: v7.6 tree green in this container  — v7.6 tree green in this container
+- [x] T1  Thicker separator bars between stocks  — separator 3dp -> 5dp with 7dp of air either side; RowLayoutUiTest floor raised 18dp -> 26dp so a revert is caught
+- [x] T2  ETF section: accurate, multi-source, healthy strong-buy funds ranked best-first  — ETF ranking: one fund per exposure (Schwab/Saxo both say comparison is only meaningful within an exposure group), youth no longer penalised twice with a three-year floor against performance-chasing, and the blurb now says what the feed cannot see
+- [x] T3  Worst section: keep only stocks with a buyable companion short vehicle, or delete the section  — Worst section deleted: tab, scorer, ShortVehicle, the inverse-ETF enrichment and its Claude prompt sections. Measured 16/20 momentum mega-caps have a US single-stock inverse fund vs 2/40 beaten-down names, one of those foreign-listed only
+- [x] T4  Stock research accuracy audit  — research accuracy: the ETF ranking reworked and grounded in Schwab's and Saxo's own selection guidance; the Worst list removed rather than left inactionable; A06 restored the news blurbs the cache was discarding
+- [x] T5  Cache and refresh policy: cache as big as needed, refresh liberally where it helps  — cache/refresh audit produced A02 (cadences never fired), A05 (quotes never pruned) and A07 (marks travelling in backups)
+- [ ] T6  Whole-app parallel review: bugs, efficiency, UI, features working as designed
+- [ ] T7  Fix every confirmed finding
+- [ ] T8  REGRESSION + ship v7.7
+- [x] 14  Audit the six subsystems the two interrupted workflow runs never reached  — 46 findings found and fixed across 8 audit dimensions
+- [x] 15  Ship v7.7  — versionCode 64, 797 tests, lint + checkinit clean, signed with the same cert as v7.5/v7.6
+
+**Resume at T6** (Whole-app parallel review: bugs, efficiency, UI, features working as designed).
+
+## 5. Open findings — 1 still open, 73 fixed
+
+- [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
+- [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
+- [x] A03 (high) TxnEditor.kt:55 seeds price and quantity from display formatters, so opening a transaction and pressing Save with no edit re-rounds it and silently changes the recorded cash  — TxnFields extracted from the dialog: seeds use Fmt.exact (round-trips through the editor's own parser) and Save shares one computation with the preview. Pure tests, no flaky dialog rendering
+- [x] A04 (med) PortfolioViewModel.kt:1085 onTrimMemory clears _insider but not insiderAt, so the Form 4 section is blank for up to 30 minutes after a memory trim even though the filings are still in memory and on disk  — insiderAt is cleared with _insider on a memory trim, matching coreFetchedAt and ratingsFetchedAt beside it
+- [x] A05 (med) Db.kt:1007 the quotes table is never pruned and is read whole, parsing every spark blob, synchronously on the main thread at launch  — Db.purgeQuotes, called with the other purges - the quotes table was the one unbounded cache, and it is parsed whole on the launch path
+- [x] A06 (med) PortfolioViewModel.kt:2455 a headline's summary is dropped when the story is cached, so reopening a stock loses every blurb  — loadNews writes the blurbs through with the stories, and cacheNews's conflict path updates the summary without ever erasing one; three tests
+- [x] A07 (med) Db.kt:1429 a restore imports the old phone's AUTOSAVE_AT/AUTO_BACKUP_AT/DOWNLOADS_TIDIED, so a new phone skips its first safety copy for 24 hours  — AUTOSAVE_AT, AUTO_BACKUP_AT, DOWNLOADS_TIDIED and the new FILINGS_AT are excluded from backups, and restoreAsync forces a safety copy of what it just restored
+- [x] A08 (med) PortfolioViewModel.kt:304 spinnerShouldShow does not know about the research/ETF build, so the poll loop retracts the pull indicator mid-build  — spinnerShouldShow gained a researchLoading term fed from _researchBusy, so the poll loop no longer retracts the pull indicator mid-build
+- [x] A09 (low) PortfolioViewModel.kt:762 two KDocs claim the quote wave survives backgrounding; it runs on fgScope and is cancelled  — both KDocs corrected, and setForeground now starts a replacement wave when one was cancelled - so a flick away and back inside the grace window no longer leaves stale prices
+- [x] A10 (low) PortfolioViewModel.kt:1117 restoreSparklines runs a second full quote-cache read on the launch path that provably cannot change anything  — restoreFromCache(fromInit = true) skips the duplicate quote-cache read on the launch path
+- [x] A11 (low) PortfolioViewModel.kt:2385 two different caps for the same per-symbol news list - the feed pass truncates 60 headlines to 40, removing stories the user is scrolling  — one cap for the per-symbol news list - the merge pass was silently deleting the bottom 20 of a 60-story list
+- [x] A12 (low) Format.kt:69 changeFor/changeMoney document four decimals for sub-dollar stocks and give three  — money4 for a sub-dollar price CHANGE, which is what both KDocs always claimed
+- [x] B01 (med) The Worst deletion left the offline Claude prompt still asking for a 'worst' list the app can no longer parse, plus a template phrase about inverse ETFs and several stale 'three lists' comments  — both prompts, the template phrase and every stale comment cleaned; the stored-tab coercion note now explains both directions
+- [x] B02 (high) SELF-REVIEW: my own A02 fix stamped lastFilingsAt after refreshInsiders' symbols.isEmpty() guard, so an empty portfolio or an already-running pass never advanced the mark and passDue reported filings due on EVERY tick - a full feed pass every 15 seconds  — stamped in startInsiderRefresh before both early returns, with a regression test asserting a stamped mark is not due one tick later
+- [x] E1 (high) EtfScreener.fetchAll stops paging on the PARSED row count, so one non-fund row on a page truncates the whole universe to 100 - the ETF list TJ is buying from can be ~130 funds while the screen claims 850  — fetchAll stops only on an empty page - one non-fund row no longer truncates the universe from 523 funds to 100
+- [x] E2 (high) EtfExposure checks the US size ladder before the region checks, so iShares MSCI EAFE Small-Cap merges with a US small-cap fund; gold bullion merges with gold miners; SGOV merges with TLT. My own new code, and exactly the over-grouping its KDoc says is the failure that matters  — region is tested before the US size ladder, regional size bands stay separate, miners never group with bullion, and a Treasury fund is only grouped when its name states a maturity band; five new tests
+- [x] R1 (high) Claude's conviction is written into the displayed SCORE and re-sorts the ETF list, so a fund a model asserted can sit at row 1 showing SCORE 100 above every fund the app actually screened  — conviction is its own field; score stays the app's arithmetic; the card badges a suggested fund as CLAUDE n/10 and it can never outrank a fund the app scored
+- [x] H1 (high) A Yahoo cooldown makes MarketData fall back to per-symbol quotes for EVERY symbol, so a 20-stock portfolio sends ~80 requests a minute to Finnhub and then Stooq for the whole cooldown - the exact traffic shape the batch endpoint exists to remove  — a batch that sent nothing because both Yahoo hosts were cooling no longer triggers the per-symbol fallback - that was ~80 requests a minute to Finnhub and then Stooq for the length of every cooldown
+- [x] H2 (high) Screener, EtfScreener and FundamentalsFeed abandon the whole call when query1 alone is cooling, so one 429 anywhere empties the Research and ETF tabs while query2 sits idle  — Screener, EtfScreener and FundamentalsFeed skip a cooling host instead of abandoning the call, matching what ChartFeed already documented; one 429 on query1 no longer empties the Research and ETF tabs
+- [x] H3 (high) YahooAuth.invalidate zeroes mintedAt, so the MIN_INTERVAL guard that exists to stop a handshake loop is dead on every path that follows a 401  — YahooAuth.invalidate keeps the clock, so the MIN_INTERVAL guard that exists to stop a handshake loop is live again after a 401
+- [x] H4 (med) Http.noteRateLimited escalates per 429 RESPONSE rather than per cooldown, so a burst of four concurrent requests jumps straight to a 4-minute backoff on the first rate-limit event  — the rate-limit ladder escalates once per cooldown, extracted as the pure nextRateLimit with three tests
+- [x] E3 (med) The 'Same exposure as ...' line is appended last and cut off by the card's six-reason limit, so on VOO - the case the feature was written for - it never renders  — the 'same exposure' line is prepended, so it survives the card's six-reason limit on exactly the funds the feature was written for
+- [x] E4 (med) The ETF return normalisation gates on the sum of available weights, so a fund with a full three-year record but no YTD figure is capped at 16 of 34 points - and reporting a worthless YTD gains it eleven  — the return normalisation gates on the record rather than the weight sum; two tests pin the invariant
+- [x] E5 (med) The fund card's 1Y cell is a price-only 52-week change shown and scored beside 3Y and 5Y NAV TOTAL returns, so every income fund is marked down by its own yield  — the 52-week figure is shown as '1Y price' and earns nothing - every other horizon in the score is a NAV total return, and averaging a price change with them marked income funds down by their own yield
+- [x] R2 (med) Trending rows for symbols outside the nine equity screeners carry no price, name or day change, and nothing ever fills them  — Trending rows outside the nine screeners had no price/name/change - loadResearch now awaits one batched fill
+- [x] R3 (med) 'cheap for that growth' is printed for a company whose forward EPS is BELOW trailing, when the growth term scored zero  — the valuation line only claims growth when the growth term scored, and says plainly when earnings are not growing
+- [x] R4 (med) 'most shorted' and 'day losers' are printed among the reasons a stock is rated a good BUY, though neither screen scores anything  — only the four screens that actually score are named among the reasons to buy
+- [ ] R6 (low) Stale comments across Research, ResearchModels, PortfolioViewModel, Http, Db and EtfScreener still describe the Worst list, the short-vehicle lookup, a two-list ETF plan and a RESEARCH_TAB index that has moved
+- [x] PUI1 (high) RowActions.EditPositionDialog seeds shares/avgCost with display formatters (Fmt.shares/Fmt.priceBare) so Save with no edit writes a ROUNDED override - same bug TxnEditor fixed with Fmt.exact  — PositionFields extracted + Fmt.exact seeds; Fmt.exact now rounds to 12 sig digits so a quotient does not seed 17 digits
+- [x] PUI2 (med) PortfolioScreen.BigLine weights only the label and leaves two unweighted figures after it - at large font scale the label measures to 0dp and vanishes; sub has no overflow so it clips with no ellipsis  — BigLine: all three children weighted 1:2, figures via AutoFitNumber so nothing measures to zero and nothing clips
+- [x] PUI3 (med) PortfolioScreen reconciliation note claims Since-you-started = broker Total G/L + banked profit, but totalGain also contains dividends/interest/fees so the stated arithmetic does not add up  — Reconciliation note now names dividends, interest and fees so the card's own arithmetic adds up
+- [x] PUI4 (med) RowSeparator thickened to 5dp but still painted in colorScheme.outline at 1.24:1 (light) / 1.37:1 (dark) - TJ's 'even thicker' request is blocked by the COLOUR, not the thickness  — New rowRule colour: 3.14:1 light / 3.07:1 dark, replacing outline at 1.24:1 - the separator is finally visible
+- [x] PUI5 (med) PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on the StatCard surface, the only coloured value on that card not going through signColor  — Dividends figure now greenText not Green
+- [x] PUI6 (low) WatchlistScreen PRICE column header is an unweighted child after a weighted Spacer (measures to ~8dp and renders empty at large font scale) and labels a right-hand price column that no longer exists  — Watchlist header: one weighted label, dead PRICE column removed
+- [x] PUI7 (low) StockRow watch menu reads row.watchOnly, never true for a held row, so a held+watched symbol always says 'Also watch this' and the toggle is one-way with an untrue toast  — Row.watched added and used by the menu and the toggle - held+watched symbols can now be un-watched
+- [x] AUD1 (med) redText in dark theme was brand Red at 4.41:1 on the StatCard surfaceVariant - under AA. Found by the new ContrastTest  — New RedTextDark 0xFFF2606F: 5.20:1 on surfaceVariant, 6.06:1 on background
+- [x] ETF1 (high) EtfScore: 0.0 is the sentinel for 'not published', so a flat/absent YTD is DROPPED from the weighted average - and because the average rescales, dropping the weakest horizon RAISES the score. A missing YTD scores like +15pct YTD. The list systematically prefers funds with less complete data  — YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points
+- [x] ETF2 (high) EtfScreener.fetch returns emptyList() for both 'past the end' and 'no host answered', so fetchAll's empty-page stop silently truncates 523 funds to 200 on a transient 429 - and buildEtfs only warns when a list returns nothing at all  — fetch returns null for 'nobody answered' vs emptyList for 'end of list'; fetchAll reports completeness and buildEtfs warns when a screen answered only part of its pages
+- [x] ETF3 (high) EtfExposure.keyOf tests region BEFORE asset class with no bond guard, so BNDX/BNDW (international/world BONDS) get key 'Global equity' and are DELETED as duplicates of VT. Same for IAGG vs BND  — Asset class tested before region, with a bond-word guard; 'aggregate bond' now requires the name not to be international/global/world/ex-US
+- [x] ETF4 (med) Every term that could separate two S&P500 trackers is saturated for large funds, so the exposure-group winner is decided by third-decimal noise or, on the integer tie, by Yahoo's screen order - and dedupe now DELETES the loser  — Explicit Research.ETF_ORDER: score, then cost, then size, then ticker - fully deterministic, unknown fee sorts last
+- [x] ETF5 (med) ramp clamps a negative long-run return to 0 points but 'possible' still counts its weight, so the 4pt YTD term scales to 9.71 of 34 exactly for funds with the worst long-run records  — Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x
+- [x] ETF6 (med) expenseRatio > 0.0 treats a genuinely free fund (BKLC, BKAG at 0.00pct) as 'unknown': 20 cost points forfeited and a confidence penalty, scoring identically to a 0.85pct fund  — expenseRatio sentinel is -1.0 through EtfRow, EtfFacts, parse, toJson/fromJson, the card and the Claude prompt; oneYearPct no longer opens the return block
+- [x] ETF7 (med) One key 'Global equity' covers both all-world INCLUDING the US (VT, ACWI) and all-world EX-US (VXUS, IXUS, VEU, ACWX) - opposite answers to the same question, and the ex-US half is deleted  — Global equity split into 'incl US' and 'ex-US', ex-US tested first so 'All-World ex-US' reads correctly
+- [x] ETF8 (med) isLeveragedOrInverse is applied only on the screener path, so a leveraged fund Claude adds (TQQQ) survives on a list whose own sources note says leveraged and inverse funds are excluded  — Leveraged/inverse funds dropped on the Claude path too, once the quote fill supplies a name; prompt now says not to add them
+- [x] CHT1 (med) Two-finger pan compares centroidX across frames even when the POINTER COUNT changed, so a third finger landing reports a quarter-span pan that never happened  — centroidN tracks how many pointers the pan reference was measured over; a frame with a different count re-seeds instead of reporting a phantom pan
+- [x] CHT2 (med) GestureMode.ZOOM latches until every finger lifts: one finger of a pinch leaving leaves the chart inert and consuming, so neither the chart nor the page beneath it can move  — A pinch down to one finger becomes a PAN (never a scrub) instead of latching in ZOOM and consuming forever
+- [x] CHT3 (med) nearestIndex's off-screen clamp is skipped when the window falls between two candles, so the readout prints a price and date from weeks outside the window with no crosshair anywhere  — pointAt returns NO_SCRUB when the nearest point falls outside the axis, so the readout and the crosshair never disagree
+- [x] CHT4 (low) canPanNow omits windowBounds != null while pan() requires it, so the caption promises a pan that cannot exist and the 350ms hold still arms and consumes  — canPanNow includes windowBounds != null, so the caption and the 350ms hold match what pan() can actually do
+- [x] RES1 (high) No migration for the research cache: a Claude-added fund written by the previous build still deserializes with score=conviction*10, draws as an app SCORE badge, and carryEtfExplanations pins it at row 1 above every fund the app measured, forever  — Cache format version is finally read; a version-1 row with a score but no reasons and no facts has its number moved back to conviction. Writer bumped to 2
+- [x] RES2 (med) The 'where these numbers come from' note omits Nasdaq - the source of the analyst consensus and price target that 30pct of an enriched Best score is blended from  — Nasdaq named in SOURCES, and the closing sentence now says the analyst view is blended at 30pct
+- [x] RES3 (med) One-fund-per-exposure is applied only on the screener path, but the tab blurb states it as an unconditional fact - and the app asks Claude for AGG and BND by name, which are the same exposure  — One fund per exposure now applies on the Claude path too, beside dropLeveraged; gaps hint no longer names both AGG and BND; prompt says one fund per exposure
+- [x] RES4 (low) ResearchRow.followed is dead: nothing writes or reads it and it is not in the JSON codec, but its KDoc claims it drives the FOLLOWING chip  — Dead ResearchRow.followed deleted, with a note saying where the chip really comes from
+- [x] RES5 (med) resetResearchPaging() has zero callers, so a page count of 40 survives a rebuild and the next TTL rebuild fires up to 50 Nasdaq requests with no user action  — resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts
+- [x] RES6 (low) The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the Section enum - two lists in two files, so the guard does not protect the array access it was written for  — Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch
+- [x] RES7 (med) enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back the pre-suspension snapshot - a Claude import landing in that window is silently discarded AND persisted as lost  — enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy
+- [x] RES8 (low) Seven comment sites still count three stock lists or four sections after the Worst deletion, including the data model header a maintainer reads first  — Section counts corrected in all seven comment sites
+- [x] REG1 (high) EtfRow.merge still tests expenseRatio > 0, so merging a fund across two screens discards a real 0.00pct fee in favour of the -1.0 unknown - re-creating ETF-6 for the exact funds its comment names  — EtfRow.merge now tests >= 0 like every other reader of the fee sentinel
+- [x] REG2 (high) The v1-to-v2 migration treats 'no reasons and no etf' as 'app did not score it', but ResearchScore.best can return a positive score with zero reasons - such a Best row is relabelled CLAUDE n/10 and its real score destroyed  — Migration scoped to the etfs array and to the full fingerprint: no facts, a paragraph, and a score that is a positive multiple of ten. Three tests guard the rows it must not touch
+- [x] REG3 (high) PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched symbol it now REMOVES from the watchlist while saying Also watch  — DetailScreen's watch button now reads row.watched and says 'Remove from watchlist' when that is what it will do
+- [x] REG4 (med) oneFundPerExposure APPENDS the 'Same exposure as' line, but the card renders reasons.take(6) and EtfScore already emits six - so the line is never drawn and an imported fund vanishes with no explanation  — The 'same exposure' line is PREPENDED on the import path too, so it survives reasons.take(6)
+- [x] REG5 (med) The contrast fix changed only the redText accessor; ~8 hard-coded color = Red text sites remain, including one on a StatCard at the 4.41:1 the fix measured  — All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)
+- [x] REG6 (low) CHT-3's guard compares in milliseconds but nearestIndex clamps in truncated seconds, so a legitimate leftmost-candle scrub is refused after a pan  — CHT-3's guard now compares in truncated seconds, the same unit nearestIndex clamps in
+- [x] DET1 (med) Price target card prints an unreported targetLow/High as $0.00 and feeds that zero into the spread sentence, fabricating 'the professionals genuinely disagree'  — Lowest/Highest target rows and the spread sentence are all guarded on a real figure
+- [x] DET2 (med) Realized P/L is rendered only inside the 'you still hold shares' branch, so closing a position hides its realized profit on the one screen that promises the number  — A closed position now shows what it made, in its own card, on the watchlist branch
+- [x] DET4 (med) loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minute TTL on the next line is unreachable for exactly the symbols it was written for  — The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged
+- [x] DET5 (low) MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line above writes -$0.42 - the one formatter in the app that disagrees with the rest  — Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter
+- [x] DET6 (low) TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty*price against the NET total, so it fires on every fee-bearing trade even when the answer is exact  — The caveat compares the computed cash against the typed total, so it fires only when they really disagree
+- [x] DET7 (low) refreshEverything force-reloads the fund register only when the Holdings tab is selected, but that tab exists only once the register loaded - so pull-to-refresh cannot recover a failed lookup  — Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed
+- [x] DET8 (low) OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stock in place opens the new one at the previous one's scroll offset  — OverviewTab's scroll state keyed on the symbol
+- [x] CRX2 (high) MERGE restore matches each incoming row against rows THIS restore just inserted, so N genuinely identical transactions in a backup collapse to one - silent data loss in the one path that exists to recover lost transactions  — Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code
+- [x] CRX1 (med) todayShares/todayCost are never reduced by a SELL, so a same-day round trip fabricates a day gain on the shares still held and the portfolio Today headline is wrong by that amount  — 'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code
+- [x] EXP1 (med) Settings' request-counter card says to pull down to update it, but the value is in a remember whose keys pull-to-refresh never changes - frozen at tab-open  — Pull-to-refresh on Settings now bumps infoTick, so the request counter updates the way the card says it does
+- [x] EXP2 (med) refreshStatus claims 'updating every 15s' on the Settings tab, which is exactly where the poll loop skips the quote pass - and the paragraph six lines below says the opposite  — refreshStatus reports the two paused states - no prices on screen, and prices final for the session - instead of promising a tick that is not happening
+- [x] EXP3 (med) The 52-week high/low sheets compute distance without clamping, so a new high reads 'within -4.2% of its 52-week high' - the ETF and Research models clamp the identical expression  — A new 52-week high or low now says so, instead of reporting a negative distance inside a sentence that only works for a positive one
+
+## 6. Version
+
+- Shipped: v7.4 (versionCode 61)
+- This round ships: v7.5 (versionCode 62)
+- Bump `app/build.gradle.kts` before the final APK. Android refuses an install
+  whose versionCode is not higher than what is on the phone.
+
+## 7. Recent log
+
+- 2026-09-10 13:13:28 UTC  finding CRX2: MERGE restore matches each incoming row against rows THIS restore just inserted,
+- 2026-09-10 13:13:28 UTC  finding CRX1: todayShares/todayCost are never reduced by a SELL, so a same-day round trip fabr
+- 2026-09-10 13:13:28 UTC  finding EXP1: Settings' request-counter card says to pull down to update it, but the value is 
+- 2026-09-10 13:13:28 UTC  finding EXP2: refreshStatus claims 'updating every 15s' on the Settings tab, which is exactly 
+- 2026-09-10 13:13:28 UTC  finding EXP3: The 52-week high/low sheets compute distance without clamping, so a new high rea
+- 2026-09-10 13:21:36 UTC  CRX2 fixed: Restore matching is one-to-one: findDuplicateId takes an exclude set and restoreJson tracks claimed ids, so N identical rows in a backup all survive. 7 tests, 5 verified to fail on the old code
+- 2026-09-10 13:21:36 UTC  CRX1 fixed: 'bought today' is carried on the FIFO lot so a sell removes it; average cost drains the pool pro-rata. 6 tests, 4 verified to fail on the old code
+- 2026-09-10 13:21:37 UTC  EXP1 fixed: Pull-to-refresh on Settings now bumps infoTick, so the request counter updates the way the card says it does
+- 2026-09-10 13:21:38 UTC  EXP2 fixed: refreshStatus reports the two paused states - no prices on screen, and prices final for the session - instead of promising a tick that is not happening
+- 2026-09-10 13:21:39 UTC  EXP3 fixed: A new 52-week high or low now says so, instead of reporting a negative distance inside a sentence that only works for a positive one
+- 2026-09-10 13:37:53 UTC  14 -> done  46 findings found and fixed across 8 audit dimensions
+- 2026-09-10 13:37:54 UTC  15 -> done  versionCode 64, 797 tests, lint + checkinit clean, signed with the same cert as v7.5/v7.6
+

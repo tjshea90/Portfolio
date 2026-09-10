@@ -1,0 +1,7 @@
+build/
+.gradle/
+.kotlin/
+*.apk
+__pycache__/
+.ck/
+local.properties

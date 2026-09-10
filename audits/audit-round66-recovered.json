@@ -1,0 +1,122 @@
+{
+ "viewmodel": {
+  "area": "PortfolioViewModel.kt + MainActivity.kt \u2014 refresh scheduling, in-flight guards, coroutine scoping, state plumbing",
+  "findings": [
+   {
+    "file": "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt",
+    "line": 2283,
+    "severity": "high",
+    "category": "stale-data",
+    "title": "Feed and Form 4 cadences are counters inside the poll coroutine, reset on every foreground return",
+    "failure": "`sinceFeedRefresh`/`sinceFilings` are locals of the coroutine `startAuto()` launches (2282-2283), and `startAuto()` is called from `setForeground(true)` (and from `setSetting(REFRESH_SECS)`), so both counters restart at 0 every time the app comes back to the screen. They therefore measure UNINTERRUPTED foreground seconds, not elapsed time. Concretely: `withFilings = sinceFilings >= INSIDER_REFRESH_SECS` (2324) needs 1800 s of continuous foreground, so on a phone used in normal bursts `startInsiderRefresh` is never reached automatically at all \u2014 the Insider tab keeps whatever `loadCachedInsider` restored, ages rows out of the 30-day window on each launch, and never gains a new filing unless the user happens to pull-to-refresh on the Feed tab (`refreshInsidersIfEmpty` only fires when the store is *empty*, so it cannot cover this). The same defect wastes requests in the other direction: `setNewsVisible(true)` fires its own feed pass off a wall-clock check against `_feedAt` (2175) without touching the counter, so opening the Feed tab shortly before the counter matures runs the whole 25+-request pass twice within seconds.",
+    "fix": "Gate both on wall-clock marks instead of accumulators: use the already-persisted `_feedAt` for the feed (`now - _feedAt.value >= MarketClock.feedIntervalSecs()*1000`), and add a `private var lastFilingsAt: Long` field stamped where `startInsiderRefresh` actually runs, testing `now - lastFilingsAt >= INSIDER_REFRESH_SECS*1000L`. Both then survive `startAuto()` being restarted and both see the out-of-band pass."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt",
+    "line": 1085,
+    "severity": "medium",
+    "category": "stale-data",
+    "title": "onTrimMemory drops `_insider` but not `insiderAt`, blanking a stock's Form 4 section for 30 minutes",
+    "failure": "`onTrimMemory` clears `_insider.value = emptyMap()` (1085) but leaves the `insiderAt` completion marks in place. `loadInsider`'s guard (3067-3069) is `_insider[symbol] not empty  -> return`, else `now - insiderAt[symbol] < INSIDER_SYMBOL_TTL_MS -> return`. After a TRIM_MEMORY_MODERATE the first test fails (map cleared) and the second one fires, so the call returns before reaching the `fromStore` restore inside the launch. Result: the user backgrounds the app, the system trims, they return to the open detail screen, ON_START calls `vm.loadInsider(symbol)`, and the \"Insider filings (SEC Form 4)\" section is empty for up to 30 minutes \u2014 even though the same filings are still in memory in `_insiderFilings` (which trim does not clear) and on disk in `Keys.INSIDER_CACHE`. The two lines below (1091-1092) clear `coreFetchedAt`/`ratingsFetchedAt` for exactly this reason, with a comment saying so; `insiderAt` was added later and was not added to that list.",
+    "fix": "Add `insiderAt.clear()` beside `_insider.value = emptyMap()` at line 1085 (one line, matching the `coreFetchedAt.clear()` treatment two lines down). Alternatively move the `_insiderFilings`-backed `fromStore` repopulation in `loadInsider` above the TTL guard so a cleared map is refilled from memory with no request."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt",
+    "line": 304,
+    "severity": "medium",
+    "category": "feature-drift",
+    "title": "spinnerShouldShow does not know about the Research/ETF build, so the poll loop cancels that pull indicator mid-build",
+    "failure": "`spinnerShouldShow(userAsked, quotesLoading, feedLoading)` (304) is documented as enforcing \"the indicator may only be on while work is actually happening\", but it only knows about two of the three kinds of work that set `manualRefresh`. `loadResearch(force=true)` / `loadEtfs(force=true)` set `manualRefresh = true, refreshSource = PULL_RESEARCH` (4538, 4605), and `ResearchScreen` renders `Refreshable(refreshing = state.pulling(PULL_RESEARCH))`. The polling loop calls `syncManualIndicator()` on every tick (2293) and `refresh()` calls it in its finally; with `_ui.loading` and `_feedLoading` both false, `want` computes to false and the spinner plus `refreshSource` are cleared. So pulling down on the Research tab retracts the indicator after one quote tick (15 s with the market open) while the ~18-request build is still running, and the screen has no pull feedback for the rest of it. `loadResearch`'s own `finally` also clears `manualRefresh`/`refreshSource` by hand \u2014 the exact pattern `syncManualIndicator`'s KDoc says caused the stranded-spinner bug.",
+    "fix": "Add a fourth term: `fun spinnerShouldShow(userAsked, quotesLoading, feedLoading, researchLoading)` and pass `_researchBusy.value.isNotEmpty()` from `syncManualIndicator`; then delete the hand-clearing `if (force) _ui.value = copy(manualRefresh = false, ...)` from both research finallys and let `syncManualIndicator()` derive it."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt",
+    "line": 762,
+    "severity": "medium",
+    "category": "comment-drift",
+    "title": "Two KDocs claim the quote wave survives backgrounding; Round 59 moved it onto the scope that is cancelled",
+    "failure": "The `fgScope` KDoc lists, under \"WHAT DOES NOT [belong in fgScope], and why each one is deliberate\", \"the batched quote wave in `refresh()`. It is now ONE request for the whole portfolio, and its answer is what the user sees the instant they come back\" (762-764). `setForeground`'s KDoc repeats it: \"`refreshFeed` is the expensive one and is now cancelled outright; `refresh()` is a single bounded wave of quote requests whose results are worth keeping for the return, so it is left to finish\" (2211-2213). But `refresh()` launches into `fgScope` (1743, with its own comment arguing the opposite), and `setForeground(false)` cancels `fgScope.coroutineContext[Job]`. So the wave IS cancelled. The behavioural consequence: flick away and back inside `RESUME_REFRESH_GRACE_MS` (4 s) while a pass is in flight and the pass is killed *and* the resume refresh is skipped by the grace check, so prices stay as of before the cancelled pass until the next tick \u2014 up to 15 s open, 15 min closed. Anyone reading either KDoc to decide where to put new work is being told the wrong rule about the file's most load-bearing scoping decision.",
+    "fix": "Rewrite both passages to say the quote wave is on `fgScope` and is cancelled (matching the Round 59 note at 1743). If the intent really is \"left to finish\", the alternative one-line fix is to also start a refresh on resume when a pass was cancelled \u2014 e.g. track `refreshWasCancelled` and OR it into the `away > RESUME_REFRESH_GRACE_MS` test in `setForeground(true)`."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt",
+    "line": 1117,
+    "severity": "low",
+    "category": "efficiency",
+    "title": "restoreSparklines() at launch is a full quote-cache read that provably cannot change anything",
+    "failure": "`init` does `_quotes.value = db.cachedQuotes()` and then calls `restoreFromCache()`, whose first line is `restoreSparklines()` (1117). That function returns early only if every held quote already has a series; any tracked symbol Yahoo never supplied a spark for (a freshly added watch entry, a thin ticker) defeats the check, and it then launches `db.cachedQuotes()` again (1148) \u2014 re-reading every quote row including its serialised spark blob on the launch path \u2014 to fill empty sparks from the identical rows that were just loaded. `changed` can never become true, because the in-memory map came from that same query and the function never overwrites a non-empty series. Its own KDoc claims it \"costs nothing in the ordinary case\", which is true on resume (its real purpose, after a trim) and false at launch.",
+    "fix": "Give `restoreFromCache` a parameter, e.g. `restoreFromCache(fromInit = true)` in `init`, and skip `restoreSparklines()` on that path \u2014 `_quotes` was assigned from the same query three lines earlier."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt",
+    "line": 2385,
+    "severity": "low",
+    "category": "correctness",
+    "title": "Two different caps for the same per-symbol news list; the feed pass silently truncates the deep list by a third",
+    "failure": "`loadNews` builds a stock's multi-source list and caps it with `MAX_SYMBOL_NEWS` = 60 (332, applied at 2438), while `mergeNews` caps the same `_news[symbol]` entry with `MAX_NEWS_PER_SYMBOL` = 40 (398, applied at 2385). Whenever a detail screen is open, `refreshFeed` computes `newsSymbols = listOf(openSymbol)`, so that symbol is in `freshNews`, so `mergeNews` runs over it and takes 40. Concrete failure: open a stock, get up to 60 headlines from the deep multi-source pull, and roughly three minutes later (one feed interval, market open) the bottom 20 disappear from the list the user is scrolling \u2014 the pass that was supposed to be additive removes stories. The two constants' KDocs describe the same thing in the same words, so the smaller one wins by accident rather than by decision.",
+    "fix": "Delete one of the two constants and use the survivor in both places \u2014 `.take(MAX_SYMBOL_NEWS)` at line 2385 keeps the wider list the deep pull paid for."
+   }
+  ]
+ },
+ "database": {
+  "area": "persistence and money-critical domain maths (data/, domain/, util/Format.kt)",
+  "findings": [
+   {
+    "file": "app/src/main/java/com/tj/portfolio/data/Db.kt",
+    "line": 38,
+    "severity": "high",
+    "category": "efficiency",
+    "title": "The two txns indexes are created only in onCreate, so an upgraded database never has them",
+    "failure": "`CREATE INDEX idx_txn_symbol` / `idx_txn_date` (Db.kt:38-39) are the only place those indexes are made, they are not `IF NOT EXISTS`, `onUpgrade` (Db.kt:244) never creates them, and the `onOpen` belt-and-braces repair block (Db.kt:261-268) re-runs every CREATE TABLE but not these. Any database created before the indexes were added therefore never gets them, and the repo's own fixture proves the path: `DbTest.buildLegacyV1` builds the schema \"v1.0 actually shipped\" with no indexes on txns, and after the upgrade to v7 there are still none. Everything that depends on them silently falls back to a full table scan: `findDuplicateId` (Db.kt:602) scans the whole txns table once per incoming row, so merging a 2,000-row backup through `restoreJson` (Db.kt:1320) is ~4,000,000 row visits inside one transaction - exactly the cost the comment at Db.kt:610 claims to have fixed (\"MADE `idx_txn_symbol` UNUSABLE ... roughly four million row visits\"), and `deleteTxnsForSymbol` (Db.kt:552) likewise scans despite its comment saying it runs \"one statement against `idx_txn_symbol`\". Both comments describe an index that does not exist on TJ's phone. `commitImportAsync` calls the same check once per row of a 111-row screenshot import.",
+    "fix": "Move the two statements into a `createTxnIndexes(db)` written with `CREATE INDEX IF NOT EXISTS`, and call it from `onCreate` and from the `onOpen` repair block alongside the other five `runCatching { create... }` lines. Purely additive, idempotent, and it heals every existing install on next launch."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/data/Db.kt",
+    "line": 1007,
+    "severity": "medium",
+    "category": "unbounded-growth",
+    "title": "The quotes table is never pruned and is read whole on the main thread before the first frame",
+    "failure": "`purgeOldNewsOnce` (PortfolioViewModel.kt:3894) prunes news_cache, fundamentals, http_cache and chart_cache; nothing anywhere deletes from `quotes` - there is no `purgeQuotes`, no retention constant, and no `DELETE FROM quotes` in the codebase. But rows are written for far more than the tracked set: `VisibleScope.symbolsFor` returns `listOf(scope.symbol)` for `Detail` (PortfolioViewModel.kt:250), so every stock opened from search, the Research lists, the trending list or a headline is quoted and then persisted by `db.cacheQuotes(toPersist)` (PortfolioViewModel.kt:1855), and `adoptAsSparkline` writes a full intraday series into that row's `spark` column (PortfolioViewModel.kt:3453). Each row is therefore a permanent ~1KB JSON array. `Db.cachedQuotes()` reads every row and JSON-parses every spark array, and it is called synchronously from `init` on the main thread at line 1338 - the same hot path the Round 57 comment at Db.kt:1000 hoisted column lookups out of. After a few months of browsing, cold start parses hundreds of rows for symbols the user looked at once, and `_quotes` then holds all of them in memory for the life of the process (the memory-trim handler at PortfolioViewModel.kt:1051 only blanks the sparks, it never drops entries).",
+    "fix": "Add `fun purgeQuotes(olderThanMs: Long = 30L * 86_400_000L) = writableDatabase.delete(\"quotes\", \"updated < ?\", arrayOf((System.currentTimeMillis() - olderThanMs).toString()))` and call it from `purgeOldNewsOnce` with the other purges. Symbols that are actually held or watched are re-quoted constantly, so their `updated` never ages out."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/ui/PortfolioViewModel.kt",
+    "line": 2455,
+    "severity": "medium",
+    "category": "feature-drift",
+    "title": "A headline's summary is thrown away when it is cached, so cached stories lose their blurb",
+    "failure": "`loadNews` writes the fetched stories through to disk with `summaries = emptyMap()` (line 2455) and builds each `FeedItem` from title/url/source/published only - the `NewsItem.summary` that `News.forSymbol` just returned is dropped, and `detail` is left blank too. It is the only place a summary could be supplied: the other `cacheNews` call site (line 3858) passes none either, so the `summary` column added for this is written as `''` for every row ever stored. `db.cachedNewsFor(symbol)` (Db.kt:939) selects that column and hands back `summary = \"\"`, and `DetailScreen.kt:1325` only renders the blurb when `n.summary.isNotBlank()`. Concrete failure: open a stock, see headlines with their one-line blurbs; leave and reopen it, and the list repaints from cache at line 2418 with every blurb gone until the network fetch lands - and stories that have since fallen out of the source's window never get one back. The comment at line 2442 says the write-through exists \"so the next open starts from these\"; it starts from a degraded copy.",
+    "fix": "Build the FeedItem list once and pass the summaries with it: `val feed = items.map { ... }; db.cacheNews(feed, feed.indices.associate { feed[it].id to items[it].summary })`. Note `cacheNews` only UPDATEs `owned` on a conflict (Db.kt:894), so also add `summary` to that UPDATE, or existing blank rows never gain one."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/data/Db.kt",
+    "line": 1429,
+    "severity": "medium",
+    "category": "data-loss",
+    "title": "A restore imports the old phone's autosave timestamps, so the new phone skips its first safety copy",
+    "failure": "`isDerivedCache` excludes `FEED_AT` from backups with a comment explaining exactly this hazard - \"a device transfer import[s] another phone's timestamp ... and the refresh-on-open rule that reads it is suppressed until it ages out\" - but `Keys.AUTOSAVE_AT`, `Keys.AUTO_BACKUP_AT` and `Keys.DOWNLOADS_TIDIED` get no such treatment, so they are exported (Db.kt:1250) and, on `replace = true`, written straight into the new device's settings (Db.kt:1367). `autoBackupIfDue` then computes `last = maxOf(lastAutoBackup(), AUTOSAVE_AT)` (PortfolioViewModel.kt:5215) and returns without writing if that is under 24h old. `restoreAsync` (PortfolioViewModel.kt:5259) does not force a backup after a successful restore either. Concrete failure: transfer to a new phone, restore the autosave written on the old one this morning, and for the next 24 hours the new device has neither a private snapshot nor the uninstall-proof `portfolio-autosave.json` in Downloads - at the one moment the ledger is least protected. `DOWNLOADS_TIDIED = 1` restored the same way also permanently skips `tidyDownloadsOnce`.",
+    "fix": "Add `k == Keys.AUTOSAVE_AT || k == Keys.AUTO_BACKUP_AT || k == Keys.DOWNLOADS_TIDIED` to `isDerivedCache`, and call `autoBackupIfDue(force = true)` in `restoreAsync` next to the existing `recompute(); refresh()`."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/ui/TxnEditor.kt",
+    "line": 55,
+    "severity": "medium",
+    "category": "correctness",
+    "title": "Opening and re-saving a transaction re-rounds its price and quantity, changing the recorded cash",
+    "failure": "The editor seeds its fields from formatters, not from the stored doubles: `price` from `Fmt.priceBare` (line 55), which is `#,##0.00#` / `#,##0.000` - at most three decimals - and `qty` from `Fmt.shares` (line 52), which is `#,##0.####` - at most four. On Save the rounded strings are parsed back and `amount = Txn.cashEffect(type, q, p, a, f)` recomputes the cash effect from `quantity * price` (line 221), discarding the total that was on file. Prices with more than three decimals are routine here because `Txn.unitPriceFromTotal` derives them from a net total (Claude.kt:208, ClaudeBridge.kt:360): a 1,000-share buy for a net $1,559.50 stores price 1.5595, the editor shows \"1.560\", and pressing Save with nothing changed rewrites the row as -$1,560.00 - a 50c drift in cash, cost basis and every total derived from them, with no edit made and nothing on screen saying so. The same happens to fractional share counts beyond four decimals.",
+    "fix": "Seed the two fields from the raw values instead of the display formatters - e.g. `existing.price.toBigDecimal().stripTrailingZeros().toPlainString()` (and likewise for quantity) - so an untouched field round-trips exactly."
+   },
+   {
+    "file": "app/src/main/java/com/tj/portfolio/util/Format.kt",
+    "line": 69,
+    "severity": "low",
+    "category": "comment-drift",
+    "title": "changeFor/changeMoney document four decimals for sub-dollar stocks; the code gives three",
+    "failure": "`changeFor`'s doc says \"Sub-dollar stocks still get four decimals, where they matter\" (line 69) and `changeMoney`'s doc gives \"-$0.0135\" as a worked example (line 76), but both take the `money3` branch for `price < 1.0`, and `money3` is `dec(\"#,##0.000\")` (line 26) - three decimals. A 1.35-cent move on a sub-dollar holding renders as \"-$0.014\", the exact string the comment says it does not produce. Two comments describing a precision the code has not had.",
+    "fix": "Decide which is right and make them agree: either correct both comments to say three decimals, or add `private val money4Tl = dec(\"#,##0.0000\")` and use it for the `price < 1.0` branch of `changeFor` and `changeMoney` only (leaving `Fmt.price` at three, since that one's own comment matches its code)."
+   }
+  ]
+ },
+ "http-cache": null,
+ "research-accuracy": null
+}
