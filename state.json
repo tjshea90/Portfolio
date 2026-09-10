@@ -374,8 +374,8 @@
       "id": "ETF7",
       "text": "One key 'Global equity' covers both all-world INCLUDING the US (VT, ACWI) and all-world EX-US (VXUS, IXUS, VEU, ACWX) - opposite answers to the same question, and the ex-US half is deleted",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Global equity split into 'incl US' and 'ex-US', ex-US tested first so 'All-World ex-US' reads correctly"
     },
     {
       "id": "ETF8",
@@ -988,6 +988,7 @@
     "2026-09-10 01:03:35 UTC  ETF1 fixed: YTD moved out of the normalised average (now 5Y+3Y rescaled to 30, YTD a separate 0-4 term). Monotonic; hiding a figure can never gain points",
     "2026-09-10 01:03:35 UTC  ETF5 fixed: Same fix: a losing 3Y record can no longer have its hot year amplified 2.43x",
     "2026-09-10 01:03:36 UTC  ETF6 fixed: expenseRatio sentinel is -1.0 through EtfRow, EtfFacts, parse, toJson/fromJson, the card and the Claude prompt; oneYearPct no longer opens the return block",
-    "2026-09-10 01:03:37 UTC  ETF3 fixed: Asset class tested before region, with a bond-word guard; 'aggregate bond' now requires the name not to be international/global/world/ex-US"
+    "2026-09-10 01:03:37 UTC  ETF3 fixed: Asset class tested before region, with a bond-word guard; 'aggregate bond' now requires the name not to be international/global/world/ex-US",
+    "2026-09-10 01:03:37 UTC  ETF7 fixed: Global equity split into 'incl US' and 'ex-US', ex-US tested first so 'All-World ex-US' reads correctly"
   ]
 }
