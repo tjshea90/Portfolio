@@ -1,0 +1,54 @@
+{
+  "_comment": "SEE tools/session-root-hooks.json's role in CLAUDE.md — 'Saving work' section. This is NOT read directly by Claude Code; it must be COPIED to /home/user/.claude/settings.json (the actual session root, one level above this repo) as the FIRST action of every session. Confirmed 2026-09-10: this environment (Claude Code on the web, a multi-repo container) does not load hooks from a repo subdirectory's own .claude/settings.json — CLAUDE_PROJECT_DIR is unset and the harness apparently only checks one designated project root for the whole session. Writing the identical hook config to /home/user/.claude/settings.json instead made it fire immediately, live-tested. Unlike this repo's own .claude/settings.json (single-repo, uses CLAUDE_PROJECT_DIR), every command here loops over ALL repos directly under /home/user so it protects every project in the container, not just this one.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for d in /home/user/*/; do [ -f \"$d/tools/resume.sh\" ] && [ -d \"$d/.git\" ] && (cd \"$d\" && bash tools/resume.sh); done 2>/dev/null || true",
+            "timeout": 120,
+            "statusMessage": "Reading where the last session stopped..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for d in /home/user/*/; do [ -f \"$d/tools/autosave.sh\" ] && [ -d \"$d/.git\" ] && (cd \"$d\" && bash tools/autosave.sh); done 2>/dev/null || true",
+            "timeout": 90,
+            "statusMessage": "Checkpointing to GitHub..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for d in /home/user/*/; do [ -f \"$d/tools/autosave.sh\" ] && [ -d \"$d/.git\" ] && (cd \"$d\" && bash tools/autosave.sh); done 2>/dev/null || true",
+            "timeout": 90,
+            "statusMessage": "Final checkpoint..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "for d in /home/user/*/; do [ -f \"$d/tools/toobig.sh\" ] && [ -d \"$d/.git\" ] && (cd \"$d\" && bash tools/toobig.sh); done 2>/dev/null || true",
+            "timeout": 90,
+            "statusMessage": "Session is large — saving before compaction..."
+          }
+        ]
+      }
+    ]
+  }
+}
