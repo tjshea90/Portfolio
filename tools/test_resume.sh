@@ -216,9 +216,20 @@ fi
 # ---- GitHub builds the APKs now, and BUILDLOG must not be able to lie ---------
 # Tj's rule, 2026-09-10: GitHub makes all future APKs, Claude codes them. These guard the
 # mechanism rather than the intention.
+# ship.sh must NOT try to push a tag: this container's egress policy answers 403 to
+# refs/tags/*, so that route always fails here. GitHub creates the tag instead.
 case "$(cat ship.sh)" in
-  *"refs/tags/"*) ok "ship.sh releases by tagging, so GitHub does the build" ;;
-  *) bad "ship.sh no longer tags — the release would never reach GitHub" ;;
+  *'push -q origin "refs/tags/'*|*'push origin refs/tags/'*)
+    bad "ship.sh pushes a tag — that is 403 from a Claude container" ;;
+  *) ok "ship.sh does not attempt a tag push (403 from this container)" ;;
+esac
+case "$(cat .github/workflows/android.yml)" in
+  *"--target"*) ok "the workflow creates the release tag itself" ;;
+  *) bad "the workflow needs a pre-existing tag, which Claude cannot push" ;;
+esac
+case "$(cat .github/workflows/android.yml)" in
+  *"if: steps.mode.outputs.full == 'true'"*) ok "publishing is gated on a full build" ;;
+  *) bad "the publish step's condition changed unexpectedly" ;;
 esac
 
 # assembleRelease may still appear, but ONLY behind the --local fallback.
