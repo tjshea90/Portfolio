@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 05:35:10 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 05:35:11 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 6 still open, 50 fixed
+## 5. Open findings — 5 still open, 51 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -102,7 +102,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] RES1 (high) No migration for the research cache: a Claude-added fund written by the previous build still deserializes with score=conviction*10, draws as an app SCORE badge, and carryEtfExplanations pins it at row 1 above every fund the app measured, forever  — Cache format version is finally read; a version-1 row with a score but no reasons and no facts has its number moved back to conviction. Writer bumped to 2
 - [x] RES2 (med) The 'where these numbers come from' note omits Nasdaq - the source of the analyst consensus and price target that 30pct of an enriched Best score is blended from  — Nasdaq named in SOURCES, and the closing sentence now says the analyst view is blended at 30pct
 - [x] RES3 (med) One-fund-per-exposure is applied only on the screener path, but the tab blurb states it as an unconditional fact - and the app asks Claude for AGG and BND by name, which are the same exposure  — One fund per exposure now applies on the Claude path too, beside dropLeveraged; gaps hint no longer names both AGG and BND; prompt says one fund per exposure
-- [ ] RES4 (low) ResearchRow.followed is dead: nothing writes or reads it and it is not in the JSON codec, but its KDoc claims it drives the FOLLOWING chip
+- [x] RES4 (low) ResearchRow.followed is dead: nothing writes or reads it and it is not in the JSON codec, but its KDoc claims it drives the FOLLOWING chip  — Dead ResearchRow.followed deleted, with a note saying where the chip really comes from
 - [ ] RES5 (med) resetResearchPaging() has zero callers, so a page count of 40 survives a rebuild and the next TTL rebuild fires up to 50 Nasdaq requests with no user action
 - [ ] RES6 (low) The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the Section enum - two lists in two files, so the guard does not protect the array access it was written for
 - [ ] RES7 (med) enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back the pre-suspension snapshot - a Claude import landing in that window is silently discarded AND persisted as lost
@@ -117,7 +117,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 01:16:05 UTC  CHT4 fixed: canPanNow includes windowBounds != null, so the caption and the 350ms hold match what pan() can actually do
 - 2026-09-10 05:25:24 UTC  finding RES1: No migration for the research cache: a Claude-added fund written by the previous
 - 2026-09-10 05:25:24 UTC  finding RES2: The 'where these numbers come from' note omits Nasdaq - the source of the analys
 - 2026-09-10 05:25:24 UTC  finding RES3: One-fund-per-exposure is applied only on the screener path, but the tab blurb st
@@ -129,4 +128,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 05:35:08 UTC  RES1 fixed: Cache format version is finally read; a version-1 row with a score but no reasons and no facts has its number moved back to conviction. Writer bumped to 2
 - 2026-09-10 05:35:09 UTC  RES2 fixed: Nasdaq named in SOURCES, and the closing sentence now says the analyst view is blended at 30pct
 - 2026-09-10 05:35:10 UTC  RES3 fixed: One fund per exposure now applies on the Claude path too, beside dropLeveraged; gaps hint no longer names both AGG and BND; prompt says one fund per exposure
+- 2026-09-10 05:35:11 UTC  RES4 fixed: Dead ResearchRow.followed deleted, with a note saying where the chip really comes from
 
