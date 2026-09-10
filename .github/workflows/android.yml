@@ -4,32 +4,45 @@
 # ---------------
 # Every APK before this was built inside a Claude container by ship.sh. That
 # works, but it means an installable build requires a working Claude session.
-# This path does not: tag a version (or press Run workflow) and GitHub produces
-# the APK, so a usage cap, a dead container or no Claude access at all never
-# stands between Tj and a build he can install.
+# This path does not: tag a version and GitHub produces the APK, so a usage
+# cap, a dead container or no Claude access at all never stands between Tj and
+# a build he can install.
 #
-# WHY IT DOES NOT RUN ON EVERY PUSH
-# ---------------------------------
-# tools/autosave.sh commits after every tool call and tools/push.sh mirrors
-# each one to main — 48 commits in a single two-hour session, measured. A
-# `push: branches: [main]` trigger would therefore start a run every few
-# seconds and exhaust the 2,000 free private-repo minutes almost immediately.
-# So: tags and manual dispatch only. That also matches what a release IS here
-# — a deliberate act, not a side effect of checkpointing.
+# MINUTES ARE THE SCARCE RESOURCE — READ BEFORE EDITING
+# -----------------------------------------------------
+# Private repos get 2,000 free Actions minutes a month. Two rules protect them,
+# and tools/test_resume.sh fails if either is undone:
+#
+#   1. NEVER add a `push:` branch trigger. tools/autosave.sh commits after
+#      every tool call and tools/push.sh mirrors each one to main — 48 commits
+#      in a single two-hour session, measured. A push trigger would start a run
+#      every few seconds and exhaust the month almost immediately. Tags and
+#      manual dispatch only.
+#
+#   2. CHEAP GATES FIRST. Everything that can reject a build runs before
+#      anything expensive: a run that is going to fail costs ~1 minute, not
+#      ~12. A manual run does the gates ONLY unless full_build is ticked, so
+#      "check the setup still works" is nearly free and only a real release
+#      spends real minutes.
 #
 # RELATIONSHIP TO ship.sh
 # -----------------------
 # ship.sh remains the release of record: it owns versionCode discipline,
-# BUILDLOG.md and the committed APK under releases/. This workflow publishes
-# to GitHub Releases and artifacts and deliberately COMMITS NOTHING — a
-# workflow that pushed would retrigger the autosave/mirror machinery and race
-# with whatever session is running.
+# BUILDLOG.md and the committed APK under releases/. This workflow publishes to
+# GitHub Releases and artifacts and deliberately COMMITS NOTHING — a workflow
+# that pushed would retrigger the autosave/mirror machinery and race with
+# whatever session is running.
 name: Build APK
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      full_build:
+        description: 'Build and publish a signed APK (~12 min of Actions minutes). Leave OFF for a ~1 min check that the setup still works.'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -41,23 +54,89 @@ concurrency:
 jobs:
   apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      # Matches the local toolchain (java 21). See BRIEF.md — the toolchain is
-      # pinned on purpose; do not "upgrade" this to chase a newer AGP.
+      # Needed by keytool for the keystore gate below, so it comes before the
+      # gates. Preinstalled on the runner image, so this costs seconds.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
+      - name: Decide how much of this run costs money
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.full_build }}" = "true" ]; then
+            echo "full=true" >> "$GITHUB_OUTPUT"
+            echo "FULL BUILD — tests, signed APK, publish." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "full=false" >> "$GITHUB_OUTPUT"
+            echo "GATES ONLY — verifying the setup without spending build minutes." >> "$GITHUB_STEP_SUMMARY"
+            echo "Re-run with **full_build** ticked, or push a \`v*\` tag, to build a real APK." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # ---- the cheap gates: seconds each, and any of them can end the run ----
+
+      # The same guard the local build runs (BRIEF.md). Calling the repo's own
+      # script rather than restating it is deliberate: a check that exists twice
+      # is a check that will disagree with itself eventually.
+      - name: Gate — init-order guard
+        run: python3 tools/checkinit.py
+
+      # app/sideload.jks is not in git and cannot be. The runner can only get it
+      # from a secret. Without it NOTHING here can produce an installable APK —
+      # including a debug build, because app/build.gradle.kts signs both build
+      # types with this key.
+      - name: Gate — restore the signing keystore
+        env:
+          KS_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KS_B64" ]; then
+            echo "::error::SIGNING_KEYSTORE_BASE64 is not set. Add it under Settings -> Secrets and variables -> Actions. See BRIEF.md."
+            exit 1
+          fi
+          printf '%s' "$KS_B64" | base64 -d > app/sideload.jks
+          chmod 600 app/sideload.jks
+          echo "restored $(wc -c < app/sideload.jks) bytes"
+
+      # Is it the RIGHT key? A wrong one builds and installs perfectly and only
+      # fails to UPDATE the phone, which Android reports at install time.
+      - name: Gate — the keystore is the one the phone accepts
+        run: bash tools/checkkeystore.sh
+
+      # Android refuses an install whose versionCode is not higher than what is
+      # already on the phone, so building one is minutes spent on an APK that
+      # cannot be installed. BUILDLOG.md is the durable record of every shipped
+      # code and the only thing that can answer this on a fresh runner.
+      - name: Gate — versionCode is higher than every shipped release
+        run: |
+          VCODE=$(grep -m1 -oE 'versionCode *= *[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
+          PREV=$(grep -oE 'code [0-9]+' BUILDLOG.md 2>/dev/null | grep -oE '[0-9]+' | sort -n | tail -1)
+          PREV=${PREV:-0}
+          echo "versionCode $VCODE, last shipped $PREV"
+          if [ "$VCODE" -le "$PREV" ]; then
+            if [ "${{ steps.mode.outputs.full }}" = "true" ]; then
+              echo "::error::versionCode $VCODE is not higher than the last shipped ($PREV). This APK could not install over what is on the phone, so the build is not worth the minutes. Bump versionCode in app/build.gradle.kts."
+              exit 1
+            fi
+            echo "::warning::versionCode $VCODE is not higher than the last shipped ($PREV) — a full build would be refused until it is bumped."
+          fi
+
+      - name: Gates passed
+        run: echo "All gates green. Full build this run: ${{ steps.mode.outputs.full }}" >> "$GITHUB_STEP_SUMMARY"
+
+      # ---- everything below costs real minutes and only runs for a release ----
+
       - uses: gradle/actions/setup-gradle@v4
+        if: steps.mode.outputs.full == 'true'
 
       # Resolve sdkmanager explicitly rather than trusting PATH: runner images
-      # move it between releases, and a "command not found" here reads like a
-      # code failure when it is nothing of the sort.
+      # move it between releases, and "command not found" here reads like a code
+      # failure when it is nothing of the sort.
       - name: Android SDK packages
+        if: steps.mode.outputs.full == 'true'
         run: |
           SDKM="$(command -v sdkmanager || true)"
           for c in "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
@@ -72,44 +151,22 @@ jobs:
           yes | "$SDKM" --licenses >/dev/null 2>&1 || true
           "$SDKM" "platforms;android-36" "build-tools;36.0.0" >/dev/null
 
-      # The same guard the local build runs — see BRIEF.md. Calling the repo's
-      # own script rather than restating it is deliberate: a check that exists
-      # twice is a check that will disagree with itself eventually.
-      - name: Init-order guard
-        run: python3 tools/checkinit.py
-
       - name: Unit tests
+        if: steps.mode.outputs.full == 'true'
         run: ./gradlew testDebugUnitTest --console=plain
 
-      # app/sideload.jks is not in git and cannot be. The runner can only get
-      # it from a secret. Without it NOTHING here can produce an installable
-      # APK — including a debug build, because app/build.gradle.kts signs both
-      # build types with this key.
-      - name: Restore the signing keystore
-        env:
-          KS_B64: ${{ secrets.SIGNING_KEYSTORE_BASE64 }}
-        run: |
-          if [ -z "$KS_B64" ]; then
-            echo "::error::SIGNING_KEYSTORE_BASE64 is not set. Add it under Settings -> Secrets and variables -> Actions. See BRIEF.md."
-            exit 1
-          fi
-          printf '%s' "$KS_B64" | base64 -d > app/sideload.jks
-          chmod 600 app/sideload.jks
-
-      # Is it the RIGHT key? A wrong one builds and installs perfectly and only
-      # fails to UPDATE the phone, which Android reports at install time.
-      - name: Verify the keystore is the one the phone accepts
-        run: bash tools/checkkeystore.sh
-
       - name: Build the release APK
+        if: steps.mode.outputs.full == 'true'
         run: ./gradlew :app:assembleRelease --console=plain
 
       # Check the artifact, not just the input.
       - name: Verify the APK signature
+        if: steps.mode.outputs.full == 'true'
         run: bash tools/verify-apk.sh app/build/outputs/apk/release/app-release.apk
 
-      - name: Read the version
+      - name: Name the APK
         id: v
+        if: steps.mode.outputs.full == 'true'
         run: |
           VNAME=$(grep -m1 -oE 'versionName *= *"[^"]+"' app/build.gradle.kts | grep -oE '"[^"]+"' | tr -d '"')
           VCODE=$(grep -m1 -oE 'versionCode *= *[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
@@ -118,25 +175,15 @@ jobs:
           echo "vcode=$VCODE" >> "$GITHUB_OUTPUT"
           echo "Built Portfolio v$VNAME (versionCode $VCODE)" >> "$GITHUB_STEP_SUMMARY"
 
-      # Android refuses an install whose versionCode is not higher than what is
-      # on the phone. BUILDLOG.md is the durable record of every shipped code,
-      # so it is the only thing that can answer this on a fresh runner.
-      - name: Warn if versionCode was not bumped
-        run: |
-          PREV=$(grep -oE 'code [0-9]+' BUILDLOG.md 2>/dev/null | grep -oE '[0-9]+' | sort -n | tail -1)
-          PREV=${PREV:-0}
-          if [ "${{ steps.v.outputs.vcode }}" -le "$PREV" ]; then
-            echo "::warning::versionCode ${{ steps.v.outputs.vcode }} is not higher than the last shipped ($PREV) — this APK will NOT install over what is on the phone. Bump versionCode in app/build.gradle.kts."
-          fi
-
       - uses: actions/upload-artifact@v4
+        if: steps.mode.outputs.full == 'true'
         with:
           name: Portfolio-v${{ steps.v.outputs.vname }}-apk
           path: Portfolio-*.apk
           retention-days: 90
 
       - name: Publish a Release (tag builds only)
-        if: startsWith(github.ref, 'refs/tags/')
+        if: steps.mode.outputs.full == 'true' && startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
