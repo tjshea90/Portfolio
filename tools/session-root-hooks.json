@@ -1,12 +1,12 @@
 {
-  "_comment": "SEE tools/session-root-hooks.json's role in CLAUDE.md — 'Saving work' section. This is NOT read directly by Claude Code; it must be COPIED to /home/user/.claude/settings.json (the actual session root, one level above this repo) as the FIRST action of every session. Confirmed 2026-09-10: this environment (Claude Code on the web, a multi-repo container) does not load hooks from a repo subdirectory's own .claude/settings.json — CLAUDE_PROJECT_DIR is unset and the harness apparently only checks one designated project root for the whole session. Writing the identical hook config to /home/user/.claude/settings.json instead made it fire immediately, live-tested. Unlike this repo's own .claude/settings.json (single-repo, uses CLAUDE_PROJECT_DIR), every command here loops over ALL repos directly under /home/user so it protects every project in the container, not just this one.",
+  "_comment": "TEMPLATE \u2014 do not copy this file into place by hand. Install it with `bash tools/install-hooks.sh`, which substitutes __REPO_ROOT__ for the real container root and MERGES these entries into the target settings file instead of overwriting it. Every entry is tagged 'portfolio-checkpoint-hooks'; the installer only ever replaces entries carrying that tag, so a user's own permissions, env and other projects' hooks survive. WHY NOT THIS REPO'S OWN .claude/settings.json: confirmed 2026-09-10 that Claude Code on the web does not load hooks from a repo that sits in a subdirectory of the session root \u2014 CLAUDE_PROJECT_DIR is unset and one project root is resolved for the whole session. The commands below glob every repo under that root, so one install protects every project in the container, and each entry point aggregates all repos into ONE JSON object (see tools/hooks/emit.py \u2014 two objects do not parse, and that silently cost the entire session briefing).",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "for d in /home/user/*/; do [ -f \"$d/tools/resume.sh\" ] && [ -d \"$d/.git\" ] && (cd \"$d\" && bash tools/resume.sh); done 2>/dev/null || true",
+            "command": "for f in __REPO_ROOT__/*/tools/hooks/brief.sh; do [ -f \"$f\" ] && exec bash \"$f\"; done; true  # portfolio-checkpoint-hooks",
             "timeout": 120,
             "statusMessage": "Reading where the last session stopped..."
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "for d in /home/user/*/; do [ -f \"$d/tools/autosave.sh\" ] && [ -d \"$d/.git\" ] && (cd \"$d\" && bash tools/autosave.sh); done 2>/dev/null || true",
+            "command": "for f in __REPO_ROOT__/*/tools/hooks/save.sh; do [ -f \"$f\" ] && exec bash \"$f\"; done; true  # portfolio-checkpoint-hooks",
             "timeout": 90,
             "statusMessage": "Checkpointing to GitHub..."
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "for d in /home/user/*/; do [ -f \"$d/tools/autosave.sh\" ] && [ -d \"$d/.git\" ] && (cd \"$d\" && bash tools/autosave.sh); done 2>/dev/null || true",
+            "command": "for f in __REPO_ROOT__/*/tools/hooks/save.sh; do [ -f \"$f\" ] && exec bash \"$f\"; done; true  # portfolio-checkpoint-hooks",
             "timeout": 90,
             "statusMessage": "Final checkpoint..."
           }
@@ -43,9 +43,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "for d in /home/user/*/; do [ -f \"$d/tools/toobig.sh\" ] && [ -d \"$d/.git\" ] && (cd \"$d\" && bash tools/toobig.sh); done 2>/dev/null || true",
+            "command": "for f in __REPO_ROOT__/*/tools/hooks/big.sh; do [ -f \"$f\" ] && exec bash \"$f\"; done; true  # portfolio-checkpoint-hooks",
             "timeout": 90,
-            "statusMessage": "Session is large — saving before compaction..."
+            "statusMessage": "Session is large - saving before compaction..."
           }
         ]
       }
