@@ -22,6 +22,21 @@
 set -uo pipefail
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$D" || exit 0
 
+# --text: print the briefing as plain text instead of wrapping it in JSON.
+# tools/hooks/brief.sh uses this so that N repos produce ONE JSON object
+# rather than N of them, which is not parseable JSON and silently cost the
+# entire briefing. See tools/hooks/emit.py.
+TEXT_MODE=0
+for a in "$@"; do [ "$a" = "--text" ] && TEXT_MODE=1; done
+
+# SELF-REPAIR THE SAFETY NET.
+# If this is running from the hook, the hooks are obviously installed. But
+# CLAUDE.md also tells a session to run this BY HAND when the briefing did not
+# appear — and that is exactly the case where the hooks are missing and every
+# edit for the rest of the session would go unsaved. Idempotent and silent
+# when already correct, so it costs nothing in the normal case.
+bash tools/install-hooks.sh --quiet >/dev/null 2>&1 || true
+
 BRIEF="$(
   echo "=============================================================================="
   echo "  RESUMING PORTFOLIO — this repo can be worked across several Claude Code"
@@ -39,14 +54,33 @@ BRIEF="$(
     timeout 25 git fetch -q origin >/dev/null 2>&1 || echo "  NOTE  could not reach GitHub — working from the local checkout only."
 
     DIRTY="$(git status --porcelain 2>/dev/null)"
-    BEHIND="$(git rev-list --count HEAD..@{u} 2>/dev/null || echo 0)"
-    AHEAD="$(git rev-list --count @{u}..HEAD 2>/dev/null || echo 0)"
+
+    # RESOLVE THE REMOTE BRANCH THE WAY push.sh DOES, not via @{u}.
+    # Claude Code assigns sessions a `claude/<id>` branch, and such a branch
+    # routinely has NO upstream configured — `git rev-parse @{u}` just fails.
+    # This block used to read `HEAD..@{u}`, so both counts fell through to the
+    # `|| echo 0` fallback and the check reported "current" without ever
+    # looking. Confirmed on this repo's own session branch. Falling back to
+    # origin/<branch> is what push.sh already does, and for the same reason.
+    CURBR="$(git branch --show-current 2>/dev/null || true)"
+    UP="$(git rev-parse --abbrev-ref '@{u}' 2>/dev/null || true)"
+    [ -z "$UP" ] && [ -n "$CURBR" ] && UP="origin/$CURBR"
+    if [ -n "$UP" ] && git rev-parse --verify -q "$UP" >/dev/null 2>&1; then
+      BEHIND="$(git rev-list --count "HEAD..$UP" 2>/dev/null || echo 0)"
+      AHEAD="$(git rev-list --count "$UP..HEAD" 2>/dev/null || echo 0)"
+    else
+      BEHIND=0; AHEAD=0
+      if [ -n "$CURBR" ] && [ "$CURBR" != "main" ]; then
+        echo "  WARN  this branch ($CURBR) does not exist on GitHub yet — nothing on it"
+        echo "        is backed up. tools/push.sh creates it on the next checkpoint."
+      fi
+    fi
 
     # Fast-forward only, and only from a clean tree. A merge here could conflict
     # on a half-finished change from the session that just died, which is the
     # worst possible moment to ask a cold session to resolve one.
     if [ -z "$DIRTY" ] && [ "${BEHIND:-0}" -gt 0 ] && [ "${AHEAD:-0}" -eq 0 ]; then
-      if timeout 25 git pull -q --ff-only >/dev/null 2>&1; then
+      if timeout 25 git merge -q --ff-only "$UP" >/dev/null 2>&1; then
         echo "  OK    pulled $BEHIND new commit(s) from GitHub — this checkout is now current."
       fi
     elif [ "${BEHIND:-0}" -gt 0 ] && [ "${AHEAD:-0}" -gt 0 ]; then
@@ -65,7 +99,6 @@ BRIEF="$(
     # name, still lands on the real state. This check exists because that sync
     # can only fail SILENTLY (push.sh never surfaces it): main sat 565 commits
     # behind for the length of a whole migration before anyone noticed.
-    CURBR="$(git branch --show-current 2>/dev/null || true)"
     if [ "$CURBR" != "main" ] && git rev-parse --verify -q origin/main >/dev/null 2>&1; then
       MBEHIND="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
       MAHEAD="$(git rev-list --count HEAD..origin/main 2>/dev/null || echo 0)"
@@ -168,7 +201,9 @@ BRIEF="$(
 # is the documented path; plain text is the fallback when python3 is absent —
 # never emit both, that would make the JSON unparseable and lose the briefing
 # entirely.
-if command -v python3 >/dev/null 2>&1; then
+if [ "$TEXT_MODE" -eq 1 ]; then
+  printf '%s\n' "$BRIEF"
+elif command -v python3 >/dev/null 2>&1; then
   printf '%s' "$BRIEF" | python3 -c '
 import json, sys
 print(json.dumps({"hookSpecificOutput": {
