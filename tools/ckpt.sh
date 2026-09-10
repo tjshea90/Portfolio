@@ -97,7 +97,7 @@ N=$((N+1))
   # checkpoint forever would be pure overhead. One line is enough: it's the
   # thing CLAUDE.md can't say because CLAUDE.md doesn't know when this was
   # written.
-  echo "*(resuming? read CLAUDE.md's \"Starting a session\" — this file is only step 1 of that.)*"
+  echo "*(resuming? CLAUDE.md's \"FIRST ACTION OF EVERY SESSION\" comes before \"Starting a session\" — do that one first, or autosave stays off all session.)*"
   echo
   echo "## Uncommitted right now"
   if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
