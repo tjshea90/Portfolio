@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 06:01:44 UTC",
+  "updated": "2026-09-10 06:01:45 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -549,8 +549,8 @@
       "id": "DET7",
       "text": "refreshEverything force-reloads the fund register only when the Holdings tab is selected, but that tab exists only once the register loaded - so pull-to-refresh cannot recover a failed lookup",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed"
     },
     {
       "id": "DET8",
@@ -1183,6 +1183,7 @@
     "2026-09-10 06:01:42 UTC  DET2 fixed: A closed position now shows what it made, in its own card, on the watchlist branch",
     "2026-09-10 06:01:42 UTC  DET4 fixed: The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged",
     "2026-09-10 06:01:43 UTC  DET5 fixed: Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter",
-    "2026-09-10 06:01:44 UTC  DET6 fixed: The caveat compares the computed cash against the typed total, so it fires only when they really disagree"
+    "2026-09-10 06:01:44 UTC  DET6 fixed: The caveat compares the computed cash against the typed total, so it fires only when they really disagree",
+    "2026-09-10 06:01:45 UTC  DET7 fixed: Pull-to-refresh reloads the fund register unconditionally - the gated version was unreachable exactly when it was needed"
   ]
 }
