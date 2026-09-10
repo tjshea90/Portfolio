@@ -141,9 +141,11 @@ recoverable, the same edit uncommitted dies with the session. This is what's
 **2. Deliberate — `bash tools/ckpt.sh "what I just did" "what comes next"`.**
 **Run this after every completed step, not at the end of the session** —
 right now, this is doing the job level 1 was supposed to do, not just
-supplementing it. It runs the FAST checks only (`tools/checkinit.py` and
-anything under `tools/test_*`), rewrites `CHECKPOINT.md`, commits and
-pushes. Skipping it is how a handoff loses everything since the last run,
+supplementing it. It runs the FAST checks only (`tools/checkinit.py`
+and anything under `tools/test_*` — which now includes
+`tools/test_resume.sh`, 13 hermetic checks that prove the handoff system
+itself still works, in about a second), rewrites `CHECKPOINT.md`, commits and
+pushes. It also repairs the hooks if they are missing. Skipping it is how a handoff loses everything since the last run,
 not just intent.
 
 **3. Milestone — `bash ship.sh "note"`.** Full release gate: `tools/checkinit.py`,

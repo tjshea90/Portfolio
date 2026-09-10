@@ -145,8 +145,9 @@ BRIEF="$(
       echo "  OK    auto-checkpointing is live ($NAUTO so far, most recent $LASTAUTO)."
     else
       echo "  NOTE  no auto-checkpoint commits yet. If this session makes edits and"
-      echo "        none appear, the hook in .claude/settings.json is not firing —"
-      echo "        say so rather than working on unprotected."
+      echo "        none appear over a few tool calls, the hooks are not firing —"
+      echo "        run 'bash tools/install-hooks.sh' and say so rather than"
+      echo "        working on unprotected."
     fi
 
     # WAS THE LAST SESSION CUT OFF MID-CHANGE?
