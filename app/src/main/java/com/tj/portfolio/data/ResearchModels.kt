@@ -8,7 +8,7 @@ import org.json.JSONObject
  * THE RESEARCH TAB'S DATA MODEL (Round 54).
  *
  * Three sections - what the market is TALKING about, what the numbers say is worth BUYING,
- * and what the numbers say is BREAKING - built from free, keyless feeds and scored by the
+ * and the FUNDS worth holding - built from free, keyless feeds and scored by the
  * app itself. Claude never decides the ranking; it explains one the app can already justify
  * line by line. That split is deliberate and TJ chose it: a score the app computes can be
  * reproduced, tested and shown its own workings ([ResearchRow.reasons]), where a score a
@@ -161,8 +161,15 @@ data class ResearchRow(
      * which is visibly a different scale from a different source.
      */
     val conviction: Int = 0,
-    /** True when the user already holds or watches this symbol - shown as a chip. */
-    val followed: Boolean = false,
+    // ---- `followed` WAS HERE AND WAS DEAD (Round 66 audit, RES-4).
+    //
+    // Its KDoc said "True when the user already holds or watches this symbol - shown as a
+    // chip", and nothing wrote it, nothing read it, and it was not in the JSON codec, so it
+    // would not have survived the cache either. The FOLLOWING chip really comes from
+    // `ResearchCard`'s own `followed` PARAMETER, which the screen computes as
+    // `r.symbol in (watchedSymbols() + heldSymbols())`. A field that documents a behaviour it
+    // does not have is worse than no field: the next person to build a row sets it, sees no
+    // chip, and goes looking for the bug somewhere real.
     /**
      * The fund numbers, for rows in the ETF section (Round 63). Null for a stock.
      *
@@ -205,7 +212,39 @@ data class ResearchRow(
     }
 
     companion object {
-        fun fromJson(o: JSONObject): ResearchRow? {
+
+        /**
+         * THE CACHE WRITTEN BY AN OLDER BUILD STILL HAS THE OLD BUG IN IT (Round 66 audit,
+         * RES-1).
+         *
+         * ---- WHAT THIS REPAIRS
+         *
+         * Before [conviction] existed, a fund Claude ADDED to the ETF list was stored with the
+         * model's own number written straight into [score] as `conviction * 10`. Round 66 fixed
+         * the writer and added `conviction` so the two can never be confused again - and
+         * stopped there. `Keys.RESEARCH_CACHE` is a settings row: it survives the upgrade. So
+         * a row already on disk still deserialises with `score = 100, conviction = 0`, and
+         * every downstream test of "did the app measure this?" is `score <= 0 && conviction > 0`
+         * - which is false. The card draws a SCORE badge reading 100 out of 100, over a row
+         * with no facts grid and no reason lines, and `carryEtfExplanations` re-adds it on
+         * every six-hourly rebuild and sorts by score first. It sits at row 1, above every
+         * fund the app actually measured, for ever; a later import cannot heal it either,
+         * because `merge` copies `why` and `conviction` and leaves `score` alone.
+         *
+         * On the list TJ said he is going to buy from, and the model's number is exactly the
+         * one thing on that screen nobody measured.
+         *
+         * ---- HOW A ROW IS RECOGNISED
+         *
+         * Not by the score's shape - by the absence of the app's own working. Every row the
+         * app scored carries reason lines: `ResearchScore.trending`, `.best` and
+         * `EtfScore.best` all produce them, and an ETF row additionally carries its facts. A
+         * row with a score, no reasons and no facts is a row nothing in this app computed, so
+         * its number came from a model and belongs in [conviction].
+         */
+        private const val VERSION_CONVICTION_SPLIT = 2
+
+        fun fromJson(o: JSONObject, version: Int = VERSION_CONVICTION_SPLIT): ResearchRow? {
             val sym = o.text("symbol").uppercase()
             if (sym.isBlank()) return null
             val reasons = ArrayList<String>()
@@ -240,6 +279,18 @@ data class ResearchRow(
                 catalyst = o.text("catalyst"),
                 conviction = o.optInt("conviction", 0).coerceIn(0, 10),
                 etf = EtfFacts.fromJson(o.optJSONObject("etf"))
+            ).let { if (version < VERSION_CONVICTION_SPLIT) it.repairModelScore() else it }
+        }
+
+        /** See [VERSION_CONVICTION_SPLIT]. Only ever applied to a cache an older build wrote. */
+        private fun ResearchRow.repairModelScore(): ResearchRow {
+            val appMeasuredIt = reasons.isNotEmpty() || etf != null
+            if (appMeasuredIt || score <= 0) return this
+            return copy(
+                score = 0,
+                // The old writer stored `conviction * 10`, so the reverse is exact. Clamped
+                // anyway: a value from disk is data, not a promise.
+                conviction = maxOf(conviction, (score + 5) / 10).coerceIn(0, 10)
             )
         }
 
@@ -263,8 +314,8 @@ data class ResearchSet(
      *
      * TJ: *"It should periodically update the best etfs list, but keep the current list in
      * cache until each update so it doesn't load on every refresh."* [etfGenerated] is that
-     * sentence: this list is built on its own long TTL and survives a rebuild of the other
-     * three, which run on the thirty-minute one. A fund ranking that changed every half hour
+     * sentence: this list is built on its own long TTL and survives a rebuild of the two
+     * stock lists, which run on the thirty-minute one. A fund ranking that changed every half hour
      * would be noise - the inputs are five-year annualised returns and expense ratios, and
      * neither moves before lunch.
      */
@@ -285,7 +336,9 @@ data class ResearchSet(
     val error: String? = null
 ) {
     /**
-     * True when the three MARKET sections are empty.
+     * True when both STOCK sections are empty - Trending and Best. The funds are not
+     * counted here: they run on their own six-hour clock and their own rebuild, so an empty
+     * stock pass says nothing about them.
      *
      * DELIBERATELY DOES NOT COUNT [etfs]. Every existing caller means "is there anything for
      * the 30-minute stock pass to carry forward / explain / rebuild", and folding the ETF
@@ -316,7 +369,9 @@ data class ResearchSet(
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("format", "portfolio-research")
-        put("version", 1)
+        // BUMPED TO 2 by the conviction/score split - see [ResearchRow.fromJson]. A payload
+        // this app writes today needs no repair; one written before it does.
+        put("version", 2)
         put("generated", generated)
         if (sources.isNotBlank()) put("sources", sources)
         if (warnings.isNotEmpty()) put("warnings", JSONArray(warnings))
@@ -340,12 +395,19 @@ data class ResearchSet(
         const val PAGE = 10
 
         fun fromJson(o: JSONObject): ResearchSet {
+            // ---- THE VERSION IS FINALLY READ (Round 66 audit, RES-1).
+            //
+            // `toJson` has written `"version"` since this format existed and `fromJson` has
+            // never looked at it, so there was no way to repair anything a previous build
+            // stored - and the conviction/score split needed exactly that. Absent means 1: a
+            // payload written before the field was consulted.
+            val version = o.optInt("version", 1)
             fun rows(key: String): List<ResearchRow> {
                 val a = o.optJSONArray(key) ?: return emptyList()
                 val out = ArrayList<ResearchRow>(a.length())
                 for (i in 0 until a.length()) {
                     val r = a.optJSONObject(i) ?: continue
-                    ResearchRow.fromJson(r)?.let { out.add(it) }
+                    ResearchRow.fromJson(r, version)?.let { out.add(it) }
                 }
                 return out
             }

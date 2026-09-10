@@ -244,9 +244,13 @@ $bundle
             // SAID OUT LOUD, in the data as well as in the prose, because it is the single
             // most useful correction the model can make and a reader skimming JSON should
             // not have to infer it from an absence.
+            // ONE FUND PER EXPOSURE HERE TOO (Round 66 audit, RES-3). This list used to name
+            // both AGG and BND, which are the same exposure - so the app was asking, by name,
+            // for two funds it would then de-duplicate down to one. A hint that wastes half of
+            // what it asks for teaches the model the wrong shape of answer.
             put(
                 "etfUniverseGaps",
-                JSONArray(listOf("VTI", "SCHD", "AGG", "BND", "TLT", "IWM", "VXUS", "VYM"))
+                JSONArray(listOf("VTI", "SCHD", "BND", "TLT", "IWM", "VXUS", "VYM"))
             )
         }
         return root.toString(2)
@@ -277,7 +281,8 @@ own arithmetic; it cannot explain them and it cannot search the web.
   Add any fund that belongs on a best-ETF list and is not there; give each one a short
   "category" so the list reads as a set rather than a leaderboard. Do NOT add leveraged,
   inverse or single-stock funds - the app excludes them deliberately and drops them again
-  if they arrive.
+  if they arrive. One fund per exposure: if two funds you would add track the same thing,
+  name the better one only - the app keeps one of each and names the rest on its card.
 
 Each row carries the app's score out of 100 and the reason lines behind it.
 
@@ -365,7 +370,7 @@ $SHAPE
             val why = ClaudeBridge.scrub(o.text("why"))
             // `category` is the ETF list's version of `catalyst` - the one line under the
             // reasons that says what kind of thing this row IS. Read into the same field so
-            // one card layout serves all four sections.
+            // one card layout serves every section.
             val catalyst = ClaudeBridge.scrub(
                 o.text("catalyst").ifBlank { o.text("category") }
             )

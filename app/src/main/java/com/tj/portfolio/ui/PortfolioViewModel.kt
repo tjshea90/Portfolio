@@ -548,7 +548,7 @@ internal fun carryExplanations(
         best = carry(fresh.best),
         // ---- THE FUND LIST AND ITS OWN CLOCK, CARRIED ACROSS EXPLICITLY.
         //
-        // `fresh` comes from `Research.build`, which builds the three STOCK lists and
+        // `fresh` comes from `Research.build`, which builds both STOCK lists and
         // never touches `etfs`. Returning it as-is therefore wiped the fund list - and
         // its timestamp, and its warnings - on every thirty-minute stock rebuild, in
         // memory and on disk, and the ETFs tab then spent ten Yahoo requests rebuilding
@@ -4755,6 +4755,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 } else {
                     researchRetry.success(RETRY_ETFS)
+                    resetResearchPaging(listOf(com.tj.portfolio.data.ResearchSet.SECTION_ETF))
                     val cur = _research.value
                     cacheResearch(
                         cur.copy(
@@ -4814,7 +4815,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 if (built.isEmpty) {
                     // Keep whatever was on screen. An empty rebuild is almost always a
-                    // provider cooldown, and blanking three good lists to show an error
+                    // provider cooldown, and blanking good lists to show an error
                     // would be the app punishing the user for Yahoo's rate limiter.
                     researchRetry.failure(RETRY_STOCKS)
                     _researchError.value = built.error
@@ -4822,6 +4823,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     researchRetry.success(RETRY_STOCKS)
                     analystDone.clear()
+                    // These rows are gone and fifty different ones have taken their place, so
+                    // "show me ten more of the old list" cannot carry over - see
+                    // [resetResearchPaging] for what it cost when it did.
+                    resetResearchPaging(
+                        listOf(
+                            com.tj.portfolio.data.ResearchSet.SECTION_TRENDING,
+                            com.tj.portfolio.data.ResearchSet.SECTION_BEST
+                        )
+                    )
                     // A rebuild carries forward the explanations already on file for the same
                     // symbols - Claude's paragraph about NVDA does not go stale in 30 minutes,
                     // and re-earning it would mean another API call or another file round trip.
@@ -4870,10 +4880,31 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (section == com.tj.portfolio.data.ResearchSet.SECTION_BEST) enrichVisible()
     }
 
-    fun resetResearchPaging() {
-        _researchShown.value = com.tj.portfolio.data.ResearchSet.SECTIONS.associateWith {
-            com.tj.portfolio.data.ResearchSet.PAGE
-        }
+    /**
+     * PUT THE NAMED SECTIONS BACK TO ONE PAGE (Round 66 audit, RES-5).
+     *
+     * ---- THE BUG THIS FIXES
+     *
+     * This function existed and had NO CALLERS, so a page count never went back down. Press
+     * "Load more" three times on Best and `_researchShown["BEST"]` is 40; thirty minutes later
+     * the TTL rebuild replaces those fifty rows with fifty entirely different symbols, clears
+     * `analystDone`, and calls `enrichVisible` - which reads the surviving 40, adds a page,
+     * and enriches FIFTY rows. Up to fifty Nasdaq consensus requests, fired by a background
+     * clock, for a list nobody asked to see more of, against the ten the screen's own KDoc
+     * calls TJ's explicit rule. The same stale count also decided how much of each list went
+     * into the Claude prompt.
+     *
+     * ---- WHY IT TAKES AN ARGUMENT
+     *
+     * The ETF list runs on a six-hour clock of its own and rebuilds independently, so a stock
+     * rebuild must not collapse the ETF page the user is part-way down, and vice versa. Each
+     * rebuild resets exactly the sections it replaced.
+     */
+    fun resetResearchPaging(
+        sections: List<String> = com.tj.portfolio.data.ResearchSet.SECTIONS
+    ) {
+        _researchShown.value = _researchShown.value +
+            sections.associateWith { com.tj.portfolio.data.ResearchSet.PAGE }
     }
 
     /**
@@ -4930,7 +4961,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 .coerceAtMost(rows.size)
             val window = (shown + com.tj.portfolio.data.ResearchSet.PAGE).coerceAtMost(rows.size)
             val head = rows.take(window)
-            val tail = rows.drop(window)
             val done = analystDone.toSet()
             if (head.any { "$name:${it.symbol}" !in done }) {
                 did = true
@@ -4958,11 +4988,41 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // to refresh. That is the right cadence for it - unlike a loop that cannot
                 // tell "no analyst covers this" from "Nasdaq timed out".
                 head.forEach { analystDone.add("$name:${it.symbol}") }
+                // ---- PROJECTED ONTO THE LIST AS IT IS NOW, NOT AS IT WAS (Round 66 audit,
+                // RES-7).
+                //
+                // THE BUG THIS FIXES. This read `rows` at the top of the pass, suspended for
+                // seconds of Nasdaq requests, and then wrote back `ranked + tail` - a list
+                // assembled entirely from the pre-suspension snapshot. Anything that landed in
+                // `_research` during those seconds was silently thrown away, and the pass's
+                // own `finally` then PERSISTED the loss to SQLite.
+                //
+                // It is reachable by one tap. "Import answer" carries no busy guard - unlike
+                // "Explain with Claude", which is `enabled = busy.isEmpty()` - so the user can
+                // pick Claude's reply file while an enrich pass is in flight. The import
+                // writes its merged set, the enrich pass overwrites `best` a moment later with
+                // the list it read before the import, and every `why` Claude just wrote for a
+                // Best row, plus every Best row it added, is gone - while the toast on screen
+                // still says "Research updated - 10 explained, 1 added".
+                //
+                // The fix is to treat this pass as what it is: an update to specific ROWS, not
+                // a replacement of the list. Read the section again at write time and swap in
+                // the enriched copy of each symbol that is still there. Rows added while the
+                // pass ran survive; rows removed while it ran stay removed; nothing this pass
+                // did not fetch is touched.
+                val enrichedBy = enriched.associateBy { it.symbol }
+                val fresh = _research.value.section(name)
+                // The window is re-derived from the CURRENT list, so an import that inserted
+                // rows cannot smear the enriched ones across the wrong boundary.
+                val freshHead = fresh.take(window.coerceAtMost(fresh.size))
+                val freshTail = fresh.drop(freshHead.size)
                 // Re-rank the enriched window only. The tail keeps its screener ordering,
                 // which is what it was ranked on, so nothing can jump from an un-enriched
                 // region into a ranked one and look like the list reshuffling itself.
-                val ranked = enriched.sortedByDescending { it.score }
-                _research.value = _research.value.withSection(name, ranked + tail)
+                val ranked = freshHead
+                    .map { enrichedBy[it.symbol] ?: it }
+                    .sortedByDescending { it.score }
+                _research.value = _research.value.withSection(name, ranked + freshTail)
             }
 
         }
@@ -5207,11 +5267,40 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 it.name.isNotBlank() &&
                     com.tj.portfolio.net.EtfScore.isLeveragedOrInverse(it.name, it.symbol)
             }
+        // ---- AND THE ONE-FUND-PER-EXPOSURE RULE APPLIES HERE TOO (Round 66 audit, RES-3).
+        //
+        // THE BUG THIS FIXES. `EtfExposure.dedupe` ran on the screener path only, while the
+        // ETF tab's blurb states the rule as a flat fact about the list: "where several funds
+        // track the same thing only the best-scoring one takes a place - the rest are named on
+        // its card". The app then hands Claude a gaps list that named AGG and BND - which are
+        // the same exposure, "Bonds - US aggregate" - and asked for both by name, so the most
+        // likely import in the world put two identical decisions on a list promising it would
+        // not, with neither card naming the other.
+        //
+        // Same placement and same reason as `dropLeveraged`: the matcher reads the fund's
+        // NAME, and a row Claude added has one only after the fill above.
+        //
+        // WHICH FUND SURVIVES A GROUP IS ALREADY RIGHT. The list is sorted score-then-
+        // conviction before this runs, and `dedupe` keeps the first of each group, so a fund
+        // the app actually measured beats an unscored one - and between two unscored ones, the
+        // model's own conviction decides. A dropped fund is not lost: it is named on the
+        // survivor's card, which is the whole contract.
+        fun oneFundPerExposure(list: List<com.tj.portfolio.data.ResearchRow>) =
+            com.tj.portfolio.net.EtfExposure
+                .dedupe(list, name = { it.name }, symbol = { it.symbol })
+                .map { (row, also) ->
+                    if (also.isEmpty()) row
+                    else row.copy(
+                        reasons = (row.reasons + ("Same exposure as " + also.joinToString(", ") +
+                            " - this one scored highest of them")).distinct()
+                    )
+                }
+
         cacheResearch(
             s.copy(
                 trending = fill(s.trending),
                 best = fill(s.best),
-                etfs = dropLeveraged(fill(s.etfs))
+                etfs = oneFundPerExposure(dropLeveraged(fill(s.etfs)))
             )
         )
     }

@@ -147,7 +147,16 @@ fun ResearchScreen(
     // Persisted rather than remembered: this screen leaves composition every time the user
     // visits another bottom-bar tab, so a plain `remember` would drop them back on Trending
     // constantly. Same treatment the Watchlist / Research sub-tab already gets.
-    var section by remember { mutableStateOf(Section.entries[vm.researchTab()]) }
+    // `getOrElse`, not `[...]` (Round 66 audit, RES-6). `researchTab()` clamps against
+    // `ResearchSet.SECTIONS` and this indexes the `Section` ENUM - two lists declared in two
+    // files with nothing binding their order or length. The guard added after the last tab
+    // accident therefore does not protect the array access it was written for: the next edit
+    // that touches one list and not the other returns an index the enum does not have, and
+    // the crash comes from a value in the DATABASE, so it repeats on every launch. Reading it
+    // defensively at the one use site costs nothing and cannot be got wrong twice.
+    var section by remember {
+        mutableStateOf(Section.entries.getOrElse(vm.researchTab()) { Section.TRENDING })
+    }
 
     val filePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -445,8 +454,15 @@ fun ResearchScreen(
                                 modifier = Modifier.weight(1f)
                             ) { Text("Make prompt file") }
                             Spacer(Modifier.width(8.dp))
+                            // `enabled = busy.isEmpty()`, like the API button above it
+                            // (Round 66 audit, RES-7). Importing while a research pass is in
+                            // flight is a race the app should not ask the user to think about
+                            // - `enrichPass` no longer LOSES the import, but the two writing
+                            // to the same list a second apart still makes the screen jump for
+                            // no reason anyone can see.
                             OutlinedButton(
                                 onClick = { filePicker.launch(arrayOf("*/*")) },
+                                enabled = busy.isEmpty(),
                                 modifier = Modifier.weight(1f)
                             ) { Text("Import answer") }
                         }

@@ -357,10 +357,21 @@ object Research {
         )
     )
 
+    /**
+     * NASDAQ IS NAMED (Round 66 audit, RES-2). This note listed four feeds and left out the
+     * one that supplies an outside party's OPINION rather than a measurement - the analyst
+     * consensus and the price target that a Best card prints ("Strong Buy consensus - 16 buy /
+     * 9 hold / 4 sell") and that thirty per cent of an enriched Best score is blended from.
+     * The closing sentence then said the score was computed from the numbers just listed,
+     * which for an enriched row was not true. A note headed "where these numbers come from"
+     * has one job.
+     */
     const val SOURCES =
         "Yahoo Finance predefined screeners and trending tickers; r/wallstreetbets mention " +
             "counts via Tradestie and ApeWisdom; headline counts from the app's own market " +
-            "news feeds. Scores are computed on the phone from those numbers."
+            "news feeds; analyst consensus and price targets from Nasdaq's public API, for " +
+            "the rows on screen only. Scores are computed on the phone from those numbers, " +
+            "with the analyst view blended in at 30% where there is one."
 
     // ----------------------------------------------------------------- trending
 
