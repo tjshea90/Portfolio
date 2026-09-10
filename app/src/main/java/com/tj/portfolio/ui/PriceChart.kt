@@ -813,14 +813,15 @@ fun PriceChart(
         // are not the two ends of the picture.
         Row(Modifier.fillMaxWidth()) {
             val withDate = spansMoreThanADay(axis.startMs, axis.endMs)
+            val withYear = spansMoreThanAYear(axis.startMs, axis.endMs)
             Text(
-                axisLabel(axis.startMs, range, withDate),
+                axisLabel(axis.startMs, range, withDate, withYear),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted
             )
             Spacer(Modifier.weight(1f))
             Text(
-                axisLabel(axis.endMs, range, withDate),
+                axisLabel(axis.endMs, range, withDate, withYear),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted
             )
@@ -1001,6 +1002,9 @@ private fun ChartReadout(
     // and it was being asked on every frame of a drag to answer a question whose answer
     // cannot change during one.
     val withDate = remember(s) { spansMoreThanADay(s) }
+    // The scrub label names one moment, and on a multi-year line "Sep 9" alone does not say
+    // which September the finger is on.
+    val withYear = remember(s) { spansMoreThanAYear(s) }
 
     Row(
         Modifier.fillMaxWidth().height(READOUT_HEIGHT.dp),
@@ -1089,7 +1093,7 @@ private fun ChartReadout(
             Text(
                 // Always dated when the window spans more than a day, because on the
                 // after-hours and 5-day views a bare clock does not say which day it is.
-                axisLabel(point.t * 1000L, range, withDate),
+                axisLabel(point.t * 1000L, range, withDate, withYear),
                 style = MaterialTheme.typography.bodySmall,
                 color = muted,
                 maxLines = 1
@@ -1742,9 +1746,27 @@ internal fun withLiveEdge(s: ChartSeries?, livePrice: Double, liveEdge: Boolean)
  * and "9:35 AM" says nothing about which days those are - and on the after-hours chart the
  * two ends are usually different days by definition.
  */
-internal fun axisLabel(ms: Long, range: ChartRange, withDate: Boolean): String = when {
+internal fun axisLabel(
+    ms: Long,
+    range: ChartRange,
+    withDate: Boolean,
+    /**
+     * Put the YEAR on a date label. Off by default, which keeps every existing caller and
+     * test on the old behaviour.
+     *
+     * THE BUG THIS CLOSES. A dated label was "MMM d" and nothing else, so the two ends of a
+     * three-year window read "Sep 9" and "Sep 10" - which is exactly what two consecutive
+     * days look like. Dragging such a chart moves the window by months or years and BOTH
+     * lines rebase to the new left edge, so every figure on screen changes a lot; with no
+     * year on the axis there was nothing to say the window had moved that far, and the
+     * honest rebasing read as the chart contradicting itself. TJ reported precisely this
+     * after panning a 5Y FIVE-vs-SPY chart. The percentages were right; the axis was hiding
+     * the reason they changed.
+     */
+    withYear: Boolean = false
+): String = when {
     ms <= 0L -> ""
-    !range.intraday -> Fmt.shortDay(ms)
+    !range.intraday -> if (withYear) Fmt.day(ms) else Fmt.shortDay(ms)
     withDate -> Fmt.shortDay(ms) + "  " + Fmt.clock(ms)
     else -> Fmt.clock(ms)
 }
@@ -1752,6 +1774,21 @@ internal fun axisLabel(ms: Long, range: ChartRange, withDate: Boolean): String =
 /** True when the series' two ends fall on different calendar days. */
 internal fun spansMoreThanADay(s: ChartSeries): Boolean =
     spansMoreThanADay(s.startMs, s.endMs)
+
+/**
+ * True when the two ends fall in different calendar YEARS - the point at which a bare
+ * "MMM d" label stops being enough to say where the window is. See [axisLabel]'s `withYear`.
+ *
+ * CALENDAR YEARS, not "365 days apart": a window running Nov 2025 to Feb 2026 is four
+ * months long but its labels are far more readable with the year on them, while May to
+ * October of one year needs no year at all to be unambiguous.
+ */
+internal fun spansMoreThanAYear(startMs: Long, endMs: Long): Boolean =
+    startMs > 0L && endMs > 0L && Fmt.year(startMs) != Fmt.year(endMs)
+
+/** The same question asked of a series. */
+internal fun spansMoreThanAYear(s: ChartSeries): Boolean =
+    spansMoreThanAYear(s.startMs, s.endMs)
 
 /**
  * The same question asked of two moments, which is what a zoom window is.

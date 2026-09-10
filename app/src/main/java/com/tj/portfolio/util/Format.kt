@@ -192,16 +192,20 @@ object Fmt {
     private val shortTl = date("MMM d")
     private val timeTl = date("h:mm a")
     private val isoTl = date("yyyy-MM-dd")
+    private val yearTl = date("yyyy")
 
     private val dayFmt: SimpleDateFormat get() = dayTl.get()!!
     private val shortFmt: SimpleDateFormat get() = shortTl.get()!!
     private val timeFmt: SimpleDateFormat get() = timeTl.get()!!
     private val isoFmt: SimpleDateFormat get() = isoTl.get()!!
+    private val yearFmt: SimpleDateFormat get() = yearTl.get()!!
 
     fun day(ms: Long): String = dayFmt.format(Date(ms))
     /** "Sep 3" - used to name the trading session a day figure refers to. */
     fun shortDay(ms: Long): String = shortFmt.format(Date(ms))
     fun iso(ms: Long): String = isoFmt.format(Date(ms))
+    /** "2026" - used to decide whether a chart axis label needs its year spelled out. */
+    fun year(ms: Long): String = yearFmt.format(Date(ms))
     fun clock(ms: Long): String = timeFmt.format(Date(ms))
 
     fun relative(ms: Long): String {

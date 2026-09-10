@@ -93,11 +93,22 @@ fun FeedScreen(
     }
     // The Insider chip is no longer a filter over `items` - see [PortfolioViewModel]'s note
     // on `_insiderFilings` for why that could only ever show the single newest filing.
+    // DEDUPED BY `id`, THE SAME EXPRESSION THIS LIST IS KEYED BY BELOW.
+    //
+    // A LazyColumn given the same key twice throws and takes the whole app down - this app
+    // has been killed that way before, which is why util/CrashLog.kt exists at all. The news
+    // list on a stock's page already guards itself this way; this one relied on the upstream
+    // merge, which de-duplicates by `News.dedupeKey` (a NORMALISED title) rather than by
+    // `FeedItem.id` (kind + symbol + published + the first 80 raw characters of the title).
+    // Those are different questions, and they disagree on punctuation-heavy headlines: 80 raw
+    // characters of "Q2 2026: U.S. Retailer's E.P.S. ..." carry far fewer than 70 alphanumeric
+    // ones, so two stories can normalise differently - surviving the merge - while sharing an
+    // id, and crash the app on arrival. Dedupe and key must be one expression.
     val shown = remember(items, filter) {
         when (filter) {
             F_MINE -> items.filter { it.owned }
             else -> items
-        }
+        }.distinctBy { it.id }
     }
     val shownFilings = remember(filings, scope) {
         filings.filter { scope.accepts(it) }.sortedByDescending { it.filedAt }
