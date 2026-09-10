@@ -45,28 +45,13 @@ python3 -c "import ast,sys; [ast.parse(open(f).read()) for f in sys.argv[1:]]" \
 python3 -c "import json; json.load(open('tools/session-root-hooks.json'))" 2>/dev/null || RC=1
 check "$RC" "every script and the hook template parse"
 
-# ---- 2. the briefing is exactly one JSON object ------------------------------
-# Hook stdout is parsed as ONE JSON document. This is the check that would have
-# caught the multi-repo bug: N repos used to print N objects, which is not JSON,
-# and the whole session briefing was dropped in silence.
-bash tools/resume.sh >"$TMP/brief.json" 2>/dev/null
-python3 - "$TMP/brief.json" <<'PY' >/dev/null 2>&1
-import json,sys
-d=json.load(open(sys.argv[1]))
-assert d["hookSpecificOutput"]["hookEventName"]=="SessionStart"
-assert d["hookSpecificOutput"]["additionalContext"].strip()
-PY
-check $? "resume.sh emits one parseable SessionStart object"
-
-bash tools/resume.sh --text >"$TMP/brief.txt" 2>/dev/null
-if head -c 1 "$TMP/brief.txt" | grep -q '{'; then
-  bad "resume.sh --text still wrapped the briefing in JSON"
-else
-  [ -s "$TMP/brief.txt" ] && ok "resume.sh --text emits plain text" || bad "resume.sh --text emitted nothing"
-fi
-
-# ---- 3. TWO repos still produce ONE object -----------------------------------
-# The actual regression case, run for real rather than reasoned about.
+# ---- 2. fixtures --------------------------------------------------------------
+# Two throwaway repos that look like this one. Everything below runs against
+# these, never against the real checkout and never against the network: a repo
+# with no remote makes `git fetch` fail instantly, whereas the real one would
+# sit on a 25s timeout per call whenever GitHub is unreachable — and this test
+# runs on EVERY checkpoint, so that would turn a fast checkpoint into a
+# minute-and-a-half one at exactly the wrong moment.
 FAKE="$TMP/root"; mkdir -p "$FAKE"
 for r in repoA repoB; do
   mkdir -p "$FAKE/$r"
@@ -75,8 +60,30 @@ for r in repoA repoB; do
   cp CHECKPOINT.md TASKS.md bootstrap.sh "$FAKE/$r/" 2>/dev/null || true
   ( cd "$FAKE/$r" && git init -q . && git add -A >/dev/null 2>&1 && git commit -qm init >/dev/null 2>&1 )
 done
+RA="$FAKE/repoA"
+
+# ---- 3. the briefing is exactly one JSON object ------------------------------
+# Hook stdout is parsed as ONE JSON document. This is the check that would have
+# caught the multi-repo bug: N repos used to print N objects, which is not JSON,
+# and the whole session briefing was dropped in silence.
+( cd "$RA" && bash tools/resume.sh ) >"$TMP/brief.json" 2>/dev/null
+python3 - "$TMP/brief.json" <<'PY' >/dev/null 2>&1
+import json,sys
+d=json.load(open(sys.argv[1]))
+assert d["hookSpecificOutput"]["hookEventName"]=="SessionStart"
+assert d["hookSpecificOutput"]["additionalContext"].strip()
+PY
+check $? "resume.sh emits one parseable SessionStart object"
+
+( cd "$RA" && bash tools/resume.sh --text ) >"$TMP/brief.txt" 2>/dev/null
+if head -c 1 "$TMP/brief.txt" | grep -q '{'; then
+  bad "resume.sh --text still wrapped the briefing in JSON"
+else
+  [ -s "$TMP/brief.txt" ] && ok "resume.sh --text emits plain text" || bad "resume.sh --text emitted nothing"
+fi
+
 CLAUDE_REPO_ROOT="$FAKE" CLAUDE_HOOK_SETTINGS="$TMP/settings.json" \
-  bash tools/hooks/brief.sh >"$TMP/multi.json" 2>/dev/null
+  bash "$RA/tools/hooks/brief.sh" >"$TMP/multi.json" 2>/dev/null
 python3 - "$TMP/multi.json" <<'PY' >/dev/null 2>&1
 import json,sys
 d=json.load(open(sys.argv[1]))          # fails outright if two objects were emitted
@@ -115,7 +122,7 @@ check $? "install-hooks --check reports 'current' once installed"
 # ---- 5. checkpoint numbers only ever go up -----------------------------------
 # The shallow-clone regression: a fresh container has fewer commits than the
 # history it was cloned from, so a commit-count number walks BACKWARDS.
-FX="$FAKE/repoA"
+FX="$RA"
 echo '# CHECKPOINT 9000 — read me first, then TASKS.md' > "$FX/CHECKPOINT.md"
 ( cd "$FX" && CLAUDE_HOOK_SETTINGS="$TMP/fx-settings.json" CLAUDE_REPO_ROOT="$FAKE" \
     bash tools/ckpt.sh "self-test" "self-test" >/dev/null 2>&1 )
