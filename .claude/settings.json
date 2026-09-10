@@ -1,0 +1,53 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}/tools/resume.sh\" 2>/dev/null || true",
+            "timeout": 120,
+            "statusMessage": "Reading where the last session stopped..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}/tools/autosave.sh\" 2>/dev/null || true",
+            "timeout": 60,
+            "statusMessage": "Checkpointing to GitHub..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}/tools/autosave.sh\" 2>/dev/null || true",
+            "timeout": 60,
+            "statusMessage": "Final checkpoint..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}/tools/toobig.sh\" 2>/dev/null || true",
+            "timeout": 60,
+            "statusMessage": "Session is large — saving before compaction..."
+          }
+        ]
+      }
+    ]
+  }
+}

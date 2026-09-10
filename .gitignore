@@ -1,0 +1,17 @@
+# Dependencies / build output — added ahead of any actual stack decision so
+# the checkpoint system never has a reason to commit either.
+node_modules/
+dist/
+build/
+.next/
+out/
+
+# Local secrets — keep real credentials out of the repo entirely; see
+# tools/secretscan.sh and CLAUDE.md's "Credentials" section.
+.env
+.env.local
+.env.*.local
+
+# OS / editor noise
+.DS_Store
+*.log
