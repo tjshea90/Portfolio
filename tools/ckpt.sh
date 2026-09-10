@@ -24,6 +24,17 @@ D="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$D" || exit 1
 # otherwise wedge every commit for the rest of the session.
 find .git -name '*.lock' -mmin +2 -delete 2>/dev/null || true
 
+# REPAIR THE AUTOMATIC SAFETY NET IF IT IS MISSING.
+# The hooks only fire once they have been installed into the session root, and
+# that was a manual step a session could simply not do — in which case nothing
+# was auto-saved for the WHOLE session and nothing said so. ckpt.sh is the one
+# command CLAUDE.md tells every session to run constantly, so a session that
+# reaches here gets the net back whether or not it read the instruction.
+# Idempotent, silent when already correct.
+if ! bash tools/install-hooks.sh --check >/dev/null 2>&1; then
+  bash tools/install-hooks.sh --quiet 2>&1 | sed 's/^/  /' || true
+fi
+
 DID="${1:-}"; NEXT="${2:-}"
 [ -z "$DID" ] && { echo "usage: bash tools/ckpt.sh \"what I just did\" \"what comes next\""; exit 1; }
 
@@ -73,7 +84,27 @@ else
 fi
 
 STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-N="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
+
+# CHECKPOINT NUMBERS MUST ONLY EVER GO UP.
+# This was `git rev-list --count HEAD`, which is not a checkpoint count at all
+# — it is however many commits this CLONE happens to have. Claude Code clones
+# shallow: confirmed in this container at 52 commits against 559 of real
+# history, so a checkpoint written here was numbered 53 immediately after one
+# numbered 580. A session resuming cold cannot then tell which checkpoint is
+# newer, which is the single thing the number exists to convey.
+#
+# So take the highest number anyone has used — the one on disk in
+# CHECKPOINT.md (present in every clone at any depth), the highest in whatever
+# log this clone can see, and the commit count — and go one past it. Recovers
+# on its own the first time it runs in a truncated clone.
+N_FILE="$(sed -n '1s/^# CHECKPOINT \([0-9][0-9]*\).*/\1/p' CHECKPOINT.md 2>/dev/null || true)"
+N_LOG="$(git log --format=%s 2>/dev/null | sed -n 's/^ckpt \([0-9][0-9]*\):.*/\1/p' | sort -n | tail -1 || true)"
+N_GIT="$(git rev-list --count HEAD 2>/dev/null || echo 0)"
+N=0
+for C in "${N_FILE:-0}" "${N_LOG:-0}" "${N_GIT:-0}"; do
+  case "$C" in ''|*[!0-9]*) C=0 ;; esac
+  [ "$C" -gt "$N" ] && N="$C"
+done
 N=$((N+1))
 
 # ---- rewrite the resume card ------------------------------------------------
@@ -84,6 +115,11 @@ N=$((N+1))
   echo "# CHECKPOINT $N — read me first, then TASKS.md"
   echo
   echo "**Written:** $STAMP · **tests:** $TESTS"
+  # WHERE this work lives, not just what it is. A different account resuming
+  # cold lands on whatever branch its own session was given; push.sh mirrors
+  # every push to main so that is normally enough, but when it is not, this
+  # line is the difference between finding the work and concluding it was lost.
+  echo "**Branch:** \`$(git branch --show-current 2>/dev/null || echo '?')\` · **builds on:** \`$(git rev-parse --short HEAD 2>/dev/null || echo '?')\` (this checkpoint is the commit after it)"
   echo
   echo "## Just done"
   echo "$DID"
