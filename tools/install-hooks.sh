@@ -156,6 +156,13 @@ for event in list(hooks.keys()):
         else:
             del hooks[event]
 
+# The old `cp` install dropped the template's own _comment into the user's
+# settings file, where it is meaningless. Remove it when it is unambiguously
+# ours; never touch a _comment that is not.
+c = merged.get("_comment")
+if isinstance(c, str) and ("tools/session-root-hooks.json" in c or "tools/install-hooks.sh" in c):
+    del merged["_comment"]
+
 new_text = json.dumps(merged, indent=2) + "\n"
 old_text = None
 if os.path.exists(target):

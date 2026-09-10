@@ -113,6 +113,22 @@ assert all("__REPO_ROOT__" not in c for c in cmds), "placeholder was left unsubs
 PY
 check $? "install-hooks merges: permissions, env and foreign hooks all survive"
 
+# A legacy entry — installed by the original `cp`, so it carries no marker —
+# must be REPLACED, not kept alongside the new one. Keeping both put the
+# double-JSON bug straight back into the live config once already.
+cat > "$SET" <<'JSON'
+{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "for d in /home/user/*/; do (cd \"$d\" && bash tools/resume.sh); done"}]}]}}
+JSON
+CLAUDE_HOOK_SETTINGS="$SET" CLAUDE_REPO_ROOT="$FAKE" bash tools/install-hooks.sh --quiet >/dev/null 2>&1
+python3 - "$SET" <<'LEGACY' >/dev/null 2>&1
+import json,sys
+d=json.load(open(sys.argv[1]))
+cmds=[h["command"] for x in d["hooks"]["SessionStart"] for h in x["hooks"]]
+assert len(cmds)==1, "legacy entry kept alongside the new one: %r" % cmds
+assert "portfolio-checkpoint-hooks" in cmds[0]
+LEGACY
+check $? "an untagged legacy hook entry is replaced, not duplicated"
+
 BEFORE="$(cat "$SET")"
 CLAUDE_HOOK_SETTINGS="$SET" CLAUDE_REPO_ROOT="$FAKE" bash tools/install-hooks.sh --quiet >/dev/null 2>&1
 [ "$BEFORE" = "$(cat "$SET")" ] && ok "install-hooks is idempotent" || bad "install-hooks rewrote an already-current file"
