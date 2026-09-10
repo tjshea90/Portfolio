@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 01:16:04 UTC",
+  "updated": "2026-09-10 01:16:05 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -409,8 +409,8 @@
       "id": "CHT4",
       "text": "canPanNow omits windowBounds != null while pan() requires it, so the caption promises a pan that cannot exist and the 350ms hold still arms and consumes",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "canPanNow includes windowBounds != null, so the caption and the 350ms hold match what pan() can actually do"
     }
   ],
   "log": [
@@ -995,6 +995,7 @@
     "2026-09-10 01:08:13 UTC  ETF8 fixed: Leveraged/inverse funds dropped on the Claude path too, once the quote fill supplies a name; prompt now says not to add them",
     "2026-09-10 01:16:02 UTC  CHT1 fixed: centroidN tracks how many pointers the pan reference was measured over; a frame with a different count re-seeds instead of reporting a phantom pan",
     "2026-09-10 01:16:03 UTC  CHT2 fixed: A pinch down to one finger becomes a PAN (never a scrub) instead of latching in ZOOM and consuming forever",
-    "2026-09-10 01:16:04 UTC  CHT3 fixed: pointAt returns NO_SCRUB when the nearest point falls outside the axis, so the readout and the crosshair never disagree"
+    "2026-09-10 01:16:04 UTC  CHT3 fixed: pointAt returns NO_SCRUB when the nearest point falls outside the axis, so the readout and the crosshair never disagree",
+    "2026-09-10 01:16:05 UTC  CHT4 fixed: canPanNow includes windowBounds != null, so the caption and the 350ms hold match what pan() can actually do"
   ]
 }
