@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 06:01:42 UTC",
+  "updated": "2026-09-10 06:01:43 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -535,8 +535,8 @@
       "id": "DET5",
       "text": "MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line above writes -$0.42 - the one formatter in the app that disagrees with the rest",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter"
     },
     {
       "id": "DET6",
@@ -1181,6 +1181,7 @@
     "2026-09-10 06:01:40 UTC  REG6 fixed: CHT-3's guard now compares in truncated seconds, the same unit nearestIndex clamps in",
     "2026-09-10 06:01:41 UTC  DET1 fixed: Lowest/Highest target rows and the spread sentence are all guarded on a real figure",
     "2026-09-10 06:01:42 UTC  DET2 fixed: A closed position now shows what it made, in its own card, on the watchlist branch",
-    "2026-09-10 06:01:42 UTC  DET4 fixed: The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged"
+    "2026-09-10 06:01:42 UTC  DET4 fixed: The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged",
+    "2026-09-10 06:01:43 UTC  DET5 fixed: Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter"
   ]
 }

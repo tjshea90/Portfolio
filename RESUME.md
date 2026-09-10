@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 06:01:42 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 06:01:43 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 5 still open, 64 fixed
+## 5. Open findings — 4 still open, 65 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -116,7 +116,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] DET1 (med) Price target card prints an unreported targetLow/High as $0.00 and feeds that zero into the spread sentence, fabricating 'the professionals genuinely disagree'  — Lowest/Highest target rows and the spread sentence are all guarded on a real figure
 - [x] DET2 (med) Realized P/L is rendered only inside the 'you still hold shares' branch, so closing a position hides its realized profit on the one screen that promises the number  — A closed position now shows what it made, in its own card, on the watchlist branch
 - [x] DET4 (med) loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minute TTL on the next line is unreachable for exactly the symbols it was written for  — The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged
-- [ ] DET5 (low) MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line above writes -$0.42 - the one formatter in the app that disagrees with the rest
+- [x] DET5 (low) MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line above writes -$0.42 - the one formatter in the app that disagrees with the rest  — Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter
 - [ ] DET6 (low) TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty*price against the NET total, so it fires on every fee-bearing trade even when the answer is exact
 - [ ] DET7 (low) refreshEverything force-reloads the fund register only when the Holdings tab is selected, but that tab exists only once the register loaded - so pull-to-refresh cannot recover a failed lookup
 - [ ] DET8 (low) OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stock in place opens the new one at the previous one's scroll offset
@@ -130,7 +130,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 05:54:28 UTC  finding DET6: TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty
 - 2026-09-10 05:54:28 UTC  finding DET7: refreshEverything force-reloads the fund register only when the Holdings tab is 
 - 2026-09-10 05:54:29 UTC  finding DET8: OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stoc
 - 2026-09-10 06:01:36 UTC  REG1 fixed: EtfRow.merge now tests >= 0 like every other reader of the fee sentinel
@@ -142,4 +141,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 06:01:41 UTC  DET1 fixed: Lowest/Highest target rows and the spread sentence are all guarded on a real figure
 - 2026-09-10 06:01:42 UTC  DET2 fixed: A closed position now shows what it made, in its own card, on the watchlist branch
 - 2026-09-10 06:01:42 UTC  DET4 fixed: The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged
+- 2026-09-10 06:01:43 UTC  DET5 fixed: Fmt.price puts the sign outside the dollar: -$0.42, matching every other money formatter
 
