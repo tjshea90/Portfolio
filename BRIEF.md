@@ -30,6 +30,13 @@ caches — everything on the phone). So:
 - Always bump `versionCode` in `app/build.gradle.kts` before shipping —
   Android refuses to install a build whose versionCode is not higher than
   what's already on the phone.
+  PRECISELY: what Android rejects is a LOWER versionCode
+  (`INSTALL_FAILED_VERSION_DOWNGRADE`). An EQUAL one is a reinstall of the same
+  version and installs fine, data intact, provided the certificate matches. The
+  rule above is deliberately stricter because it is about SHIPPING, and
+  `ship.sh` enforces it strictly (`-le`). `.github/workflows/android.yml` only
+  blocks a genuine downgrade (`-lt`), because rebuilding the CURRENT release on
+  a runner is a legitimate thing to do. The two differ on purpose.
 
 **This file is deliberately NOT in git** (see `.gitignore`) — committing it
 was blocked even in this private repo, so Tj holds the only copy out of

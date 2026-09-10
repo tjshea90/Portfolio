@@ -110,18 +110,36 @@ jobs:
       # already on the phone, so building one is minutes spent on an APK that
       # cannot be installed. BUILDLOG.md is the durable record of every shipped
       # code and the only thing that can answer this on a fresh runner.
-      - name: Gate — versionCode is higher than every shipped release
+      # WHAT ANDROID ACTUALLY REFUSES IS A DOWNGRADE, NOT A REBUILD.
+      #
+      # This gate first read `-le`, copied from ship.sh. That is the right test THERE:
+      # ship.sh publishes a NEW release, and a new release whose versionCode is not higher
+      # than the last one is not a new release. It is the wrong test HERE, because this
+      # workflow's job is different - it produces an installable artifact of a version that
+      # has already been decided.
+      #
+      # Android rejects an install whose versionCode is LOWER than what is on the phone
+      # (INSTALL_FAILED_VERSION_DOWNGRADE). An EQUAL versionCode is a reinstall of the same
+      # version: allowed, and data-preserving exactly as long as the signing certificate
+      # matches - which the gate above has already proved. So rebuilding the current release
+      # on a runner is a legitimate thing to want, and blocking it bought nothing.
+      #
+      # BRIEF.md's one-line rule says Android "refuses to install a build whose versionCode
+      # is not higher". For SHIPPING that is the rule to follow and ship.sh still enforces
+      # it strictly. It is stricter than the platform's actual behaviour, which is why the
+      # two gates now differ on purpose rather than by accident.
+      - name: Gate — versionCode is not a downgrade
         run: |
           VCODE=$(grep -m1 -oE 'versionCode *= *[0-9]+' app/build.gradle.kts | grep -oE '[0-9]+')
           PREV=$(grep -oE 'code [0-9]+' BUILDLOG.md 2>/dev/null | grep -oE '[0-9]+' | sort -n | tail -1)
           PREV=${PREV:-0}
-          echo "versionCode $VCODE, last shipped $PREV"
-          if [ "$VCODE" -le "$PREV" ]; then
-            if [ "${{ steps.mode.outputs.full }}" = "true" ]; then
-              echo "::error::versionCode $VCODE is not higher than the last shipped ($PREV). This APK could not install over what is on the phone, so the build is not worth the minutes. Bump versionCode in app/build.gradle.kts."
-              exit 1
-            fi
-            echo "::warning::versionCode $VCODE is not higher than the last shipped ($PREV) — a full build would be refused until it is bumped."
+          echo "versionCode $VCODE, highest shipped $PREV"
+          if [ "$VCODE" -lt "$PREV" ]; then
+            echo "::error::versionCode $VCODE is LOWER than the highest shipped ($PREV). Android refuses that as a downgrade, so this APK could not be installed. Not spending the minutes."
+            exit 1
+          fi
+          if [ "$VCODE" -eq "$PREV" ]; then
+            echo "::warning::versionCode $VCODE equals the highest shipped ($PREV) — this is a REBUILD of the current release, not a new version. It installs over it as a reinstall. Bump versionCode in app/build.gradle.kts before shipping anything new."
           fi
 
       - name: Gates passed
