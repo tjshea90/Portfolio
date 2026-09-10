@@ -1,21 +1,23 @@
-# CHECKPOINT 606 — read me first, then TASKS.md
+# CHECKPOINT 607 — read me first, then TASKS.md
 
-**Written:** 2026-09-10T22:10:01Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/resume-function-claude-code-q3cbja` · **builds on:** `57b1a9a` (this checkpoint is the commit after it)
+**Written:** 2026-09-10T22:10:40Z · **tests:** 1 RED: test_resume.sh (1 green)
+**Branch:** `claude/resume-function-claude-code-q3cbja` · **builds on:** `15a3547` (this checkpoint is the commit after it)
 
 ## Just done
-MY MISTAKE, and its cleanup: the end-to-end interruption simulation contaminated the real repository. I built the fixture by cloning the live repo, so it kept the real origin, and tools/record-release.sh legitimately does what it says - it pushed. Two bogus commits reached origin/main: a fake 'ckpt 605: gated v7.9' checkpoint and 'record v7.9 (code 66)', which also left versionCode 66 / versionName 7.9 in app/build.gradle.kts and a v7.9 line in BUILDLOG.md describing a release that was never built. No tag reached GitHub (tag pushes are 403 from here), so no fake Release exists and only v7.8 is on the remote. Reverted in the open by fast-forwarding the fixture's commits in and then restoring versionCode 65 / versionName 7.8 and deleting the v7.9 BUILDLOG line - no force-push, so the history shows both the error and the correction. The simulation itself was still valid and all three stages recovered correctly: a mid-code-change interruption produced the INTERRUPTED MID-CHANGE banner with the exact diff range, a cut between ship.sh and the API trigger left the trigger instruction in CHECKPOINT.md's 'Do this next', and a cut between GitHub publishing and record-release.sh produced the new 'WAS RELEASED BUT NEVER RECORDED' warning, which cleared once recorded and left the next versionCode correctly gated. THE LESSON, for any future session: fixtures for simulations must be built with 'git init' or have their origin removed, never a bare clone of the live repo - tools/test_resume.sh's own fixtures already do this correctly, which is why they have never had this problem.
+Verified origin/main is fully restored after my fixture contamination: versionCode 65, versionName 7.8, zero v7.9 lines in BUILDLOG, and v7.8 remains the only tag and the only Release on GitHub - no fake release was ever created. Reset TASKS.md to no-active-job, which cuts the session briefing from 8309 to 6453 bytes, about 464 tokens saved on every turn of every future session. The permanent flow is now verified end to end: Tj describes what he wants, Claude codes and checkpoints, ship.sh gates and pushes, Claude triggers the workflow through the GitHub API, GitHub compiles and signs and verifies the certificate and publishes the Release, Claude sends the APK, and record-release.sh writes BUILDLOG. Every interruption point in that chain was simulated rather than reasoned about, and each recovers on the next session start from any account.
 
 ## Do this next
-Verify origin/main is back to the correct state, then reset TASKS.md and measure the per-turn context cost.
+No active job. Waiting on Tj for the next app change.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
+     M TASKS.md
 
 ## Last ten checkpoints
 ```
+  47d403b ckpt 606: MY MISTAKE, and its cleanup: the end-to-end interruption simulation contaminat
   a3ea6f2 ckpt 605: gated v7.9 (code 66) and pushed it. NOT yet built - GitHub has not been asked.
   0e3effd ckpt 604: Closed the four gaps in the permanent release flow. (1) CLAUDE.md now describe
   1b38c0e ckpt 603: Wrote Tj's 'this is the flow I want forever' request into TASKS.md and found f
@@ -25,7 +27,6 @@ Verify origin/main is back to the correct state, then reset TASKS.md and measure
   f1c1ac1 ckpt 599: Restructured releasing so GITHUB BUILDS ALL FUTURE APKS and Claude only writes
   18c477b ckpt 598: GitHub's first FULL build FAILED, and the cause was a real portability bug in 
   1bcc8ad ckpt 597: Made the CI versionCode gate distinguish a DOWNGRADE from a REBUILD, so GitHub
-  90b926f ckpt 596: SHIPPED v7.8 (versionCode 65). All ship gates green: checkinit, build environm
 ```
 
 (1 automatic checkpoint(s) since the last deliberate one — the
