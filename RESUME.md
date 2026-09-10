@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 00:37:28 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 00:37:29 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 2 still open, 33 fixed
+## 5. Open findings — 1 still open, 34 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -85,7 +85,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] PUI4 (med) RowSeparator thickened to 5dp but still painted in colorScheme.outline at 1.24:1 (light) / 1.37:1 (dark) - TJ's 'even thicker' request is blocked by the COLOUR, not the thickness  — New rowRule colour: 3.14:1 light / 3.07:1 dark, replacing outline at 1.24:1 - the separator is finally visible
 - [x] PUI5 (med) PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on the StatCard surface, the only coloured value on that card not going through signColor  — Dividends figure now greenText not Green
 - [x] PUI6 (low) WatchlistScreen PRICE column header is an unweighted child after a weighted Spacer (measures to ~8dp and renders empty at large font scale) and labels a right-hand price column that no longer exists  — Watchlist header: one weighted label, dead PRICE column removed
-- [ ] PUI7 (low) StockRow watch menu reads row.watchOnly, never true for a held row, so a held+watched symbol always says 'Also watch this' and the toggle is one-way with an untrue toast
+- [x] PUI7 (low) StockRow watch menu reads row.watchOnly, never true for a held row, so a held+watched symbol always says 'Also watch this' and the toggle is one-way with an untrue toast  — Row.watched added and used by the menu and the toggle - held+watched symbols can now be un-watched
 
 ## 6. Version
 
@@ -96,7 +96,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 00:26:29 UTC  finding PUI2: PortfolioScreen.BigLine weights only the label and leaves two unweighted figures
 - 2026-09-10 00:26:29 UTC  finding PUI3: PortfolioScreen reconciliation note claims Since-you-started = broker Total G/L 
 - 2026-09-10 00:26:29 UTC  finding PUI4: RowSeparator thickened to 5dp but still painted in colorScheme.outline at 1.24:1
 - 2026-09-10 00:26:29 UTC  finding PUI5: PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on 
@@ -108,4 +107,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 00:37:25 UTC  PUI4 fixed: New rowRule colour: 3.14:1 light / 3.07:1 dark, replacing outline at 1.24:1 - the separator is finally visible
 - 2026-09-10 00:37:26 UTC  PUI5 fixed: Dividends figure now greenText not Green
 - 2026-09-10 00:37:28 UTC  PUI6 fixed: Watchlist header: one weighted label, dead PRICE column removed
+- 2026-09-10 00:37:29 UTC  PUI7 fixed: Row.watched added and used by the menu and the toggle - held+watched symbols can now be un-watched
 

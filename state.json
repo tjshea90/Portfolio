@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 00:37:28 UTC",
+  "updated": "2026-09-10 00:37:29 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -318,8 +318,8 @@
       "id": "PUI7",
       "text": "StockRow watch menu reads row.watchOnly, never true for a held row, so a held+watched symbol always says 'Also watch this' and the toggle is one-way with an untrue toast",
       "sev": "low",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Row.watched added and used by the menu and the toggle - held+watched symbols can now be un-watched"
     }
   ],
   "log": [
@@ -878,6 +878,7 @@
     "2026-09-10 00:37:23 UTC  PUI3 fixed: Reconciliation note now names dividends, interest and fees so the card's own arithmetic adds up",
     "2026-09-10 00:37:25 UTC  PUI4 fixed: New rowRule colour: 3.14:1 light / 3.07:1 dark, replacing outline at 1.24:1 - the separator is finally visible",
     "2026-09-10 00:37:26 UTC  PUI5 fixed: Dividends figure now greenText not Green",
-    "2026-09-10 00:37:28 UTC  PUI6 fixed: Watchlist header: one weighted label, dead PRICE column removed"
+    "2026-09-10 00:37:28 UTC  PUI6 fixed: Watchlist header: one weighted label, dead PRICE column removed",
+    "2026-09-10 00:37:29 UTC  PUI7 fixed: Row.watched added and used by the menu and the toggle - held+watched symbols can now be un-watched"
   ]
 }
