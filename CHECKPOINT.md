@@ -1,13 +1,13 @@
-# CHECKPOINT 589 — read me first, then TASKS.md
+# CHECKPOINT 590 — read me first, then TASKS.md
 
-**Written:** 2026-09-10T20:55:14Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/resume-function-claude-code-q3cbja` · **builds on:** `d50a416` (this checkpoint is the commit after it)
+**Written:** 2026-09-10T20:57:14Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/resume-function-claude-code-q3cbja` · **builds on:** `b840d5e` (this checkpoint is the commit after it)
 
 ## Just done
-Restructured the CI workflow so it cannot waste GitHub's free minutes, then validated it. Two protections, both now covered by tools/test_resume.sh: (1) no push trigger, ever - tags and manual dispatch only, because autosave mirrors every commit to main; (2) CHEAP GATES FIRST - checkinit, keystore restore, keystore fingerprint and a versionCode check all run before anything expensive, so a run that is going to fail costs about a minute instead of twelve. Added a full_build input defaulting to FALSE: a manual run does the gates only (~1 min) and a real APK build is opt-in or tag-driven, which is exactly Tj's rule that the free usage is only spent when actually building a new version. The versionCode gate is FATAL on a full build and a warning on a gates-only run - relevant right now because versionCode is still 64 and v7.7 code 64 already shipped, so a full build today would produce an APK that cannot install on the phone. Also caught and fixed a YAML syntax error I introduced (a ': ' inside a single-line 'run:' scalar makes YAML read it as a mapping) - the self-test caught it, not me.
+CI IS LIVE AND VERIFIED. Tj added the SIGNING_KEYSTORE_BASE64 secret and run #3 (workflow_dispatch, gates-only) SUCCEEDED in 18 seconds for 0 billable minutes: checkinit ok, 'restored 2218 bytes' (the exact size of the local keystore), 'OK signing keystore present and matches the shipped certificate' - so the secret holds the right key - versionCode correctly WARNED (64 vs 64 already shipped) instead of failing because this was not a full build, and the keystore was wiped from the workspace. Also explains the two failed runs that appeared before it: confirmed by inspecting commit 19c639e that they were GitHub reporting my broken workflow YAML, which autosave had committed before I fixed it. They ran zero jobs and consumed zero billable minutes - GitHub rejects an unparseable workflow before allocating a runner. Bumped actions/checkout and actions/setup-java to v5 after the run warned v4 targets deprecated Node 20. Wrote the minutes rule into CLAUDE.md: gates-only manual runs are free and encouraged, a full build costs ~12 min and happens ONLY via full_build=true or a v* tag, cheap gates always run first, and the versionCode gate is fatal on a full build so minutes are never spent on an APK that cannot install.
 
 ## Do this next
-Trigger the workflow with full_build OFF to verify the secret and plumbing cheaply, then read the run. A real release needs versionCode bumped past 64 first.
+The FULL build path is still unproven ON A RUNNER - only the gates have executed there. It needs versionCode bumped past 64, so it will be proven by the next real release rather than by a test run. When that happens, expect the Android SDK package step to be the likeliest thing to need fixing.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Trigger the workflow with full_build OFF to verify the secret and plumbing cheap
 
 ## Last ten checkpoints
 ```
+  e7eb17f ckpt 589: Restructured the CI workflow so it cannot waste GitHub's free minutes, then va
   1d9b76c ckpt 588: Added GitHub Actions signed-release CI on Tj's decision, and closed the local 
   f42b374 ckpt 587: Ticked TASKS.md 1-5 (all written, tested via tools/test_resume.sh's 19 checks,
   cec13a5 ckpt 586: Built the APK auto-provisioning chain and proved the SDK half of it live. NEW 
@@ -25,7 +26,6 @@ Trigger the workflow with full_build OFF to verify the secret and plumbing cheap
   b51da53 ckpt 582: Finished the resume-system review: 9 defects found, all 9 fixed, all covered b
   a36dba0 ckpt 581: Fixed the four highest-severity resume defects and made the system self-verify
   cbed3ee ckpt 54: Reviewed the whole resume/checkpoint system end-to-end and confirmed 6 real def
-  eb593ff ckpt 580: Completeness re-check of the resume system in a genuinely fresh session (new c
 ```
 
 (2 automatic checkpoint(s) since the last deliberate one — the
