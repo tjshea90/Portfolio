@@ -33,19 +33,32 @@ multi-repo container under `/home/user`). `CLAUDE_PROJECT_DIR` is unset, and
 the harness only checks ONE project root for hooks — this repo being in a
 subdirectory of it isn't enough. Verified by direct test: an Edit-tool
 change produced no autosave commit across several subsequent tool calls,
-and writing the identical hook config to `/home/user/.claude/settings.json`
-instead made it fire immediately.
+and writing the identical hook config to the session root instead made it
+fire immediately.
 
 **So, before anything else this session, run this once:**
 ```bash
-mkdir -p /home/user/.claude
-cp tools/session-root-hooks.json /home/user/.claude/settings.json
+bash tools/install-hooks.sh
 ```
-This is idempotent (safe to run even if already done) — no restart needed.
-NOT perfectly instant, though: confirmed 2026-09-10 in a follow-up session
-that firing can lag a tool call or two behind the edit, not commit
-synchronously with it. So verify over a few tool calls, not just the next
-one:
+It finds the session root itself, MERGES the hooks into whatever settings
+file is already there, and says what it did. Idempotent — run it any time.
+
+It used to be `cp tools/session-root-hooks.json /home/user/.claude/settings.json`.
+Do not go back to that: it is an unconditional overwrite of the one file the
+user's own permissions, env and other projects' hooks live in, run by every
+session, so the first time anything else is written there the next session
+deletes it without a word. `install-hooks.sh` only ever replaces entries that
+are ours.
+
+**If you forget, two things now catch it for you** — `tools/ckpt.sh` and
+`tools/resume.sh` both repair the hooks before they do anything else. So a
+session that never reads this section still gets the safety net back the
+moment it checkpoints. That is a backstop, not a reason to skip the step:
+until something calls one of them, nothing is being saved.
+
+Verification is NOT instant — confirmed 2026-09-10 that firing can lag a tool
+call or two behind the edit rather than commit synchronously with it. So check
+over a few tool calls, not just the next one:
 ```bash
 # after 2-3 real edits, in a LATER tool call:
 git log --oneline -3   # expect fresh "auto-checkpoint:" commit(s) in there
@@ -57,6 +70,11 @@ safety net. Don't conclude "broken" from one immediate check turning up
 nothing — that was a false alarm once already. If Claude Code changes how
 it scopes hooks in this environment, this whole section becomes
 unnecessary — but don't assume that without re-running the check above.
+
+**Whether it is currently installed, without changing anything:**
+```bash
+bash tools/install-hooks.sh --check && echo installed || echo MISSING
+```
 
 ## Starting a session
 
