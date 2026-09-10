@@ -94,7 +94,11 @@ fi
 # ---- the signing keystore ----------------------------------------------------
 # Advisory for tests and debug work, FATAL for a release: an unsigned or
 # wrongly-signed release APK is worse than no APK, because it installs.
-bash tools/checkkeystore.sh ${QUIET:+--quiet} >/tmp/ks-check.$$ 2>&1; KS=$?
+# NOT ${QUIET:+--quiet} — QUIET is "0" or "1", and "0" is a NON-EMPTY string,
+# so that form passes --quiet always and silently swallowed the keystore line
+# on every normal run. Test for the value.
+KSARGS=""; [ "$QUIET" -eq 1 ] && KSARGS="--quiet"
+bash tools/checkkeystore.sh $KSARGS >/tmp/ks-check.$$ 2>&1; KS=$?
 if [ "$KS" -eq 0 ]; then
   [ "$QUIET" -eq 1 ] || cat /tmp/ks-check.$$
 elif [ "$RELEASE" -eq 1 ]; then
