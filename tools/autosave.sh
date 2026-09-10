@@ -25,6 +25,24 @@ set -uo pipefail
 D="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$D" || exit 0
 [ -d .git ] || exit 0
 
+# --text: emit warnings as plain text rather than as a JSON systemMessage, so
+# tools/hooks/save.sh can combine several repos into ONE JSON object. Two JSON
+# objects on hook stdout do not parse — see tools/hooks/emit.py.
+TEXT_MODE=0
+for a in "$@"; do [ "$a" = "--text" ] && TEXT_MODE=1; done
+
+# Say something, in whichever form the caller needs. Warnings from this script
+# are the only thing standing between a silent failure and a lost session, so
+# they must never be dropped just because the wrapper changed.
+say() {
+  if [ "$TEXT_MODE" -eq 1 ]; then
+    printf '%s\n' "$1"
+  else
+    printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.stdin.read()}))' 2>/dev/null \
+      || printf '%s\n' "$1"
+  fi
+}
+
 # A STALE LOCK MUST NEVER WEDGE THE SAFETY NET.
 # This hook has a 60s timeout. If Claude Code kills it mid `git commit`
 # (network hiccup, slow disk, whatever), git can leave a `*.lock` file
@@ -49,7 +67,7 @@ for where the session actually stands." >/dev/null 2>&1
     # and make it LOUD: a silent skip here would look identical to working.
     # The detail stays in .git/autosave-scan.log (untracked, never pushed).
     git reset -q >/dev/null 2>&1
-    echo '{"systemMessage": "AUTOSAVE BLOCKED: what looks like a live credential is in the working tree, so nothing was committed or pushed. Run: bash tools/secretscan.sh -- and remove the credential. Auto-checkpointing stays off until it is clean."}'
+    say "AUTOSAVE BLOCKED in $(basename "$D"): what looks like a live credential is in the working tree, so nothing was committed or pushed. Run: bash tools/secretscan.sh -- and remove the credential. Auto-checkpointing stays off until it is clean."
     exit 0
   fi
 fi
@@ -65,8 +83,8 @@ if ! bash tools/push.sh >/dev/null 2>&1; then
   # container is destroyed when the session ends, so those commits are as lost
   # as work never written — and nobody finds out until the next session clones
   # and the work simply is not there.
-  N="$(git rev-list --count '@{u}'..HEAD 2>/dev/null || echo 'Some')"
-  echo "{\"systemMessage\": \"PUSH TO GITHUB IS FAILING. $N commit(s) exist ONLY in this container and will be LOST when the session ends — the work is committed locally but is NOT on GitHub, so a new session will not see it. Check the connection, then run:  git push origin HEAD\"}"
+  N="$(bash tools/unpushed.sh 2>/dev/null || echo 'Some')"
+  say "PUSH TO GITHUB IS FAILING in $(basename "$D"). $N commit(s) exist ONLY in this container and will be LOST when the session ends — the work is committed locally but is NOT on GitHub, so a new session will not see it. Check the connection, then run:  git push origin HEAD"
 fi
 
 exit 0
