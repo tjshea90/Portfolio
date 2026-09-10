@@ -528,8 +528,8 @@
       "id": "DET4",
       "text": "loadInsider returns whenever the symbol has ANY filing in memory, so the 30-minute TTL on the next line is unreachable for exactly the symbols it was written for",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged"
     },
     {
       "id": "DET5",
@@ -1180,6 +1180,7 @@
     "2026-09-10 06:01:39 UTC  REG5 fixed: All 8 hard-coded 'color = Red' text sites moved to redText, plus a source-scanning test that fails on any new one (verified to catch a reintroduced offender)",
     "2026-09-10 06:01:40 UTC  REG6 fixed: CHT-3's guard now compares in truncated seconds, the same unit nearestIndex clamps in",
     "2026-09-10 06:01:41 UTC  DET1 fixed: Lowest/Highest target rows and the spread sentence are all guarded on a real figure",
-    "2026-09-10 06:01:42 UTC  DET2 fixed: A closed position now shows what it made, in its own card, on the watchlist branch"
+    "2026-09-10 06:01:42 UTC  DET2 fixed: A closed position now shows what it made, in its own card, on the watchlist branch",
+    "2026-09-10 06:01:42 UTC  DET4 fixed: The 'already have filings' short-circuit is gone; publishInsiders stamps insiderAt so the request count is unchanged"
   ]
 }
