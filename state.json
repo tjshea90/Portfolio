@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 00:37:25 UTC",
+  "updated": "2026-09-10 00:37:26 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -304,8 +304,8 @@
       "id": "PUI5",
       "text": "PortfolioScreen dividends value uses fill green Green not greenText - 2.02:1 on the StatCard surface, the only coloured value on that card not going through signColor",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "Dividends figure now greenText not Green"
     },
     {
       "id": "PUI6",
@@ -876,6 +876,7 @@
     "2026-09-10 00:37:20 UTC  PUI1 fixed: PositionFields extracted + Fmt.exact seeds; Fmt.exact now rounds to 12 sig digits so a quotient does not seed 17 digits",
     "2026-09-10 00:37:22 UTC  PUI2 fixed: BigLine: all three children weighted 1:2, figures via AutoFitNumber so nothing measures to zero and nothing clips",
     "2026-09-10 00:37:23 UTC  PUI3 fixed: Reconciliation note now names dividends, interest and fees so the card's own arithmetic adds up",
-    "2026-09-10 00:37:25 UTC  PUI4 fixed: New rowRule colour: 3.14:1 light / 3.07:1 dark, replacing outline at 1.24:1 - the separator is finally visible"
+    "2026-09-10 00:37:25 UTC  PUI4 fixed: New rowRule colour: 3.14:1 light / 3.07:1 dark, replacing outline at 1.24:1 - the separator is finally visible",
+    "2026-09-10 00:37:26 UTC  PUI5 fixed: Dividends figure now greenText not Green"
   ]
 }
