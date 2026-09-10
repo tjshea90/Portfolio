@@ -304,7 +304,9 @@ fun StockRowItem(
             )
             if (!row.watchOnly) {
                 DropdownMenuItem(
-                    text = { Text("Delete this position", color = Red) },
+                    // `redText`, matching the identical item on the detail screen - the two
+                    // drifted apart when only the accessor was fixed (Round 66 audit, REG-5).
+                    text = { Text("Delete this position", color = redText) },
                     onClick = { menu = false; onAction(RowAction.DELETE) }
                 )
             }

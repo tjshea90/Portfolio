@@ -3241,8 +3241,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // `insiderAt` records that the pass COMPLETED, which is the thing the guard actually
         // wanted to know - the same shape `deepNewsAt` already uses for headlines. A failed
         // or cancelled pass never stamps it, so an unreachable EDGAR still retries at once.
+        // ---- THE TTL BELOW WAS UNREACHABLE (Round 66 audit, DET-4).
+        //
+        // THE BUG THIS FIXES. There was a line above the clock reading
+        // `if (_insider.value[symbol]?.isNotEmpty() == true) return` - "we already have some
+        // filings, stop" - and it short-circuited the half-hour check on the very next line
+        // for precisely the symbols that check was written for. Every symbol WITH filings
+        // returned before its age was ever considered, so a stock TJ neither holds nor
+        // watches - a search, opened from the Research tab - froze at whatever the first
+        // fetch returned for the life of the process. Re-opening it, backgrounding and
+        // resuming, switching tabs: all of them stopped on that line. The half-hourly
+        // `refreshInsiders` pass could not cover it either, because it is handed the rows,
+        // and a searched symbol is in neither list. A CEO buying stock this afternoon would
+        // not appear until the app was killed and relaunched.
+        //
+        // The clock is the right guard and it always was: `insiderAt` stamps only a pass that
+        // RESOLVED, so an unreachable EDGAR still retries at once, and the request count for
+        // followed symbols is unchanged because `publishInsiders` now stamps every symbol the
+        // feed pass covered - see there.
         if (!force) {
-            if (_insider.value[symbol]?.isNotEmpty() == true) return
             val since = System.currentTimeMillis() - (insiderAt[symbol] ?: 0L)
             if (since < INSIDER_SYMBOL_TTL_MS) return
         }
@@ -3409,7 +3426,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // following, the one case where the map was the only copy of that data. It would
         // have gone blank, silently, the moment a background refresh landed underneath the
         // screen showing it.
-        _insider.value = _insider.value + merged.groupBy { it.symbol }
+        val bySymbol = merged.groupBy { it.symbol }
+        _insider.value = _insider.value + bySymbol
+        // STAMPED, so the per-symbol loader knows this data is fresh (Round 66 audit, DET-4).
+        //
+        // `loadInsider` used to short-circuit on "the map already has rows for this symbol",
+        // which made its half-hour clock unreachable. Removing that line put the clock back in
+        // charge - and the clock has to know that THIS pass just covered these symbols, or
+        // opening a followed stock would spend a listing request the feed pass had already
+        // paid for. Same number of requests as before, now for the right reason.
+        val now = System.currentTimeMillis()
+        bySymbol.keys.forEach { insiderAt[it] = now }
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 db.set(Keys.INSIDER_CACHE, com.tj.portfolio.data.InsiderFiling.toJson(merged))
@@ -5291,8 +5318,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 .map { (row, also) ->
                     if (also.isEmpty()) row
                     else row.copy(
-                        reasons = (row.reasons + ("Same exposure as " + also.joinToString(", ") +
-                            " - this one scored highest of them")).distinct()
+                        // FIRST, NOT LAST (Round 66 audit, REG-4) - the same mistake E3 fixed
+                        // on the screener path, repeated here the moment the rule gained a
+                        // second call site. The card renders `reasons.take(6)` and a scored
+                        // fund already carries six lines, so an appended line is the seventh
+                        // and is never drawn: the imported fund would vanish from the list a
+                        // second after the toast said it had been added, with nothing on the
+                        // survivor's card saying where it went.
+                        reasons = (listOf(
+                            "Same exposure as " + also.joinToString(", ") +
+                                " - this one scored highest of them"
+                        ) + row.reasons).distinct()
                     )
                 }
 

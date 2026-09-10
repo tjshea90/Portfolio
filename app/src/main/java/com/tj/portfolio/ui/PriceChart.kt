@@ -392,9 +392,19 @@ fun PriceChart(
                         // scrub. The readout falls back to the live price and the crosshair
                         // draws nothing, which is what the chart looks like before a finger
                         // lands at all.
+                        //
+                        // COMPARED IN SECONDS, THE SAME UNIT `nearestIndex` CLAMPS IN (Round
+                        // 66 audit, REG-6 - a regression in this guard's own first draft).
+                        // The clamp truncates the axis to whole seconds (`startMs / 1000L`);
+                        // this compared the point's millisecond timestamp against the raw
+                        // bounds. After any pan or zoom `startMs` is almost never a whole
+                        // second, so the two disagreed by up to 999ms at each edge and this
+                        // guard refused a leftmost-candle scrub that the clamp had just
+                        // accepted - a legitimate reading, rejected, a few times per session.
                         scrub.intValue = if (axis == null) idx else {
-                            val tMs = pts[idx].t * 1000L
-                            if (tMs in axis.startMs..axis.endMs) idx else NO_SCRUB
+                            val tSec = pts[idx].t
+                            if (tSec in (axis.startMs / 1000L)..(axis.endMs / 1000L)) idx
+                            else NO_SCRUB
                         }
                     }
                 },

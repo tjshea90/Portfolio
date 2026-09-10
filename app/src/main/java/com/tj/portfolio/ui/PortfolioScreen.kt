@@ -581,7 +581,11 @@ private fun RecoveryCard(
                 "Your transactions are missing",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Red
+                // `redText`, not `Red` (Round 66 audit, REG-5). The brand red is a FILL colour
+                // and measures 4.41:1 on the dark StatCard - under AA, on the most alarming
+                // sentence in the app. AUD-1 moved the accessor; these call sites were painting
+                // around it. See [redText].
+                color = redText
             )
             Spacer(Modifier.height(6.dp))
             Text(

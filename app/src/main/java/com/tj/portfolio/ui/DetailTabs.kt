@@ -202,14 +202,37 @@ fun AnalystsTab(
                                 )
                             }
                             Spacer(Modifier.height(8.dp))
-                            KeyValue("Lowest target", Fmt.price(consensus.targetLow))
+                            // ---- GUARDED LIKE THE MEDIAN ABOVE (Round 66 audit, DET-1).
+                            //
+                            // THE BUG THIS FIXES, and this file's own rule 1 already said not
+                            // to do it: "a figure the provider did not report prints 'not
+                            // reported', never a zero". `Consensus.hasTarget` is
+                            // `targetMean > 0` ALONE, and both parsers default the bounds to
+                            // zero, so a Nasdaq answer carrying only `priceTarget` reached
+                            // this card with `targetLow = 0.0` - and `Fundamentals.merge`
+                            // takes the consensus whole, so Yahoo could not top it up.
+                            //
+                            // It printed "Lowest target $0.00", which is bad enough, and then
+                            // fed that zero into the arithmetic below: with a high of $60 the
+                            // spread came out at $60, "133% of the average", under a sentence
+                            // asserting that "the professionals genuinely disagree about this
+                            // company". No analyst targeted it at zero and there was no such
+                            // disagreement - the whole claim was manufactured from a missing
+                            // field, on a card people read to decide what a stock is worth.
+                            if (consensus.targetLow > 0)
+                                KeyValue("Lowest target", Fmt.price(consensus.targetLow))
                             KeyValue("Average target", Fmt.price(consensus.targetMean))
                             if (consensus.targetMedian > 0)
                                 KeyValue("Median target", Fmt.price(consensus.targetMedian))
-                            KeyValue("Highest target", Fmt.price(consensus.targetHigh))
+                            if (consensus.targetHigh > 0)
+                                KeyValue("Highest target", Fmt.price(consensus.targetHigh))
                             if (price > 0) KeyValue("Today's price", Fmt.price(price))
                             val spread = consensus.targetHigh - consensus.targetLow
-                            if (spread > 0 && consensus.targetMean > 0) {
+                            // BOTH ENDS REAL, and the high genuinely above the low - a spread
+                            // is a statement about two numbers and needs two numbers.
+                            if (consensus.targetLow > 0 && consensus.targetHigh > consensus.targetLow &&
+                                consensus.targetMean > 0
+                            ) {
                                 Spacer(Modifier.height(4.dp))
                                 Text(
                                     "The gap between the highest and lowest target is " +

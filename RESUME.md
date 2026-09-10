@@ -1,4 +1,4 @@
-# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 05:54:29 UTC)
+# RESUME — READ THIS FIRST  (round 66, saved 2026-09-10 06:01:36 UTC)
 
 You are picking up a long-running Android project that was interrupted.
 Everything you need is on disk. Do NOT re-read CHECKPOINT.md end to end —
@@ -49,7 +49,7 @@ commit, so `git log --oneline` is the history of this round and
 
 **Resume at 14** (Audit the six subsystems the two interrupted workflow runs never reached).
 
-## 5. Open findings — 14 still open, 55 fixed
+## 5. Open findings — 13 still open, 56 fixed
 
 - [x] A01 (high) Db.kt:38 txns indexes are created only in onCreate and are not IF NOT EXISTS, so any upgraded database has none - findDuplicateId then full-scans txns once per imported row  — createTxnIndexes with IF NOT EXISTS, called from onCreate and the onOpen repair block, so every upgraded install heals on next launch; DbTest proves the legacy fixture gains both indexes
 - [x] A02 (high) PortfolioViewModel.kt:2283 feed and Form-4 cadences are counters local to the poll coroutine, restarted by every setForeground(true), so they measure uninterrupted foreground seconds - the 30-minute insider refresh effectively never fires, and the feed pass can run twice within seconds  — feed and filings cadences are now wall-clock marks (_feedAt, Keys.FILINGS_AT) that survive startAuto being relaunched and the process dying; the decision is the pure passDue() with six tests, and filings can come due independently of the feed
@@ -107,7 +107,7 @@ commit, so `git log --oneline` is the history of this round and
 - [x] RES6 (low) The persisted tab index is bounded against ResearchSet.SECTIONS but indexes the Section enum - two lists in two files, so the guard does not protect the array access it was written for  — Section.entries.getOrElse at the one use site, so a drift between SECTIONS and the enum cannot crash on every launch
 - [x] RES7 (med) enrichPass reads Best, suspends for seconds of Nasdaq calls, then writes back the pre-suspension snapshot - a Claude import landing in that window is silently discarded AND persisted as lost  — enrichPass projects enriched rows onto the list as it is at write time, so a Claude import landing mid-pass survives; Import button gated on busy
 - [x] RES8 (low) Seven comment sites still count three stock lists or four sections after the Worst deletion, including the data model header a maintainer reads first  — Section counts corrected in all seven comment sites
-- [ ] REG1 (high) EtfRow.merge still tests expenseRatio > 0, so merging a fund across two screens discards a real 0.00pct fee in favour of the -1.0 unknown - re-creating ETF-6 for the exact funds its comment names
+- [x] REG1 (high) EtfRow.merge still tests expenseRatio > 0, so merging a fund across two screens discards a real 0.00pct fee in favour of the -1.0 unknown - re-creating ETF-6 for the exact funds its comment names  — EtfRow.merge now tests >= 0 like every other reader of the fee sentinel
 - [ ] REG2 (high) The v1-to-v2 migration treats 'no reasons and no etf' as 'app did not score it', but ResearchScore.best can return a positive score with zero reasons - such a Best row is relabelled CLAUDE n/10 and its real score destroyed
 - [ ] REG3 (high) PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched symbol it now REMOVES from the watchlist while saying Also watch
 - [ ] REG4 (med) oneFundPerExposure APPENDS the 'Same exposure as' line, but the card renders reasons.take(6) and EtfScore already emits six - so the line is never drawn and an imported fund vanishes with no explanation
@@ -130,7 +130,6 @@ commit, so `git log --oneline` is the history of this round and
 
 ## 7. Recent log
 
-- 2026-09-10 05:54:28 UTC  finding REG2: The v1-to-v2 migration treats 'no reasons and no etf' as 'app did not score it',
 - 2026-09-10 05:54:28 UTC  finding REG3: PUI-7 missed DetailScreen's hard-coded 'Also watch' button: for a held+watched s
 - 2026-09-10 05:54:28 UTC  finding REG4: oneFundPerExposure APPENDS the 'Same exposure as' line, but the card renders rea
 - 2026-09-10 05:54:28 UTC  finding REG5: The contrast fix changed only the redText accessor; ~8 hard-coded color = Red te
@@ -142,4 +141,5 @@ commit, so `git log --oneline` is the history of this round and
 - 2026-09-10 05:54:28 UTC  finding DET6: TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty
 - 2026-09-10 05:54:28 UTC  finding DET7: refreshEverything force-reloads the fund register only when the Holdings tab is 
 - 2026-09-10 05:54:29 UTC  finding DET8: OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stoc
+- 2026-09-10 06:01:36 UTC  REG1 fixed: EtfRow.merge now tests >= 0 like every other reader of the fee sentinel
 

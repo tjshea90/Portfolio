@@ -586,7 +586,19 @@ fun DetailScreen(
                 vm.loadChart(BENCHMARK_SYMBOL, chartRange, force = true)
             }
             if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol, force = true)
-            if (tab == DetailTab.HOLDINGS) vm.loadHoldings(symbol, force = true)
+            // ---- UNCONDITIONAL (Round 66 audit, DET-7).
+            //
+            // THE BUG THIS FIXES. This was gated on `tab == HOLDINGS`, and the Holdings tab
+            // only EXISTS once the register has already loaded - `tabs` includes it when
+            // `fundHoldings?.isFund == true`, and a selection outside `tabs` is forced back to
+            // Overview. So the condition was unreachable in exactly the situation a pull-down
+            // is for: the lookup failed, there is no tab, and `holdingsRetry` is now refusing
+            // every un-forced route back in for up to five minutes. Open SPY on a flaky
+            // connection and the fund's own holdings never appeared, and the one gesture TJ
+            // said should always re-fetch - "refresh every time I gesture pull down" - was
+            // quietly skipping it. One request per deliberate pull, against a register cached
+            // for twelve hours.
+            vm.loadHoldings(symbol, force = true)
         }
     }
 
@@ -671,6 +683,7 @@ fun DetailScreen(
                     symbol = symbol,
                     row = row,
                     tracked = tracked,
+                    watched = row?.watched == true,
                     fundamentals = fundamentals,
                     txns = txns,
                     chart = chart,
@@ -861,6 +874,11 @@ private fun OverviewTab(
     symbol: String,
     row: Row?,
     tracked: Boolean,
+    /**
+     * Whether the symbol is on the WATCHLIST, which for a held stock is a different question
+     * from [tracked] and from `row.watchOnly` - see [Row.watched] (Round 66 audit, REG-3).
+     */
+    watched: Boolean,
     fundamentals: com.tj.portfolio.data.Fundamentals?,
     txns: List<Txn>,
     chart: com.tj.portfolio.data.ChartSeries?,
@@ -905,7 +923,14 @@ private fun OverviewTab(
     onRemoveWatch: () -> Unit,
     onAddWatch: () -> Unit
 ) {
-    val listState = rememberLazyListState()
+    // KEYED ON THE SYMBOL (Round 66 audit, DET-8). The detail screen is one composition slot
+    // in a `when`, so changing stock in place does not tear this tab down - and an unkeyed
+    // scroll state therefore survived the change. Open SPY, tap through to NVDA, scroll, press
+    // Back, and SPY's Overview opened part-way down its own page, past its chart and price
+    // header, at NVDA's offset.
+    val listState = androidx.compose.runtime.remember(symbol) {
+        androidx.compose.foundation.lazy.LazyListState()
+    }
     val q = row?.quote
     val price = row?.price ?: 0.0
 
@@ -1137,8 +1162,21 @@ private fun OverviewTab(
                         TextButton(onClick = onEditPosition) { Text("Edit shares / cost") }
                         TextButton(onClick = onAddTxn) { Text("Add buy or sell") }
                     }
+                    // ---- THE LABEL HAS TO SAY WHAT THE TAP WILL DO (Round 66 audit, REG-3).
+                    //
+                    // A REGRESSION FROM PUI-7'S OWN FIX. That fix made `WATCH_TOGGLE` two-way
+                    // for a symbol that is both held and watched - it reads `row.watched` now,
+                    // not `row.watchOnly` - and updated the row menu's label to match. This
+                    // button was missed. It sits inside the "you hold shares" branch, where no
+                    // star is drawn in the header, so on a held-and-watched stock it was the
+                    // only watch control on the screen, it read "Also watch", and tapping it
+                    // REMOVED the symbol from the watchlist. Before PUI-7 the same tap was a
+                    // harmless repeat add; the fix turned a no-op into the opposite action
+                    // while leaving the word on the button unchanged.
                     Row {
-                        TextButton(onClick = onWatchToggle) { Text("Also watch") }
+                        TextButton(onClick = onWatchToggle) {
+                            Text(if (watched) "Remove from watchlist" else "Also watch")
+                        }
                         TextButton(onClick = onDeletePosition) { Text("Delete position", color = redText) }
                     }
                 } else {
@@ -1154,6 +1192,38 @@ private fun OverviewTab(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 8.dp)
                     )
+                    // ---- A CLOSED POSITION STILL MADE WHAT IT MADE (Round 66 audit, DET-2).
+                    //
+                    // THE BUG THIS FIXES. Realized P/L was rendered only inside the "you still
+                    // hold shares" branch above, so the moment a position was fully sold it
+                    // vanished from its own detail screen. `Ledger.fifo` keeps the symbol with
+                    // `shares = 0.0, realized = 500.0`, but `publish()` builds rows only from
+                    // positions with shares, so a closed symbol arrives here as a watchlist or
+                    // search row and takes THIS branch. The screen then said "no shares held,
+                    // so nothing here counts toward your totals" - while listing both fills a
+                    // few rows below, and while the sentence in the branch that was skipped
+                    // promised "profit from shares already sold is the realized figure below".
+                    // The one screen that names the number was the one screen that hid it.
+                    val closedGain =
+                        state.positions.firstOrNull { it.symbol == symbol }?.realized ?: 0.0
+                    if (kotlin.math.abs(closedGain) > 0.005) {
+                        Spacer(Modifier.height(8.dp))
+                        StatCard {
+                            KeyValue(
+                                "Profit from shares you sold",
+                                Fmt.usdSigned(closedGain),
+                                signColor(closedGain)
+                            )
+                            Text(
+                                "You have closed this position, so it no longer counts toward " +
+                                    "your holdings - but this is what it made while you held " +
+                                    "it, and it is already inside \"Since you started\".",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
+                    }
                     Row {
                         TextButton(onClick = onAddTxn) { Text("Record a buy") }
                         if (tracked) TextButton(onClick = onRemoveWatch) {

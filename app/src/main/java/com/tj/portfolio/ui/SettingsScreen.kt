@@ -474,7 +474,8 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                     "(${Fmt.usd(feeAudit.buyFeeTotal)} in total), which inflates your cost " +
                     "basis. Buys of stocks under $2 are left alone - those really are charged.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = Red
+                // Text takes `redText`, never the fill `Red` - Round 66 audit, REG-5.
+                color = redText
             )
             Button(
                 onClick = {
@@ -862,7 +863,8 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                             "import record on this phone first, so you end up with exactly what " +
                             "the file holds. That is what you want when moving to a new device, " +
                             "and nothing else.",
-                        color = Red,
+                        // Text takes `redText`, never the fill `Red` - Round 66 audit, REG-5.
+                        color = redText,
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }

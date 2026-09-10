@@ -91,7 +91,16 @@ data class EtfRow(
         name = name.ifBlank { other.name },
         price = if (price > 0) price else other.price,
         changePct = if (changePct != 0.0) changePct else other.changePct,
-        expenseRatio = if (expenseRatio > 0) expenseRatio else other.expenseRatio,
+        // `>= 0`, NOT `> 0` (Round 66 audit, REG-1 - a regression from ETF-6's own fix).
+        //
+        // When ETF-6 made 0.0 a REAL FEE and -1.0 the unknown, every reader had to move to
+        // `>= 0` - and this one was missed, which is worse than not having fixed it. The same
+        // fund appears on more than one Yahoo screen (a bond ETF is in `top_etfs_us` and
+        // `bond_etfs`), and `buildEtfs` merges the two rows. With `> 0`, a genuine 0.00% on
+        // this row lost to the other page's -1.0, so BKLC and BKAG - the very funds ETF-6's
+        // comment names - went straight back to forfeiting all 20 cost points and printing a
+        // dash. A sentinel is only worth having if every reader agrees on it.
+        expenseRatio = if (expenseRatio >= 0) expenseRatio else other.expenseRatio,
         netAssets = if (netAssets > 0) netAssets else other.netAssets,
         yieldPct = if (yieldPct != 0.0) yieldPct else other.yieldPct,
         ytdReturnPct = if (ytdReturnPct != 0.0) ytdReturnPct else other.ytdReturnPct,

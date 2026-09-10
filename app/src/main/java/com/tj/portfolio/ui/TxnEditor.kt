@@ -239,8 +239,20 @@ fun TxnEditorDialog(
                         (if (previewCash < 0) "This takes " else "This adds ") +
                             Fmt.usd(kotlin.math.abs(previewCash)) +
                             (if (previewCash < 0) " out of your cash" else " to your cash") +
+                            // ---- COMPARED AGAINST THE ANSWER, NOT THE GROSS (Round 66 audit,
+                            // DET-6).
+                            //
+                            // THE BUG THIS FIXES. The test was `qty * price != total`, which
+                            // compares a GROSS figure against the total box - and that box is
+                            // the NET, fees included, exactly as its own label says. So every
+                            // fee-bearing trade tripped it: 100 shares at $1.50 with $5.95 of
+                            // commission is a net $155.95, `cashEffect` reproduces $155.95 to
+                            // the cent, and the dialog still announced that the total had been
+                            // discarded. On sub-$2 holdings every trade carries a fee, so the
+                            // warning was on permanently - and a warning that is always on is
+                            // one nobody reads when the total really does disagree.
                             (if (isTrade && pNum > 0 && aNum > 0 &&
-                                    kotlin.math.abs(qNum * pNum - aNum) > 0.005)
+                                    kotlin.math.abs(kotlin.math.abs(previewCash) - aNum) > 0.005)
                                 " - worked out from the price per share, not the total you typed"
                             else ""),
                         style = MaterialTheme.typography.bodySmall,
@@ -252,7 +264,8 @@ fun TxnEditorDialog(
                     Text(
                         problem,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Red,
+                        // Text takes `redText`, never the fill `Red` - Round 66 audit, REG-5.
+                        color = redText,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
@@ -289,7 +302,7 @@ fun TxnEditorDialog(
         dismissButton = {
             Row2 {
                 if (onDelete != null) {
-                    TextButton(onClick = onDelete) { Text("Delete", color = Red) }
+                    TextButton(onClick = onDelete) { Text("Delete", color = redText) }
                 }
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }

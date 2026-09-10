@@ -65,9 +65,19 @@ object Fmt {
 
     fun usdSigned(v: Double): String = (if (v >= 0) "+$" else "-$") + money.format(abs(v))
 
-    /** Sub-dollar stocks get more precision, matching how brokers print them. */
+    /**
+     * Sub-dollar stocks get more precision, matching how brokers print them.
+     *
+     * THE SIGN GOES OUTSIDE THE DOLLAR (Round 66 audit, DET-5). This used to format the signed
+     * value and prepend "$", which reads "$-0.420" for a loss-making company's EPS - the only
+     * place in the app that shape appears. Every other money formatter here writes "-$0.42"
+     * ([usdSigned], and the MONEY branch of `formatMetric`), and the Stats card puts the two
+     * side by side: "Net income (last 12m) -$18.40M" directly above "Earnings per share
+     * $-0.420". Prices, targets and fills are never negative, so this only ever showed up on
+     * the earnings figures - and it showed up on every one of them.
+     */
     fun price(v: Double): String =
-        if (v != 0.0 && abs(v) < 1.0) "$" + money3.format(v) else "$" + priceFmt.format(v)
+        (if (v < 0) "-$" else "$") + priceBare(abs(v))
 
     fun priceBare(v: Double): String =
         if (v != 0.0 && abs(v) < 1.0) money3.format(v) else priceFmt.format(v)

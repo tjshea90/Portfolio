@@ -726,3 +726,4 @@ Tasks 7/7 done, findings 8/8 fixed
 2026-09-10 05:35:14 UTC  checkpoint 66  commit 7ae7d81  fix RES7
 2026-09-10 05:35:15 UTC  checkpoint 66  commit 4dd59fe  fix RES8
 2026-09-10 05:35:15 UTC  checkpoint 66  commit 257b3b5  All 8 research findings fixed. 780 tests, 0 failures
+2026-09-10 05:54:29 UTC  checkpoint 66  commit b9f463a  Adversarial pass found 6 regressions from this round's own fixes (3 HIGH); detail-ui found 8 more

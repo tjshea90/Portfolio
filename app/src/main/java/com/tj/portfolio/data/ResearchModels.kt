@@ -244,7 +244,16 @@ data class ResearchRow(
          */
         private const val VERSION_CONVICTION_SPLIT = 2
 
-        fun fromJson(o: JSONObject, version: Int = VERSION_CONVICTION_SPLIT): ResearchRow? {
+        fun fromJson(
+            o: JSONObject,
+            version: Int = VERSION_CONVICTION_SPLIT,
+            /**
+             * True only for the `etfs` array (Round 66 audit, REG-2). The migration below is
+             * scoped to it because the bug was: only the ETF list has a second entrance where
+             * a model's number could be written into `score`.
+             */
+            isFundList: Boolean = false
+        ): ResearchRow? {
             val sym = o.text("symbol").uppercase()
             if (sym.isBlank()) return null
             val reasons = ArrayList<String>()
@@ -279,13 +288,42 @@ data class ResearchRow(
                 catalyst = o.text("catalyst"),
                 conviction = o.optInt("conviction", 0).coerceIn(0, 10),
                 etf = EtfFacts.fromJson(o.optJSONObject("etf"))
-            ).let { if (version < VERSION_CONVICTION_SPLIT) it.repairModelScore() else it }
+            ).let {
+                if (isFundList && version < VERSION_CONVICTION_SPLIT) it.repairModelScore()
+                else it
+            }
         }
 
-        /** See [VERSION_CONVICTION_SPLIT]. Only ever applied to a cache an older build wrote. */
+        /**
+         * See [VERSION_CONVICTION_SPLIT]. Only ever applied to the `etfs` array of a cache an
+         * older build wrote.
+         *
+         * ---- WHY THE TEST IS THIS NARROW (Round 66 audit, REG-2)
+         *
+         * The first version of this repair asked only "did the app compute this?" and answered
+         * it with `reasons.isEmpty() && etf == null`. That is not sound: every reason line in
+         * `ResearchScore.best` is conditional and there is no fallback, so a genuinely poor
+         * stock - shrinking EPS, a demanding multiple, below both averages, too small for the
+         * size line - can score in the twenties and emit NO reasons at all. Such a Best row
+         * would have been relabelled "CLAUDE 2/10", told the screen reader "this fund was not
+         * scored by the app", and had its real score destroyed on the next write. A migration
+         * that damages good data is worse than the bug it repairs, and this one would have
+         * fabricated an attribution to a model that never saw the row.
+         *
+         * So the test is now the full fingerprint of the thing being repaired, and every part
+         * of it has to hold:
+         *  - it is in the FUND list, the only list with a model-added entrance;
+         *  - it carries no [EtfFacts], which every screener-built fund row has;
+         *  - it carries a paragraph, which is the only reason a model-added row exists;
+         *  - and the score is a positive multiple of ten, because the old writer stored
+         *    `conviction * 10` and could not produce anything else.
+         *
+         * A row that fails any one of them is left exactly as it was found.
+         */
         private fun ResearchRow.repairModelScore(): ResearchRow {
-            val appMeasuredIt = reasons.isNotEmpty() || etf != null
-            if (appMeasuredIt || score <= 0) return this
+            val looksComputed = reasons.isNotEmpty() || etf != null
+            val looksLikeAModelNumber = score in 10..100 && score % 10 == 0
+            if (looksComputed || why.isBlank() || !looksLikeAModelNumber) return this
             return copy(
                 score = 0,
                 // The old writer stored `conviction * 10`, so the reverse is exact. Clamped
@@ -407,7 +445,8 @@ data class ResearchSet(
                 val out = ArrayList<ResearchRow>(a.length())
                 for (i in 0 until a.length()) {
                     val r = a.optJSONObject(i) ?: continue
-                    ResearchRow.fromJson(r, version)?.let { out.add(it) }
+                    ResearchRow.fromJson(r, version, isFundList = key == "etfs")
+                        ?.let { out.add(it) }
                 }
                 return out
             }

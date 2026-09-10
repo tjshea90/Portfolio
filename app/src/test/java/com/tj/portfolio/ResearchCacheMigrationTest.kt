@@ -94,6 +94,66 @@ class ResearchCacheMigrationTest {
     }
 
     /** Nothing written by THIS build is repaired - version 2 means the writer was already right. */
+    /**
+     * REG-2, a regression the first version of this migration introduced. Every reason line in
+     * `ResearchScore.best` is conditional with no fallback, so a genuinely poor stock can
+     * score in the twenties and emit NO reasons. The first repair asked only "no reasons and
+     * no facts?" and would have relabelled that row "CLAUDE 2/10", told the screen reader it
+     * was never scored by the app, and destroyed its real score on the next write - inventing
+     * an attribution to a model that never saw it.
+     */
+    @Test fun `a scored stock with no reason lines is left alone`() {
+        val old = JSONObject(
+            """
+            {
+              "format": "portfolio-research", "version": 1, "generated": 1750000000000,
+              "trending": [{"symbol":"GME","name":"GameStop","score":40}],
+              "best": [{"symbol":"WEAK","name":"Weak Co","score":20}],
+              "etfs": []
+            }
+            """.trimIndent()
+        )
+        val set = ResearchSet.fromJson(old)
+        assertEquals(
+            "a Best row the app scored must keep its score even with no reason lines",
+            20, set.best.first().score
+        )
+        assertEquals(0, set.best.first().conviction)
+        assertEquals(
+            "and a Trending row is not in the fund list at all",
+            40, set.trending.first().score
+        )
+        assertEquals(0, set.trending.first().conviction)
+    }
+
+    /** A fund row with a score that is not a multiple of ten was never a model's number. */
+    @Test fun `a fund score that is not a multiple of ten is left alone`() {
+        val old = JSONObject(
+            """
+            {
+              "format": "portfolio-research", "version": 1, "generated": 1750000000000,
+              "trending": [], "best": [],
+              "etfs": [{"symbol":"ODD","name":"Odd Fund","score":73,"why":"a paragraph"}]
+            }
+            """.trimIndent()
+        )
+        assertEquals(73, ResearchSet.fromJson(old).etfs.first().score)
+    }
+
+    /** And one with no paragraph was not added by a model either. */
+    @Test fun `a fund row with no paragraph is left alone`() {
+        val old = JSONObject(
+            """
+            {
+              "format": "portfolio-research", "version": 1, "generated": 1750000000000,
+              "trending": [], "best": [],
+              "etfs": [{"symbol":"QUIET","name":"Quiet Fund","score":90}]
+            }
+            """.trimIndent()
+        )
+        assertEquals(90, ResearchSet.fromJson(old).etfs.first().score)
+    }
+
     @Test fun `a current payload passes through untouched`() {
         val current = oldCache().put("version", 2)
         val set = ResearchSet.fromJson(current)

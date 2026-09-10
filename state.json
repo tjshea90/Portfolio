@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 05:54:29 UTC",
+  "updated": "2026-09-10 06:01:36 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -472,8 +472,8 @@
       "id": "REG1",
       "text": "EtfRow.merge still tests expenseRatio > 0, so merging a fund across two screens discards a real 0.00pct fee in favour of the -1.0 unknown - re-creating ETF-6 for the exact funds its comment names",
       "sev": "high",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "EtfRow.merge now tests >= 0 like every other reader of the fee sentinel"
     },
     {
       "id": "REG2",
@@ -1172,6 +1172,7 @@
     "2026-09-10 05:54:28 UTC  finding DET5: MetricUnit.PRICE formats a negative as $-0.42 while the MONEY branch one line ab",
     "2026-09-10 05:54:28 UTC  finding DET6: TxnEditor's 'worked out from the price, not the total' caveat compares GROSS qty",
     "2026-09-10 05:54:28 UTC  finding DET7: refreshEverything force-reloads the fund register only when the Holdings tab is ",
-    "2026-09-10 05:54:29 UTC  finding DET8: OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stoc"
+    "2026-09-10 05:54:29 UTC  finding DET8: OverviewTab's rememberLazyListState is not keyed on the symbol, so changing stoc",
+    "2026-09-10 06:01:36 UTC  REG1 fixed: EtfRow.merge now tests >= 0 like every other reader of the fee sentinel"
   ]
 }

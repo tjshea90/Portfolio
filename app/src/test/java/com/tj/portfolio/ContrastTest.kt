@@ -182,6 +182,40 @@ class ContrastTest {
         }
     }
 
+    /**
+     * NO CALL SITE MAY PAINT TEXT WITH A FILL COLOUR (Round 66 audit, REG-5).
+     *
+     * The tests above measure the ACCESSORS - `greenText`, `redText`, `rowRule` - and they all
+     * passed while eight `Text`s in the app were still hard-coded to `Red`, the brand fill,
+     * including "Your transactions are missing" on a StatCard at the 4.41:1 that AUD-1 had
+     * just moved the accessor to avoid. Fixing a colour in one place and leaving the call
+     * sites painting around it is the failure mode of every palette change, and no
+     * measurement of the palette can catch it - so this reads the source.
+     *
+     * `Red` and `Green` are for DRAWN SHAPES: the sparkline, the chart fill, the weight bars.
+     * Anything with a `color =` beside it in a text call belongs to the theme accessor.
+     */
+    @Test fun `no text in the app is painted with a fill colour`() {
+        val ui = java.io.File("src/main/java/com/tj/portfolio/ui")
+        val offenders = ui.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .flatMap { f ->
+                f.readLines().mapIndexedNotNull { i, line ->
+                    val code = line.substringBefore("//")
+                    val paintsFill = Regex("""color\s*=\s*(Red|Green)\s*[,)]?\s*$""")
+                        .containsMatchIn(code.trimEnd()) ||
+                        Regex("""Text\([^)]*color\s*=\s*(Red|Green)\s*[,)]""").containsMatchIn(code)
+                    if (paintsFill) "${f.name}:${i + 1}  ${line.trim()}" else null
+                }
+            }
+            .toList()
+        assertTrue(
+            "text painted with a fill colour instead of the theme accessor " +
+                "(use greenText / redText):\n" + offenders.joinToString("\n"),
+            offenders.isEmpty()
+        )
+    }
+
     /** The arithmetic itself, against two ratios anyone can check by hand. */
     @Test fun theContrastFormulaIsRight() {
         assertTrue(contrast(Color.Black, Color.White) > 20.9)

@@ -222,7 +222,8 @@ fun ReaderScreen(
             Text(
                 msg,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Red,
+                // Text takes `redText`, never the fill `Red` - Round 66 audit, REG-5.
+                color = redText,
                 modifier = Modifier.padding(16.dp)
             )
         }
