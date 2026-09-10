@@ -2,7 +2,7 @@
   "schema": 1,
   "round": 66,
   "request": "Whole-app round: code efficiency, features working as designed, cache/refresh balance (cache big, refresh liberally where it helps), bug hunt. Thicker separator bars between stocks. Research accuracy. ETF section must rank genuinely healthy, strong-buy ETFs best-first using multiple sources. Worst section: keep only stocks with a buyable companion short vehicle, or delete the section entirely.",
-  "updated": "2026-09-10 05:35:11 UTC",
+  "updated": "2026-09-10 05:35:12 UTC",
   "version": {
     "name": "7.4",
     "code": 61,
@@ -444,8 +444,8 @@
       "id": "RES5",
       "text": "resetResearchPaging() has zero callers, so a page count of 40 survives a rebuild and the next TTL rebuild fires up to 50 Nasdaq requests with no user action",
       "sev": "med",
-      "status": "open",
-      "note": ""
+      "status": "fixed",
+      "note": "resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts"
     },
     {
       "id": "RES6",
@@ -1064,6 +1064,7 @@
     "2026-09-10 05:35:08 UTC  RES1 fixed: Cache format version is finally read; a version-1 row with a score but no reasons and no facts has its number moved back to conviction. Writer bumped to 2",
     "2026-09-10 05:35:09 UTC  RES2 fixed: Nasdaq named in SOURCES, and the closing sentence now says the analyst view is blended at 30pct",
     "2026-09-10 05:35:10 UTC  RES3 fixed: One fund per exposure now applies on the Claude path too, beside dropLeveraged; gaps hint no longer names both AGG and BND; prompt says one fund per exposure",
-    "2026-09-10 05:35:11 UTC  RES4 fixed: Dead ResearchRow.followed deleted, with a note saying where the chip really comes from"
+    "2026-09-10 05:35:11 UTC  RES4 fixed: Dead ResearchRow.followed deleted, with a note saying where the chip really comes from",
+    "2026-09-10 05:35:12 UTC  RES5 fixed: resetResearchPaging now takes the sections to reset and is called from both rebuilds - stocks and funds keep their own page counts"
   ]
 }
