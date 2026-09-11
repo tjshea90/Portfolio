@@ -1008,6 +1008,55 @@ internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
 }
 
 /**
+ * "Buy if it climbs to $12.40, then sell at $13.10" - the same [ResearchRow.entryPrice]/
+ * [ResearchRow.stopPrice]/[ResearchRow.targetPrice] [TradeLevelsGrid] draws, restated in plain
+ * language for a reader who does not know what a trigger, VWAP or a pivot is (Round 71). See
+ * [com.tj.portfolio.net.ResearchScore.beginnerSummary]'s header for why this can never
+ * contradict the technical grid it sits above: it reads the same numbers, not a second opinion.
+ *
+ * `internal`, not private, for the same reason [TradeLevelsGrid] is - `DayTradingUiTest` renders
+ * it directly.
+ */
+@Composable
+internal fun BeginnerSummaryCard(r: ResearchRow) {
+    val s = com.tj.portfolio.net.ResearchScore.beginnerSummary(
+        r.symbol, r.price, r.entryPrice, r.stopPrice, r.targetPrice
+    ) ?: return
+    Spacer(Modifier.height(9.dp))
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(
+                if (s.skip) MaterialTheme.colorScheme.error.copy(alpha = 0.10f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                RoundedCornerShape(10.dp)
+            )
+            .padding(10.dp)
+    ) {
+        Text(
+            "IN PLAIN ENGLISH",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            s.headline,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (s.skip) MaterialTheme.colorScheme.error
+            else MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            s.explanation,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+/**
  * Entry, stop and target for a day-trading row. NOT a forecast, so this draws in neutral
  * colour rather than the green/red a prediction would earn.
  *
