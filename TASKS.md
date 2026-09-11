@@ -405,3 +405,40 @@ Tj's request, 2026-09-11 (his own words, two parts):
 Sonnet (`claude-sonnet-5`, confirmed via get_session). Not started - waiting
 on Tj to switch to Opus (or explicitly say to proceed on Sonnet, as he did
 for Parts 3-5).**
+
+**Tj, 2026-09-11: "continue all tasks with sonnet"** — explicit override of
+the SCREENER flag above, per SCREENER.md's protocol step 3 ("use Sonnet" is
+one of the example phrases the protocol names). Applies to Part 6.2 and to
+Part 7 below. Proceeding on Sonnet without re-asking.
+
+## Part 7: Day Trading — a beginner-friendly plain-English summary per stock
+
+Tj's request, 2026-09-11 (his own words):
+
+> continue all tasks with sonnet, and in addition to what I already asked,
+> for the day trading section, keep all the advice it already shows for each
+> stock, but add a summary of what to do and why that is simple to read for
+> complete beginners who don't understand market technical language ( for
+> example, "buy this at $3.56, and sell at $3.98" or "too late for this one,
+> don't buy" plus any reasoning in simple language for beginners)
+
+Screened: this restates the SAME entry/stop/target/setup numbers
+`ResearchScore.tradePlan` already computes, in plain sentences - it does not
+add a new recommendation, score, or judgment call of its own, so it is a
+presentation layer over an already-decided design rather than new
+money-accuracy logic. Tj's blanket Sonnet override above covers it either
+way.
+
+- [ ] Add a plain-English "what to do" summary to each Day Trading card,
+      alongside (not replacing) the existing technical risk-plan grid,
+      trigger sentence and reasons.
+- [ ] Cover the cases Tj's examples name: a normal buy/sell instruction in
+      beginner terms, and a "too late / don't buy" case when the numbers
+      say the move (or the setup) has already played out.
+- [ ] Add simple-language reasoning (why wait / why buy / why skip) next to
+      the instruction - no jargon like "VWAP", "reclaim", "ATR", "R1 pivot".
+- [ ] Show the same summary in the tap-to-expand detail view
+      (`DayTradingPlanContent`), not just the card.
+- [ ] Unit tests for the new logic (it is a real branching function over
+      real numbers, same testing bar as `ResearchScore.tradePlan`).
+- [ ] Full Gradle unit suite green, then checkpoint/ship per usual.
