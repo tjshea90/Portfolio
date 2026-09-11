@@ -435,17 +435,9 @@ Design, decided before writing code:
   blend from at all, the same reason [ResearchRow.conviction] is kept separate from [score] for
   Claude-added ETF rows (Round 66 audit).
 
-## Part 6.2 (superseded note): confidence-blended score — FLAGGED, not started
-
-**Money-accuracy + ambiguous-design match per SCREENER.md. Session is on
-Sonnet (`claude-sonnet-5`, confirmed via get_session). Not started - waiting
-on Tj to switch to Opus (or explicitly say to proceed on Sonnet, as he did
-for Parts 3-5).**
-
-**Tj, 2026-09-11: "continue all tasks with sonnet"** — explicit override of
-the SCREENER flag above, per SCREENER.md's protocol step 3 ("use Sonnet" is
-one of the example phrases the protocol names). Applies to Part 6.2 and to
-Part 7 below. Proceeding on Sonnet without re-asking.
+(Originally flagged money-accuracy + ambiguous-design per SCREENER.md, then blanket-overridden
+by "continue all tasks with sonnet," 2026-09-11 - now explicitly re-confirmed above with its own
+"skip the screener" instruction for this specific task.)
 
 ## Part 7: Day Trading — a beginner-friendly plain-English summary per stock
 
