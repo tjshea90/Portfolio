@@ -508,3 +508,30 @@ way.
       that is right for a breakout but backwards for a pullback - now
       answered honestly ("it's at the buy price right now") instead.
 - [x] Full Gradle unit suite green: 948 tests, 0 failures.
+
+## Part 8: general code/UI optimization pass, plus a deeper day-trading logic overhaul
+
+Tj's request, 2026-09-11 (his own words):
+
+> run checks for optimization of code and ui for this app. also do more
+> research on the day trading section for the best advice possible. make
+> the day trading logic very sound
+
+## Screening these two parts separately (SCREENER.md)
+
+1. **Code/UI optimization checks.** Routine review for performance,
+   simplification and UI-quality issues app-wide - no existing-pattern
+   ambiguity, no money-math redefinition, matches "well-specified... checks"
+   category. **Stays on Sonnet.**
+2. **Day trading — deeper research, make the logic "very sound."** Squarely
+   SCREENER.md's money-accuracy category, which names `ResearchScore.kt`
+   and "any future recommendation feature" directly - this is a rework of
+   the same buy/sell/target scoring logic that was already escalated to
+   Opus once before (Part 5) for materially the same reason. Tj's own
+   words ("very sound," "best advice possible") are the direct "make sure
+   this is right" trigger too. **Flagged in chat 2026-09-11, not started.**
+   `get_session` confirmed this session is on `claude-sonnet-5`, not Opus.
+
+- [ ] Part 8a (optimization checks): pending.
+- [ ] Part 8b (day-trading research/logic overhaul): blocked on Opus per
+      SCREENER.md - not started.
