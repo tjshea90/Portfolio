@@ -631,18 +631,19 @@ internal fun mergeDayTradingTech(
     row: com.tj.portfolio.data.ResearchRow,
     tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
 ): com.tj.portfolio.data.ResearchRow {
-    val plan = com.tj.portfolio.net.ResearchScore.tradePlan(row.price, tech)
+    val effective = effectiveTechnicals(row, tech)
+    val plan = com.tj.portfolio.net.ResearchScore.tradePlan(row.price, effective)
     return row.copy(
-        atr = if (tech.atr14 > 0) tech.atr14 else row.atr,
-        vwap = if (tech.vwap > 0) tech.vwap else row.vwap,
-        openingRangeHigh = if (tech.openingRangeHigh > 0) tech.openingRangeHigh else row.openingRangeHigh,
-        openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow else row.openingRangeLow,
-        atrIntraday = if (tech.atrIntraday > 0) tech.atrIntraday else row.atrIntraday,
-        adr = if (tech.adr > 0) tech.adr else row.adr,
-        prevHigh = if (tech.prevHigh > 0) tech.prevHigh else row.prevHigh,
-        premarketHigh = if (tech.premarketHigh > 0) tech.premarketHigh else row.premarketHigh,
-        sessionHigh = if (tech.sessionHigh > 0) tech.sessionHigh else row.sessionHigh,
-        sessionLow = if (tech.sessionLow > 0) tech.sessionLow else row.sessionLow,
+        atr = effective.atr14,
+        vwap = effective.vwap,
+        openingRangeHigh = effective.openingRangeHigh,
+        openingRangeLow = effective.openingRangeLow,
+        atrIntraday = effective.atrIntraday,
+        adr = effective.adr,
+        prevHigh = effective.prevHigh,
+        premarketHigh = effective.premarketHigh,
+        sessionHigh = effective.sessionHigh,
+        sessionLow = effective.sessionLow,
         // THE PLAN MOVES AS A UNIT, or not at all. Entry, stop, target, setup, trigger and note
         // are six views of ONE decision: a stop from this tick's structure under an entry from
         // the last tick's would describe a trade nobody planned. A tick that produces no plan
@@ -652,9 +653,45 @@ internal fun mergeDayTradingTech(
         targetPrice = plan?.target ?: row.targetPrice,
         setup = plan?.setup ?: row.setup,
         trigger = plan?.trigger ?: row.trigger,
-        planNote = plan?.note ?: row.planNote
+        planNote = plan?.note ?: row.planNote,
+        // The app just recomputed this plan, so it is the app's again - a Claude plan the
+        // import wrote is superseded by live structure rather than left labelled as Claude's
+        // over numbers Claude did not choose.
+        planByClaude = if (plan != null) false else row.planByClaude
     )
 }
+
+/**
+ * One reading combining THIS tick's technicals with whatever the row already had, per field.
+ *
+ * WHY THE PLAN MUST BE COMPUTED FROM THIS AND NOT FROM `tech` DIRECTLY. The daily-bar request
+ * (ATR, ADR, prior session) and the intraday-bar request (VWAP, opening range, session high and
+ * low) fail independently - the reason this per-field fallback exists at all. Computing the
+ * plan from the raw reading meant that on a tick where only the intraday half failed, the card
+ * went on DISPLAYING the VWAP it already had while the plan behind it was quietly built as
+ * though this stock had no VWAP - a different setup, a different entry, from levels the user
+ * could still see on screen. The displayed levels and the plan derived from them now come from
+ * one and the same reading, always.
+ *
+ * The prior-session fields travel together (one request), so a failed daily half leaves
+ * `prevLow`/`prevClose` at zero and the floor-trader pivots simply unavailable that tick,
+ * rather than half-computed from a stale high.
+ */
+internal fun effectiveTechnicals(
+    row: com.tj.portfolio.data.ResearchRow,
+    tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
+): com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals = tech.copy(
+    atr14 = if (tech.atr14 > 0) tech.atr14 else row.atr,
+    vwap = if (tech.vwap > 0) tech.vwap else row.vwap,
+    openingRangeHigh = if (tech.openingRangeHigh > 0) tech.openingRangeHigh else row.openingRangeHigh,
+    openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow else row.openingRangeLow,
+    atrIntraday = if (tech.atrIntraday > 0) tech.atrIntraday else row.atrIntraday,
+    adr = if (tech.adr > 0) tech.adr else row.adr,
+    prevHigh = if (tech.prevHigh > 0) tech.prevHigh else row.prevHigh,
+    premarketHigh = if (tech.premarketHigh > 0) tech.premarketHigh else row.premarketHigh,
+    sessionHigh = if (tech.sessionHigh > 0) tech.sessionHigh else row.sessionHigh,
+    sessionLow = if (tech.sessionLow > 0) tech.sessionLow else row.sessionLow
+)
 
 /**
  * A PER-KEY FAILURE BACKOFF: ask again, but less and less often.
