@@ -5,6 +5,7 @@ import com.tj.portfolio.data.ResearchSet
 import com.tj.portfolio.data.ScreenRow
 import com.tj.portfolio.net.ClaudeBridge
 import com.tj.portfolio.net.DayTradingBridge
+import com.tj.portfolio.net.DayTradingTechnicals
 import com.tj.portfolio.net.ResearchScore
 import com.tj.portfolio.net.Screener
 import org.junit.Assert.assertEquals
