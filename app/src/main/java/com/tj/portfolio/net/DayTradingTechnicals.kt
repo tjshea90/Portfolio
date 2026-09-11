@@ -124,8 +124,47 @@ object DayTradingTechnicals {
         val openingRangeHigh: Double = 0.0,
         val openingRangeLow: Double = 0.0,
         /** True once the 09:30-10:00 ET window has fully printed - false pre-market or mid-range. */
-        val openingRangeComplete: Boolean = false
+        val openingRangeComplete: Boolean = false,
+        /**
+         * Wilder's ATR(14) on the 5-MINUTE bars - the volatility scale a same-session stop is
+         * actually sized from. See this file's header for why the daily one was the wrong
+         * ruler for that job. 0.0 before enough intraday bars have printed.
+         */
+        val atrIntraday: Double = 0.0,
+        /** Mean (high - low) over the last 14 COMPLETED sessions - "how big is a normal day". */
+        val adr: Double = 0.0,
+        /** The most recent COMPLETED session - never the one currently in progress. */
+        val prevHigh: Double = 0.0,
+        val prevLow: Double = 0.0,
+        val prevClose: Double = 0.0,
+        /** High of the 04:00-09:30 ET pre-market - the "gap and go" trigger level. */
+        val premarketHigh: Double = 0.0,
+        /** High/low of the regular session these intraday bars describe, so far. */
+        val sessionHigh: Double = 0.0,
+        val sessionLow: Double = 0.0,
+        /** True only while the regular session is actually open - see [fetch]. */
+        val sessionLive: Boolean = false
     ) {
+        /** Classic floor-trader pivot, from the prior completed session. 0.0 without one. */
+        val pivot: Double get() =
+            if (prevHigh > 0 && prevLow > 0 && prevClose > 0) (prevHigh + prevLow + prevClose) / 3.0
+            else 0.0
+
+        /** First resistance above the pivot: 2*PP - prior low. */
+        val r1: Double get() = pivot.takeIf { it > 0 }?.let { 2.0 * it - prevLow } ?: 0.0
+
+        /** Second resistance: PP + the prior session's whole range. */
+        val r2: Double get() = pivot.takeIf { it > 0 }?.let { it + (prevHigh - prevLow) } ?: 0.0
+
+        /** First support below the pivot: 2*PP - prior high. */
+        val s1: Double get() = pivot.takeIf { it > 0 }?.let { 2.0 * it - prevHigh } ?: 0.0
+
+        /** How much of a normal day's range this session has already travelled, 0.0 if unknown. */
+        val rangeUsed: Double get() =
+            if (adr > 0 && sessionHigh > 0 && sessionLow > 0 && sessionHigh >= sessionLow)
+                (sessionHigh - sessionLow) / adr
+            else 0.0
+
         // ALL FOUR CHECKED, NOT JUST atr14/vwap - a real bug caught by
         // `DayTradingTest`'s opening-range-breakout case: the daily-bar fetch (ATR) and the
         // intraday-bar fetch (VWAP, opening range) can succeed or fail independently, so a
