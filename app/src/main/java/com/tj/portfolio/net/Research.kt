@@ -566,7 +566,13 @@ object Research {
         sc: ResearchScore.Scored,
         tr: ResearchRow?
     ): ResearchRow {
-        val levels = ResearchScore.tradeLevels(r)
+        // NO RISK PLAN AT BUILD TIME ANY MORE (Round 69). The screener pass knows a price and a
+        // day change and nothing else - no VWAP, no opening range, no prior-session levels - and
+        // the only "entry" derivable from that is the last traded price, which is precisely the
+        // defect Tj reported. A plan now requires real intraday structure
+        // ([ResearchScore.tradePlan]), which the live technicals pass fetches for the rows
+        // actually on screen moments later. A blank plan for those few seconds is the honest
+        // output; a fabricated one that reads like a real trigger is not.
         return ResearchRow(
             symbol = r.symbol,
             name = r.name,
