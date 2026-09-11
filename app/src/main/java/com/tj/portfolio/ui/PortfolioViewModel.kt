@@ -569,7 +569,14 @@ internal fun carryExplanations(
         etfWarnings = old.etfWarnings,
         notes = old.notes,
         explained = old.explained,
-        explainedBy = old.explainedBy
+        explainedBy = old.explainedBy,
+        // dtNotes/dtExplained/dtExplainedBy carried the same way, for the same reason - a
+        // stock rebuild runs `Research.build()` fresh, which knows nothing about a Day
+        // Trading explanation pass that happened since the last one and would otherwise
+        // reset it to blank every thirty minutes.
+        dtNotes = old.dtNotes,
+        dtExplained = old.dtExplained,
+        dtExplainedBy = old.dtExplainedBy
     )
 }
 
