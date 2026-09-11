@@ -248,7 +248,24 @@ data class ResearchRow(
      * [com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals.sessionDay]. Blank until a live
      * technicals sweep has filled them.
      */
-    val sessionDay: String = ""
+    val sessionDay: String = "",
+    /**
+     * THE TWO HALVES OF [score] FOR A DAY-TRADING ROW (Round 72) - kept alongside the blended
+     * number, not just folded into it, so "why is this only 62" has a visible answer instead of
+     * one opaque figure. Tj: *"make the scores reflect a blend of how likely the stock is to
+     * rise... and how confident this prediction is... a score of 100 means... very likely to
+     * raise... and... extremely confident."* [score] itself becomes
+     * `com.tj.portfolio.net.ResearchScore.blendedScore(dtLikelihood, dtConfidence)` for a
+     * day-trading row; [dtLikelihood] is the existing "in play" momentum score
+     * ([com.tj.portfolio.net.ResearchScore.dayTrading]/`withTechnicals`, unchanged arithmetic,
+     * only renamed conceptually) and [dtConfidence] is
+     * [com.tj.portfolio.net.ResearchScore.dayTradingConfidence]'s fixed five-item confirmation
+     * checklist. Both zero for every row outside the day-trading section and for a Claude-added
+     * day-trading pick - there is no app-computed `Scored` to blend from for either, the same
+     * reason [conviction] is kept out of [score] for a Claude-added fund.
+     */
+    val dtLikelihood: Int = 0,
+    val dtConfidence: Int = 0
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("symbol", symbol)
