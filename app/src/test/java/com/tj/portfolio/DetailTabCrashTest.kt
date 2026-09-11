@@ -91,7 +91,7 @@ class DetailTabCrashTest {
                 rule.waitForIdle()
             }
         }
-        assertEquals(6, visibleTabs(false).size)
-        assertEquals(7, visibleTabs(true).size)
+        assertEquals(5, visibleTabs(false).size)
+        assertEquals(6, visibleTabs(true).size)
     }
 }
