@@ -5020,6 +5020,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     researchRetry.success(RETRY_STOCKS)
                     analystDone.clear()
+                    // Fresh day-trading rows deserve a fresh shot at the technicals score
+                    // bonus too - see [enrichDayTradingVisible] for why it must apply at most
+                    // once per symbol per rebuild rather than every 30-second refresh tick.
+                    dayTradingTechScored.clear()
                     // These rows are gone and fifty different ones have taken their place, so
                     // "show me ten more of the old list" cannot carry over - see
                     // [resetResearchPaging] for what it cost when it did.
