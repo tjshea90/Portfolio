@@ -239,6 +239,10 @@ data class ResearchRow(
         if (entryPrice > 0) put("entryPrice", entryPrice)
         if (stopPrice > 0) put("stopPrice", stopPrice)
         if (targetPrice > 0) put("targetPrice", targetPrice)
+        if (atr > 0) put("atr", atr)
+        if (vwap > 0) put("vwap", vwap)
+        if (openingRangeHigh > 0) put("openingRangeHigh", openingRangeHigh)
+        if (openingRangeLow > 0) put("openingRangeLow", openingRangeLow)
     }
 
     companion object {
