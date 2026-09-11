@@ -104,7 +104,10 @@ separately rather than as a block:
       including all 176 pre-existing chart tests (no regressions) and the
       33 tests from the earlier tab-placement/StockRow work this session.
 - [x] Checkpointed after every completed step (ckpt 625-627).
-- [ ] Ship following CLAUDE.md's normal release flow.
+- [x] Shipped: v7.11 (code 68), GitHub Actions run #10 built, signed,
+      verified its own certificate, and published the Release; APK
+      downloaded (sha256 verified against the Release's own digest), sent
+      to Tj, and recorded in BUILDLOG.md.
 
 ## Part 3: Day Trading tab
 
