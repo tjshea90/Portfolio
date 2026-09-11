@@ -623,8 +623,8 @@ object ResearchScore {
         )
         if (rawRisk > maxRisk * 1.05) parts.add(
             "The level that would invalidate this sits further away than a same-session stop " +
-                "should carry, so the stop is tightened to ${Fmt.priceBare(MAX_RISK_ATRS)}x the " +
-                "5-minute ATR - it can be taken out with the setup still intact"
+                "should carry, so the stop is tightened to ${MAX_RISK_ATRS}x the 5-minute ATR - " +
+                "it can be taken out with the setup still intact"
         )
         if (!tech.sessionLive) parts.add(
             "Market closed - these are the last completed session's levels, to plan from before " +
