@@ -14,6 +14,7 @@ import com.tj.portfolio.data.Keys
 import com.tj.portfolio.data.NewsItem
 import com.tj.portfolio.data.Override
 import com.tj.portfolio.data.Quote
+import com.tj.portfolio.data.Recommendation
 import com.tj.portfolio.data.StockRating
 import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
