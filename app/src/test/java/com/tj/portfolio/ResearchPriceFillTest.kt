@@ -6,9 +6,11 @@ import com.tj.portfolio.data.Db
 import com.tj.portfolio.data.ResearchRow
 import com.tj.portfolio.data.ResearchSet
 import com.tj.portfolio.net.DayTradingTechnicals
+import com.tj.portfolio.net.ResearchScore
 import com.tj.portfolio.ui.PortfolioViewModel
 import com.tj.portfolio.ui.dropUnusableClaudeLevels
 import com.tj.portfolio.ui.mergeDayTradingTech
+import com.tj.portfolio.ui.scoreDayTradingRow
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
