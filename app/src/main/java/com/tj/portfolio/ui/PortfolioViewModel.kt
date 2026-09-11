@@ -536,17 +536,19 @@ internal fun carryExplanations(
         )
     }
     if (old.isEmpty) return keepEtfs(fresh)
-    val prior = (old.trending + old.best).associateBy { it.symbol }
+    val prior = (old.trending + old.best + old.dayTrading).associateBy { it.symbol }
     if (prior.isEmpty()) return keepEtfs(fresh)
     fun carry(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
         val p = prior[r.symbol] ?: return@map r
-        // Claude's explanation survives a rebuild; the app's own score and reasons are
-        // recomputed from fresh screener data every time, which is the point of a rebuild.
+        // Claude's explanation survives a rebuild; the app's own score and reasons - and,
+        // for day trading, the entry/stop/target risk levels - are recomputed from fresh
+        // screener data every time, which is the point of a rebuild.
         r.copy(why = if (p.why.isNotBlank()) p.why else r.why)
     }
     return fresh.copy(
         trending = carry(fresh.trending),
         best = carry(fresh.best),
+        dayTrading = carry(fresh.dayTrading),
         // ---- THE FUND LIST AND ITS OWN CLOCK, CARRIED ACROSS EXPLICITLY.
         //
         // `fresh` comes from `Research.build`, which builds both STOCK lists and
