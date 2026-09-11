@@ -242,8 +242,18 @@ fun ResearchScreen(
     // uses, to the stock's own [DetailScreen] - which draws this exact explanation (via
     // [DayTradingPlanContent], re-derived live from `vm.research` the same way this dialog used
     // to be) at the top of its Overview tab, plus the tabs Tj asked for. See TASKS.md Part 6.
-    val chartMap by vm.charts.collectAsState()
-    val chartLoadingSet by vm.chartLoading.collectAsState()
+    //
+    // COLLECTED ONLY ON THE DAY TRADING TAB, not unconditionally. `vm.charts`/`vm.chartLoading`
+    // are app-wide maps that change on every chart fetch anywhere in the app - a detail screen
+    // finishing its own fetch after the user navigated back, a sparkline adoption - and
+    // subscribing to them while looking at Trending, Best or ETFs would recompose this whole
+    // screen, LazyColumn and all, for a card three sections has no chart on. The `if` is a
+    // conditional COMPOSABLE CALL, which Compose supports directly: leaving the Day Trading tab
+    // tears the subscription down instead of merely ignoring what it delivers.
+    val chartMap = if (section == Section.DAY_TRADING) vm.charts.collectAsState().value
+    else emptyMap()
+    val chartLoadingSet = if (section == Section.DAY_TRADING) vm.chartLoading.collectAsState().value
+    else emptySet()
 
     // KEYED ON ALL THREE CLOCKS. `etfGenerated` was missing, so on the ETFs tab the
     // watched/held set - two SQLite reads, which is why it is remembered at all - was only
