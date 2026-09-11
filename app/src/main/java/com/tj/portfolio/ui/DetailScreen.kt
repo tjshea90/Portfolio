@@ -830,11 +830,6 @@ fun DetailScreen(
                     onOpenSymbol = onOpenSymbol
                 )
 
-                // Never actually selected - the tab row's onSelect above intercepts a tap on
-                // this one and opens the popup instead of assigning `tab`. A branch is still
-                // required here because `tab` is typed as the whole enum.
-                DetailTab.RECOMMENDATION -> Unit
-
                 DetailTab.NEWS -> NewsTab(
                     items = items,
                     filings = filings,
