@@ -463,6 +463,42 @@ Here is my read on your lists. I searched the web for the latest on each name.
         assertEquals(listOf("one feed was quiet"), back.warnings)
     }
 
+    /**
+     * Round 67's addition: a day-trading row's entry/stop/target, and the section's own
+     * dtExplained/dtExplainedBy/dtNotes - kept separate from explained/explainedBy/notes above,
+     * so both halves have to round-trip WITHOUT bleeding into each other.
+     */
+    @Test
+    fun `a day-trading row and its own explain state survive the cache round trip`() {
+        val original = ResearchSet(
+            dayTrading = listOf(
+                ResearchRow(
+                    symbol = "GME", price = 22.5, changePct = 12.0, score = 88,
+                    reasons = listOf("Trading at 6.0x its normal volume today"),
+                    catalyst = "Could fade fast if the squeeze stalls.",
+                    entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5
+                )
+            ),
+            generated = 1_757_000_000_000L,
+            explained = 1_757_000_100_000L,
+            explainedBy = "API",
+            notes = "the research note",
+            dtExplained = 1_757_000_200_000L,
+            dtExplainedBy = "Claude app",
+            dtNotes = "the day-trading note"
+        )
+        val back = ResearchSet.fromJson(JSONObject(original.toJson().toString()))
+        assertEquals(original.toJson().toString(), back.toJson().toString())
+        assertEquals(22.5, back.dayTrading[0].entryPrice, 0.001)
+        assertEquals(21.0, back.dayTrading[0].stopPrice, 0.001)
+        assertEquals(25.5, back.dayTrading[0].targetPrice, 0.001)
+        // The two explain states did not bleed into each other in either direction.
+        assertEquals("Claude app", back.dtExplainedBy)
+        assertEquals("API", back.explainedBy)
+        assertEquals("the day-trading note", back.dtNotes)
+        assertEquals("the research note", back.notes)
+    }
+
     @Test
     fun `paging never asks for more rows than the section holds`() {
         val rows = (1..14).map { ResearchRow(symbol = "S$it", score = 100 - it) }
