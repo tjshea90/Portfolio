@@ -385,6 +385,92 @@ class DayTradingTest {
         assertTrue(out.reasons.any { it.contains("opening-range breakout") })
     }
 
+    // ============================================== the beginner summary (Round 71)
+    //
+    // Tj: "add a summary of what to do and why that is simple to read for complete beginners
+    // who don't understand market technical language (for example, 'buy this at $3.56, and sell
+    // at $3.98' or 'too late for this one, don't buy')." [ResearchScore.beginnerSummary] restates
+    // [ResearchScore.tradePlan]'s own numbers rather than computing a second opinion - these
+    // tests pin down that it can never disagree with the plan it is describing.
+
+    @Test fun `no computed plan means no beginner summary at all`() {
+        assertNull(ResearchScore.beginnerSummary("HOT", price = 100.0, entry = 0.0, stop = 0.0, target = 0.0))
+        // A partial plan (only an entry, say from a row the technicals sweep hasn't finished
+        // enriching) is just as much "nothing to summarise" as a fully blank one.
+        assertNull(ResearchScore.beginnerSummary("HOT", price = 100.0, entry = 105.0, stop = 0.0, target = 0.0))
+    }
+
+    @Test fun `once the price already reached the target, it is too late - not a buy instruction`() {
+        val s = ResearchScore.beginnerSummary(
+            "HOT", price = 115.0, entry = 105.0, stop = 100.0, target = 110.0
+        )
+        assertNotNull(s)
+        assertTrue("a spent plan must be marked skip", s!!.skip)
+        assertTrue("must say it's too late: ${s.headline}", s.headline.contains("Too late", ignoreCase = true))
+        assertFalse("must not still tell a beginner to buy: ${s.headline}", s.headline.contains("Buy"))
+        assertTrue("must name the symbol in the reasoning: ${s.explanation}", s.explanation.contains("HOT"))
+    }
+
+    @Test fun `once the price already broke the stop, the setup already failed - skip it`() {
+        val s = ResearchScore.beginnerSummary(
+            "HOT", price = 95.0, entry = 105.0, stop = 100.0, target = 115.0
+        )
+        assertNotNull(s)
+        assertTrue(s!!.skip)
+        assertTrue("must say to skip: ${s.headline}", s.headline.contains("Skip", ignoreCase = true))
+    }
+
+    @Test fun `a plan still ahead of the price tells a beginner to wait for it to climb`() {
+        val s = ResearchScore.beginnerSummary(
+            "HOT", price = 101.0, entry = 105.0, stop = 100.0, target = 125.0
+        )
+        assertNotNull(s)
+        assertFalse(s!!.skip)
+        assertTrue("must state the buy trigger price: ${s.headline}", s.headline.contains("105.00"))
+        assertTrue("must state the sell target price: ${s.headline}", s.headline.contains("125.00"))
+        assertTrue("must say it climbs: ${s.headline}", s.headline.contains("climbs"))
+        assertFalse("no jargon for a beginner: ${s.explanation}", s.explanation.contains("VWAP"))
+    }
+
+    @Test fun `a plan below the price tells a beginner to wait for it to drop back`() {
+        val s = ResearchScore.beginnerSummary(
+            "HOT", price = 110.0, entry = 100.0, stop = 95.0, target = 115.0
+        )
+        assertNotNull(s)
+        assertFalse(s!!.skip)
+        assertTrue("must say it drops: ${s.headline}", s.headline.contains("drops"))
+        assertTrue(s.explanation.contains("jumped up fast"))
+    }
+
+    @Test fun `a thin reward-to-risk plan still gives real numbers, plus a plain-English caution`() {
+        // rr = (110-105)/(105-100) = 1.0, at or under the same threshold `planNote` itself
+        // warns about - the two must never contradict each other (see the header on
+        // [ResearchScore.beginnerSummary]).
+        val s = ResearchScore.beginnerSummary(
+            "HOT", price = 101.0, entry = 105.0, stop = 100.0, target = 110.0
+        )
+        assertNotNull(s)
+        assertFalse("still a real trade, not a skip", s!!.skip)
+        assertTrue("must flag the thin reward in plain words: ${s.explanation}",
+            s.explanation.contains("Heads up"))
+    }
+
+    @Test fun `a healthy reward-to-risk plan carries no thin-reward caution`() {
+        val s = ResearchScore.beginnerSummary(
+            "HOT", price = 101.0, entry = 105.0, stop = 100.0, target = 125.0
+        )
+        assertNotNull(s)
+        assertFalse(s!!.explanation.contains("Heads up"))
+    }
+
+    @Test fun `every beginner summary always tells the reader where to cut a loss`() {
+        val s = ResearchScore.beginnerSummary(
+            "HOT", price = 101.0, entry = 105.0, stop = 100.0, target = 125.0
+        )
+        assertNotNull(s)
+        assertTrue("a beginner must be told the stop too: ${s!!.explanation}", s.explanation.contains("100.00"))
+    }
+
     // ================================================================== bridge
 
     private val realReply = """
