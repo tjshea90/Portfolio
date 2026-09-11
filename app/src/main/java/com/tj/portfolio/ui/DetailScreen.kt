@@ -920,6 +920,10 @@ fun DetailScreen(
         ExplainDialog(explanation) { infoKey = null }
     }
 
+    if (showRecommendation) {
+        RecommendationDialog(recommendation, symbol) { showRecommendation = false }
+    }
+
     if (addingTxn) {
         TxnEditorDialog(
             presetSymbol = symbol,
