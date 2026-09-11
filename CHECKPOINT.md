@@ -1,13 +1,17 @@
-# CHECKPOINT 660 — read me first, then TASKS.md
+# CHECKPOINT 661 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T19:20:23Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/day-trading-beginner-summaries-8x83la` · **builds on:** `a4e55c3` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T19:33:53Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/day-trading-beginner-summaries-8x83la` · **builds on:** `3b63401` (this checkpoint is the commit after it)
 
 ## Just done
-Added ResearchScore.beginnerSummary(): a pure, testable function that restates the SAME entry/stop/target numbers tradePlan already computes as a plain-English 'buy if it climbs/drops to X, sell at Y' instruction, with 'too late/don't buy' and 'skip, setup failed' cases read directly off price vs. target/stop (never a second opinion - shares THIN_REWARD_RATIO with planNote so the two can't contradict). Wired into a new BeginnerSummaryCard composable, drawn on the Day Trading list card and in the tap-to-expand DayTradingPlanContent (both places TradeLevelsGrid already draws). 8 new pure-logic tests in DayTradingTest.kt, 6 new render tests in DayTradingUiTest.kt - all green.
+gated v7.16 (code 73) and pushed it: checkinit, the full unit suite and the
+versionCode check all passed here. NOT yet built - GitHub has not been asked.
 
 ## Do this next
-Run the full Gradle unit suite (not just the two Day Trading test classes) to confirm no regressions elsewhere, then ship.sh.
+TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
+android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
+send Tj the APK from the Release and then run:
+  bash tools/record-release.sh v7.16 "Day Trading: added a plain-English 'what to do' summary alongside the existing technical risk plan for complete beginners - 'Buy if it climbs to $X, then sell at $Y' or 'Too late for this one today - don't buy now', with simple reasoning and no jargon. Shown on both the list card and the tap-to-expand detail view. A code-review pass caught and fixed a missing price>0 guard, triplicated reward:risk arithmetic (now one shared function), and a price==entry boundary that guessed a direction instead of stating fact."
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +20,7 @@ Run the full Gradle unit suite (not just the two Day Trading test classes) to co
 
 ## Last ten checkpoints
 ```
+  b2f2dbb ckpt 660: Added ResearchScore.beginnerSummary(): a pure, testable function that restates
   1f52ae5 ckpt 659: Recorded Tj's 'continue all tasks with sonnet' override (unblocks Part 6.2) an
   0ebe5ab ckpt 658: Shipped v7.15 (code 72): Part 6.1 of the Day Trading request - per-stock 1D ch
   c2227da ckpt 657: gated v7.15 (code 72) and pushed it: checkinit, the full unit suite and the ve
@@ -27,5 +32,5 @@ Run the full Gradle unit suite (not just the two Day Trading test classes) to co
   87237be ckpt 651: Review pass on the new engine found and fixed three real issues before shippin
 ```
 
-(10 automatic checkpoint(s) since the last deliberate one — the
+(9 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
