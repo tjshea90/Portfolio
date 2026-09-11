@@ -268,6 +268,15 @@ data class ResearchRow(
         if (vwap > 0) put("vwap", vwap)
         if (openingRangeHigh > 0) put("openingRangeHigh", openingRangeHigh)
         if (openingRangeLow > 0) put("openingRangeLow", openingRangeLow)
+        if (setup.isNotBlank()) put("setup", setup)
+        if (trigger.isNotBlank()) put("trigger", trigger)
+        if (planNote.isNotBlank()) put("planNote", planNote)
+        if (atrIntraday > 0) put("atrIntraday", atrIntraday)
+        if (adr > 0) put("adr", adr)
+        if (prevHigh > 0) put("prevHigh", prevHigh)
+        if (premarketHigh > 0) put("premarketHigh", premarketHigh)
+        if (sessionHigh > 0) put("sessionHigh", sessionHigh)
+        if (sessionLow > 0) put("sessionLow", sessionLow)
     }
 
     companion object {
