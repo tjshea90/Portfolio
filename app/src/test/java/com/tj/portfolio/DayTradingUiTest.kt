@@ -162,6 +162,14 @@ class DayTradingUiTest {
         assertTrue("the dialog must explain it is a trigger: $t", t.contains("TRIGGER"))
     }
 
+    @Test fun `a plan with no stop does not claim the whole share price is at risk`() {
+        // The grid draws an em dash for a missing stop; this line must agree with it rather
+        // than treating 0.0 as a real stop and reporting "risking $22.50 a share".
+        show { DayTradingDetailDialog(row(stop = 0.0, target = 0.0), onDismiss = {}) }
+        val t = texts().joinToString(" ")
+        assertFalse("must not invent a risk from a missing stop: $t", t.contains("Risking"))
+    }
+
     @Test fun `a plan Claude set is labelled as Claude's, never as the app's arithmetic`() {
         show {
             DayTradingDetailDialog(
