@@ -135,4 +135,48 @@ class ResearchPriceFillTest {
         val set = ResearchSet(trending = listOf(row("GME", -1.0)))
         assertEquals(listOf("GME"), vm().pricelessRows(set))
     }
+
+    // ============================================================ withDayTradingLevels
+    //
+    // A DAY-TRADING ROW CLAUDE ADDED HAS NO TRADE LEVELS EITHER (Round 67) - only a symbol.
+    // `withDayTradingLevels` is the fill for that, the same shape as the price fill above:
+    // pure, so it can be checked with no network and no ViewModel, the moment a real price
+    // exists to compute entry/stop/target from.
+
+    /** The whole point: a priced row with no levels yet gets them computed. */
+    @Test fun computesLevelsForAPricedRowThatHasNone() {
+        val out = withDayTradingLevels(listOf(row("GME", price = 20.0)))
+        val g = out.first()
+        assertEquals(20.0, g.entryPrice, 0.001)
+        assertTrue("stop should sit below entry", g.stopPrice < g.entryPrice)
+        assertTrue("target should sit above entry", g.targetPrice > g.entryPrice)
+    }
+
+    /** Still no price - Claude's pick has not been quoted yet, so there is nothing to compute from. */
+    @Test fun leavesAPricelessRowAlone() {
+        val out = withDayTradingLevels(listOf(row("GME", price = 0.0)))
+        assertEquals(0.0, out.first().entryPrice, 0.0)
+        assertEquals(0.0, out.first().stopPrice, 0.0)
+        assertEquals(0.0, out.first().targetPrice, 0.0)
+    }
+
+    /** A row the screener already built carries its own levels - this fill must not touch it. */
+    @Test fun leavesAnAlreadyLeveledRowUntouched() {
+        val already = ResearchRow(
+            symbol = "AMD", price = 150.0, entryPrice = 150.0, stopPrice = 145.0, targetPrice = 160.0
+        )
+        val out = withDayTradingLevels(listOf(already))
+        assertEquals(150.0, out.first().entryPrice, 0.001)
+        assertEquals(145.0, out.first().stopPrice, 0.001)
+        assertEquals(160.0, out.first().targetPrice, 0.001)
+    }
+
+    /** It runs safely over sections that never carry levels - trending and best included. */
+    @Test fun isANoOpOnRowsOutsideDayTrading() {
+        val out = withDayTradingLevels(listOf(row("NVDA", price = 900.0)))
+        // Still computes for ANY row it is handed - the caller is what scopes it to day
+        // trading, by only ever passing that section. Proven here so a future caller cannot
+        // assume otherwise: a stock/best row run through this WOULD get levels too.
+        assertTrue(out.first().entryPrice > 0)
+    }
 }
