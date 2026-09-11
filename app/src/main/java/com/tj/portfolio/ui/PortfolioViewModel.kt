@@ -681,22 +681,40 @@ internal fun mergeDayTradingTech(
  * The prior-session fields travel together (one request), so a failed daily half leaves
  * `prevLow`/`prevClose` at zero and the floor-trader pivots simply unavailable that tick,
  * rather than half-computed from a stale high.
+ *
+ * AND ONLY WITHIN THE SAME TRADING DAY, for the intraday half. VWAP, the opening range, the
+ * premarket high and the session high/low are defined PER SESSION; reusing yesterday's across
+ * the open is not stale data, it is wrong data. It would also be quietly consequential: a
+ * finished session has spent essentially all of its average daily range, so a row carrying
+ * yesterday's high and low into this morning reads as `rangeUsed` near 1.0 and every plan
+ * built from it comes out "already extended - do not chase", at 09:31, on a stock that has
+ * barely traded. Only the daily-bar fields (ATR, ADR, the prior session, which are about
+ * COMPLETED days by construction) survive a change of session.
  */
 internal fun effectiveTechnicals(
     row: com.tj.portfolio.data.ResearchRow,
     tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
-): com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals = tech.copy(
-    atr14 = if (tech.atr14 > 0) tech.atr14 else row.atr,
-    vwap = if (tech.vwap > 0) tech.vwap else row.vwap,
-    openingRangeHigh = if (tech.openingRangeHigh > 0) tech.openingRangeHigh else row.openingRangeHigh,
-    openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow else row.openingRangeLow,
-    atrIntraday = if (tech.atrIntraday > 0) tech.atrIntraday else row.atrIntraday,
-    adr = if (tech.adr > 0) tech.adr else row.adr,
-    prevHigh = if (tech.prevHigh > 0) tech.prevHigh else row.prevHigh,
-    premarketHigh = if (tech.premarketHigh > 0) tech.premarketHigh else row.premarketHigh,
-    sessionHigh = if (tech.sessionHigh > 0) tech.sessionHigh else row.sessionHigh,
-    sessionLow = if (tech.sessionLow > 0) tech.sessionLow else row.sessionLow
-)
+): com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals {
+    val sameSession = row.sessionDay.isNotBlank() && row.sessionDay == tech.sessionDay
+    return tech.copy(
+        atr14 = if (tech.atr14 > 0) tech.atr14 else row.atr,
+        adr = if (tech.adr > 0) tech.adr else row.adr,
+        prevHigh = if (tech.prevHigh > 0) tech.prevHigh else row.prevHigh,
+        vwap = if (tech.vwap > 0) tech.vwap else if (sameSession) row.vwap else 0.0,
+        openingRangeHigh = if (tech.openingRangeHigh > 0) tech.openingRangeHigh
+        else if (sameSession) row.openingRangeHigh else 0.0,
+        openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow
+        else if (sameSession) row.openingRangeLow else 0.0,
+        atrIntraday = if (tech.atrIntraday > 0) tech.atrIntraday
+        else if (sameSession) row.atrIntraday else 0.0,
+        premarketHigh = if (tech.premarketHigh > 0) tech.premarketHigh
+        else if (sameSession) row.premarketHigh else 0.0,
+        sessionHigh = if (tech.sessionHigh > 0) tech.sessionHigh
+        else if (sameSession) row.sessionHigh else 0.0,
+        sessionLow = if (tech.sessionLow > 0) tech.sessionLow
+        else if (sameSession) row.sessionLow else 0.0
+    )
+}
 
 /**
  * A PER-KEY FAILURE BACKOFF: ask again, but less and less often.
