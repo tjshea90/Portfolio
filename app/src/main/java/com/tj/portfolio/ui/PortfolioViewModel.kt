@@ -4783,7 +4783,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // Round 54: one file chooser, three kinds of answer. A research reply is recognised
         // by its own payload key and handled first, so importing it from the Advice tab by
         // mistake fills the Research tab instead of reporting "nothing usable".
-        if (com.tj.portfolio.net.ResearchBridge.looksLikeResearch(text)) {
+        if (com.tj.portfolio.net.ResearchBridge.looksLikeResearch(text) ||
+            com.tj.portfolio.net.DayTradingBridge.looksLikeDayTrading(text)
+        ) {
             return importResearchFile(text)
         }
         val r = runCatching { com.tj.portfolio.net.ClaudeBridge.parse(text) }
