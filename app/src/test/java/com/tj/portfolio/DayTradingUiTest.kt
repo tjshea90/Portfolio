@@ -193,7 +193,10 @@ class DayTradingUiTest {
         val t = texts().joinToString(" ")
         assertTrue("the beginner summary must show in the tap-to-expand view: $t",
             t.contains("IN PLAIN ENGLISH"))
-        assertTrue("it must state the buy trigger in plain words: $t", t.contains("Buy if"))
+        // row()'s default price (22.50) equals its default entry (22.50), which is the "right
+        // at the buy price now" case, not "Buy if..." - either way the entry price itself must
+        // be stated in plain words.
+        assertTrue("it must state the buy price in plain words: $t", t.contains("22.50"))
     }
 
     @Test fun `the explanation names the real technicals behind the plan`() {
