@@ -172,4 +172,79 @@ class ResearchPriceFillTest {
         assertEquals(160.0, out.first().targetPrice, 0.001)
     }
 
+    // ============================================================ mergeDayTradingTech
+    //
+    // A REAL BUG, CAUGHT BY CODE REVIEW BEFORE SHIPPING (Round 68). The daily-bar fetch
+    // (ATR) and the intraday-bar fetch (VWAP, opening range) that make up one
+    // `DayTradingTechnicals.fetch` call can succeed or fail INDEPENDENTLY - one host cooling
+    // down while the other answers, say - so a technicals reading that is not "empty" can
+    // still carry a real zero for exactly the field that failed. `mergeDayTradingTech` is
+    // what has to tell "this field genuinely failed this tick" from "the whole reading is
+    // fresh", and get it right per field, not per reading.
+
+    private fun leveled(atr: Double = 0.0, vwap: Double = 0.0, orHigh: Double = 0.0, orLow: Double = 0.0) =
+        ResearchRow(
+            symbol = "GME", price = 22.5, score = 88,
+            entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5,
+            atr = atr, vwap = vwap, openingRangeHigh = orHigh, openingRangeLow = orLow
+        )
+
+    private fun tech(
+        atr: Double = 0.0, vwap: Double = 0.0, orHigh: Double = 0.0, orLow: Double = 0.0,
+        orComplete: Boolean = false
+    ) = DayTradingTechnicals.DayTechnicals(atr, vwap, orHigh, orLow, orComplete)
+
+    @Test fun `a fresh full reading replaces every technicals field`() {
+        val out = mergeDayTradingTech(
+            leveled(atr = 1.0, vwap = 21.0, orHigh = 22.0, orLow = 21.5),
+            tech(atr = 1.2, vwap = 21.9, orHigh = 22.2, orLow = 21.6)
+        )
+        assertEquals(1.2, out.atr, 0.001)
+        assertEquals(21.9, out.vwap, 0.001)
+        assertEquals(22.2, out.openingRangeHigh, 0.001)
+        assertEquals(21.6, out.openingRangeLow, 0.001)
+    }
+
+    /** THE BUG ITSELF: only the ATR half of this tick's fetch failed - VWAP still came back. */
+    @Test fun `a partially failed fetch keeps the previously-good field it did not answer`() {
+        val hadRealAtr = leveled(atr = 2.5, vwap = 0.0, orHigh = 0.0, orLow = 0.0)
+        // This tick's daily-bar (ATR) request failed - atr comes back 0.0 - but the
+        // intraday-bar (VWAP) request succeeded.
+        val thisTick = tech(atr = 0.0, vwap = 21.9)
+        val out = mergeDayTradingTech(hadRealAtr, thisTick)
+        assertEquals(
+            "a transient ATR failure must not erase the real ATR already on the row",
+            2.5, out.atr, 0.001
+        )
+        assertEquals(21.9, out.vwap, 0.001) // and the field that DID answer still updates
+    }
+
+    @Test fun `the reverse also holds - a failed VWAP half keeps the row's real VWAP`() {
+        val hadRealVwap = leveled(atr = 0.0, vwap = 21.9)
+        val out = mergeDayTradingTech(hadRealVwap, tech(atr = 1.5, vwap = 0.0))
+        assertEquals(21.9, out.vwap, 0.001)
+        assertEquals(1.5, out.atr, 0.001)
+    }
+
+    @Test fun `a genuinely fresh zero is not possible to distinguish from a failure, and that is by design`() {
+        // Documented, not a bug: DayTradingTechnicals never returns a true zero for a real
+        // reading (ATR and VWAP are always positive prices/ranges), so 0.0 IS the failure
+        // sentinel everywhere in this system - `mergeDayTradingTech` relies on exactly that.
+        val out = mergeDayTradingTech(leveled(atr = 3.0), tech(atr = 0.0))
+        assertEquals(3.0, out.atr, 0.001)
+    }
+
+    @Test fun `entry-stop-target upgrade only when this tick's ATR is real`() {
+        val stale = leveled(atr = 0.0) // still on tradeLevels()'s pre-ATR estimate
+        val upgraded = mergeDayTradingTech(stale, tech(atr = 1.0))
+        assertEquals(22.5, upgraded.entryPrice, 0.001)
+        assertTrue(upgraded.stopPrice < upgraded.entryPrice)
+
+        // No real ATR this tick either (both this reading's and the row's are 0) - the
+        // pre-existing entry/stop/target from the row are left exactly as they were.
+        val notUpgraded = mergeDayTradingTech(stale, tech(atr = 0.0))
+        assertEquals(stale.entryPrice, notUpgraded.entryPrice, 0.001)
+        assertEquals(stale.stopPrice, notUpgraded.stopPrice, 0.001)
+        assertEquals(stale.targetPrice, notUpgraded.targetPrice, 0.001)
+    }
 }
