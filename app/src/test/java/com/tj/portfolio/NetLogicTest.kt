@@ -160,6 +160,25 @@ class NetLogicTest {
         return c.timeInMillis
     }
 
+    @Test fun `dayKey agrees for two moments on the same ET calendar day`() {
+        val morning = et(2026, 9, 11, 6, 0)
+        val night = et(2026, 9, 11, 23, 30)
+        assertEquals(MarketClock.dayKey(morning), MarketClock.dayKey(night))
+        assertEquals("20260911", MarketClock.dayKey(morning))
+    }
+
+    @Test fun `dayKey changes at ET midnight, not UTC midnight`() {
+        // 23:30 ET on the 11th and 00:30 ET on the 12th are only an hour apart, but they are
+        // on either side of the boundary this key is supposed to track. A UTC-based
+        // implementation would get this wrong for hours around US midnight, since ET trails
+        // UTC by four or five hours depending on daylight saving.
+        val before = et(2026, 9, 11, 23, 30)
+        val after = et(2026, 9, 12, 0, 30)
+        assertNotEquals(MarketClock.dayKey(before), MarketClock.dayKey(after))
+        assertEquals("20260911", MarketClock.dayKey(before))
+        assertEquals("20260912", MarketClock.dayKey(after))
+    }
+
     @Test fun `market phases sit on the right side of every boundary`() {
         // Thursday 3 September 2026 is a normal weekday
         val cases = listOf(
