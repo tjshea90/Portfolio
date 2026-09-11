@@ -274,7 +274,7 @@ ${if (useWebSearch) "Search the web for what is actually happening with these na
 For every name you return, write one plain-English explanation of WHY it is worth trading today
 - name the specific event, never "high investor interest" - and name the one specific thing
 that could go wrong today (earnings after the close, a lockup expiry, a scheduled Fed
-announcement, a pending halt). Only stocks trading at \$2 a share or more. Be candid in "notes"
+announcement, a pending halt). Only stocks trading at $2 a share or more. Be candid in "notes"
 about what you dropped and why; a short list is a better answer than a padded one.
 
 Return ONLY a JSON object, no markdown fences. The block below is a SCHEMA, not an example
