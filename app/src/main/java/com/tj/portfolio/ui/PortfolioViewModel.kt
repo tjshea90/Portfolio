@@ -653,6 +653,7 @@ internal fun mergeDayTradingTech(
         premarketHigh = effective.premarketHigh,
         sessionHigh = effective.sessionHigh,
         sessionLow = effective.sessionLow,
+        sessionDay = effective.sessionDay,
         // THE PLAN MOVES AS A UNIT, or not at all. Entry, stop, target, setup, trigger and note
         // are six views of ONE decision: a stop from this tick's structure under an entry from
         // the last tick's would describe a trade nobody planned. A tick that produces no plan
