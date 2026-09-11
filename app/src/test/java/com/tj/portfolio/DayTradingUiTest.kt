@@ -209,4 +209,44 @@ class DayTradingUiTest {
         assertTrue(t.contains("Not financial advice"))
         assertFalse("must never promise which stocks rise", t.contains("will rise"))
     }
+
+    // ==================================================== the card's own 1-day chart (Round 70)
+    //
+    // Tj: "put a stock chart next to each of the stocks in the day trading section... only
+    // that current day's chart, good for day trading." `ResearchCard` draws whatever
+    // `ResearchScreen` hands it through `dayChart`/`dayChartLoading` - it does no fetching of
+    // its own, so these render the card directly with each state that lookup can produce.
+
+    @Test fun `a day trading card draws today's chart once one has arrived`() {
+        val series = ChartSeries(
+            symbol = "GME", range = ChartRange.D1,
+            points = listOf(ChartPoint(1L, 21.0), ChartPoint(2L, 22.5)),
+            baseline = 21.0
+        )
+        show { Column(Modifier.fillMaxWidth()) {
+            ResearchCard(row(), followed = false, onOpen = {}, onOpenUrl = { _, _ -> }, dayChart = series)
+        } }
+        // The chart's own caption is proof [PriceChart] actually rendered, not just that
+        // nothing crashed - same reasoning `assertNothingOverflows` elsewhere in this project
+        // documents for why these tests compose the real widget.
+        rule.onNodeWithText(ChartRange.D1.caption, substring = true).assertExists()
+    }
+
+    @Test fun `a day trading card still fetching its chart shows the loading line, not a hole`() {
+        show { Column(Modifier.fillMaxWidth()) {
+            ResearchCard(row(), followed = false, onOpen = {}, onOpenUrl = { _, _ -> }, dayChartLoading = true)
+        } }
+        rule.onNodeWithText("Loading ${ChartRange.D1.label} chart...").assertExists()
+    }
+
+    @Test fun `a card with no chart yet and none loading draws no chart caption at all`() {
+        // The Best/Trending/ETF cards reuse this same composable and never pass a chart -
+        // this is the regression guard that they stay exactly as they were.
+        show { Column(Modifier.fillMaxWidth()) {
+            ResearchCard(row(), followed = false, onOpen = {}, onOpenUrl = { _, _ -> })
+        } }
+        val t = texts().joinToString(" ")
+        assertFalse("no chart was requested for this card: $t", t.contains(ChartRange.D1.caption))
+        assertFalse(t.contains("Loading"))
+    }
 }
