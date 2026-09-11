@@ -731,9 +731,24 @@ fun DetailScreen(
         }
 
         // ---- pinned price
+        //
+        // TJ, with a screenshot of this exact header: *"move the buy sell hold tab from where
+        // it currently is to somewhere around where the arrow points. don't change it's
+        // function, only the placement."* The arrow pointed here - next to the price, not
+        // down in the tab strip. `DetailTab.RECOMMENDATION` is gone; [RecommendationBadge] is
+        // a plain flow element beside `PriceBlock` now, not an overlay, so it can never
+        // collide with the after-hours column growing at a large font scale the way an
+        // absolutely-positioned badge could.
         if (row != null) {
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                PriceBlock(row, big = true)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(Modifier.weight(1f)) {
+                    PriceBlock(row, big = true)
+                }
+                Spacer(Modifier.width(8.dp))
+                RecommendationBadge(recommendation) { showRecommendation = true }
             }
         }
 
