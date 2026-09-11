@@ -834,6 +834,17 @@ internal fun ResearchCard(
                 }
             }
 
+            // --- HOW THE SCORE WAS BUILT (Round 72) - "app shows its work," the same rule
+            // every other score in this file follows. Only for a row the app actually scored;
+            // a Claude-added pick has no likelihood/confidence to show (see
+            // [ResearchRow.dtLikelihood]'s header) and draws the "CLAUDE n/10" badge instead.
+            if (r.dtLikelihood > 0) Text(
+                "Score = ${r.dtLikelihood} likelihood × ${r.dtConfidence}% confidence",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 3.dp)
+            )
+
             // --- TODAY'S CHART (Round 70). Tj: "put a stock chart next to each of the stocks
             // in the day trading section... only that current day's chart, good for day
             // trading." [PriceChart] is the SAME composable [DetailScreen]'s Overview tab
