@@ -700,7 +700,14 @@ private fun ResearchCard(
     onOpenUrl: (String, String) -> Unit,
     /** " - last session" etc., computed from [com.tj.portfolio.net.MarketClock.phase] for the
      *  Day Trading tab only - see the fix note in [ResearchScreen]. Blank everywhere else. */
-    sessionSuffix: String = ""
+    sessionSuffix: String = "",
+    /**
+     * Today's 5-minute series for this row, Day Trading only - see [ResearchScreen]'s
+     * `chartMap` lookup. Null everywhere else, and null here too until the live loop's
+     * [PortfolioViewModel.enrichDayTradingVisible] has actually fetched it.
+     */
+    dayChart: com.tj.portfolio.data.ChartSeries? = null,
+    dayChartLoading: Boolean = false
 ) {
     // Colour is by score. See `scoreColor`, and the note there about why it no longer takes
     // a direction. This colour is printed as the score itself, on a 16%-alpha tint that
