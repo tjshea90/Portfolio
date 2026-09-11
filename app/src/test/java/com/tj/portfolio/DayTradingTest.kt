@@ -385,6 +385,138 @@ class DayTradingTest {
         assertTrue(out.reasons.any { it.contains("opening-range breakout") })
     }
 
+    // ==================================== likelihood x confidence (Round 72)
+    //
+    // Tj: "make the scores reflect a blend of how likely the stock is to rise... and how
+    // confident this prediction is... a score of 100 means... very likely to raise... and...
+    // extremely confident." [ResearchScore.dayTradingConfidence] is the new half; [dayTrading]
+    // and [withTechnicals] above are the unchanged "likelihood" half.
+
+    private fun confRow(
+        rvol: Double = 1.0,
+        changePct: Double = 0.0,
+        rangePos52w: Double? = null,
+        mostShorted: Boolean = false
+    ) = ScreenRow(
+        symbol = "HOT",
+        price = 12.0,
+        changePct = changePct,
+        volume = (rvol * 4_000_000.0),
+        avgVolume3M = 4_000_000.0,
+        fiftyTwoWeekLow = 6.0,
+        fiftyTwoWeekHigh = if (rangePos52w != null) 6.0 + (12.0 - 6.0) / rangePos52w.coerceAtLeast(0.01) else 20.0,
+        lists = if (mostShorted) setOf(Screener.Lists.MOST_SHORTED) else emptySet()
+    )
+
+    @Test fun `no confirming signal at all means zero confidence, not a fabricated baseline`() {
+        val quietRow = ScreenRow(
+            symbol = "MEH", price = 12.0, changePct = 0.1,
+            volume = 4_000_000.0, avgVolume3M = 4_000_000.0,
+            fiftyTwoWeekLow = 10.0, fiftyTwoWeekHigh = 14.0
+        )
+        assertEquals(0, ResearchScore.dayTradingConfidence(quietRow))
+    }
+
+    @Test fun `each of the three non-technical checks adds one fifth on its own`() {
+        val rvolOnly = confRow(rvol = 3.0)
+        assertEquals(20, ResearchScore.dayTradingConfidence(rvolOnly))
+
+        val moveOnly = confRow(changePct = 5.0)
+        assertEquals(20, ResearchScore.dayTradingConfidence(moveOnly))
+
+        val nearHighOnly = ScreenRow(
+            symbol = "HOT", price = 19.0,
+            fiftyTwoWeekLow = 6.0, fiftyTwoWeekHigh = 20.0
+        )
+        assertEquals(20, ResearchScore.dayTradingConfidence(nearHighOnly))
+    }
+
+    @Test fun `squeeze shape and nearing the 52-week high are the SAME check, not two`() {
+        // Both conditions true at once must still only contribute one fifth - they are read as
+        // "structural strength," a single confirmation, not double-counted.
+        val both = ScreenRow(
+            symbol = "HOT", price = 19.0, changePct = 5.0,
+            volume = 12_000_000.0, avgVolume3M = 4_000_000.0,
+            fiftyTwoWeekLow = 6.0, fiftyTwoWeekHigh = 20.0,
+            lists = setOf(Screener.Lists.MOST_SHORTED)
+        )
+        // rvol (20) + move (20) + structure (20, not 40) = 60, no technicals yet.
+        assertEquals(60, ResearchScore.dayTradingConfidence(both))
+    }
+
+    @Test fun `most-shorted membership ALONE, with no real volume or move, confirms nothing`() {
+        // Membership on the screen is a slow-moving structural fact, not today's evidence - see
+        // [dayTrading]'s own reasoning on this exact input.
+        val membershipOnly = confRow(mostShorted = true)
+        assertEquals(0, ResearchScore.dayTradingConfidence(membershipOnly))
+    }
+
+    @Test fun `an unfetched technical counts as not confirmed, never as confirmed false`() {
+        val row = confRow(rvol = 3.0, changePct = 5.0)
+        // Two of three non-technical checks pass; VWAP/opening-range are simply unknown
+        // (tech = null), which must score as "not yet confirmed" - not skip the denominator.
+        assertEquals(40, ResearchScore.dayTradingConfidence(row, tech = null))
+    }
+
+    @Test fun `VWAP and the opening-range breakout each add their own fifth once confirmed`() {
+        val row = confRow()
+        val aboveVwap = ResearchScore.dayTradingConfidence(row, tech(vwap = 10.0))
+        assertEquals(20, aboveVwap)
+        val brokeOut = ResearchScore.dayTradingConfidence(row, tech(orHigh = 11.0, orComplete = true))
+        assertEquals(20, brokeOut)
+        val both = ResearchScore.dayTradingConfidence(
+            row, tech(vwap = 10.0, orHigh = 11.0, orComplete = true)
+        )
+        assertEquals(40, both)
+    }
+
+    @Test fun `below VWAP or an incomplete opening range confirms nothing, not a negative`() {
+        val row = confRow()
+        assertEquals(0, ResearchScore.dayTradingConfidence(row, tech(vwap = 20.0))) // price 12 < vwap 20
+        assertEquals(
+            0,
+            ResearchScore.dayTradingConfidence(row, tech(orHigh = 11.0, orComplete = false))
+        )
+    }
+
+    @Test fun `all five checks confirming reaches exactly 100, never more`() {
+        val row = ScreenRow(
+            symbol = "HOT", price = 19.0, changePct = 5.0,
+            volume = 12_000_000.0, avgVolume3M = 4_000_000.0,
+            fiftyTwoWeekLow = 6.0, fiftyTwoWeekHigh = 20.0,
+            lists = setOf(Screener.Lists.MOST_SHORTED)
+        )
+        val maxed = ResearchScore.dayTradingConfidence(
+            row, tech(vwap = 15.0, orHigh = 17.0, orComplete = true)
+        )
+        assertEquals(100, maxed)
+    }
+
+    @Test fun `technicalConfirmationBonus alone matches its half of the full checklist`() {
+        assertEquals(0, ResearchScore.technicalConfirmationBonus(12.0, null))
+        assertEquals(20, ResearchScore.technicalConfirmationBonus(12.0, tech(vwap = 10.0)))
+        assertEquals(
+            40,
+            ResearchScore.technicalConfirmationBonus(
+                12.0, tech(vwap = 10.0, orHigh = 11.0, orComplete = true)
+            )
+        )
+    }
+
+    @Test fun `blendedScore needs both halves high to reach anywhere near 100`() {
+        assertEquals(100, ResearchScore.blendedScore(100, 100))
+        assertEquals(0, ResearchScore.blendedScore(100, 0))
+        assertEquals(0, ResearchScore.blendedScore(0, 100))
+        // A strong-looking 90 likelihood at only 40% confidence reads as a modest 36, not a
+        // footnote beside an unreduced 90 - the whole point of multiplying instead of averaging.
+        assertEquals(36, ResearchScore.blendedScore(90, 40))
+    }
+
+    @Test fun `blendedScore never exceeds 100 or goes negative for in-range inputs`() {
+        assertEquals(100, ResearchScore.blendedScore(100, 100))
+        assertEquals(0, ResearchScore.blendedScore(0, 0))
+    }
+
     // ============================================== the beginner summary (Round 71)
     //
     // Tj: "add a summary of what to do and why that is simple to read for complete beginners
