@@ -1,13 +1,13 @@
-# CHECKPOINT 659 — read me first, then TASKS.md
+# CHECKPOINT 660 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T19:11:36Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/day-trading-beginner-summaries-8x83la` · **builds on:** `bc32d8f` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T19:20:23Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/day-trading-beginner-summaries-8x83la` · **builds on:** `a4e55c3` (this checkpoint is the commit after it)
 
 ## Just done
-Recorded Tj's 'continue all tasks with sonnet' override (unblocks Part 6.2) and his new Part 7 request (beginner-friendly plain-English day-trading summary) in TASKS.md, verbatim, before writing any code.
+Added ResearchScore.beginnerSummary(): a pure, testable function that restates the SAME entry/stop/target numbers tradePlan already computes as a plain-English 'buy if it climbs/drops to X, sell at Y' instruction, with 'too late/don't buy' and 'skip, setup failed' cases read directly off price vs. target/stop (never a second opinion - shares THIN_REWARD_RATIO with planNote so the two can't contradict). Wired into a new BeginnerSummaryCard composable, drawn on the Day Trading list card and in the tap-to-expand DayTradingPlanContent (both places TradeLevelsGrid already draws). 8 new pure-logic tests in DayTradingTest.kt, 6 new render tests in DayTradingUiTest.kt - all green.
 
 ## Do this next
-Design and implement ResearchScore.beginnerSummary(r): a pure, testable function over the existing entry/stop/target/setup numbers that produces a plain-English buy/sell/skip headline plus simple reasoning, with cases for 'too late/don't buy' when price already passed target or stop. Wire it into the Day Trading card and DayTradingPlanContent (detail view). Add unit tests. Then decide whether to also start Part 6.2 (confidence-blended score) in the same session.
+Run the full Gradle unit suite (not just the two Day Trading test classes) to confirm no regressions elsewhere, then ship.sh.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Design and implement ResearchScore.beginnerSummary(r): a pure, testable function
 
 ## Last ten checkpoints
 ```
+  1f52ae5 ckpt 659: Recorded Tj's 'continue all tasks with sonnet' override (unblocks Part 6.2) an
   0ebe5ab ckpt 658: Shipped v7.15 (code 72): Part 6.1 of the Day Trading request - per-stock 1D ch
   c2227da ckpt 657: gated v7.15 (code 72) and pushed it: checkinit, the full unit suite and the ve
   77baaa5 ckpt 656: Recorded Tj's Part 6 request (day-trading charts/tabbed-detail/watchlist butto
@@ -26,5 +27,5 @@ Design and implement ResearchScore.beginnerSummary(r): a pure, testable function
   87237be ckpt 651: Review pass on the new engine found and fixed three real issues before shippin
 ```
 
-(1 automatic checkpoint(s) since the last deliberate one — the
+(10 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
