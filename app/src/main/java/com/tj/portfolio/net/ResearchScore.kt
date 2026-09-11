@@ -823,6 +823,78 @@ object ResearchScore {
         }
     }
 
+    // ================================================== LIKELIHOOD x CONFIDENCE (Round 72)
+
+    /**
+     * HOW MANY INDEPENDENT SIGNALS ACTUALLY CONFIRM THE BULLISH CASE, OUT OF A FIXED CHECKLIST -
+     * not a probability, and never claimed as one; the closest honest proxy this app can compute
+     * for "how sure is this call" from public data. See [dayTrading]'s header for why a genuine
+     * forecast is not achievable at all - this measures AGREEMENT among real signals, not the
+     * odds of an outcome.
+     *
+     * Tj, 2026-09-11: *"make the scores reflect a blend of how likely the stock is to rise in
+     * value from its target buy price and how confident this prediction is... a score of 100
+     * means the stock is very likely to raise in value... and that the model is extremely
+     * confident that this will happen."* [dayTrading] (plus [withTechnicals]) already computes
+     * the "how likely" half - the standard volume/momentum/breakout continuation signals the
+     * day-trading literature cited throughout this file points to. What it never produced is a
+     * genuine, independent CONFIDENCE number: [Scored.confidence] exists but only ever measured
+     * data completeness, and both call sites that produce a `Scored` for a Day Trading row
+     * discard it before it reaches the screen. This is that missing half.
+     *
+     * FIVE FIXED CHECKS, EACH COUNTED ONLY WHEN ACTUALLY CONFIRMED - never when merely unknown.
+     * A signal this app has not fetched yet (VWAP and the opening range, before the live
+     * technicals sweep runs) counts as "not confirmed," the same as a signal that was checked
+     * and came back negative - NOT as "skip this check," which would let an early row reach the
+     * same confidence as a fully-enriched one on a fifth of the evidence. The denominator is
+     * always the full five, so confidence is honestly lower before the fuller picture has
+     * arrived, and only rises as real confirmations arrive - never the other way round.
+     *
+     *  1. Heavy relative volume - the single best "is this real" proxy [dayTrading] itself leads
+     *     with.
+     *  2. The move is already real - up a meaningful amount today, not just loud.
+     *  3. Trading above VWAP - buyers in control this session (once VWAP has been fetched).
+     *  4. A CONFIRMED opening-range breakout - not just a high opening range, one price has
+     *     actually broken above (once the opening range has completed and been fetched).
+     *  5. Structural strength - near the 52-week high, or a genuine short-squeeze shape (heavy
+     *     volume AND a real move on a heavily-shorted name, not membership alone).
+     *
+     * DELIBERATELY EXCLUDED: an upcoming earnings print ([dayTrading]'s own catalyst bonus) can
+     * send a stock either direction, so it is not bullish confirmation of anything; WSB/news
+     * mention volume is chatter, and [dayTrading]'s own comment on that input already says "day
+     * trading needs the move and the volume to be REAL first... chatter alone describes what
+     * people are saying, not what the tape is doing" - counting it here would let loud, unproven
+     * talk buy confidence the tape has not earned.
+     */
+    fun dayTradingConfidence(r: ScreenRow, tech: DayTradingTechnicals.DayTechnicals? = null): Int {
+        var confirmed = 0
+        if (r.volumeRatio >= 2.0) confirmed++
+        if (r.changePct.isFinite() && r.changePct >= 3.0) confirmed++
+        if (tech != null && tech.vwap > 0.0 && r.price > tech.vwap) confirmed++
+        if (tech != null && tech.openingRangeComplete && tech.openingRangeHigh > 0.0 &&
+            r.price > tech.openingRangeHigh
+        ) confirmed++
+        val squeeze = Screener.Lists.MOST_SHORTED in r.lists &&
+            r.volumeRatio >= 2.0 && r.changePct >= 3.0
+        val nearHigh = r.rangePos in 0.0..1.0 && r.rangePos > 0.85
+        if (squeeze || nearHigh) confirmed++
+        return confirmed * 100 / CONFIRMATION_CHECKS
+    }
+
+    private const val CONFIRMATION_CHECKS = 5
+
+    /**
+     * THE SCORE TJ ASKED FOR: how likely this stock is to rise, blended with how confident that
+     * call is - multiplicatively, so it takes BOTH being high to reach 100, matching his own
+     * example directly. A stock with every bullish signal firing but only two of five
+     * confirmations checkable yet (score 90, confidence 40%) reads 36, not 90 - the low
+     * confidence pulls the displayed number down rather than being a footnote beside a
+     * still-impressive-looking score, which is the whole point of blending them instead of
+     * showing them side by side unreduced.
+     */
+    fun blendedScore(likelihood: Int, confidence: Int): Int =
+        (likelihood * confidence / 100).coerceIn(0, 100)
+
     // ----------------------------------------------------------- analyst overlay
 
     /**
