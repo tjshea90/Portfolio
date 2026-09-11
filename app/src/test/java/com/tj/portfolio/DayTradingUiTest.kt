@@ -297,6 +297,35 @@ class DayTradingUiTest {
         assertFalse("must not invent a risk from a missing stop: $t", t.contains("Risking"))
     }
 
+    @Test fun `the dialog explains how a scored row's score was built, and that it is not a probability`() {
+        show {
+            DayTradingDetailDialog(
+                row().copy(dtLikelihood = 82, dtConfidence = 60, score = 49),
+                onDismiss = {}
+            )
+        }
+        val t = texts().joinToString(" ")
+        assertTrue("must name the two halves: $t", t.contains("How the score is built"))
+        assertTrue(t.contains("Likelihood 82"))
+        assertTrue(t.contains("confidence 60%"))
+        assertTrue(
+            "must not overclaim a real probability: $t",
+            t.contains("not a probability")
+        )
+    }
+
+    @Test fun `a Claude-authored pick's dialog shows no score breakdown - it has none to show`() {
+        show {
+            DayTradingDetailDialog(
+                row().copy(planByClaude = true, setup = "Gap and go"),
+                onDismiss = {}
+            )
+        }
+        val t = texts().joinToString(" ")
+        assertFalse("no likelihood/confidence for a row the app did not score: $t",
+            t.contains("How the score is built"))
+    }
+
     @Test fun `a plan Claude set is labelled as Claude's, never as the app's arithmetic`() {
         show {
             DayTradingDetailDialog(
