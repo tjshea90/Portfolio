@@ -237,23 +237,13 @@ fun ResearchScreen(
         com.tj.portfolio.net.MarketClock.Phase.CLOSED -> " - last session"
     }
 
-    // The tap-to-explain dialog Tj asked for: "click on each stock and there is an
-    // explanation for the buy and sell points and why the stock is recommended."
-    //
-    // HOLDS THE SYMBOL, NOT A ROW SNAPSHOT (a real bug caught by review before shipping). The
-    // whole point of the live loop above is that a row's technicals and levels keep improving
-    // while the tab is open - a dialog that captured `r` once at tap time would freeze on
-    // whatever the row looked like at that instant, including a "still gathering" placeholder
-    // for a stock whose real ATR/VWAP arrive forty seconds into reading it. Re-deriving from
-    // `set` on every recomposition means the open dialog updates the moment the live loop does.
-    var dayTradingDetailSymbol by remember { mutableStateOf<String?>(null) }
-    dayTradingDetailSymbol?.let { sym ->
-        // Simply does not show if the row is gone (a rebuild dropped it) - rather than
-        // mutating state mid-composition to clear it, which Compose does not want here.
-        set.dayTrading.firstOrNull { it.symbol == sym }?.let { r ->
-            DayTradingDetailDialog(r, onDismiss = { dayTradingDetailSymbol = null })
-        }
-    }
+    // ROUND 70: "click on each stock and there is an explanation" no longer opens a dialog of
+    // its own. Tapping a Day Trading card now goes through the SAME `onOpen` every other list
+    // uses, to the stock's own [DetailScreen] - which draws this exact explanation (via
+    // [DayTradingPlanContent], re-derived live from `vm.research` the same way this dialog used
+    // to be) at the top of its Overview tab, plus the tabs Tj asked for. See TASKS.md Part 6.
+    val chartMap by vm.charts.collectAsState()
+    val chartLoadingSet by vm.chartLoading.collectAsState()
 
     // KEYED ON ALL THREE CLOCKS. `etfGenerated` was missing, so on the ETFs tab the
     // watched/held set - two SQLite reads, which is why it is remembered at all - was only
