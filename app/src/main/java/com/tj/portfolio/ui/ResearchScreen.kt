@@ -766,10 +766,20 @@ internal fun ResearchCard(
                         .size(46.dp)
                         .background(c.copy(alpha = 0.16f), CircleShape)
                         .semantics(mergeDescendants = true) {
-                            contentDescription = if (fromClaude)
-                                "Claude's conviction ${r.conviction} out of 10; " +
+                            contentDescription = when {
+                                fromClaude -> "Claude's conviction ${r.conviction} out of 10; " +
                                     "this fund was not scored by the app"
-                            else "Score ${r.score} out of 100"
+                                // A DAY-TRADING SCORE IS A BLEND, NOT A RAW SIGNAL (Round 72) -
+                                // Tj: "make the scores reflect a blend of how likely the stock
+                                // is to rise... and how confident this prediction is." Said once
+                                // here rather than only in visible text, so the same distinction
+                                // reaches a screen reader.
+                                r.dtLikelihood > 0 -> "Score ${r.score} out of 100 - a blend of " +
+                                    "how likely this stock is to keep rising " +
+                                    "(${r.dtLikelihood} out of 100) and how confident that call " +
+                                    "is (${r.dtConfidence} percent)"
+                                else -> "Score ${r.score} out of 100"
+                            }
                         },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
