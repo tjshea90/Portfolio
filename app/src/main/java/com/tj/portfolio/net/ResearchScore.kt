@@ -512,15 +512,29 @@ object ResearchScore {
         if (vol <= 0.0) return null
         val buffer = maxOf(0.01, vol * BREAK_BUFFER_ATRS)
 
-        val overhead = levelsOf(
+        // ONLY THE LIVE SESSION'S LEVELS COUNT AS THE LIVE SESSION'S - a correction caught
+        // while writing this. Outside market hours the intraday readings describe a session
+        // that has ALREADY ENDED: its VWAP is gone (VWAP resets at every open), its opening
+        // range is yesterday's, and `rangeUsed` is pinned near 100% simply because the day
+        // finished - which would have routed literally every overnight plan into "extended, buy
+        // the pullback" on the strength of a number that says nothing about tomorrow. Outside
+        // hours this plans the only thing that is actually plannable: the break of prior-session
+        // structure, which is the gap-and-go trader's overnight homework.
+        val live = tech.sessionLive
+        val overhead = if (live) levelsOf(
             tech.premarketHigh to "the premarket high",
             tech.openingRangeHigh to "the opening-range high",
             tech.prevHigh to "the prior session's high",
             tech.sessionHigh to "the high of day",
             tech.r1 to "pivot R1",
             tech.r2 to "pivot R2"
+        ) else levelsOf(
+            tech.premarketHigh to "the premarket high",
+            tech.prevHigh to "the last session's high",
+            tech.r1 to "pivot R1",
+            tech.r2 to "pivot R2"
         )
-        val below = levelsOf(
+        val below = if (live) levelsOf(
             tech.vwap to "VWAP",
             tech.openingRangeHigh to "the opening-range high, now support",
             tech.openingRangeLow to "the opening-range low",
@@ -529,17 +543,23 @@ object ResearchScore {
             tech.pivot to "the daily pivot",
             tech.sessionLow to "the session low",
             tech.s1 to "pivot S1"
+        ) else levelsOf(
+            tech.prevHigh to "the last session's high, now support",
+            tech.prevClose to "the last close",
+            tech.pivot to "the daily pivot",
+            tech.prevLow to "the last session's low",
+            tech.s1 to "pivot S1"
         )
 
-        val extendedOverVwap = tech.vwap > 0.0 && (price - tech.vwap) / vol >= EXTENDED_ATRS
-        val rangeSpent = tech.rangeUsed >= EXTENDED_RANGE_USED
+        val extendedOverVwap = live && tech.vwap > 0.0 && (price - tech.vwap) / vol >= EXTENDED_ATRS
+        val rangeSpent = live && tech.rangeUsed >= EXTENDED_RANGE_USED
 
         // ---- 1 and 2: the setup, and the price it triggers at.
         val setup: String
         val entry: Double
         val entryLevel: String
         when {
-            tech.vwap > 0.0 && price < tech.vwap -> {
+            live && tech.vwap > 0.0 && price < tech.vwap -> {
                 setup = SETUP_RECLAIM
                 entry = tech.vwap + buffer
                 entryLevel = "VWAP"
