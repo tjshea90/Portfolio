@@ -315,4 +315,96 @@ class DetailTabsUiTest {
         show { ExplainDialog(e) {} }
         assertNothingOverflows("target explanation")
     }
+
+    // ------------------------------------------------- the BUY/HOLD/SELL popup
+    //
+    // The same discipline as the "i" dialog above, for the same reason: a Robolectric render
+    // is the closest this project gets to "opened it on a phone" without one attached to the
+    // container, and it is what already caught the two real layout bugs this file's own
+    // header describes. Gradle's unit-test pass proves `RecommendationScoreTest` computes the
+    // right numbers; it says nothing about whether the popup actually composes without
+    // throwing or whether the text that matters is on screen at all.
+
+    private fun rec(
+        verdict: TradeVerdict = TradeVerdict.BUY,
+        reasons: List<String> = listOf("Strong Buy consensus - 16 buy / 2 hold / 0 sell across 18 analysts"),
+        targetMean: Double = 250.0,
+        analystCount: Int = 18,
+        confidence: Int = 90
+    ) = Recommendation(
+        symbol = "NVDA", verdict = verdict, score = 80, reasons = reasons,
+        confidence = confidence, targetMean = targetMean, targetHigh = 300.0, targetLow = 200.0,
+        analystCount = analystCount, price = 200.0, dayKey = "20260911"
+    )
+
+    @Test fun `a BUY recommendation renders its verdict, target and reasons`() {
+        show { RecommendationDialog(rec(), "NVDA") {} }
+        rule.onNodeWithText("BUY").assertExists()
+        rule.onNodeWithText("NVDA - Buy").assertExists()
+        rule.onNodeWithText(
+            "Strong Buy consensus - 16 buy / 2 hold / 0 sell across 18 analysts",
+            substring = true
+        ).assertExists()
+        assertNothingOverflows("recommendation dialog (buy)")
+    }
+
+    @Test fun `a SELL recommendation with no target says so rather than inventing one`() {
+        show {
+            RecommendationDialog(
+                rec(
+                    verdict = TradeVerdict.SELL,
+                    reasons = listOf("Strong sell consensus - 1 buy / 2 hold / 15 sell across 18 analysts"),
+                    targetMean = 0.0
+                ).copy(targetHigh = 0.0, targetLow = 0.0),
+                "XYZ"
+            ) {}
+        }
+        rule.onNodeWithText("SELL").assertExists()
+        rule.onNodeWithText("No analyst price target is published for XYZ").assertExists()
+        assertNothingOverflows("recommendation dialog (sell, no target)")
+    }
+
+    @Test fun `a HOLD with thin coverage shows the low-confidence caveat`() {
+        show { RecommendationDialog(rec(verdict = TradeVerdict.HOLD, analystCount = 0, confidence = 20), "SPY") {} }
+        rule.onNodeWithText(
+            "No analyst coverage found for SPY - this reads on price, valuation and " +
+                "growth alone, so treat it with extra caution.",
+            substring = true
+        ).assertExists()
+    }
+
+    @Test fun `the still-gathering state shows instead of a blank dialog`() {
+        show { RecommendationDialog(null, "NVDA") {} }
+        rule.onNodeWithText("Still gathering data for NVDA - check back in a moment.").assertExists()
+    }
+
+    @Test fun `the recommendation dialog dismisses`() {
+        var open = true
+        show { if (open) RecommendationDialog(rec(), "NVDA") { open = false } }
+        rule.onNodeWithText("Got it").performClick()
+        assertTrue("the confirm button must call back", !open)
+    }
+
+    @Test fun `tapping the recommendation tab shows its live verdict word and color, not the placeholder`() {
+        show {
+            DetailTabRow(
+                tabs = listOf(DetailTab.ANALYSTS, DetailTab.RECOMMENDATION, DetailTab.NEWS),
+                selected = DetailTab.ANALYSTS,
+                recommendationLabel = "Sell",
+                recommendationColor = androidx.compose.ui.graphics.Color(0xFFC62828)
+            ) {}
+        }
+        rule.onNodeWithText("Sell").assertExists()
+        rule.onNodeWithText("...").assertDoesNotExist()
+    }
+
+    @Test fun `before a recommendation lands the tab shows the placeholder, not a blank tab`() {
+        show {
+            DetailTabRow(
+                tabs = listOf(DetailTab.ANALYSTS, DetailTab.RECOMMENDATION, DetailTab.NEWS),
+                selected = DetailTab.ANALYSTS
+            ) {}
+        }
+        rule.onNodeWithText("...").assertExists()
+    }
 }
