@@ -245,9 +245,11 @@ fun ResearchScreen(
     // `set` on every recomposition means the open dialog updates the moment the live loop does.
     var dayTradingDetailSymbol by remember { mutableStateOf<String?>(null) }
     dayTradingDetailSymbol?.let { sym ->
-        val r = set.dayTrading.firstOrNull { it.symbol == sym }
-        if (r != null) DayTradingDetailDialog(r, onDismiss = { dayTradingDetailSymbol = null })
-        else dayTradingDetailSymbol = null // the row is gone (a rebuild dropped it) - nothing to show
+        // Simply does not show if the row is gone (a rebuild dropped it) - rather than
+        // mutating state mid-composition to clear it, which Compose does not want here.
+        set.dayTrading.firstOrNull { it.symbol == sym }?.let { r ->
+            DayTradingDetailDialog(r, onDismiss = { dayTradingDetailSymbol = null })
+        }
     }
 
     // KEYED ON ALL THREE CLOCKS. `etfGenerated` was missing, so on the ETFs tab the
