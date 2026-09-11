@@ -283,6 +283,7 @@ data class ResearchRow(
         if (setup.isNotBlank()) put("setup", setup)
         if (trigger.isNotBlank()) put("trigger", trigger)
         if (planNote.isNotBlank()) put("planNote", planNote)
+        if (planByClaude) put("planByClaude", true)
         if (atrIntraday > 0) put("atrIntraday", atrIntraday)
         if (adr > 0) put("adr", adr)
         if (prevHigh > 0) put("prevHigh", prevHigh)
@@ -378,6 +379,7 @@ data class ResearchRow(
                 setup = o.text("setup"),
                 trigger = o.text("trigger"),
                 planNote = o.text("planNote"),
+                planByClaude = o.optBoolean("planByClaude", false),
                 atrIntraday = o.optDouble("atrIntraday", 0.0).orZero(),
                 adr = o.optDouble("adr", 0.0).orZero(),
                 prevHigh = o.optDouble("prevHigh", 0.0).orZero(),
