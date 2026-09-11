@@ -59,6 +59,37 @@ fun PortfolioScreen(
     val recoverable by vm.recoverableBackup.collectAsState()
     var restoring by remember { mutableStateOf(false) }
 
+    // ---- BUY/HOLD/SELL ON EVERY ROW, NOT JUST THE ONE OPENED IN DETAIL.
+    //
+    // TJ: *"include them in the main portfolio tab next to each stock."* `loadFundamentals`
+    // used to have exactly one caller - `DetailScreen`, one symbol at a time - so fundamentals
+    // (and the consensus a recommendation is scored from) simply did not exist yet for a
+    // holding TJ had never opened. `loadPortfolioFundamentals` asks for the whole board,
+    // staggered rather than all at once - see its KDoc in PortfolioViewModel.kt.
+    //
+    // KEYED ON THE SYMBOL LIST, NOT ON `rows` ITSELF. `rows` carries the live quote and
+    // recomposes on every price tick (four times a minute); a `List<String>` of symbols only
+    // actually changes when a position is added or removed, and two structurally-equal lists
+    // compare equal as a Compose key even though `.map` allocates a new one on every
+    // recomposition - so this does not re-fire on a price tick, only on a real change to what
+    // is held. Same reasoning DetailScreen's own effects already document for `rememberUpdatedState`.
+    val fundMap by vm.fundamentals.collectAsState()
+    val recommendations by vm.recommendations.collectAsState()
+    val heldSymbols = rows.map { it.symbol }
+
+    LaunchedEffect(heldSymbols) {
+        if (heldSymbols.isNotEmpty()) vm.loadPortfolioFundamentals(heldSymbols)
+    }
+
+    // Fires again once fundamentals for a symbol actually arrive (fundMap's CONTENT changes,
+    // which is a separate, much less frequent StateFlow than the quote poll behind `rows`).
+    // `loadRecommendation` is a local read-and-compute with no network cost of its own and a
+    // once-a-trading-day cache, so calling it again for a row that already has today's answer
+    // is a guard check, not a repeated fetch.
+    LaunchedEffect(heldSymbols, fundMap) {
+        rows.forEach { r -> if (fundMap[r.symbol] != null) vm.loadRecommendation(r.symbol, r.price) }
+    }
+
     Column(Modifier.fillMaxSize()) {
 
         Row(
