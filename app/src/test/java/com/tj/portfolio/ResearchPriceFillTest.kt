@@ -9,7 +9,6 @@ import com.tj.portfolio.ui.PortfolioViewModel
 import com.tj.portfolio.ui.withDayTradingLevels
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
