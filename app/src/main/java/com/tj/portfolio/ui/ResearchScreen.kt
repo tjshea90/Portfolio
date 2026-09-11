@@ -624,7 +624,8 @@ private fun ResearchCard(
     followed: Boolean,
     onOpen: (String) -> Unit,
     onOpenUrl: (String, String) -> Unit,
-    /** " - last session" etc. - see [Section.sessionSuffix]. Blank outside Day Trading. */
+    /** " - last session" etc., computed from [com.tj.portfolio.net.MarketClock.phase] for the
+     *  Day Trading tab only - see the fix note in [ResearchScreen]. Blank everywhere else. */
     sessionSuffix: String = ""
 ) {
     // Colour is by score. See `scoreColor`, and the note there about why it no longer takes
