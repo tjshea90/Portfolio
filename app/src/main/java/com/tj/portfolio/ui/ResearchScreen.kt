@@ -408,6 +408,27 @@ fun ResearchScreen(
 
                 item(key = "blurb") {
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        // THE FIX TJ ASKED FOR, IN ONE VISIBLE LINE: which session these picks
+                        // describe, stated plainly rather than left to be inferred (wrongly)
+                        // from an "up X% today" that used to read the same at 3am Sunday as
+                        // at 10am Tuesday.
+                        if (section == Section.DAY_TRADING) {
+                            Text(
+                                when (marketPhase) {
+                                    com.tj.portfolio.net.MarketClock.Phase.OPEN ->
+                                        "Market open - today's picks, live"
+                                    com.tj.portfolio.net.MarketClock.Phase.EXTENDED ->
+                                        "Extended hours - today's picks so far"
+                                    com.tj.portfolio.net.MarketClock.Phase.CLOSED ->
+                                        "Market closed - showing the last session's picks"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (marketPhase == com.tj.portfolio.net.MarketClock.Phase.OPEN)
+                                    greenText else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(4.dp))
+                        }
                         Text(
                             section.blurb,
                             style = MaterialTheme.typography.bodySmall,
