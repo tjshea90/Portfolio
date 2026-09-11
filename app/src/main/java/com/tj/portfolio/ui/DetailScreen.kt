@@ -264,6 +264,8 @@ fun DetailScreen(
     val fundMap by vm.fundamentals.collectAsState()
     val fundLoadingSet by vm.fundLoading.collectAsState()
     val ratingsLoadingSet by vm.ratingsLoading.collectAsState()
+    val recommendationMap by vm.recommendations.collectAsState()
+    val recommendation = recommendationMap[symbol]
 
     // Same reasoning as the filings list below: two feeds can carry the same story under
     // slightly different URLs, and a keyed list must never see the same key twice.
