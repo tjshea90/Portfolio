@@ -5574,8 +5574,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * Starts (or restarts) the live technicals loop. Idempotent - cancels any prior job first,
      * so `ResearchScreen` can call this every time its `LaunchedEffect` re-evaluates without
      * tracking whether one is already running.
+     *
+     * ALSO CALLED FROM [setForeground] ON THE WAY BACK IN (a real bug, caught by review before
+     * shipping). This runs on `fgScope`, and backgrounding the app cancels that scope outright
+     * - correctly, per its own header, so a wave of requests does not run with nothing on
+     * screen to draw it. But `setForeground(true)` replaces `fgScope` with a fresh one and
+     * nothing was re-launching what the OLD one had been running: the Day Trading tab could
+     * still be the one on screen, `dayTradingLiveJob` would still hold a reference to the now-
+     * dead job, and the loop would silently never tick again for the rest of that screen
+     * instance's life. [dayTradingLiveWanted] is what lets `setForeground` tell "the tab is
+     * still open, please restart" from "the tab was closed, leave it alone".
      */
     fun startDayTradingLive() {
+        dayTradingLiveWanted = true
         dayTradingLiveJob?.cancel()
         dayTradingLiveJob = fgScope.launch {
             while (isActive) {
@@ -5587,6 +5598,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Stops it - called the moment the Day Trading tab is no longer the one on screen. */
     fun stopDayTradingLive() {
+        dayTradingLiveWanted = false
         dayTradingLiveJob?.cancel()
         dayTradingLiveJob = null
     }
