@@ -1,13 +1,17 @@
-# CHECKPOINT 636 — read me first, then TASKS.md
+# CHECKPOINT 637 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T08:47:54Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/session-continuity-check-tjlp6d` · **builds on:** `c1fa285` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T08:49:34Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/session-continuity-check-tjlp6d` · **builds on:** `78c3332` (this checkpoint is the commit after it)
 
 ## Just done
-Full Gradle unit suite green: 871 tests, 0 failures, 0 errors, 0 skipped (849 pre-existing + 22 new this session, exact match - no regressions). Day Trading tab feature-complete: scoring/build (Research.kt, prior session), net bridge (DayTradingBridge.kt, Claude.kt), ViewModel wiring (explain/import/prompt-file/price+levels fill, with its own dtExplained/dtNotes state kept separate from Research's), ResearchScreen.kt UI tab with entry/stop/target display and honest disclaimers, and full test coverage across scorer/bridge/carry-forward/round-trip layers.
+gated v7.12 (code 69) and pushed it: checkinit, the full unit suite and the
+versionCode check all passed here. NOT yet built - GitHub has not been asked.
 
 ## Do this next
-Ship per CLAUDE.md: bump versionCode AND versionName in app/build.gradle.kts (check BUILDLOG.md for the last shipped version first), bash ship.sh with a note describing the Day Trading tab, watch GitHub Actions until green, tools/record-release.sh, then trigger the signed build via mcp__github__actions_run_trigger (android.yml, main, full_build=true), download the APK and send it to Tj.
+TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
+android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
+send Tj the APK from the Release and then run:
+  bash tools/record-release.sh v7.12 "Added the Day Trading tab under Research: today's stocks $2+/share objectively in play right now (heavy relative volume, a real move already under way, WSB/news attention, breakout, or short-squeeze setup), each with app-computed entry/stop/target risk-management levels (52-week-volatility-sized, 2:1 reward-to-risk) - honestly framed as a risk plan, not a price prediction, per the feasibility research this was built from. Claude-assist explain/import buttons mirror the existing Research tab's API-key and offline file-round-trip paths, with Day Trading's own explain state kept separate so it survives a stock rebuild without bleeding into Research's. 871 tests, 0 failures (22 new)."
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +20,7 @@ Ship per CLAUDE.md: bump versionCode AND versionName in app/build.gradle.kts (ch
 
 ## Last ten checkpoints
 ```
+  5b55903 ckpt 636: Full Gradle unit suite green: 871 tests, 0 failures, 0 errors, 0 skipped (849 
   c1fa285 ckpt 635: Wrote and verified tests for Day Trading: new DayTradingTest.kt (16 cases - Re
   0201c31 ckpt 634: Fixed a real bug found while planning tests: carryExplanations() carried notes
   3333c25 ckpt 633: Built the ResearchScreen.kt Day Trading tab: added Section.DAY_TRADING (key/ta
@@ -25,5 +30,7 @@ Ship per CLAUDE.md: bump versionCode AND versionName in app/build.gradle.kts (ch
   86067cb ckpt 629: Tj explicitly overrode the SCREENER flag: proceed with the day trading tab on 
   40d8c75 ckpt 628: gated v7.11 (code 68) and pushed it: checkinit, the full unit suite and the ve
   38d61c9 ckpt 627: Fixed the SPY compare-line pan bug (root-caused by a background Explore agent,
-  7d1f651 ckpt 626: Moved the buy/hold/sell indicator per Tj's screenshot: removed DetailTab.RECOM
 ```
+
+(1 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
