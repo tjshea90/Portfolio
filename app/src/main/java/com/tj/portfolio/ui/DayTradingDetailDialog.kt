@@ -112,6 +112,37 @@ internal fun DayTradingPlanContent(r: ResearchRow) {
                     )
                 }
 
+                // --- HOW THE SCORE IS BUILT (Round 72). Tj: "make the scores reflect a blend
+                // of how likely the stock is to rise... and how confident this prediction is."
+                // Only for a row the app actually scored - see [ResearchRow.dtLikelihood]'s
+                // header for why a Claude-added pick has neither number to show.
+                if (r.dtLikelihood > 0) {
+                    Spacer(Modifier.height(14.dp))
+                    Text(
+                        "How the score is built",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Likelihood ${r.dtLikelihood}/100 (how strong today's bullish signals " +
+                            "are - volume, the move already under way, breakout structure) " +
+                            "× confidence ${r.dtConfidence}% (how many of a fixed checklist " +
+                            "of five independent signals actually confirm it) = score " +
+                            "${r.score}.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "This is not a probability the stock will rise - no system built on " +
+                            "free public data can honestly compute one. It is a measure of how " +
+                            "much real evidence backs today's signals, and how much of it " +
+                            "agrees, reduced to one number that only reaches 100 when both do.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 if (r.atr > 0 || r.vwap > 0 || r.prevHigh > 0) {
                     Spacer(Modifier.height(14.dp))
                     Text(
