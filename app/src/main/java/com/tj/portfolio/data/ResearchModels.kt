@@ -192,7 +192,20 @@ data class ResearchRow(
      */
     val entryPrice: Double = 0.0,
     val stopPrice: Double = 0.0,
-    val targetPrice: Double = 0.0
+    val targetPrice: Double = 0.0,
+    /**
+     * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
+     * volume-weighted average price, and the 09:30-10:00 ET opening range. See
+     * `net/DayTradingTechnicals.kt`'s header for the research these come from. All zero until
+     * [com.tj.portfolio.net.ResearchScore.upgradeLevels]/`withTechnicals` have enriched this
+     * row - which only happens for rows actually on screen, the same rule analyst consensus
+     * already follows for the Best list - and all zero for every row outside the day-trading
+     * section, same as [entryPrice] and its siblings.
+     */
+    val atr: Double = 0.0,
+    val vwap: Double = 0.0,
+    val openingRangeHigh: Double = 0.0,
+    val openingRangeLow: Double = 0.0
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("symbol", symbol)
