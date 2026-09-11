@@ -775,6 +775,7 @@ fun DetailScreen(
                     state = state,
                     symbol = symbol,
                     row = row,
+                    dayTradingRow = dayTradingRow,
                     tracked = tracked,
                     watched = row?.watched == true,
                     fundamentals = fundamentals,
