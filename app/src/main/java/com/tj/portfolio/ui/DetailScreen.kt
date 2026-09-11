@@ -1039,6 +1039,28 @@ private fun OverviewTab(
         state = listState,
         contentPadding = PaddingValues(bottom = 40.dp)
     ) {
+        // ---- TODAY'S DAY TRADING PLAN (Round 70), FIRST - Tj: "in addition to what it
+        // already shows, there are tabs for more information". This is "what it already
+        // shows": the exact explanation the old `DayTradingDetailDialog` gave when a Day
+        // Trading card was tapped, now inline at the top of the real detail screen instead of
+        // behind a modal, with the rest of the screen - chart, Stats, Analysts, Earnings,
+        // News, and the watchlist star already in the header above - available underneath it.
+        if (dayTradingRow != null) {
+            item {
+                Column(Modifier.padding(horizontal = 16.dp)) {
+                    Text(
+                        "TODAY'S DAY TRADING PLAN",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    DayTradingPlanContent(dayTradingRow)
+                    Spacer(Modifier.height(4.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                }
+            }
+        }
         item {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 // The price block lives in the pinned header now; these are the notes that
