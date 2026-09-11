@@ -1343,6 +1343,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private var etfJob: Job? = null
     private var enrichJob: Job? = null
 
+    /** [startDayTradingLive]/[stopDayTradingLive]'s job handle. */
+    private var dayTradingLiveJob: Job? = null
+    /** Every symbol already given its one-time technicals score bonus this rebuild - see
+     *  [enrichDayTradingVisible] for why this must be "once", not "every refresh". */
+    private val dayTradingTechScored = HashSet<String>()
+
     // ================================================================ PRICE CHARTS
     //
     // ALL OF THESE ARE ABOVE `init` DELIBERATELY - see checkinit.py and the note on the
