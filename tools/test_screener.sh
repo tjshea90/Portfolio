@@ -73,10 +73,10 @@ for r in repoA repoB; do
   rm -f "$FAKE/$r"/tools/test_*.sh
   ( cd "$FAKE/$r" && git init -q . && git add -A >/dev/null 2>&1 && git commit -qm init >/dev/null 2>&1 )
 done
-OUT2="$(printf '%s' "$PROMPT_JSON" | CLAUDE_REPO_ROOT="$FAKE" bash "$FAKE/repoA/tools/hooks/screen.sh" 2>/dev/null)"
-printf '%s' "$OUT2" | python3 - <<'PY' >/dev/null 2>&1
+printf '%s' "$PROMPT_JSON" | CLAUDE_REPO_ROOT="$FAKE" bash "$FAKE/repoA/tools/hooks/screen.sh" >"$TMP/out2.json" 2>/dev/null
+python3 - "$TMP/out2.json" <<'PY' >/dev/null 2>&1
 import json, sys
-d = json.loads(sys.stdin.read())          # fails outright on two concatenated objects
+d = json.load(open(sys.argv[1]))          # fails outright on two concatenated objects
 c = d["hookSpecificOutput"]["additionalContext"]
 assert "repoA" in c and "repoB" in c, "both repos must appear"
 PY
