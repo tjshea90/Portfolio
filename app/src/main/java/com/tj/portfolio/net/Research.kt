@@ -565,24 +565,28 @@ object Research {
                 )
             }
             .filter { it.second.score > 0 }
+            // CONFIDENCE COMPUTED ONCE PER ROW HERE, not inside the sort comparator or again in
+            // [toDayTradingRow] - a code-review catch (Round 72): `sortedByDescending` calls its
+            // selector on both sides of every comparison, so leaving the computation inline would
+            // have run [ResearchScore.dayTradingConfidence] O(n log n) times across the sort plus
+            // once more per surviving row, instead of once each. No live technicals exist yet at
+            // build time, so it runs with `tech = null` here - VWAP and the opening-range
+            // breakout checks simply cannot confirm yet, which is the honest state, not a false
+            // negative - and is recomputed with real readings once the live sweep enriches the
+            // rows actually on screen (see `PortfolioViewModel.scoreDayTradingRow`).
+            .map { (row, sc) -> Triple(row, sc, ResearchScore.dayTradingConfidence(row)) }
             // SORTED BY THE BLENDED SCORE (Round 72), not the raw "in play" score - see
-            // [ResearchRow.dtLikelihood]'s header for what the two halves mean. No live
-            // technicals exist yet at build time, so [ResearchScore.dayTradingConfidence] runs
-            // with `tech = null` here - VWAP and the opening-range breakout checks simply cannot
-            // confirm yet, which is the honest state, not a false negative - and is recomputed
-            // with real readings once the live sweep enriches the rows actually on screen (see
-            // `PortfolioViewModel.mergeDayTradingTech`).
-            .sortedByDescending { (row, sc) ->
-                ResearchScore.blendedScore(sc.score, ResearchScore.dayTradingConfidence(row))
-            }
+            // [ResearchRow.dtLikelihood]'s header for what the two halves mean.
+            .sortedByDescending { (_, sc, confidence) -> ResearchScore.blendedScore(sc.score, confidence) }
             .take(DAY_TRADING_BUFFER)
-            .map { (row, sc) -> toDayTradingRow(row, sc, trendBy[row.symbol]) }
+            .map { (row, sc, confidence) -> toDayTradingRow(row, sc, confidence, trendBy[row.symbol]) }
             .toList()
     }
 
     private fun toDayTradingRow(
         r: ScreenRow,
         sc: ResearchScore.Scored,
+        confidence: Int,
         tr: ResearchRow?
     ): ResearchRow {
         // NO RISK PLAN AT BUILD TIME ANY MORE (Round 69). The screener pass knows a price and a
@@ -594,10 +598,10 @@ object Research {
         // output; a fabricated one that reads like a real trigger is not.
         //
         // THE SCORE IS NOW THE BLEND (Round 72) - see [ResearchRow.dtLikelihood]'s header. `sc`
-        // is the raw "in play" likelihood, carried forward unchanged; [dtConfidence] is the
-        // build-time confirmation checklist (no live technicals yet); `score` is the two
-        // multiplied together, the number the card and the sort above both use.
-        val confidence = ResearchScore.dayTradingConfidence(r)
+        // is the raw "in play" likelihood, carried forward unchanged; [confidence] is the
+        // build-time confirmation checklist (no live technicals yet, computed once by the
+        // caller - see its own note); `score` is the two multiplied together, the number the
+        // card and the sort above both use.
         return ResearchRow(
             symbol = r.symbol,
             name = r.name,
