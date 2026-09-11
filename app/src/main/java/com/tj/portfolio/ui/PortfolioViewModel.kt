@@ -1418,6 +1418,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** When each symbol's holdings were last pulled from the NETWORK - see [coreFetchedAt]. */
 
+    // ============================================================ RECOMMENDATION
+
+    /** Today's BUY/HOLD/SELL for each symbol. Absent means "not computed yet today". */
+    private val _recommendations = MutableStateFlow<Map<String, Recommendation>>(emptyMap())
+    val recommendations: StateFlow<Map<String, Recommendation>> = _recommendations.asStateFlow()
+
+    /** Symbols with a recommendation compute in flight. */
+    private val _recLoading = MutableStateFlow<Set<String>>(emptySet())
+    val recLoading: StateFlow<Set<String>> = _recLoading.asStateFlow()
+
     init {
         com.tj.portfolio.util.MemoryTrim.register(trimListener)
         // FIRST, before anything can make a request: a cache attached after the first feed
