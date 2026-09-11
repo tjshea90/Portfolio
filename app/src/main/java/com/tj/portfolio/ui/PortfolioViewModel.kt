@@ -603,15 +603,28 @@ internal fun mergeDayTradingTech(
     row: com.tj.portfolio.data.ResearchRow,
     tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
 ): com.tj.portfolio.data.ResearchRow {
-    val levels = com.tj.portfolio.net.ResearchScore.upgradeLevels(row.price, tech)
+    val plan = com.tj.portfolio.net.ResearchScore.tradePlan(row.price, tech)
     return row.copy(
         atr = if (tech.atr14 > 0) tech.atr14 else row.atr,
         vwap = if (tech.vwap > 0) tech.vwap else row.vwap,
         openingRangeHigh = if (tech.openingRangeHigh > 0) tech.openingRangeHigh else row.openingRangeHigh,
         openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow else row.openingRangeLow,
-        entryPrice = levels?.entry ?: row.entryPrice,
-        stopPrice = levels?.stop ?: row.stopPrice,
-        targetPrice = levels?.target ?: row.targetPrice
+        atrIntraday = if (tech.atrIntraday > 0) tech.atrIntraday else row.atrIntraday,
+        adr = if (tech.adr > 0) tech.adr else row.adr,
+        prevHigh = if (tech.prevHigh > 0) tech.prevHigh else row.prevHigh,
+        premarketHigh = if (tech.premarketHigh > 0) tech.premarketHigh else row.premarketHigh,
+        sessionHigh = if (tech.sessionHigh > 0) tech.sessionHigh else row.sessionHigh,
+        sessionLow = if (tech.sessionLow > 0) tech.sessionLow else row.sessionLow,
+        // THE PLAN MOVES AS A UNIT, or not at all. Entry, stop, target, setup, trigger and note
+        // are six views of ONE decision: a stop from this tick's structure under an entry from
+        // the last tick's would describe a trade nobody planned. A tick that produces no plan
+        // leaves the previous one whole.
+        entryPrice = plan?.entry ?: row.entryPrice,
+        stopPrice = plan?.stop ?: row.stopPrice,
+        targetPrice = plan?.target ?: row.targetPrice,
+        setup = plan?.setup ?: row.setup,
+        trigger = plan?.trigger ?: row.trigger,
+        planNote = plan?.note ?: row.planNote
     )
 }
 
