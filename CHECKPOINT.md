@@ -1,13 +1,13 @@
-# CHECKPOINT 618 — read me first, then TASKS.md
+# CHECKPOINT 619 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T01:16:58Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `e983652` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T01:17:42Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `2d8f1a7` (this checkpoint is the commit after it)
 
 ## Just done
-v7.9 (code 66) shipped end to end: GitHub Actions run #8 built, signed, verified its own certificate, and published the Release with the APK attached - downloaded it (sha256 verified against the Release's own digest), sent it to Tj, and recorded it in BUILDLOG.md. The per-holding BUY/HOLD/SELL feature is fully shipped: TASKS.md's checklist is now completely ticked, including the final 'ship' box.
+Reset TASKS.md to no-active-job now that both this session's jobs (the model screener and the buy/hold/sell feature) are shipped, keeping the next session's briefing lean - same precedent as ckpt 608.
 
 ## Do this next
-No active job. Waiting on Tj for the next app change, same as after every prior release.
+No active job. Waiting on Tj for the next app change.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ No active job. Waiting on Tj for the next app change, same as after every prior 
 
 ## Last ten checkpoints
 ```
+  9d571d6 ckpt 618: v7.9 (code 66) shipped end to end: GitHub Actions run #8 built, signed, verifi
   0c8acb5 ckpt 617: gated v7.9 (code 66) and pushed it: checkinit, the full unit suite and the ver
   5db1e35 ckpt 616: Finished the TASKS.md checklist for the buy/hold/sell feature - ticked every b
   866376c ckpt 615: Added Robolectric render tests for the actual UI (RecommendationDialog and Det
@@ -25,5 +26,7 @@ No active job. Waiting on Tj for the next app change, same as after every prior 
   543813b ckpt 611: Built the model screener: SCREENER.md (protocol + Opus-escalation criteria), t
   2997e54 ckpt 610: Wrote Tj's request-screener ask into TASKS.md verbatim, with a design note (Us
   13ca548 ckpt 609: Wrote Tj's buy/hold/sell-per-holding request into TASKS.md verbatim with a fea
-  a5254d3 ckpt 608: Final verification of the permanent flow. Chased the one RED that ckpt 607 rec
 ```
+
+(2 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
