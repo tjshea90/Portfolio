@@ -205,6 +205,41 @@ fun ResearchScreen(
         if (section == Section.ETFS) vm.loadEtfs() else vm.loadResearch()
     }
 
+    // ---- LIVE DAY-TRADING TECHNICALS, ONLY WHILE THAT TAB IS THE ONE ON SCREEN (Round 68).
+    //
+    // Tj: "it can do this all automatically, but only when I have that tab open... The
+    // feature should be asleep when I'm not using it." `DisposableEffect`'s `onDispose` covers
+    // BOTH ways that stops being true: switching to another Research sub-tab (a new `section`
+    // value disposes the old effect before running the new one) and leaving the Research
+    // screen entirely (composition tears down, `onDispose` still runs). The app backgrounding
+    // is covered separately - `startDayTradingLive` runs on `fgScope`, which
+    // `setForeground(false)` cancels outright regardless of which tab was open.
+    DisposableEffect(section) {
+        if (section == Section.DAY_TRADING) vm.startDayTradingLive()
+        onDispose { if (section == Section.DAY_TRADING) vm.stopDayTradingLive() }
+    }
+
+    // ---- "UP TODAY" IS ONLY TRUE WHEN THE MARKET ACTUALLY HAD A TODAY (Round 68 bug fix).
+    //
+    // Tj: "the market is currently closed and yet the stocks claim to be 'already up today'
+    // which makes no sense." The NUMBER was always right - `changePct` is last-close-vs-
+    // current, which is what it has to be at any hour - the wording around it was not. A
+    // pure, cheap read of the wall clock, so it is current on every recomposition (which the
+    // live loop above now drives every 30 seconds anyway) without needing its own state.
+    val marketPhase = com.tj.portfolio.net.MarketClock.phase()
+    val sessionSuffix = when (marketPhase) {
+        com.tj.portfolio.net.MarketClock.Phase.OPEN -> ""
+        com.tj.portfolio.net.MarketClock.Phase.EXTENDED -> " - extended hours"
+        com.tj.portfolio.net.MarketClock.Phase.CLOSED -> " - last session"
+    }
+
+    // The tap-to-explain dialog Tj asked for: "click on each stock and there is an
+    // explanation for the buy and sell points and why the stock is recommended."
+    var dayTradingDetail by remember { mutableStateOf<ResearchRow?>(null) }
+    dayTradingDetail?.let { r ->
+        DayTradingDetailDialog(r, onDismiss = { dayTradingDetail = null })
+    }
+
     // KEYED ON ALL THREE CLOCKS. `etfGenerated` was missing, so on the ETFs tab the
     // watched/held set - two SQLite reads, which is why it is remembered at all - was only
     // recomputed when the STOCK pass ran, and a fund just added to the watchlist could show no
