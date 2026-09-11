@@ -1,13 +1,13 @@
-# CHECKPOINT 619 — read me first, then TASKS.md
+# CHECKPOINT 620 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T01:17:42Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `2d8f1a7` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T01:30:20Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `b681ba3` (this checkpoint is the commit after it)
 
 ## Just done
-Reset TASKS.md to no-active-job now that both this session's jobs (the model screener and the buy/hold/sell feature) are shipped, keeping the next session's briefing lean - same precedent as ckpt 608.
+Wrote Tj's request into TASKS.md verbatim - show the buy/hold/sell badge next to each stock in the main Portfolio tab, not just the detail screen. Screened against SCREENER.md: stays on Sonnet (reuses the already-built, already-tested scoring/recommendation infrastructure from v7.9, existing chip pattern to mirror in StockRow.kt, no money-accuracy or locked-architecture change). Identified the one new piece: loadFundamentals has only ever been called for the single open detail screen, never for a whole portfolio at once - showing this on every row means fetching it for every holding, so the new trigger will stagger rather than fire ~16 requests in one instant.
 
 ## Do this next
-No active job. Waiting on Tj for the next app change.
+Add a recommendation chip to StockRowItem (ui/StockRow.kt), mirroring the News chip's look and placed to its left; add a staggered per-portfolio fundamentals+recommendation prefetch in PortfolioViewModel triggered from PortfolioScreen.kt; test; ship.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ No active job. Waiting on Tj for the next app change.
 
 ## Last ten checkpoints
 ```
+  57cdf7c ckpt 619: Reset TASKS.md to no-active-job now that both this session's jobs (the model s
   9d571d6 ckpt 618: v7.9 (code 66) shipped end to end: GitHub Actions run #8 built, signed, verifi
   0c8acb5 ckpt 617: gated v7.9 (code 66) and pushed it: checkinit, the full unit suite and the ver
   5db1e35 ckpt 616: Finished the TASKS.md checklist for the buy/hold/sell feature - ticked every b
@@ -25,7 +26,6 @@ No active job. Waiting on Tj for the next app change.
   340d345 ckpt 612: Ticked off the screener TASKS.md boxes — all built, tested (11 new + 37 exis
   543813b ckpt 611: Built the model screener: SCREENER.md (protocol + Opus-escalation criteria), t
   2997e54 ckpt 610: Wrote Tj's request-screener ask into TASKS.md verbatim, with a design note (Us
-  13ca548 ckpt 609: Wrote Tj's buy/hold/sell-per-holding request into TASKS.md verbatim with a fea
 ```
 
 (2 automatic checkpoint(s) since the last deliberate one — the
