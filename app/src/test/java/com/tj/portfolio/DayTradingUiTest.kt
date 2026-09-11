@@ -68,10 +68,15 @@ class DayTradingUiTest {
 
     @Test fun `the risk plan shows entry, stop and target as real numbers`() {
         show { Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            TradeLevelsGrid(entry = 22.50, stop = 21.00, target = 25.50)
+            TradeLevelsGrid(
+                ResearchRow(
+                    symbol = "GME", entryPrice = 22.50, stopPrice = 21.00, targetPrice = 25.50,
+                    setup = "Breakout", trigger = "Buy the break above $22.50."
+                )
+            )
         } }
         val t = texts()
-        listOf("Entry", "Stop", "Target").forEach {
+        listOf("Buy at", "Stop", "Target").forEach {
             assertTrue("the \"$it\" label is missing: $t", t.contains(it))
         }
         assertTrue(t.any { it.contains("22.50") })
@@ -81,7 +86,9 @@ class DayTradingUiTest {
 
     @Test fun `a stop or target the app has not computed yet shows a dash, never a zero`() {
         show { Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            TradeLevelsGrid(entry = 22.50, stop = 0.0, target = 0.0)
+            TradeLevelsGrid(
+                ResearchRow(symbol = "GME", entryPrice = 22.50, stopPrice = 0.0, targetPrice = 0.0)
+            )
         } }
         val t = texts()
         assertFalse("a fabricated zero stop/target reached the card: $t", t.any { it.contains("0.00") })
@@ -90,9 +97,15 @@ class DayTradingUiTest {
 
     @Test fun `the grid still lays out at a large font scale`() {
         show(fontScale = 1.6f) { Column(Modifier.fillMaxWidth().padding(16.dp)) {
-            TradeLevelsGrid(entry = 22.50, stop = 21.00, target = 25.50)
+            TradeLevelsGrid(
+                ResearchRow(
+                    symbol = "GME", entryPrice = 22.50, stopPrice = 21.00, targetPrice = 25.50,
+                    setup = "Breakout",
+                    trigger = "Buy the break above $22.50 (the opening-range high)."
+                )
+            )
         } }
-        rule.onNodeWithText("Entry").assertIsDisplayed()
+        rule.onNodeWithText("Buy at").assertIsDisplayed()
         rule.onNodeWithText("Stop").assertIsDisplayed()
         rule.onNodeWithText("Target").assertIsDisplayed()
     }
