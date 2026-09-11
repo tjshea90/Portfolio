@@ -178,7 +178,21 @@ data class ResearchRow(
      * stock sections already have - and so a change to any of those cannot fix one list and
      * forget another.
      */
-    val etf: EtfFacts? = null
+    val etf: EtfFacts? = null,
+    /**
+     * A structured RISK PLAN, not a prediction - the day-trading section only (Round 67).
+     *
+     * TJ asked for "a target buy price and target sell price". Research says genuinely
+     * accurate same-day direction prediction is not achievable from public data (market
+     * efficiency; see the note on [com.tj.portfolio.net.ResearchScore.dayTrading] and
+     * `net/DayTradingBridge.kt`'s header) - so these three are NOT a forecast of where the
+     * price will go. They are the entry, stop-loss and profit-target an ordinary day-trading
+     * risk plan would set from this stock's OWN recent volatility, at a standard 2:1
+     * reward-to-risk. All zero for every row outside the day-trading section.
+     */
+    val entryPrice: Double = 0.0,
+    val stopPrice: Double = 0.0,
+    val targetPrice: Double = 0.0
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("symbol", symbol)
