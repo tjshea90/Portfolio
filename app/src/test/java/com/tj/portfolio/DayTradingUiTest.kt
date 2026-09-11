@@ -71,7 +71,7 @@ class DayTradingUiTest {
             TradeLevelsGrid(
                 ResearchRow(
                     symbol = "GME", entryPrice = 22.50, stopPrice = 21.00, targetPrice = 25.50,
-                    setup = "Breakout", trigger = "Buy the break above $22.50."
+                    setup = "Breakout", trigger = "Buy the break above 22.50."
                 )
             )
         } }
@@ -101,7 +101,7 @@ class DayTradingUiTest {
                 ResearchRow(
                     symbol = "GME", entryPrice = 22.50, stopPrice = 21.00, targetPrice = 25.50,
                     setup = "Breakout",
-                    trigger = "Buy the break above $22.50 (the opening-range high)."
+                    trigger = "Buy the break above 22.50 (the opening-range high)."
                 )
             )
         } }
