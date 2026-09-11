@@ -106,17 +106,33 @@ separately rather than as a block:
 - [x] Checkpointed after every completed step (ckpt 625-627).
 - [ ] Ship following CLAUDE.md's normal release flow.
 
-## Part 3: Day Trading tab - AWAITING TJ
+## Part 3: Day Trading tab
 
-Not started. If Tj confirms Opus for this one (or says proceed on Sonnet
-anyway), pick it up as its own job: the research phase alone (successful
-day-trading methodology, what data sources exist and are actually
-reachable from a free/keyless-friendly stack this app already uses,
-whether same-day price-target accuracy is honestly achievable at all
-before committing to building it - matching the "if this is not possible,
-do not make the feature" standard TJ set for the last recommendation
-feature) needs to happen and be written up BEFORE any scoring code, per
-the same discipline the buy/hold/sell feature was built under.
+**Tj, 2026-09-11: "proceed with the day trading tab with sonnet"** - explicit
+override of the SCREENER flag, per SCREENER.md's protocol step 3. Proceeding
+without re-asking.
+
+Research phase FIRST, before any scoring code - matching the "if this is not
+possible do not make the feature" standard Tj set for the last recommendation
+feature, and his own words this time: "it must be accurate and give sound
+signals... do deep research... the advice must be well informed daily and it
+must be based on solid information and reasoning."
+
+- [ ] Research day-trading methodology: what legitimately separates a
+      well-grounded "stocks worth watching today and why" screen from a
+      false promise of predicting which stocks will rise and exactly where
+      to buy/sell them. Write up an honest feasibility finding before
+      designing anything.
+- [ ] Inventory what data this app can actually reach daily (screeners,
+      WSB/social, news/catalysts, technicals computable from OHLC already
+      fetched) versus what real day-trading edge requires (order flow,
+      options flow, Level 2) that it cannot reach.
+- [ ] Study the existing Claude-bridge file export/import pattern already
+      in the app (`ClaudeBridge`, `ResearchBridge`) so the new tab's
+      "export a prompt for the Claude app, import its answer back" buttons
+      match established conventions rather than inventing a new mechanism.
+- [ ] Design, build, test, ship - or report back why not, honestly, per
+      Tj's own explicit standard - once the research above is done.
 
 ## The flow, verified 2026-09-11 (details in CLAUDE.md)
 
