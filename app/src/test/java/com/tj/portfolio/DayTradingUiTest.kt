@@ -17,9 +17,13 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import com.tj.portfolio.data.ChartPoint
+import com.tj.portfolio.data.ChartRange
+import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.ResearchRow
 import com.tj.portfolio.ui.DayTradingDetailDialog
 import com.tj.portfolio.ui.PortfolioTheme
+import com.tj.portfolio.ui.ResearchCard
 import com.tj.portfolio.ui.TradeLevelsGrid
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
