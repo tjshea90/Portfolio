@@ -112,11 +112,14 @@ private enum class Section(
         ResearchSet.SECTION_DAY_TRADING, "Day Trading",
         "Stocks $2 a share or more that are objectively in play RIGHT NOW - unusually heavy " +
             "volume, a real move already under way, elevated wallstreetbets/news attention, a " +
-            "breakout, or a short-squeeze-prone setup. Entry/stop/target are this app's own " +
-            "computed risk-management levels, sized to each stock's own recent volatility at " +
-            "2:1 reward-to-risk - not a forecast of where the price is going. No system built " +
-            "on free public data can honestly promise which stocks will rise today; this list " +
-            "says what is already happening, not what happens next."
+            "breakout, or a short-squeeze-prone setup. The buy price is a TRIGGER, not the " +
+            "current quote: a level price has to reach - above the opening range, the premarket " +
+            "high or the prior session's high for a breakout, or back down at VWAP or support " +
+            "when it has already run too far to chase. The stop sits under the structure that " +
+            "would say the setup failed and the target at the next real resistance. Computed " +
+            "from real intraday levels - not a forecast of where the price is going. No system " +
+            "built on free public data can honestly promise which stocks will rise today; this " +
+            "list says what is already happening, not what happens next."
     );
 
     fun rowsIn(set: ResearchSet): List<ResearchRow> = when (this) {
