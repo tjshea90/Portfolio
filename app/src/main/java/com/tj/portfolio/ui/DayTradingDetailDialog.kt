@@ -24,12 +24,11 @@ import com.tj.portfolio.util.Fmt
  * summary card, a "Why" list, a disclaimer) applied to a day-trading row instead of a
  * buy/hold/sell verdict.
  *
- * SHOWS THE REAL TECHNICALS, NOT JUST THE LEVELS THEY PRODUCED. Tj asked for research-backed
- * signals to be "incorporated... accurately" - a reader who wants to check the app's work
- * needs to see the ATR, VWAP and opening range themselves, not just trust the entry/stop/target
- * they were built from. Zero for a row that has not been enriched with real technicals yet
- * (still using [com.tj.portfolio.net.ResearchScore.tradeLevels]'s pre-existing estimate) -
- * shown as "still gathering" for those three lines rather than a false zero.
+ * SHOWS THE REAL LEVELS, NOT JUST THE PLAN THEY PRODUCED. Tj asked for research-backed signals
+ * to be "incorporated... accurately" - a reader who wants to check the app's work needs to see
+ * the VWAP, the opening range, the prior-session high and the ATRs themselves, not just trust
+ * the entry/stop/target built from them. Each line is omitted entirely when its reading is not
+ * available yet, rather than drawn as a false zero.
  */
 @Composable
 fun DayTradingDetailDialog(r: ResearchRow, onDismiss: () -> Unit) {
