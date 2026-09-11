@@ -187,12 +187,24 @@ data class ResearchRow(
      * efficiency; see the note on [com.tj.portfolio.net.ResearchScore.dayTrading] and
      * `net/DayTradingBridge.kt`'s header) - so these three are NOT a forecast of where the
      * price will go. They are the entry, stop-loss and profit-target an ordinary day-trading
-     * risk plan would set from this stock's OWN recent volatility, at a standard 2:1
-     * reward-to-risk. All zero for every row outside the day-trading section.
+     * risk plan would set from real intraday structure. All zero for every row outside the
+     * day-trading section.
+     *
+     * ROUND 69: [entryPrice] IS A TRIGGER LEVEL, NOT THE CURRENT PRICE. It used to be exactly
+     * the last traded price, which Tj correctly called out as not being how day traders
+     * operate - see [com.tj.portfolio.net.ResearchScore.TradePlan]'s header. It is now the
+     * price a buy-stop or buy-limit would sit at, and [setup]/[trigger] say which and why, so
+     * an entry deliberately above or below the last price cannot read as a stale number.
      */
     val entryPrice: Double = 0.0,
     val stopPrice: Double = 0.0,
     val targetPrice: Double = 0.0,
+    /** Which setup produced the levels - "Breakout", "Pullback", "VWAP reclaim". */
+    val setup: String = "",
+    /** The entry instruction in plain English, e.g. "Buy the break above $12.40...". */
+    val trigger: String = "",
+    /** Anything about the plan that should give the reader pause. Often blank. */
+    val planNote: String = "",
     /**
      * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
      * volume-weighted average price, and the 09:30-10:00 ET opening range. See
