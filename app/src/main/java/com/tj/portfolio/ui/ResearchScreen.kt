@@ -722,7 +722,7 @@ private fun ResearchCard(
                     Column(horizontalAlignment = Alignment.End) {
                         Text(Fmt.price(r.price), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         if (r.changePct != 0.0) Text(
-                            Fmt.pctSigned(r.changePct),
+                            Fmt.pctSigned(r.changePct) + sessionSuffix,
                             color = signColor(r.changePct),
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.SemiBold
