@@ -21,6 +21,7 @@ import com.tj.portfolio.data.ChartPoint
 import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.ResearchRow
+import com.tj.portfolio.ui.BeginnerSummaryCard
 import com.tj.portfolio.ui.DayTradingDetailDialog
 import com.tj.portfolio.ui.PortfolioTheme
 import com.tj.portfolio.ui.ResearchCard
