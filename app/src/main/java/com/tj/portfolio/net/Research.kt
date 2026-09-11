@@ -64,6 +64,12 @@ object Research {
     private const val MIN_MARKET_CAP = 5e7
     private const val MIN_PRICE = 1.0
 
+    /** TJ: "include only stocks that are at least 2 dollars a share when searched." */
+    private const val MIN_PRICE_DAY_TRADING = 2.0
+
+    /** How many candidates the day-trading section keeps, deepest of the three sections. */
+    private const val DAY_TRADING_BUFFER = 40
+
     // ------------------------------------------------------------------- the pass
 
     suspend fun build(): ResearchSet = coroutineScope {
