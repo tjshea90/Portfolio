@@ -595,7 +595,10 @@ object ResearchScore {
             .filter { it.price > entry + risk * 0.3 }
             .minByOrNull { it.price }
         val standard = entry + risk * TARGET_REWARD_RISK_RATIO
-        val ceiling = if (tech.adr > 0.0 && tech.sessionLow > 0.0) tech.sessionLow + tech.adr
+        // "How much room is left in the day" is a live-session question - the same reason the
+        // extension checks above are gated on `live`. Yesterday's low plus a normal day's range
+        // is not a ceiling on tomorrow.
+        val ceiling = if (live && tech.adr > 0.0 && tech.sessionLow > 0.0) tech.sessionLow + tech.adr
         else Double.MAX_VALUE
         val target = when {
             nearestAbove == null -> standard
