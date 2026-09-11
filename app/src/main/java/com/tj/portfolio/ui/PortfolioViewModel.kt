@@ -5648,11 +5648,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             if (tech.isEmpty) return@map row
             changed = true
             val levels = com.tj.portfolio.net.ResearchScore.upgradeLevels(row.price, tech)
+            // EACH FIELD KEPT SEPARATELY ON A PARTIAL FETCH (a real bug caught by review
+            // before shipping). The daily-bar request (ATR) and the intraday-bar request
+            // (VWAP, opening range) fail independently - see [DayTechnicals.isEmpty]'s own
+            // note - so `tech.isEmpty` being false only means AT LEAST ONE of them answered
+            // this tick, not that all four did. Blindly copying `tech`'s zeros over a
+            // previously-good reading would regress a real ATR the user is already looking at
+            // back to "not yet available" the moment only the VWAP half of the next fetch
+            // succeeds.
             val withLevels = row.copy(
-                atr = tech.atr14,
-                vwap = tech.vwap,
-                openingRangeHigh = tech.openingRangeHigh,
-                openingRangeLow = tech.openingRangeLow,
+                atr = if (tech.atr14 > 0) tech.atr14 else row.atr,
+                vwap = if (tech.vwap > 0) tech.vwap else row.vwap,
+                openingRangeHigh = if (tech.openingRangeHigh > 0) tech.openingRangeHigh else row.openingRangeHigh,
+                openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow else row.openingRangeLow,
                 entryPrice = levels?.entry ?: row.entryPrice,
                 stopPrice = levels?.stop ?: row.stopPrice,
                 targetPrice = levels?.target ?: row.targetPrice
