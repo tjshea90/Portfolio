@@ -324,7 +324,11 @@ data class ResearchRow(
                 etf = EtfFacts.fromJson(o.optJSONObject("etf")),
                 entryPrice = o.optDouble("entryPrice", 0.0).orZero(),
                 stopPrice = o.optDouble("stopPrice", 0.0).orZero(),
-                targetPrice = o.optDouble("targetPrice", 0.0).orZero()
+                targetPrice = o.optDouble("targetPrice", 0.0).orZero(),
+                atr = o.optDouble("atr", 0.0).orZero(),
+                vwap = o.optDouble("vwap", 0.0).orZero(),
+                openingRangeHigh = o.optDouble("openingRangeHigh", 0.0).orZero(),
+                openingRangeLow = o.optDouble("openingRangeLow", 0.0).orZero()
             ).let {
                 if (isFundList && version < VERSION_CONVICTION_SPLIT) it.repairModelScore()
                 else it
