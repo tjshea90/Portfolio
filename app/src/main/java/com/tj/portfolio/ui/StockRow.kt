@@ -269,6 +269,7 @@ fun StockRowItem(
                     Box(
                         Modifier
                             .minTapTarget()
+                            .testTag(RECOMMENDATION_CHIP_TEST_TAG)
                             .background(
                                 MaterialTheme.colorScheme.surfaceVariant,
                                 RoundedCornerShape(6.dp)
