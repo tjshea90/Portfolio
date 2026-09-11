@@ -322,7 +322,18 @@ object ResearchScore {
         maxMentions: Int,
         maxNews: Int,
         /** Reports earnings today or tomorrow - the caller already knows this from [catalystFor]. */
-        catalystSoon: Boolean = false
+        catalystSoon: Boolean = false,
+        /**
+         * WHICH SESSION `changePct` AND `volumeRatio` ACTUALLY DESCRIBE - "today", "this
+         * session", or "in the last session". Supplied by the caller, because this file is
+         * pure by design and owns no clock (see the object header).
+         *
+         * Tj reported the underlying defect in Round 68: *"the market is currently closed and
+         * yet the stocks claim to be 'already up today' which makes no sense."* That round
+         * fixed the price line on the card and left these two REASON lines still saying
+         * "today" over a closed market - the same sentence, a centimetre lower.
+         */
+        sessionWord: String = "today"
     ): Scored {
         val why = ArrayList<String>()
         var s = 0.0
@@ -337,7 +348,7 @@ object ResearchScore {
             have++
             s += ramp(rvol, 1.0, 5.0, 30.0)
             if (rvol >= 2.0) why.add(
-                "Trading at ${Fmt.priceBare(rvol)}x its normal volume today" +
+                "Trading at ${Fmt.priceBare(rvol)}x its normal volume $sessionWord" +
                     if (rvol >= 5.0) " - heavily in play" else ""
             )
         }
@@ -349,7 +360,7 @@ object ResearchScore {
         if (r.changePct.isFinite() && r.price > 0) {
             have++
             s += ramp(r.changePct, 0.0, 12.0, 20.0)
-            if (r.changePct >= 3.0) why.add("Up ${pct(r.changePct)} already today")
+            if (r.changePct >= 3.0) why.add("Up ${pct(r.changePct)} $sessionWord")
         }
 
         // --- social + news attention (0-20), at a lower weight than in [trending]: day
