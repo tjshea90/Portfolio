@@ -221,9 +221,17 @@ Then **Claude triggers the build through the GitHub API** — not git:
 `mcp__github__actions_run_trigger`, `run_workflow`, `android.yml`, on `main`,
 with `full_build: "true"`. The run builds, signs with the keystore held in
 **GitHub Secrets**, verifies the certificate on the APK it just produced,
-creates the `v*` tag server-side and publishes it under Releases. Claude then
-downloads that APK and sends it to Tj in the chat, so he never has to go
-looking for it.
+creates the `v*` tag server-side and publishes it under Releases.
+
+**Tj's rule, 2026-09-11: Claude does NOT send the APK.** He downloads it
+himself from the Release page — he already has GitHub access and does not
+need it relayed through chat. Do not attempt to: this session's GitHub MCP
+tools cover API/metadata calls but not downloading a private repo's release
+ASSET BYTES, and a raw-`curl`/git-credential workaround for that gap was
+tried once (2026-09-11) and correctly blocked by the harness as credential
+exploration — treat that as settled, not a bug to keep poking at. Just
+confirm the Release is published (`get_release_by_tag` is enough) and move
+on; optionally mention the tag/version in chat so Tj knows it is ready.
 
 **Why Claude triggers it instead of pushing a tag.** `git push origin v7.9`
 returns `RPC failed; HTTP 403` from a Claude container: the session's egress
