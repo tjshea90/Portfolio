@@ -475,16 +475,19 @@ fun ResearchScreen(
                         rows.take(visibleCount),
                         key = { "${section.key}_${it.symbol}" }
                     ) { r ->
+                        val chartKey = vm.chartKey(r.symbol, com.tj.portfolio.data.ChartRange.D1)
                         ResearchCard(
                             r, r.symbol in watched,
-                            // Day Trading rows open the explanation dialog instead of
-                            // navigating to the stock's own detail screen - "click on each
-                            // stock and there is an explanation for the buy and sell points".
-                            onOpen = if (section == Section.DAY_TRADING) {
-                                { dayTradingDetailSymbol = r.symbol }
-                            } else onOpen,
+                            onOpen = onOpen,
                             onOpenUrl,
-                            sessionSuffix = if (section == Section.DAY_TRADING) sessionSuffix else ""
+                            sessionSuffix = if (section == Section.DAY_TRADING) sessionSuffix else "",
+                            // THE CARD'S OWN 1-DAY CHART (Round 70) - Day Trading only, and null
+                            // everywhere else so no other card changes shape. `enrichDayTradingVisible`
+                            // is what actually fetches this while the tab is open; the card only draws
+                            // whatever has already arrived.
+                            dayChart = if (section == Section.DAY_TRADING) chartMap[chartKey] else null,
+                            dayChartLoading = section == Section.DAY_TRADING &&
+                                chartLoadingSet.contains(chartKey)
                         )
                     }
                     item(key = "more") {
