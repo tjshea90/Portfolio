@@ -586,39 +586,6 @@ internal fun carryExplanations(
 }
 
 /**
- * Computes entry/stop/target for any day-trading row that has a price but no risk levels yet
- * (Round 67) - a Claude-added pick, the moment [PortfolioViewModel]'s price fill gives it a
- * real price to compute from. TOP-LEVEL AND PURE, same reason [pricelessRows] is a member but
- * [carryExplanations] above is not: this needs no ViewModel state at all, so a test can call it
- * directly with no network and no database.
- *
- * Uses the SAME production function [com.tj.portfolio.net.ResearchScore.tradeLevels] the
- * screener path uses, via a minimal [com.tj.portfolio.data.ScreenRow] carrying just the
- * symbol, price and day change - [ResearchScore.tradeLevels] already treats a missing 52-week
- * range as zero and falls back to today's own move, so this is not an approximation of a
- * different formula, it is the same formula given less to work with.
- *
- * A row that already has a level, or still has no price, is returned untouched - so this is
- * safe to run over every section on every price fill, not just day trading's added rows.
- */
-internal fun withDayTradingLevels(
-    rows: List<com.tj.portfolio.data.ResearchRow>
-): List<com.tj.portfolio.data.ResearchRow> = rows.map { r ->
-    if (r.entryPrice > 0 || r.price <= 0.0) r
-    else {
-        val levels = com.tj.portfolio.net.ResearchScore.tradeLevels(
-            com.tj.portfolio.data.ScreenRow(
-                symbol = r.symbol,
-                price = r.price,
-                changePct = r.changePct
-            )
-        )
-        if (levels == null) r
-        else r.copy(entryPrice = levels.entry, stopPrice = levels.stop, targetPrice = levels.target)
-    }
-}
-
-/**
  * Merges one fresh [DayTradingTechnicals.DayTechnicals] reading into a row - TOP-LEVEL AND
  * PURE, same reason [withDayTradingLevels] is, so a test can check it with no network and no
  * ViewModel.
