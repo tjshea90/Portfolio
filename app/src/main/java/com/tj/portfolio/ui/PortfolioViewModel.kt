@@ -2411,6 +2411,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             quotePassInterrupted = false
             if (wentBackgroundAt == 0L || away > RESUME_REFRESH_GRACE_MS || interrupted) refresh()
             startAuto()
+            // See [startDayTradingLive]'s note: the old job died with the old `fgScope` above,
+            // and only relaunching it here (never unconditionally - only when the tab was
+            // actually left running) brings it back for a Day Trading tab still on screen.
+            if (dayTradingLiveWanted) startDayTradingLive()
         } else {
             wentBackgroundAt = System.currentTimeMillis()
             // Read BEFORE the cancellation below, which is what makes it true.
