@@ -24,11 +24,12 @@ import com.tj.portfolio.util.Fmt
  * summary card, a "Why" list, a disclaimer) applied to a day-trading row instead of a
  * buy/hold/sell verdict.
  *
- * SHOWS THE REAL LEVELS, NOT JUST THE PLAN THEY PRODUCED. Tj asked for research-backed signals
- * to be "incorporated... accurately" - a reader who wants to check the app's work needs to see
- * the VWAP, the opening range, the prior-session high and the ATRs themselves, not just trust
- * the entry/stop/target built from them. Each line is omitted entirely when its reading is not
- * available yet, rather than drawn as a false zero.
+ * ROUND 70: no longer the only way to see this. Tapping a Day Trading card now opens the
+ * stock's own [DetailScreen] - same as every other list in the app - so this dialog's BODY is
+ * [DayTradingPlanContent] below, shared with the section [DetailScreen.OverviewTab] draws at
+ * the top of a Day Trading pick's Overview tab. This wrapper stays for whatever still wants a
+ * standalone dialog (and for the tests that already exercise it), but nothing in the app opens
+ * it from the Day Trading list any more.
  */
 @Composable
 fun DayTradingDetailDialog(r: ResearchRow, onDismiss: () -> Unit) {
@@ -41,7 +42,29 @@ fun DayTradingDetailDialog(r: ResearchRow, onDismiss: () -> Unit) {
                     .heightIn(max = 460.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                if (r.entryPrice > 0) {
+                DayTradingPlanContent(r)
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Got it") } }
+    )
+}
+
+/**
+ * The risk plan, the levels behind it, why it's in play, and Claude's paragraph when there is
+ * one - the whole body [DayTradingDetailDialog] used to own alone. Extracted so
+ * [DetailScreen.OverviewTab] can draw the exact same explanation inline, in the tabbed screen
+ * Tj asked for, instead of this content only existing behind a modal.
+ *
+ * SHOWS THE REAL LEVELS, NOT JUST THE PLAN THEY PRODUCED. Tj asked for research-backed signals
+ * to be "incorporated... accurately" - a reader who wants to check the app's work needs to see
+ * the VWAP, the opening range, the prior-session high and the ATRs themselves, not just trust
+ * the entry/stop/target built from them. Each line is omitted entirely when its reading is not
+ * available yet, rather than drawn as a false zero.
+ */
+@Composable
+internal fun DayTradingPlanContent(r: ResearchRow) {
+    Column {
+        if (r.entryPrice > 0) {
                     TradeLevelsGrid(r)
                     Spacer(Modifier.height(10.dp))
                     val rr = rewardToRisk(r)
