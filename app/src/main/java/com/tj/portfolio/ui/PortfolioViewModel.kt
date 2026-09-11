@@ -5605,11 +5605,39 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     )
                 }
 
+        // ---- A DAY-TRADING ROW CLAUDE ADDED HAS NO TRADE LEVELS EITHER, ONLY A SYMBOL.
+        //
+        // `entry`/`stop`/`target` are the app's OWN computed risk-management levels (see
+        // [DayTradingBridge]'s header) - a model's conviction never gets to invent them, so
+        // they are computed here, via the SAME production function [toDayTradingRow] uses,
+        // the moment a real price exists to compute them from. A minimal [ScreenRow] carrying
+        // just the symbol, the fetched price and its day change is enough: [tradeLevels]
+        // already treats a missing 52-week range as zero and falls back to today's own move.
+        fun fillLevels(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
+            if (r.entryPrice > 0 || r.price <= 0.0) r
+            else {
+                val levels = com.tj.portfolio.net.ResearchScore.tradeLevels(
+                    com.tj.portfolio.data.ScreenRow(
+                        symbol = r.symbol,
+                        price = r.price,
+                        changePct = r.changePct
+                    )
+                )
+                if (levels == null) r
+                else r.copy(
+                    entryPrice = levels.entry,
+                    stopPrice = levels.stop,
+                    targetPrice = levels.target
+                )
+            }
+        }
+
         cacheResearch(
             s.copy(
                 trending = fill(s.trending),
                 best = fill(s.best),
-                etfs = oneFundPerExposure(dropLeveraged(fill(s.etfs)))
+                etfs = oneFundPerExposure(dropLeveraged(fill(s.etfs))),
+                dayTrading = fillLevels(fill(s.dayTrading))
             )
         )
     }
