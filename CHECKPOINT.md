@@ -1,13 +1,13 @@
-# CHECKPOINT 658 — read me first, then TASKS.md
+# CHECKPOINT 659 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T18:00:36Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/project-continuation-a037zx` · **builds on:** `5007da9` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T19:11:36Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/day-trading-beginner-summaries-8x83la` · **builds on:** `bc32d8f` (this checkpoint is the commit after it)
 
 ## Just done
-Shipped v7.15 (code 72): Part 6.1 of the Day Trading request - per-stock 1D charts on each card (reusing PriceChart), tap-through to the real DetailScreen (Stats/Analysts/Earnings/News tabs, full chart) with the Day Trading risk-plan content now at the top of Overview, and the existing watchlist star covering the watchlist-button ask. Code review found and fixed 2 issues (chart-fetch concurrency, off-tab chart subscriptions) before shipping. GitHub Actions run #15 built, signed, verified and published the Release; recorded in BUILDLOG.md.
+Recorded Tj's 'continue all tasks with sonnet' override (unblocks Part 6.2) and his new Part 7 request (beginner-friendly plain-English day-trading summary) in TASKS.md, verbatim, before writing any code.
 
 ## Do this next
-Part 6.2 (confidence-blended Day Trading score) is FLAGGED per SCREENER.md - money-accuracy + ambiguous-design (redefines what the score means; no existing app pattern for 'confidence'). Waiting on Tj to either switch to Opus or explicitly say to proceed on Sonnet, same as he did for Parts 3-5. Do not start it without that. If Tj has already said which, proceed accordingly and re-screen only if the request has changed.
+Design and implement ResearchScore.beginnerSummary(r): a pure, testable function over the existing entry/stop/target/setup numbers that produces a plain-English buy/sell/skip headline plus simple reasoning, with cases for 'too late/don't buy' when price already passed target or stop. Wire it into the Day Trading card and DayTradingPlanContent (detail view). Add unit tests. Then decide whether to also start Part 6.2 (confidence-blended score) in the same session.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Part 6.2 (confidence-blended Day Trading score) is FLAGGED per SCREENER.md - mon
 
 ## Last ten checkpoints
 ```
+  0ebe5ab ckpt 658: Shipped v7.15 (code 72): Part 6.1 of the Day Trading request - per-stock 1D ch
   c2227da ckpt 657: gated v7.15 (code 72) and pushed it: checkinit, the full unit suite and the ve
   77baaa5 ckpt 656: Recorded Tj's Part 6 request (day-trading charts/tabbed-detail/watchlist butto
   b64d83e ckpt 655: v7.14 (code 71) shipped end to end: run #14 built the correct commit (e1e25b1,
