@@ -1,13 +1,17 @@
-# CHECKPOINT 645 — read me first, then TASKS.md
+# CHECKPOINT 646 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T10:18:33Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/session-continuity-check-tjlp6d` · **builds on:** `fc7f7e1` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T10:20:27Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/session-continuity-check-tjlp6d` · **builds on:** `621165a` (this checkpoint is the commit after it)
 
 ## Just done
-Ran the /code-review skill (extra-high effort) against everything built this session (v7.12..HEAD) and fixed all 6 findings, all genuine: (1) CRITICAL - setForeground(true) never restarted the Day Trading live loop after a background/foreground cycle (it runs on fgScope, which backgrounding cancels outright, and nothing relaunched it on return) - fixed with a dayTradingLiveWanted flag setForeground now checks; (2) enrichDayTradingVisible was blindly overwriting good atr/vwap/openingRange fields with a partial fetch's failure-zero, since the daily-bar and intraday-bar requests fail independently - fixed by keeping each field separately on failure, extracted into a new pure/testable mergeDayTradingTech (mirrors withDayTradingLevels); (3) the explanation dialog captured a one-time ResearchRow snapshot and never reflected the live loop's updates while open - fixed to hold just the symbol and re-derive the row from live state each recomposition; (4) DayTradingBridge's prompt text overclaimed every stop as ATR-based even for rows still on the pre-ATR estimate - softened to be conditional on atr14's presence, in both the file-prompt and API-prompt text; (5) enrichDayTradingVisible fetched the visible window sequentially instead of using this file's own established Semaphore+async/awaitAll concurrent-fetch pattern - fixed to match; (6) DayTradingTechnicals.fetch() computed the opening range twice (once per field) - fixed to once. Added 5 new tests for mergeDayTradingTech proving the partial-fetch fix specifically. Full suite: 906 tests, 0 failures, 0 errors - up from 901, no regressions.
+gated v7.13 (code 70) and pushed it: checkinit, the full unit suite and the
+versionCode check all passed here. NOT yet built - GitHub has not been asked.
 
 ## Do this next
-Ship as the next version per CLAUDE.md's release flow: bump versionCode/versionName in app/build.gradle.kts (BUILDLOG.md has v7.12/code 69 as the last), bash ship.sh, trigger the GitHub Actions build via mcp__github__actions_run_trigger, watch for green, tools/record-release.sh. Tj no longer wants the APK sent through chat - just confirm the Release published and report the version number.
+TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
+android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
+send Tj the APK from the Release and then run:
+  bash tools/record-release.sh v7.13 "Day Trading tab rebuilt on research-backed technicals: real Wilder ATR(14), session VWAP, and the 09:30-10:00 ET opening range (from StockCharts ChartSchool, Schwab/Warrior Trading, and Toby Crabel's opening-range-breakout research, among many other professional sources), replacing the earlier ad-hoc volatility estimate for entry/stop/target and adding a VWAP/opening-range-breakout scoring bonus - still framed honestly as a computed risk plan, never a price prediction, per academic evidence on retail day-trading loss rates. Fixed the 'up X% today' mislabeling when the market is closed with session-aware wording ('last session' / 'extended hours'). Added a tap-to-explain dialog per stock showing the real technicals and the reasoning behind entry/stop/target. The live technicals refresh automatically while the Day Trading tab is open and goes fully idle otherwise - no Claude calls anywhere in that automatic path, only on an explicit Explain tap or the existing export/import file round trip, per Tj's explicit instruction. A same-session code review caught and fixed 6 real bugs before shipping, including one that would have silently killed the live refresh after any background/foreground cycle. 906 tests, 0 failures (35 new this session)."
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +20,7 @@ Ship as the next version per CLAUDE.md's release flow: bump versionCode/versionN
 
 ## Last ten checkpoints
 ```
+  9770178 ckpt 645: Ran the /code-review skill (extra-high effort) against everything built this s
   a16e560 ckpt 644: Grounded Claude's export/import path in the new real technicals: DayTradingBri
   3063ff2 ckpt 643: Wired the UI: ResearchScreen.kt now starts/stops the Day Trading live-technica
   3554f35 ckpt 642: Added ResearchRow.atr/vwap/openingRangeHigh/openingRangeLow with JSON round-tr
@@ -25,8 +30,7 @@ Ship as the next version per CLAUDE.md's release flow: bump versionCode/versionN
   252e117 ckpt 638: v7.12 (code 69) fully shipped: recorded in BUILDLOG.md, GitHub Actions run #11
   9dd98b5 ckpt 637: gated v7.12 (code 69) and pushed it: checkinit, the full unit suite and the ve
   5b55903 ckpt 636: Full Gradle unit suite green: 871 tests, 0 failures, 0 errors, 0 skipped (849 
-  c1fa285 ckpt 635: Wrote and verified tests for Day Trading: new DayTradingTest.kt (16 cases - Re
 ```
 
-(15 automatic checkpoint(s) since the last deliberate one — the
+(1 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
