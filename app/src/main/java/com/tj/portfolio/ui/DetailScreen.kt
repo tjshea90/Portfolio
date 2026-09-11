@@ -213,6 +213,16 @@ fun DetailScreen(
 ) {
     val quotes by vm.quotes.collectAsState()
     /**
+     * Today's Day Trading pick for this symbol, or null for every stock that is not one right
+     * now (Round 70). Re-derived from the live `research` state on every recomposition rather
+     * than captured once - the same discipline [ResearchScreen] used to apply to its own
+     * now-removed explanation dialog: while the Day Trading tab is open its live loop keeps
+     * refining this row, and a snapshot taken at navigation time would freeze on whatever the
+     * plan looked like at that instant.
+     */
+    val researchSet by vm.research.collectAsState()
+    val dayTradingRow = researchSet.dayTrading.firstOrNull { it.symbol == symbol }
+    /**
      * A stock opened from SEARCH that is neither held nor watched has no [Row] - the lists
      * are built from positions and the watchlist, and it is in neither. Before this the
      * whole price header simply did not render for those symbols, which is precisely the
