@@ -95,34 +95,78 @@ number behind a recommendation is a real, sourced number (analyst
 consensus, price vs. target, forward P/E, moving averages, 52-week range),
 not a guess, and the reasoning list already prints in the user's language.
 
-- [ ] Design the BUY/HOLD/SELL scoring rule for an OWNED position (distinct
-      question from Research's "is this worth buying fresh" — same inputs,
-      different framing: a HOLD is a legitimate, common answer here, where
-      Research's `best()` doesn't have a hold state).
-- [ ] Add a per-holding recommendation build: one Nasdaq consensus call per
-      OWNED symbol (small count — actual holdings, not a 450-name screener
-      universe) plus the price/fundamentals data already flowing through the
-      app for the position, so no new provider is added and no new
-      screener-scale request volume is introduced.
-- [ ] Cache per calendar day (device-local date), not a rolling TTL —
-      persisted (Room) so it survives app restart and does not refetch until
-      the next day, matching "only needs to refresh for each new day
-      session." Pull-to-refresh (if the app has one) should still force it.
-- [ ] Add the tab: same size as News, immediately to its left, in the
-      holding detail screen's tab row.
-- [ ] Tapping the tab opens a popup with the full reasoning list and the
-      target price for a transaction (buy/sell), matching the app's
-      existing dialog pattern.
-- [ ] Confirm the fetch happens on-demand (viewing the tab / normal
-      refresh), never on a background timer — app must sleep fully when
-      backgrounded, no added RAM/battery/CPU cost while not in use.
-- [ ] Unit tests for the new scoring function (mirrors `ResearchTest.kt`'s
-      style — pure function, no network in tests).
-- [ ] Full Gradle unit suite green, `tools/checkinit.py` clean, before
-      shipping.
-- [ ] Checkpoint after every completed step (`tools/ckpt.sh`), not just at
-      the end — this is an explicit ask, not the usual habit.
-- [ ] Ship following CLAUDE.md's normal release flow once done and tested.
+- [x] Design the BUY/HOLD/SELL scoring rule for an OWNED position
+      (`ResearchScore.holding` + `ResearchScore.verdictFor`, net/ResearchScore.kt).
+      Centered at 50 (HOLD is the honest default for a position already
+      owned) rather than starting at 0 like `best()`, which has no HOLD
+      state at all — that asymmetry is the whole reason this is a separate
+      function. Weighted toward analyst consensus and its price target
+      (±30 / ±12.5 of the move from 50) since that is the one input that is
+      already three-way buy/hold/sell from professional coverage and is
+      literally what Tj asked for by name; valuation (PEG/forward P/E),
+      earnings or revenue growth, and a year of performance against the
+      S&P 500 fill in the rest; a negative book value, heavy leverage or
+      elevated short interest can only ever subtract. Degrades honestly on
+      missing data exactly like `best()`/`trending()` do — an absent field
+      scores nothing rather than being guessed at, and `confidence` reports
+      how much of the picture was actually there.
+- [x] Add a per-holding recommendation build — **better than the plan
+      above turned out to be possible**: it costs ZERO new network
+      requests, not "one Nasdaq call per holding." `Fundamentals.consensus`
+      (data/Fundamentals.kt) already carries the same buy/hold/sell counts
+      and target price, already fetched for every holding by
+      `loadFundamentals` (unconditionally, on every detail-screen open, for
+      the Overview/Stats tabs) — so `net/Recommend.kt` just reads it. No new
+      provider, no new request volume at all, which is the strongest
+      possible answer to "without using so much internet pulls that
+      providers ban or limit my requests."
+- [x] Cache per TRADING DAY, not device-local calendar date or a rolling
+      TTL — `MarketClock.dayKey()` (America/New_York, so it can't drift on
+      a device set to a different time zone), checked in
+      `PortfolioViewModel.loadRecommendation` before anything recomputes.
+      Persisted in the existing hand-rolled SQLite `fundamentals` table
+      under a new `kind` (this project does not use Room — see
+      `Db.cacheRecommendation`/`cachedRecommendation`), so it survives app
+      restart. Deliberately has NO `force` parameter and is not called from
+      pull-to-refresh or resume — Tj asked that this specifically "only
+      needs to refresh for each new day session," nothing else, so the day
+      check is the only thing that can ever trigger a recompute.
+- [x] Add the tab: `DetailTab.RECOMMENDATION`, same size as every other tab
+      (no per-tab sizing exists in this app — same `Tab{}` composable for
+      all of them), immediately to the left of News in the enum order.
+      Shows the live verdict word ("Buy"/"Hold"/"Sell") and a traffic-light
+      color once computed; "..." as a placeholder before that, never a
+      blank tab.
+- [x] Tapping the tab opens `RecommendationDialog` (ui/RecommendationDialog.kt)
+      with the full reasoning list, the average analyst target price (and
+      its high/low range) or an honest "no target published" line rather
+      than a fabricated number, and a confidence/coverage caveat when the
+      picture is thin — instead of switching the screen's body, which is
+      what every other tab does.
+- [x] Confirmed on-demand only: `loadRecommendation` runs from a
+      `LaunchedEffect` when fundamentals arrive, on the same `fgScope` that
+      is already cancelled whenever the app backgrounds
+      (`PortfolioViewModel.setForeground(false)`) — no timer, no polling
+      loop, no new lifecycle code at all. It inherits the app's existing
+      background-sleep behavior for free.
+- [x] Unit tests: `RecommendationScoreTest.kt` (17 cases pinning every
+      scoring term in isolation, the verdict dead-band boundaries, and the
+      0–100 clamp under extreme input), 2 `MarketClock.dayKey` tests in
+      `NetLogicTest.kt` (same-ET-day agreement; ET midnight vs. UTC
+      midnight, proving the freeze can't drift by time zone), 6 DB
+      round-trip tests in `DbTest.kt` (field fidelity, replace-not-duplicate,
+      uppercasing, no collision with the other two `fundamentals` kinds,
+      purge ages it out like every other kind), and 7 Robolectric UI-render
+      tests in `DetailTabsUiTest.kt` for the popup and the live tab label —
+      this project's own established substitute for "opened it on a phone"
+      when no emulator is attached to the container, per that file's own
+      header, and it did catch one real mistake (a bad import) before this
+      was called done.
+- [x] Full Gradle unit suite green, `tools/checkinit.py` clean: verified in
+      a clean final run after every edit — 838 tests, 0 failures, 0 errors.
+- [x] Checkpointed after every completed step (ckpt 609, 613, 614, 615),
+      not just at the end.
+- [ ] Ship following CLAUDE.md's normal release flow.
 
 ## The flow (details in CLAUDE.md)
 
