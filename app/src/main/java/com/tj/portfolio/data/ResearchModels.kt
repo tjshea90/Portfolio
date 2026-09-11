@@ -217,7 +217,20 @@ data class ResearchRow(
     val atr: Double = 0.0,
     val vwap: Double = 0.0,
     val openingRangeHigh: Double = 0.0,
-    val openingRangeLow: Double = 0.0
+    val openingRangeLow: Double = 0.0,
+    /**
+     * THE LEVELS THE ROUND 69 TRIGGER IS CHOSEN FROM - the 5-minute ATR the stop is sized by,
+     * the average daily range the target is bounded by, and the four structural prices an
+     * intraday trader actually watches. Kept on the row, not just used and discarded inside
+     * the scorer, because the per-stock explanation has to be able to SHOW its work and the
+     * Claude bundle has to be able to hand over the same numbers the app reasoned from.
+     */
+    val atrIntraday: Double = 0.0,
+    val adr: Double = 0.0,
+    val prevHigh: Double = 0.0,
+    val premarketHigh: Double = 0.0,
+    val sessionHigh: Double = 0.0,
+    val sessionLow: Double = 0.0
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("symbol", symbol)
