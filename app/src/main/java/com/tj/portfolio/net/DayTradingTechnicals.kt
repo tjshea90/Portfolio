@@ -37,6 +37,52 @@ import kotlin.math.abs
  *    the single target number - the full Crabel "stretch" (a 10-day average of the opening
  *    move) is a further refinement this does not attempt.
  *
+ * ROUND 69 ADDITIONS - THE LEVELS AN ENTRY TRIGGER IS ACTUALLY MADE OF.
+ *
+ * Tj, 2026-09-11: *"the target buy price just matches the current market price. I don't think
+ * this is how day traders operate."* He is right, and everything below exists because of it.
+ * A day trader's buy price is a LEVEL PRICE HAS TO REACH - a buy-stop above overhead
+ * resistance, or a buy-limit down at support - never the last print. [ResearchScore.tradePlan]
+ * is the engine; this file supplies the levels it chooses between:
+ *
+ *  - **Prior-session high / low / close**, and the **floor-trader pivots** derived from them
+ *    (PP = (H+L+C)/3, R1 = 2*PP - Low, R2 = PP + (H-L), S1 = 2*PP - High). Pivots are the
+ *    oldest published intraday level set there is - literally what pit traders computed by
+ *    hand overnight - and are still the standard static support/resistance grid on an
+ *    intraday chart (TradingView, TC2000, TradingSim all document this exact formula). R1/R2
+ *    are used here as profit targets, which is the use practitioners describe.
+ *  - **The premarket high**, the "gap and go" trigger: Warrior Trading's own description of
+ *    the setup is to mark the premarket high and buy the break of it at the open.
+ *  - **Session high / low so far**, for both the high-of-day breakout trigger and the
+ *    range-used calculation below.
+ *  - **ADR (Average Daily Range)** - the mean of (high - low) over the last 14 completed
+ *    sessions. Used to answer the question practitioner sources put at the centre of target
+ *    setting: HOW MUCH ROOM IS LEFT. Two identical-looking setups differ completely when one
+ *    has used 30% of its typical daily range and the other 110%, and a profit target placed
+ *    outside the day's realistic range is not a target, it is a wish.
+ *  - **An INTRADAY ATR(14) computed on the 5-minute bars**, alongside the daily one.
+ *
+ * THE INTRADAY ATR IS A CORRECTION OF A REAL BUG, not an extra. Until Round 69 the stop was
+ * `price - 1.5 * ATR(14 DAILY)`. The "1.5x-2x ATR" figure in the day-trading literature means
+ * the ATR OF THE TIMEFRAME BEING TRADED - the near-universal rule is to size a stop from the
+ * chart you are trading, because mixing timeframes gives "mismatched stop distances." 1.5x a
+ * DAILY range is roughly one and a half ENTIRE average sessions of risk on a trade meant to be
+ * closed the same afternoon: on a $100 stock with a $3 daily ATR it put the stop 4.5% away and
+ * the 2:1 target 9% away, which is why the levels read as implausible. A 5-minute ATR(14) is
+ * the right scale, and it cross-checks against the only peer-reviewed number available: the
+ * Zarattini-Barbon-Aziz "stocks in play" ORB study used a stop of a small fraction of the
+ * 14-day ATR, and 1.5x-2.5x a 5-minute ATR lands in that same fraction-of-a-daily-range band
+ * from the other direction. Two independent derivations agreeing is the reason to trust it.
+ *
+ * WHY THESE SOURCES AND NOT A BACKTEST OF OUR OWN. The strongest published evidence for any of
+ * this is Zarattini, Barbon & Aziz, "A Profitable Day Trading Strategy For The U.S. Equity
+ * Market" (Swiss Finance Institute / SSRN, 2024), which tested the 5-minute opening-range
+ * breakout across 7,000+ US stocks over 2016-2023 and found the edge concentrated in "stocks
+ * in play" - the ~20 names each day with the highest opening relative volume, filtered to
+ * price > $5, 14-day average volume >= 1M shares and 14-day ATR >= $0.50. That is the same
+ * shape this tab already had (screen for what is genuinely in play, then trade a level), which
+ * is why the filters and the level set here follow it rather than something invented.
+ *
  * WHAT THIS STILL DOES NOT CLAIM. All three describe risk and levels ALREADY IN THE MARKET
  * DATA - none of them predicts direction. That is deliberate: see
  * [ResearchScore.dayTrading]'s header for the feasibility finding this whole feature rests on.
