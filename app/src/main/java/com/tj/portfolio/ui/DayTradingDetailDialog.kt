@@ -209,8 +209,5 @@ internal fun DayTradingPlanContent(r: ResearchRow) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Got it") } }
-    )
+    }
 }
