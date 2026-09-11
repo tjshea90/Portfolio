@@ -1,13 +1,13 @@
-# CHECKPOINT 615 — read me first, then TASKS.md
+# CHECKPOINT 616 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T01:02:12Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `c15c5d3` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T01:03:09Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `6e32da7` (this checkpoint is the commit after it)
 
 ## Just done
-Added Robolectric render tests for the actual UI (RecommendationDialog and DetailTabRow with a live verdict label) in DetailTabsUiTest.kt, matching this project's own established substitute for 'ran it on a phone' since no emulator/device is attached to this container - the same discipline that file's header already documents catching two real layout bugs source-reading couldn't. Caught and fixed one real mistake in the process: assertDoesNotExist needed no import (it's a member of SemanticsNodeInteraction, not a top-level function) and an incorrect import broke the build - fixed and reverified. Full suite green: BUILD SUCCESSFUL, 838 tests total, 0 failures/0 errors, verified in a clean final run after all edits.
+Finished the TASKS.md checklist for the buy/hold/sell feature - ticked every box, and corrected two write-ups against what was actually built rather than the original plan: it costs ZERO new network requests (reuses Fundamentals.consensus, already fetched by loadFundamentals, instead of adding a second Nasdaq call per holding), and the day-cache is keyed to the ET trading day via MarketClock.dayKey() and stored in the existing hand-rolled SQLite fundamentals table (this project has no Room), not device-local/Room as first sketched. Only remaining box is shipping.
 
 ## Do this next
-Finish the TASKS.md checklist (tick every box, all now genuinely done and tested) under the buy/hold/sell section, then bump versionCode+versionName in app/build.gradle.kts and run ship.sh per CLAUDE.md's normal release flow.
+Bump versionCode and versionName in app/build.gradle.kts, then run ship.sh.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Finish the TASKS.md checklist (tick every box, all now genuinely done and tested
 
 ## Last ten checkpoints
 ```
+  866376c ckpt 615: Added Robolectric render tests for the actual UI (RecommendationDialog and Det
   876f950 ckpt 614: Full Gradle unit suite verified GREEN: BUILD SUCCESSFUL, 831 tests total acros
   81453dd ckpt 613: Built the per-holding BUY/HOLD/SELL feature end to end (proceeding on Sonnet p
   340d345 ckpt 612: Ticked off the screener TASKS.md boxes — all built, tested (11 new + 37 exis
@@ -25,8 +26,7 @@ Finish the TASKS.md checklist (tick every box, all now genuinely done and tested
   a5254d3 ckpt 608: Final verification of the permanent flow. Chased the one RED that ckpt 607 rec
   2101672 ckpt 607: Verified origin/main is fully restored after my fixture contamination: version
   47d403b ckpt 606: MY MISTAKE, and its cleanup: the end-to-end interruption simulation contaminat
-  a3ea6f2 ckpt 605: gated v7.9 (code 66) and pushed it. NOT yet built - GitHub has not been asked.
 ```
 
-(4 automatic checkpoint(s) since the last deliberate one — the
+(1 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
