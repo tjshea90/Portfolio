@@ -357,10 +357,12 @@ fun ResearchScreen(
             val trendingState = androidx.compose.foundation.lazy.rememberLazyListState()
             val bestState = androidx.compose.foundation.lazy.rememberLazyListState()
             val etfState = androidx.compose.foundation.lazy.rememberLazyListState()
+            val dayTradingState = androidx.compose.foundation.lazy.rememberLazyListState()
             val listState = when (section) {
                 Section.TRENDING -> trendingState
                 Section.BEST -> bestState
                 Section.ETFS -> etfState
+                Section.DAY_TRADING -> dayTradingState
             }
             LazyColumn(
                 Modifier.fillMaxSize(),
