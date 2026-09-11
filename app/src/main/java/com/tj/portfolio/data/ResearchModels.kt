@@ -451,13 +451,15 @@ data class ResearchSet(
         put("etfs", JSONArray().also { a -> etfs.forEach { a.put(it.toJson()) } })
         if (etfGenerated > 0) put("etfGenerated", etfGenerated)
         if (etfWarnings.isNotEmpty()) put("etfWarnings", JSONArray(etfWarnings))
+        put("dayTrading", JSONArray().also { a -> dayTrading.forEach { a.put(it.toJson()) } })
     }
 
     companion object {
         const val SECTION_TRENDING = "TRENDING"
         const val SECTION_BEST = "BEST"
         const val SECTION_ETF = "ETF"
-        val SECTIONS = listOf(SECTION_TRENDING, SECTION_BEST, SECTION_ETF)
+        const val SECTION_DAY_TRADING = "DAY_TRADING"
+        val SECTIONS = listOf(SECTION_TRENDING, SECTION_BEST, SECTION_ETF, SECTION_DAY_TRADING)
 
         /** How many rows one page of a section shows. */
         const val PAGE = 10
