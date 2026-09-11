@@ -471,7 +471,17 @@ fun ResearchScreen(
                         rows.take(visibleCount),
                         key = { "${section.key}_${it.symbol}" }
                     ) { r ->
-                        ResearchCard(r, r.symbol in watched, onOpen, onOpenUrl)
+                        ResearchCard(
+                            r, r.symbol in watched,
+                            // Day Trading rows open the explanation dialog instead of
+                            // navigating to the stock's own detail screen - "click on each
+                            // stock and there is an explanation for the buy and sell points".
+                            onOpen = if (section == Section.DAY_TRADING) {
+                                { dayTradingDetail = r }
+                            } else onOpen,
+                            onOpenUrl,
+                            sessionSuffix = if (section == Section.DAY_TRADING) sessionSuffix else ""
+                        )
                     }
                     item(key = "more") {
                         Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
