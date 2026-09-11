@@ -25,20 +25,32 @@ from the previous request applies here just as much, so this fetch is
 staggered (a few symbols at a time, not all ~16 in one instant) rather than
 firing every holding's request in the same tick.
 
-- [ ] Add a small BUY/HOLD/SELL chip to `StockRowItem` (`ui/StockRow.kt`),
-      matching the row's existing "News" chip pattern and placed to its
-      left - same visual language as the detail screen's tab-left-of-News
-      placement. Tapping it opens the same `RecommendationDialog` used on
-      the detail screen.
-- [ ] Trigger fundamentals + recommendation loading for every row shown on
-      the Portfolio tab (not just watch-only rows), staggered rather than
-      all at once, reusing `loadRecommendation`'s existing zero-extra-cost,
-      once-per-trading-day cache - this is a new caller of an existing
-      function, not a new fetch mechanism.
-- [ ] Unit/UI tests for the new chip rendering and the staggered fetch
-      trigger.
-- [ ] Full Gradle unit suite green before shipping.
-- [ ] Checkpoint after every completed step.
+- [x] Added the BUY/HOLD/SELL chip to `StockRowItem` (`ui/StockRow.kt`):
+      matches the row's "News" chip pattern (size, shape, tap target),
+      placed to its left, tinted and worded with the verdict once known and
+      "..." before that - never a blank space. Tapping it opens the same
+      `RecommendationDialog` the detail screen uses, and does NOT open the
+      stock (unlike the rest of the row). Not shown on a watch-only row -
+      the verdict is about a position TJ holds, and a watched-but-unowned
+      symbol has none.
+- [x] `PortfolioViewModel.loadPortfolioFundamentals` triggers fundamentals
+      for every held row (`PortfolioScreen.kt`), staggered 3-at-a-time with
+      a 400ms gap rather than firing all ~16 in one instant; `loadRecommendation`
+      then runs per row once its fundamentals arrive - reusing the existing
+      zero-extra-network, once-per-trading-day cache exactly as built for
+      the detail screen. Both effects are keyed on the symbol list and the
+      fundamentals map, not on the price-ticking `Row` objects, so they do
+      not refire on every quote tick (four times a minute).
+- [x] Tests: 7 new UI-render tests (`StockRowRecommendationUiTest.kt` -
+      placeholder, each verdict word, tap-opens-popup-not-detail, dismiss,
+      no chip on a watch-only row, News chip unaffected). Deliberately no
+      dedicated test for the stagger loop itself - it is glue over
+      already-tested primitives (`fgScope`, `loadFundamentals`'s own
+      guards), the same boundary `BackgroundTest.kt` already draws.
+- [x] Full Gradle unit suite green: 845 tests, 0 failures, 0 errors -
+      including `SparklineSizeUiTest`, confirming the new chip did not
+      disturb the row's chart-sizing layout it sits beside.
+- [x] Checkpointed after every completed step (ckpt 620-622).
 - [ ] Ship following CLAUDE.md's normal release flow.
 
 ## The flow, verified 2026-09-11 (details in CLAUDE.md)
