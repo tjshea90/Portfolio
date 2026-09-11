@@ -761,7 +761,16 @@ fun DetailScreen(
 
         Spacer(Modifier.height(6.dp))
 
-        DetailTabRow(tabs, tab) { tab = it }
+        DetailTabRow(
+            tabs, tab,
+            recommendationLabel = recommendation?.let { verdictWord(it.verdict) },
+            recommendationColor = recommendation?.let { verdictTint(it.verdict) }
+        ) { t ->
+            // THE ONE TAB THAT IS A BUTTON, NOT A DESTINATION. TJ: "if I click on the buy hold
+            // or sell tab... a pop up should appear" - tapping it must never change what the
+            // screen behind it is showing, unlike every other tab here.
+            if (t == DetailTab.RECOMMENDATION) showRecommendation = true else tab = t
+        }
 
         Refreshable(
             refreshing = state.pulling(PULL_PRICES),
