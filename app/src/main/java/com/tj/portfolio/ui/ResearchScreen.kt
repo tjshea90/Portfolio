@@ -392,6 +392,9 @@ fun ResearchScreen(
                                 set.isEmpty ->
                                     "Nothing loaded yet. Pull down, or tap the refresh " +
                                         "button, to scan the market."
+                                section == Section.DAY_TRADING ->
+                                    "Nothing at $2 a share or more looked objectively in play " +
+                                        "on the last pass."
                                 else -> "Nothing scored into this list on the last pass."
                             },
                             style = MaterialTheme.typography.bodyMedium,
