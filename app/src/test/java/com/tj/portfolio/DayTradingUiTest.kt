@@ -125,7 +125,7 @@ class DayTradingUiTest {
         show { Column(Modifier.fillMaxWidth().padding(16.dp)) {
             BeginnerSummaryCard(
                 ResearchRow(
-                    symbol = "GME", price = 21.00,
+                    symbol = "GME", price = 21.50,
                     entryPrice = 22.50, stopPrice = 21.00, targetPrice = 30.00
                 )
             )
