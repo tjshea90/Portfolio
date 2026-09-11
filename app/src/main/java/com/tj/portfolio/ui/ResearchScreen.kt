@@ -488,7 +488,7 @@ fun ResearchScreen(
                             // navigating to the stock's own detail screen - "click on each
                             // stock and there is an explanation for the buy and sell points".
                             onOpen = if (section == Section.DAY_TRADING) {
-                                { dayTradingDetail = r }
+                                { dayTradingDetailSymbol = r.symbol }
                             } else onOpen,
                             onOpenUrl,
                             sessionSuffix = if (section == Section.DAY_TRADING) sessionSuffix else ""
