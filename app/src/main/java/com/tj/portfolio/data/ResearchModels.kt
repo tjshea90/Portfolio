@@ -499,6 +499,7 @@ data class ResearchSet(
                 etfs = rows("etfs"),
                 etfGenerated = o.optLong("etfGenerated", 0L),
                 etfWarnings = etfWarn,
+                dayTrading = rows("dayTrading"),
                 generated = o.optLong("generated", 0L),
                 sources = o.text("sources"),
                 warnings = warn,
