@@ -5530,6 +5530,120 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             (if (added > 0) ", $added added" else "")
     }
 
+    // ==================================================== DAY TRADING LIVE TECHNICALS (Round 68)
+    //
+    // Tj, 2026-09-11, explicit design constraints given when this was screened - implemented
+    // to the letter, not paraphrased:
+    //
+    //   "Do not use Claude api at all in the app unless I explicitly press a button" - this
+    //   pass never touches Claude. It is a plain market-data fetch
+    //   ([com.tj.portfolio.net.DayTradingTechnicals]), the same family as [enrichPass]'s
+    //   analyst-consensus lookups for Best.
+    //
+    //   "it can use as much mobile Internet data as needed, and it can do this all
+    //   automatically, but only when I have that tab open... The feature should be asleep
+    //   when I'm not using it" - [startDayTradingLive]/[stopDayTradingLive] are called from
+    //   ResearchScreen's own lifecycle wiring, tied to BOTH which Research sub-tab is selected
+    //   AND the app's foreground state: this runs on [fgScope], which `setForeground(false)`
+    //   cancels outright, and `stopDayTradingLive` additionally cancels it the moment the
+    //   Day Trading tab is no longer the one on screen, which backgrounding alone would not.
+
+    private var dayTradingLiveJob: Job? = null
+
+    /** Every symbol already given its one-time technicals score bonus this rebuild - see
+     *  [enrichDayTradingVisible] for why this must be "once", not "every refresh". Cleared on
+     *  every fresh stock rebuild in [loadResearch], the same cadence [analystDone] uses. */
+    private val dayTradingTechScored = HashSet<String>()
+
+    /** How often the live loop re-fetches technicals for the visible window, while it runs at all. */
+    private const val DAY_TRADING_LIVE_INTERVAL_MS = 30_000L
+
+    /**
+     * Starts (or restarts) the live technicals loop. Idempotent - cancels any prior job first,
+     * so `ResearchScreen` can call this every time its `LaunchedEffect` re-evaluates without
+     * tracking whether one is already running.
+     */
+    fun startDayTradingLive() {
+        dayTradingLiveJob?.cancel()
+        dayTradingLiveJob = fgScope.launch {
+            while (isActive) {
+                enrichDayTradingVisible()
+                delay(DAY_TRADING_LIVE_INTERVAL_MS)
+            }
+        }
+    }
+
+    /** Stops it - called the moment the Day Trading tab is no longer the one on screen. */
+    fun stopDayTradingLive() {
+        dayTradingLiveJob?.cancel()
+        dayTradingLiveJob = null
+    }
+
+    /**
+     * One sweep over the visible Day Trading window: fetches real technicals for each symbol
+     * and upgrades its risk plan and score IN PLACE, without re-sorting the list.
+     *
+     * NEVER RE-SORTED, ON PURPOSE. Best's analyst enrichment re-ranks its window because that
+     * list is read once and left; a live view refreshing every 30 seconds that also reshuffled
+     * every 30 seconds would be worse to watch than a ranking that occasionally under-ranks a
+     * stock that just broke out - the screener's own ordering holds until the next full
+     * rebuild.
+     *
+     * THE SCORE BONUS APPLIES EXACTLY ONCE PER SYMBOL PER REBUILD, via [dayTradingTechScored].
+     * [ResearchScore.withTechnicals] ADDS to whatever score it is handed; calling it again on
+     * an already-boosted score and an already-appended reason line on the next 30-second tick
+     * would compound both forever. The risk-plan levels ([ResearchScore.upgradeLevels]) have no
+     * such problem - they are computed fresh from the current price and ATR every time, never
+     * from their own last output - so those DO refresh on every tick.
+     */
+    private suspend fun enrichDayTradingVisible() {
+        val name = com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING
+        val rows = _research.value.section(name)
+        if (rows.isEmpty()) return
+        val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
+            .coerceAtMost(rows.size)
+        val head = rows.take(shown)
+        val fetched = withContext(Dispatchers.IO) {
+            head.associate { row ->
+                row.symbol to runCatching {
+                    com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
+                }.getOrNull()
+            }
+        }
+        var changed = false
+        // RE-READ, NOT THE `head` SNAPSHOT - same reason enrichPass does this (Round 66 audit,
+        // RES-7): a suspended fetch must not let whatever changed underneath it (an import, a
+        // rebuild) be silently overwritten on write-back.
+        val current = _research.value.section(name)
+        val updated = current.map { row ->
+            val tech = fetched[row.symbol] ?: return@map row
+            if (tech.isEmpty) return@map row
+            changed = true
+            val levels = com.tj.portfolio.net.ResearchScore.upgradeLevels(row.price, tech)
+            val withLevels = row.copy(
+                atr = tech.atr14,
+                vwap = tech.vwap,
+                openingRangeHigh = tech.openingRangeHigh,
+                openingRangeLow = tech.openingRangeLow,
+                entryPrice = levels?.entry ?: row.entryPrice,
+                stopPrice = levels?.stop ?: row.stopPrice,
+                targetPrice = levels?.target ?: row.targetPrice
+            )
+            if (row.symbol in dayTradingTechScored) return@map withLevels
+            dayTradingTechScored.add(row.symbol)
+            val scored = com.tj.portfolio.net.ResearchScore.withTechnicals(
+                com.tj.portfolio.net.ResearchScore.Scored(withLevels.score, withLevels.reasons, 100),
+                tech,
+                withLevels.price
+            )
+            withLevels.copy(score = scored.score, reasons = scored.reasons)
+        }
+        if (changed) {
+            _research.value = _research.value.withSection(name, updated)
+            cacheResearch(_research.value)
+        }
+    }
+
     /**
      * Which rows of a freshly built set still have no price, highest-scoring first.
      *
