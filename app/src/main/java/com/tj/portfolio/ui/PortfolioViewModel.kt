@@ -5550,15 +5550,22 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         cacheResearch(merged)
         _researchError.value = null
         val known = cur.dayTrading.map { it.symbol }.toSet()
-        val added = parsed.picks.map { it.symbol }.distinct().count { it !in known }
-        // Anything Claude ADDED has no price and no trade levels yet - [fillPricesNow]
-        // computes both for a day-trading row, the same way it fills price alone for the
-        // other three sections.
+        val kept = parsed.picks.map { it.symbol }.distinct()
+        val added = kept.count { it !in known }
+        val dropped = known.count { it !in kept.toSet() }
+        // Anything Claude ADDED has no price yet - the fill gives it one, and the live
+        // technicals sweep computes the app's own plan for it on the next tick if Claude did
+        // not supply usable levels of its own.
         val newSymbols = merged.dayTrading
             .filter { it.price <= 0.0 }.map { it.symbol }.distinct().take(MAX_PRICE_FILL)
         if (newSymbols.isNotEmpty()) fillResearchPrices(newSymbols)
-        return "Day trading updated - ${parsed.picks.size} explained" +
-            (if (added > 0) ", $added added" else "")
+        // SAYS WHAT ACTUALLY HAPPENED, INCLUDING THE REMOVALS (Round 69). Claude's list now
+        // REPLACES the section rather than annotating it, so a run that quietly deleted six
+        // rows the user had been reading must not report itself as "6 explained".
+        return "Day trading rebuilt by Claude - ${parsed.picks.size} " +
+            (if (parsed.picks.size == 1) "pick" else "picks") +
+            (if (added > 0) ", $added new" else "") +
+            (if (dropped > 0) ", $dropped dropped" else "")
     }
 
     // ==================================================== DAY TRADING LIVE TECHNICALS (Round 68)
