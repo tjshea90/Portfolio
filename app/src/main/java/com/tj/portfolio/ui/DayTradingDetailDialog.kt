@@ -65,6 +65,7 @@ fun DayTradingDetailDialog(r: ResearchRow, onDismiss: () -> Unit) {
 internal fun DayTradingPlanContent(r: ResearchRow) {
     Column {
         if (r.entryPrice > 0) {
+                    BeginnerSummaryCard(r)
                     TradeLevelsGrid(r)
                     Spacer(Modifier.height(10.dp))
                     val rr = rewardToRisk(r)
