@@ -48,6 +48,18 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || echo .)}/tools/screener.sh\" 2>/dev/null || true",
+            "timeout": 15,
+            "statusMessage": "Screening request..."
+          }
+        ]
+      }
     ]
   }
 }
