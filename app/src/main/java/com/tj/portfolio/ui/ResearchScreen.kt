@@ -1139,8 +1139,9 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
  */
 internal fun rewardToRisk(r: ResearchRow): Double {
     if (r.entryPrice <= 0.0 || r.stopPrice <= 0.0 || r.targetPrice <= 0.0) return 0.0
-    val risk = r.entryPrice - r.stopPrice
-    return if (risk > 1e-9) (r.targetPrice - r.entryPrice) / risk else 0.0
+    return com.tj.portfolio.net.ResearchScore.rewardRisk(
+        r.entryPrice, r.entryPrice - r.stopPrice, r.targetPrice
+    )
 }
 
 private const val DASH = "\u2014"
