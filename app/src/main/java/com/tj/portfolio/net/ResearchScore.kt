@@ -331,6 +331,171 @@ object ResearchScore {
         )
     }
 
+    // ------------------------------------------------------------- HOLDING
+
+    /**
+     * Everything [holding] needs about one symbol already on TJ's board, all of it numbers
+     * the app fetches anyway for the Overview/Stats/Analysts tabs ([FundamentalsFeed.core]).
+     * No new provider, no new request - see the note on [Recommend] in `net/Recommend.kt`.
+     */
+    data class HoldingInput(
+        val price: Double,
+        val consensus: Consensus? = null,
+        val values: Map<String, Double> = emptyMap()
+    )
+
+    /**
+     * BUY / HOLD / SELL for a position ALREADY OWNED OR WATCHED - a different question from
+     * [best]'s "is this worth buying fresh", and the difference is the whole reason this is a
+     * separate function rather than a third state bolted onto that one: [best] has no HOLD,
+     * because "don't buy it" and "don't buy MORE of it" are not the same sentence, and every
+     * one of its terms is phrased as a case FOR buying. Here the natural, honest default is a
+     * HOLD - TJ is not being asked whether to open a position, only whether to change one he
+     * already has - so the scale is CENTERED AT 50 rather than starting at 0, and every term
+     * below moves it up or down from there rather than only ever adding to it.
+     *
+     * Weighted toward the analyst consensus and its price target (up to +-30 and +-12.5)
+     * because that is the one signal here that is *already* three-way buy/hold/sell, from
+     * people paid to watch this stock full time, and it is literally the thing TJ asked for -
+     * "professional analysts, target prices". Valuation, growth and a year of relative
+     * performance fill in the rest, and a couple of balance-sheet red flags can only ever
+     * subtract - a stretched balance sheet is a reason for caution, never a reason to buy.
+     *
+     * DEGRADES HONESTLY, same rule as [best]: a field that is absent scores nothing for its
+     * term rather than being guessed at, [confidence] says how much of the picture was
+     * actually there, and a stock with almost nothing published lands at exactly 50 - a HOLD,
+     * with a reason list that says why it could not move either way. That is the correct
+     * answer for thin data, not a coin flip dressed up as one.
+     */
+    fun holding(input: HoldingInput): Scored {
+        val why = ArrayList<String>()
+        var s = 50.0
+        var have = 0
+        var want = 0
+        val v = input.values
+        val price = input.price
+        val c = input.consensus
+
+        // --- analyst verdict (+-30): three-way already, from professional coverage.
+        want++
+        if (c != null && c.hasVotes) {
+            have++
+            val buyVotes = c.strongBuy + c.buy
+            val sellVotes = c.sell + c.strongSell
+            val lean = (buyVotes - sellVotes).toDouble() / c.votes
+            s += lean * 30.0
+            val lab = c.meanLabel.ifBlank { "Mixed" }
+            why.add(
+                "$lab consensus - $buyVotes buy / ${c.hold} hold / $sellVotes sell across " +
+                    "${c.votes} analysts"
+            )
+        }
+
+        // --- price vs. target (+-12.5): "for how much", the number TJ asked for by name.
+        want++
+        if (c != null && c.hasTarget && price > 0.0) {
+            val up = c.upsidePct(price)
+            if (up != null) {
+                have++
+                s += ramp(up, -30.0, 30.0, 25.0) - 12.5
+                why.add(
+                    if (up >= 0)
+                        "Average analyst target ${Fmt.price(c.targetMean)} - ${pct(up)} above today"
+                    else
+                        "Average analyst target ${Fmt.price(c.targetMean)} - ${pct(-up)} BELOW today"
+                )
+            }
+        }
+
+        // --- valuation (+-20): PEG where it exists, since it already prices in growth;
+        // forward P/E against a plain reasonable-multiple band otherwise.
+        want++
+        val peg = v["pegRatio"]
+        val fwdPe = v["peForward"]
+        if (peg != null && peg > 0.0) {
+            have++
+            val pts = ((1.5 - peg) * 10.0).coerceIn(-20.0, 20.0)
+            s += pts
+            why.add(
+                "PEG ratio ${Fmt.priceBare(peg)} - " + when {
+                    peg <= 1.0 -> "cheap for its growth"
+                    peg <= 2.0 -> "reasonably priced for its growth"
+                    else -> "expensive relative to its growth"
+                }
+            )
+        } else if (fwdPe != null && fwdPe > 0.0) {
+            have++
+            val pts = ((25.0 - fwdPe) * (20.0 / 25.0)).coerceIn(-20.0, 20.0)
+            s += pts
+            why.add(
+                "Forward P/E ${Fmt.priceBare(fwdPe)}" +
+                    if (fwdPe <= 20.0) " - reasonable" else " - rich, priced for continued strength"
+            )
+        }
+
+        // --- growth (+-15): earnings growth first, revenue as the fallback.
+        want++
+        val eg = v["earningsGrowth"]
+        val rg = v["revenueGrowth"]
+        val g = eg ?: rg
+        if (g != null) {
+            have++
+            s += (g * 100.0).coerceIn(-20.0, 20.0) * 0.75
+            val label = if (eg != null) "Earnings" else "Revenue"
+            why.add(
+                if (g >= 0) "$label growing ${pct(g * 100.0)} year over year"
+                else "$label shrinking ${pct(-g * 100.0)} year over year"
+            )
+        }
+
+        // --- a year of performance against the market (+-15).
+        want++
+        val chg = v["change52Week"]
+        if (chg != null) {
+            have++
+            val sp = v["sp500Change52Week"]
+            val relPct = (chg - (sp ?: 0.0)) * 100.0
+            s += relPct.coerceIn(-20.0, 20.0) * 0.75
+            why.add(
+                "Up ${pct(chg * 100.0)} over the past year" +
+                    if (sp != null) " vs ${pct(sp * 100.0)} for the S&P 500" else ""
+            )
+        }
+
+        // --- balance-sheet red flags: subtract only. A stretched balance sheet is a reason
+        // for caution, never a reason in favour of buying more.
+        val ptb = v["priceToBook"]
+        if (ptb != null && ptb < 0.0) {
+            s -= 10.0
+            why.add("Negative book value - liabilities exceed assets on the balance sheet")
+        }
+        val dte = v["debtToEquity"]
+        if (dte != null && dte > 200.0) {
+            s -= 8.0
+            why.add("High leverage - debt/equity over ${Fmt.priceBare(dte)}%")
+        }
+        val short = v["shortPercentOfFloat"]
+        if (short != null && short > 0.15) {
+            s -= 6.0
+            why.add("Elevated short interest (${pct(short * 100.0)} of float) - added volatility")
+        }
+
+        if (why.isEmpty()) why.add("Not enough public data yet to form a view either way")
+
+        return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
+    }
+
+    /**
+     * Score to verdict. A dead band around the neutral midpoint on purpose: [holding] centers
+     * at 50 and moves from there in both directions, so anything that could not clear a real
+     * margin either way is exactly the case for staying put, not a coin flip rounded to a side.
+     */
+    fun verdictFor(score: Int): TradeVerdict = when {
+        score >= 63 -> TradeVerdict.BUY
+        score <= 37 -> TradeVerdict.SELL
+        else -> TradeVerdict.HOLD
+    }
+
     /** How much of what the scorer wanted to read was actually reported, 0-100. */
     private fun confidence(have: Int, want: Int): Int =
         if (want <= 0) 0 else (have * 100 / max(1, want)).coerceIn(0, 100)
