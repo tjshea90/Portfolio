@@ -406,6 +406,15 @@ fun DetailScreen(
         if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol)
     }
 
+    // BUY/HOLD/SELL: no request of its own - `loadRecommendation` reads whatever
+    // `loadFundamentals` above just fetched or is fetching. Keyed on whether fundamentals have
+    // ARRIVED (not on the object itself, which would re-fire this every 6-hour refresh) so it
+    // fires once they show up; `loadRecommendation`'s own once-a-trading-day gate makes that
+    // firing a no-op on every day but the first.
+    LaunchedEffect(symbol, fundamentals != null) {
+        if (fundamentals != null) vm.loadRecommendation(symbol, price)
+    }
+
     /**
      * ASK AGAIN WHEN THE APP COMES BACK. The other half of Round 57's `fgScope`.
      *
