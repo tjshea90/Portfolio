@@ -1,6 +1,10 @@
 package com.tj.portfolio.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,15 +21,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.tj.portfolio.data.Recommendation
 import com.tj.portfolio.data.TradeVerdict
 import com.tj.portfolio.util.Fmt
 
-/** "Buy" / "Hold" / "Sell" - the exact word TJ asked to see on the tab itself. */
+/** "Buy" / "Hold" / "Sell" - the exact word the badge and popup title show. */
 fun verdictWord(v: TradeVerdict): String = when (v) {
     TradeVerdict.BUY -> "Buy"
     TradeVerdict.HOLD -> "Hold"
@@ -37,6 +43,41 @@ fun verdictTint(v: TradeVerdict): Color = when (v) {
     TradeVerdict.BUY -> Color(0xFF2E7D32)
     TradeVerdict.HOLD -> Color(0xFFF9A825)
     TradeVerdict.SELL -> Color(0xFFC62828)
+}
+
+/** Test handle for the badge, whose text varies with the verdict. */
+internal const val RECOMMENDATION_BADGE_TEST_TAG = "recommendationBadge"
+
+/**
+ * The BUY/HOLD/SELL indicator on a stock's detail screen. TJ, with a screenshot: *"move the buy
+ * sell hold tab from where it currently is to somewhere around where the arrow points. don't
+ * change it's function, only the placement."* It used to be a tab in the strip below the price
+ * (`DetailTab.RECOMMENDATION`, since removed - see `DetailScreen.kt`'s price-header block);
+ * this is the same verdict, same color, same tap-opens-`RecommendationDialog` behaviour, just
+ * living beside the price instead of in the tab row. Ordinary flow layout, not an overlay - it
+ * cannot collide with `PriceBlock`'s own content the way an absolutely-positioned badge could
+ * at a large font scale.
+ */
+@Composable
+fun RecommendationBadge(recommendation: Recommendation?, onClick: () -> Unit) {
+    val tint = recommendation?.let { verdictTint(it.verdict) }
+    Box(
+        Modifier
+            .minTapTarget()
+            .testTag(RECOMMENDATION_BADGE_TEST_TAG)
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
+            .then(if (tint != null) Modifier.border(1.dp, tint, RoundedCornerShape(6.dp)) else Modifier)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            recommendation?.let { verdictWord(it.verdict) } ?: "...",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = tint ?: MaterialTheme.colorScheme.primary
+        )
+    }
 }
 
 /**
