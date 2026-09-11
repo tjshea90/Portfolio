@@ -5808,10 +5808,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 trending = fill(s.trending),
                 best = fill(s.best),
                 etfs = oneFundPerExposure(dropLeveraged(fill(s.etfs))),
-                // A day-trading row Claude added has no trade levels either, only a symbol -
-                // [withDayTradingLevels] computes them the moment [fill] gives the row a real
-                // price, via the same production `tradeLevels` function the screener path uses.
-                dayTrading = withDayTradingLevels(fill(s.dayTrading))
+                // A day-trading row Claude added arrives with a symbol and no levels. Round 69
+                // no longer computes a plan here: a plan needs real intraday structure (see
+                // [com.tj.portfolio.net.ResearchScore.tradePlan]), which a price fill does not
+                // have, and the live technicals sweep covers added rows anyway - it enriches
+                // whatever is in the visible window, not just rows the screener produced.
+                dayTrading = fill(s.dayTrading)
             )
         )
     }
