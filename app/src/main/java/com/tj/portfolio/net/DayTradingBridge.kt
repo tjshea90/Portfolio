@@ -429,8 +429,18 @@ $SHAPE
                 entryPrice = if (takeLevels) c.entryPrice else app.entryPrice,
                 stopPrice = if (takeLevels) c.stopPrice else app.stopPrice,
                 targetPrice = if (takeLevels) c.targetPrice else app.targetPrice,
-                setup = if (takeLevels) c.setup.ifBlank { app.setup } else app.setup,
-                trigger = if (takeLevels) c.trigger.ifBlank { app.trigger } else app.trigger,
+                setup = if (takeLevels) c.setup.ifBlank { "Claude's plan" } else app.setup,
+                // NEVER `ifBlank { app.trigger }` - the app's trigger sentence has the app's own
+                // entry price written INTO it ("Buy the break above $12.40"), so pairing it with
+                // Claude's entry prints one number in the grid and a different one in the
+                // sentence under it. When Claude gave levels but no sentence, the sentence is
+                // built from ITS numbers.
+                trigger = if (takeLevels) c.trigger.ifBlank { describe(c) } else app.trigger,
+                // AND THE APP'S WARNING GOES WITH THE APP'S PLAN. `planNote` describes the plan
+                // that was just replaced - "the entry is BELOW the last price on purpose", the
+                // tightened-stop disclosure - and would otherwise be drawn in error red
+                // underneath Claude's levels, warning about a trade no longer on screen.
+                planNote = if (takeLevels) "" else app.planNote,
                 planByClaude = takeLevels
             )
         }
