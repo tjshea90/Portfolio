@@ -143,11 +143,38 @@ class DayTradingUiTest {
         assertTrue("above VWAP should say so plainly: $t", t.contains("buyers in control"))
     }
 
-    @Test fun `a row still waiting for real technicals says so rather than showing stale ones`() {
+    @Test fun `a row with no technicals names none of them rather than inventing a zero`() {
         show { DayTradingDetailDialog(row(atr = 0.0, vwap = 0.0, orHigh = 0.0, orLow = 0.0), onDismiss = {}) }
         val t = texts().joinToString(" ")
-        assertTrue("should explain the estimate is provisional: $t", t.contains("first estimate"))
         assertFalse("must not claim an ATR it does not have", t.contains("ATR(14):"))
+        assertFalse("must not claim a VWAP it does not have", t.contains("VWAP:"))
+        assertFalse("must not claim an opening range it does not have", t.contains("Opening range"))
+        // The plan itself still reads correctly - it is the levels section that is absent.
+        assertTrue(t.contains("22.50"))
+    }
+
+    @Test fun `the entry reads as a trigger, not as the current price`() {
+        // THE REGRESSION GUARD, on the surface the user actually sees. Tj read "Entry $22.50"
+        // next to a $22.50 quote and correctly concluded the app was not planning a trade.
+        show { DayTradingDetailDialog(row(entry = 23.10), onDismiss = {}) }
+        val t = texts().joinToString(" ")
+        assertTrue("the label must say what the number is for: $t", t.contains("Buy at"))
+        assertTrue("the dialog must explain it is a trigger: $t", t.contains("TRIGGER"))
+    }
+
+    @Test fun `a plan Claude set is labelled as Claude's, never as the app's arithmetic`() {
+        show {
+            DayTradingDetailDialog(
+                row().copy(planByClaude = true, setup = "Gap and go"),
+                onDismiss = {}
+            )
+        }
+        val t = texts().joinToString(" ")
+        assertTrue("whose plan this is must be on screen: $t", t.contains("CLAUDE'S PLAN"))
+        assertFalse(
+            "a model's prices must never be shown as the app's own computation: $t",
+            t.contains("RISK PLAN - computed")
+        )
     }
 
     @Test fun `claude's explanation and the specific risk both show when present`() {
