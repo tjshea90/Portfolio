@@ -5751,7 +5751,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             dayTradingTechScored.add(row.symbol)
             val scored = com.tj.portfolio.net.ResearchScore.withTechnicals(
                 com.tj.portfolio.net.ResearchScore.Scored(withLevels.score, withLevels.reasons, 100),
-                tech,
+                // The SAME reading the row now displays and the plan was built from - see
+                // [effectiveTechnicals]. A score bonus awarded off a VWAP the card is not
+                // showing is the same inconsistency in a different place.
+                effectiveTechnicals(row, tech),
                 withLevels.price
             )
             withLevels.copy(score = scored.score, reasons = scored.reasons)
