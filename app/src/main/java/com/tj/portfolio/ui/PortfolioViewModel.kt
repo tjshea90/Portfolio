@@ -5790,8 +5790,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // while wiring the likelihood/confidence blend below into this call site). Its
             // `score` stays 0 and its `conviction` stays whatever Claude gave it - the same rule
             // [ResearchRow.conviction]'s own header states for a Claude-added ETF row. Before
-            // this guard, the block below ran unconditionally and could turn a Claude row's
-            // score 0 into a small nonzero number the moment its VWAP/opening-range bonus
+            // this guard, [scoreDayTradingRow] below ran unconditionally and could turn a Claude
+            // row's score 0 into a small nonzero number the moment its VWAP/opening-range bonus
             // applied - at which point `fromClaude = r.score <= 0 && r.conviction > 0` in
             // `ResearchCard` would have started reading it as an APP score and drawn "SCORE 20"
             // over a row the app never computed anything for. The levels above still refresh
@@ -5799,31 +5799,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // scoring below is skipped.
             if (row.planByClaude || row.symbol in dayTradingTechScored) return@map withLevels
             dayTradingTechScored.add(row.symbol)
-            val effective = effectiveTechnicals(row, tech)
-            val scored = com.tj.portfolio.net.ResearchScore.withTechnicals(
-                // The SAME reading the row now displays and the plan was built from - see
-                // [effectiveTechnicals]. A score bonus awarded off a VWAP the card is not
-                // showing is the same inconsistency in a different place.
-                com.tj.portfolio.net.ResearchScore.Scored(withLevels.dtLikelihood, withLevels.reasons, 100),
-                effective,
-                withLevels.price
-            )
-            // THE CONFIDENCE HALF CATCHES UP TOO, THIS SAME ONE TIME (Round 72) - see
-            // [ResearchRow.dtLikelihood]'s header for what the two halves mean. Added to the
-            // build-time base rather than recomputed from scratch - the raw relative-volume/
-            // 52-week-range/most-shorted facts [ResearchScore.dayTradingConfidence] needs no
-            // longer exist once only a [ResearchRow] remains - which is safe only because the
-            // gate above guarantees this runs at most once per symbol, before which the
-            // technicals half of that base is always zero.
-            val confidence = (withLevels.dtConfidence +
-                com.tj.portfolio.net.ResearchScore.technicalConfirmationBonus(withLevels.price, effective)
-            ).coerceIn(0, 100)
-            withLevels.copy(
-                score = com.tj.portfolio.net.ResearchScore.blendedScore(scored.score, confidence),
-                reasons = scored.reasons,
-                dtLikelihood = scored.score,
-                dtConfidence = confidence
-            )
+            scoreDayTradingRow(withLevels, effectiveTechnicals(row, tech))
         }
         if (changed) {
             _research.value = _research.value.withSection(name, updated)
