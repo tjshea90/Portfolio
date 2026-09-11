@@ -337,8 +337,65 @@ object DayTradingTechnicals {
         return c.get(Calendar.HOUR_OF_DAY) * 60 + c.get(Calendar.MINUTE)
     }
 
+    private const val PREMARKET_START_MIN = 4 * 60
     private const val OR_START_MIN = 9 * 60 + 30
     private const val OR_END_MIN = 10 * 60
+    private const val SESSION_END_MIN = 16 * 60
+
+    /**
+     * The regular-hours slice of a pre/post-inclusive bar list - 09:30 up to 16:00 ET.
+     *
+     * EVERYTHING THAT READS "THE SESSION" MUST GO THROUGH THIS. VWAP is defined as resetting at
+     * the open, the opening range is defined by the clock, and a session high that quietly
+     * included a thin after-hours print would move a breakout trigger to a price no regular-hours
+     * order could ever have been filled at.
+     */
+    internal fun regularSession(intraday: List<Bar>): List<Bar> =
+        intraday.filter { etMinutes(it.t) in OR_START_MIN until SESSION_END_MIN }
+
+    /** High of the 04:00-09:30 ET pre-market, or 0.0 when none of the bars fall in it. */
+    internal fun premarketHigh(intraday: List<Bar>): Double =
+        intraday.filter { etMinutes(it.t) in PREMARKET_START_MIN until OR_START_MIN }
+            .maxOfOrNull { it.high } ?: 0.0
+
+    /** Calendar date in New York, as a comparable yyyymmdd integer. */
+    private fun etDateKey(epochSeconds: Long): Int {
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = epochSeconds * 1000L
+        return c.get(Calendar.YEAR) * 10000 + (c.get(Calendar.MONTH) + 1) * 100 + c.get(Calendar.DAY_OF_MONTH)
+    }
+
+    /**
+     * Daily bars with the IN-PROGRESS session removed, oldest first.
+     *
+     * WHY THIS MATTERS ENOUGH TO EXIST. Yahoo emits a daily bar for today from the first trade
+     * onwards, and that bar's high/low grow all afternoon. Three separate readings here are
+     * only meaningful over FINISHED sessions: the prior-session levels a plan triggers off
+     * ("break above yesterday's high" must not mean "break above the high it already made an
+     * hour ago"), the ADR that says how big a normal day is, and the daily ATR. A partial bar
+     * in any of them understates the number and drags every level built on it.
+     *
+     * Today's bar counts as finished once 16:00 ET has passed, which is also what makes the
+     * overnight and weekend case come out right: after the close, "the prior session" IS today.
+     */
+    internal fun completedSessions(daily: List<Bar>, now: Long): List<Bar> {
+        val nowSec = now / 1000L
+        val today = etDateKey(nowSec)
+        val closed = etMinutes(nowSec) >= SESSION_END_MIN
+        return daily.sortedBy { it.t }.filter { etDateKey(it.t) != today || closed }
+    }
+
+    /**
+     * Average Daily Range: the mean of (high - low) over the last 14 completed sessions - see
+     * the header for what it is used for. Null under 5 sessions, the same floor [atr14] uses
+     * for the same reason: a "typical day" averaged from two days is not a typical day.
+     */
+    internal fun adr(completed: List<Bar>, lookback: Int = 14): Double? {
+        if (completed.size < 5) return null
+        val ranges = completed.takeLast(lookback).map { it.high - it.low }.filter { it > 0.0 }
+        if (ranges.size < 5) return null
+        return ranges.average()
+    }
 
     /** High/low of the 09:30-10:00 ET window, or null if none of the bars fall in it. */
     internal fun openingRange(intraday: List<Bar>): Pair<Double, Double>? {
