@@ -280,7 +280,8 @@ Here is my read on today's list. I searched the web for what is actually moving.
                     symbol = "GME", name = "GameStop", price = 22.5, changePct = 12.0, score = 88,
                     reasons = listOf("Trading at 6.0x its normal volume today"),
                     mentions = 340, newsCount = 9,
-                    entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5
+                    entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5,
+                    atr = 1.0, vwap = 21.8, openingRangeHigh = 22.0, openingRangeLow = 21.2
                 )
             ),
             generated = System.currentTimeMillis(),
@@ -291,6 +292,10 @@ Here is my read on today's list. I searched the web for what is actually moving.
             .forEach { assertTrue("prompt file is missing $it", text.contains(it)) }
         // The $2 floor Tj asked for is stated as a fact about the data, not left implicit.
         assertTrue(text.contains("\"minSharePrice\": 2"))
+        // The real technicals behind the levels travel with the bundle too (Round 68), so
+        // Claude can reference them rather than describe the setup in the abstract.
+        listOf("\"atr14\": 1", "\"vwap\": 21.8", "\"openingRangeHigh\": 22", "\"openingRangeLow\": 21.2")
+            .forEach { assertTrue("prompt file is missing $it", text.contains(it)) }
     }
 
     @Test fun `rows with only a ticker are dropped rather than blanking a good app row`() {
