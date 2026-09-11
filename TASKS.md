@@ -439,6 +439,21 @@ Design, decided before writing code:
 by "continue all tasks with sonnet," 2026-09-11 - now explicitly re-confirmed above with its own
 "skip the screener" instruction for this specific task.)
 
+- [ ] `ResearchScore.dayTradingConfidence(r, tech)`: the 5-item checklist, pure and testable.
+- [ ] `ResearchScore.blendedScore(likelihood, confidence)`: the multiplication, clamped 0-100.
+- [ ] `ResearchRow.dtLikelihood`/`dtConfidence` fields (JSON codec too), zero outside Day
+      Trading, same pattern `entryPrice`/`setup`/etc. already follow.
+- [ ] Wire into `Research.buildDayTrading`/`toDayTradingRow` (build time, tech = null) and the
+      ViewModel's technicals-enrichment merge (fuller confidence once VWAP/opening range
+      arrive) - re-blend and re-sort at both stages.
+- [ ] Leave Claude-authored Day Trading rows alone - no likelihood/confidence to blend.
+- [ ] UI: the score badge's meaning/accessibility text for Day Trading rows, plus a visible
+      breakdown (likelihood, confidence, how they combine) in the card and the tap-to-expand
+      detail view - "app shows its work," same as every other score in this app.
+- [ ] Tests: the checklist function, the blend arithmetic, the build-time and enrichment-time
+      wiring, Claude-row exemption, UI render tests for the breakdown.
+- [ ] Full Gradle suite green, code review, checkpoint, ship.
+
 ## Part 7: Day Trading — a beginner-friendly plain-English summary per stock
 
 Tj's request, 2026-09-11 (his own words):
