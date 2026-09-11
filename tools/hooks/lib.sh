@@ -46,7 +46,9 @@ hook_collect() {
 
   for d in "${repos[@]}"; do
     local out
-    out="$( cd "$d" && timeout "$per" bash "$script" --text 2>/dev/null || true )"
+    # A here-string rather than a pipe so a script that never reads stdin
+    # (resume/autosave/toobig) is unaffected either way.
+    out="$( cd "$d" && timeout "$per" bash "$script" --text <<<"$input" 2>/dev/null || true )"
     [ -n "$out" ] || continue
     # Only label the source when there is more than one repo. With a single
     # repo — the normal case — a header is pure context cost for no
