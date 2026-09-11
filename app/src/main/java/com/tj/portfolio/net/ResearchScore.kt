@@ -517,6 +517,39 @@ object ResearchScore {
         )
     }
 
+    // ------------------------------------------------------- day-trading technicals overlay
+
+    /**
+     * Fold real intraday technicals into a day-trading score computed with none - same
+     * separation-of-concerns reason [withAnalyst] exists apart from [best]: [dayTrading] runs
+     * at build time with zero extra requests, and [DayTradingTechnicals.fetch] only answers
+     * later, for the rows actually on screen. See [DayTradingTechnicals]'s header for the
+     * research behind VWAP position and the opening-range breakout as day-trading signals.
+     *
+     * ONLY ADDS, NEVER SUBTRACTS - the same rule every other reason line in [dayTrading]
+     * follows: a condition that is not met earns nothing and prints nothing, rather than a
+     * "why this DIDN'T score" line no other line in this list has a counterpart for.
+     */
+    fun withTechnicals(base: Scored, tech: DayTradingTechnicals.DayTechnicals, price: Double): Scored {
+        if (tech.isEmpty || price <= 0.0) return base
+        var s = base.score.toDouble()
+        val why = ArrayList(base.reasons)
+        if (tech.vwap > 0.0 && price > tech.vwap) {
+            s += 8.0
+            why.add(
+                "Trading above its session VWAP (${Fmt.price(tech.vwap)}) - buyers in control today"
+            )
+        }
+        if (tech.openingRangeComplete && tech.openingRangeHigh > 0.0 && price > tech.openingRangeHigh) {
+            s += 12.0
+            why.add(
+                "Broke above its opening-range high (${Fmt.price(tech.openingRangeHigh)}) on " +
+                    "the first 30 minutes' volume - a classic opening-range breakout"
+            )
+        }
+        return Scored(s.coerceIn(0.0, 100.0).toInt(), why, min(100, base.confidence + 10))
+    }
+
     // ------------------------------------------------------------- HOLDING
 
     /**
