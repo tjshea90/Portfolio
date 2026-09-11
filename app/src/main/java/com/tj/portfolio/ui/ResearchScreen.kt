@@ -885,6 +885,38 @@ internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
     }
 }
 
+/**
+ * Entry, stop and target - the app's own computed risk-management levels for a day-trading
+ * row (Round 67). See [ResearchRow.entryPrice]'s header: NOT a forecast, so this draws in
+ * neutral colour rather than the green/red a prediction would earn - stop and target are both
+ * "what a risk-managed plan would use", not "good news" and "bad news".
+ */
+@Composable
+private fun TradeLevelsGrid(entry: Double, stop: Double, target: Double) {
+    Spacer(Modifier.height(9.dp))
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                RoundedCornerShape(10.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 8.dp)
+    ) {
+        Text(
+            "RISK PLAN - computed, not a forecast",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth()) {
+            FactCell("Entry", Fmt.price(entry), weight = 1f)
+            FactCell("Stop", if (stop > 0) Fmt.price(stop) else DASH, weight = 1f)
+            FactCell("Target", if (target > 0) Fmt.price(target) else DASH, weight = 1f)
+        }
+    }
+}
+
 private const val DASH = "\u2014"
 
 /** A percentage, or an em dash when the fund published none. Never a fabricated zero. */
