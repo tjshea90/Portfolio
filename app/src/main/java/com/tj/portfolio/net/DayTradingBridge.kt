@@ -148,6 +148,15 @@ $bundle
                     if (r.entryPrice > 0) put("entry", round2(r.entryPrice))
                     if (r.stopPrice > 0) put("stop", round2(r.stopPrice))
                     if (r.targetPrice > 0) put("target", round2(r.targetPrice))
+                    // THE REAL TECHNICALS THE LEVELS ABOVE WERE COMPUTED FROM (Round 68) - so
+                    // Claude's explanation can reference this stock's own ATR/VWAP/opening
+                    // range instead of describing the entry/stop/target in the abstract. Zero
+                    // for a row the live enrichment pass has not reached yet - see
+                    // `net/DayTradingTechnicals.kt`'s header for what these are and why.
+                    if (r.atr > 0) put("atr14", round2(r.atr))
+                    if (r.vwap > 0) put("vwap", round2(r.vwap))
+                    if (r.openingRangeHigh > 0) put("openingRangeHigh", round2(r.openingRangeHigh))
+                    if (r.openingRangeLow > 0) put("openingRangeLow", round2(r.openingRangeLow))
                 })
             }
         }
