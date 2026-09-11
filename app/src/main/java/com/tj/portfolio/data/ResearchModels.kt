@@ -314,6 +314,8 @@ data class ResearchRow(
         if (sessionHigh > 0) put("sessionHigh", sessionHigh)
         if (sessionLow > 0) put("sessionLow", sessionLow)
         if (sessionDay.isNotBlank()) put("sessionDay", sessionDay)
+        if (dtLikelihood > 0) put("dtLikelihood", dtLikelihood)
+        if (dtConfidence > 0) put("dtConfidence", dtConfidence)
     }
 
     companion object {
