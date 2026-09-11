@@ -5744,15 +5744,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
             .coerceAtMost(rows.size)
         val head = rows.take(shown)
-        // THE CARD'S OWN 1-DAY CHART (Round 70). Tj: "put a stock chart next to each of the
-        // stocks in the day trading section... only that current day's chart". [loadChart] is
-        // the exact function every other chart in the app already calls - cache-first and a
-        // no-op within its own freshness window, so calling it on every tick of this loop costs
-        // nothing beyond the first fetch per symbol until the 1D series actually goes stale.
-        // Fire-and-forget: it launches its own coroutine on `fgScope`, which this loop's own
-        // `DisposableEffect` gate already starts and stops with the tab, same as everything
-        // else this pass fetches.
-        head.forEach { loadChart(it.symbol, com.tj.portfolio.data.ChartRange.D1) }
         // CONCURRENT, GATED - the same `Semaphore(MAX_PARALLEL_REQUESTS)` + `async`/`awaitAll`
         // shape this file already uses for every other visible-window fetch (sparkline
         // refresh, insider refresh, fundamentals prefetch). Fetching this sequentially - a
@@ -5765,6 +5756,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             head.map { row ->
                 async {
                     gate.withPermit {
+                        // THE CARD'S OWN 1-DAY CHART (Round 70). Tj: "put a stock chart next
+                        // to each of the stocks in the day trading section... only that
+                        // current day's chart". [loadChart] is the exact function every other
+                        // chart in the app already calls - cache-first and a no-op within its
+                        // own freshness window - but it is fire-and-forget on its own, and a
+                        // bare call per row here would fire every symbol's disk-read-plus-HTTP
+                        // fetch at once past the default ten rows, exactly the unbounded-fetch
+                        // bug this same permit exists to prevent for the technicals call right
+                        // below it. `?.join()` waits for it INSIDE the permit instead, so at
+                        // most [MAX_PARALLEL_REQUESTS] symbols are ever fetching their chart at
+                        // once - null (already fresh, already in flight, or backing off) joins
+                        // nothing and falls through immediately.
+                        loadChart(row.symbol, com.tj.portfolio.data.ChartRange.D1)?.join()
                         row.symbol to runCatching {
                             com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
                         }.getOrNull()
