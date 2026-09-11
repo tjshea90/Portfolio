@@ -1349,6 +1349,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** [startDayTradingLive]/[stopDayTradingLive]'s job handle. */
     private var dayTradingLiveJob: Job? = null
+    /** True while the Day Trading tab wants the live loop running - see [setForeground]'s
+     *  note on why the job handle alone is not enough to know whether to restart it. */
+    private var dayTradingLiveWanted = false
     /** Every symbol already given its one-time technicals score bonus this rebuild - see
      *  [enrichDayTradingVisible] for why this must be "once", not "every refresh". */
     private val dayTradingTechScored = HashSet<String>()
