@@ -5564,10 +5564,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     // dayTradingLiveJob and dayTradingTechScored are declared above `init` (checkinit.py) -
     // see the note there. Cleared on every fresh stock rebuild in [loadResearch], the same
-    // cadence [analystDone] uses.
-
-    /** How often the live loop re-fetches technicals for the visible window, while it runs at all. */
-    private const val DAY_TRADING_LIVE_INTERVAL_MS = 30_000L
+    // cadence [analystDone] uses. DAY_TRADING_LIVE_INTERVAL_MS is top-level, near
+    // MAX_PRICE_FILL - a `const val` cannot live inside the class itself.
 
     /**
      * Starts (or restarts) the live technicals loop. Idempotent - cancels any prior job first,
