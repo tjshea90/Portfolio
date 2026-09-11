@@ -1,6 +1,53 @@
 # TASKS — the current job
 
-## Tj's request, 2026-09-10 (his own words, lightly trimmed)
+## Tj's request, 2026-09-10 (his own words, lightly trimmed) — request screener
+
+> make a screener that permanently lives in this GitHub project which fields
+> all requests. I will be using Claude sonnet 5 regularly. if Claude opus is
+> needed for any task for accuracy or difficult tasks, flag me before any
+> work is done at all so that I can change the model and start the task.
+> this screener should screen every request I send before any work is done
+> on the app.
+
+## Design (before writing code)
+
+A `UserPromptSubmit` hook fires on every message, not just at session
+start, which is what makes "screen every request" mechanically true rather
+than something a session has to remember to do — the same reasoning that
+already governs the autosave/resume hooks in this repo. The hook itself
+cannot judge "does this need Opus" (that isn't a grep); what it CAN
+guarantee is that a short, fixed reminder reaches Claude before every
+single request, pointing at the real protocol/criteria in `SCREENER.md`,
+plus a cheap keyword hint. Wired through the same `tools/hooks/` multi-repo
+coordinator as the other three hooks, so it survives sitting in a container
+alongside Tj's other checkpoint-hook repo without clashing, and through
+`tools/install-hooks.sh` so it installs automatically like the rest.
+
+- [ ] `SCREENER.md` — the protocol Claude runs on every message (read the
+      request, check `get_session` if a criterion matches, stop and flag
+      rather than proceed on Sonnet) and the actual escalation criteria
+      (money-accuracy, irreversible actions, locked architecture, ambiguous
+      design, a previously-failed fix, security, or Tj's own words).
+- [ ] `tools/screener.sh` — the per-repo hook script (mirrors
+      `resume.sh`/`autosave.sh`/`toobig.sh`: `--text` mode, JSON mode,
+      always exits 0, never blocks the prompt) plus the keyword hint.
+- [ ] `tools/hooks/screen.sh` + supporting `lib.sh`/`emit.py` changes for a
+      `UserPromptSubmit` event, following the existing SessionStart/
+      PostToolUse/PreCompact pattern exactly.
+- [ ] Wire `UserPromptSubmit` into `tools/session-root-hooks.json` (the
+      multi-repo template) AND this repo's own `.claude/settings.json`
+      (the direct, single-repo path), same as the other four events.
+- [ ] Hermetic tests (`tools/test_screener.sh`, auto-run by `tools/ckpt.sh`)
+      proving the JSON/text output shapes, the keyword hint, the multi-repo
+      aggregation, and that `install-hooks.sh` actually installs the entry.
+- [ ] `CLAUDE.md` gets a short section pointing at `SCREENER.md`, same
+      pattern as the existing pointer to `BRIEF.md`.
+- [ ] Checkpoint after every completed step.
+- [ ] Apply it once built: weigh the pending BUY/HOLD/SELL scoring-design
+      step already in this file against the new criteria and flag it to Tj
+      before resuming that work, rather than only protecting future asks.
+
+## Previous request, 2026-09-10 (his own words, lightly trimmed)
 
 > for each of the holdings in my portfolio, to the left of the news tab, make
 > a tab about the same size as the news tab that says either buy, hold, or
