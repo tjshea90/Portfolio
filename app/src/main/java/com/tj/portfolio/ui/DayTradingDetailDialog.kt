@@ -45,14 +45,19 @@ fun DayTradingDetailDialog(r: ResearchRow, onDismiss: () -> Unit) {
                     TradeLevelsGrid(r)
                     Spacer(Modifier.height(10.dp))
                     val rr = rewardToRisk(r)
-                    Text(
-                        "Risking ${Fmt.price(r.entryPrice - r.stopPrice)} a share to make " +
-                            "${Fmt.price(r.targetPrice - r.entryPrice)}" +
-                            (if (rr > 0) " - ${Fmt.oneDp(rr)} to 1" else "") + ".",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(6.dp))
+                    // GUARDED THE SAME WAY THE GRID ABOVE GUARDS ITS CELLS. A row whose stop or
+                    // target is missing draws an em dash up there; this line, unguarded, would
+                    // have turned the same row into "Risking $22.50 a share to make -$22.50".
+                    if (rr > 0.0) {
+                        Text(
+                            "Risking ${Fmt.price(r.entryPrice - r.stopPrice)} a share to make " +
+                                "${Fmt.price(r.targetPrice - r.entryPrice)} - " +
+                                "${Fmt.oneDp(rr)} to 1.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(6.dp))
+                    }
                     Text(
                         if (r.planByClaude)
                             "These three prices are CLAUDE'S, not the app's arithmetic - set " +
@@ -64,10 +69,20 @@ fun DayTradingDetailDialog(r: ResearchRow, onDismiss: () -> Unit) {
                             "The buy price is a TRIGGER, not the current price - a level the " +
                                 "market has to reach before anything is bought, which is how a " +
                                 "day trade is actually placed. The stop sits under the " +
-                                "structure that would say the setup failed, sized from this " +
-                                "stock's own 5-minute ATR so it is a same-session stop; the " +
-                                "target is the next real resistance above the entry. Computed " +
-                                "from real levels - not a forecast of where the price is going.",
+                                "structure that would say the setup failed, sized from " +
+                                // ONLY CLAIM THE READING THAT WAS ACTUALLY USED. Before the
+                                // opening bell, and for the first half hour of a session, there
+                                // are too few 5-minute bars to measure one and the plan falls
+                                // back to a fraction of the daily ATR - which is most of the
+                                // hours this tab is open.
+                                (if (r.atrIntraday > 0)
+                                    "this stock's own 5-minute ATR so it is a same-session stop"
+                                else
+                                    "a fraction of its daily ATR, until enough 5-minute bars " +
+                                        "have printed to measure the intraday one directly") +
+                                "; the target is the next real resistance above the entry. " +
+                                "Computed from real levels - not a forecast of where the price " +
+                                "is going.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

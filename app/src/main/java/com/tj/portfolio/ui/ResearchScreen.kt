@@ -999,7 +999,10 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
                 // own arithmetic survives only if the label is unmissable.
                 if (byClaude) "CLAUDE'S PLAN" else "RISK PLAN - computed, not a forecast",
                 style = MaterialTheme.typography.labelSmall,
-                color = if (byClaude) Accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                // `accentText`, not raw `Accent` - see Theme.kt. The brand blue measures
+                // 3.39:1 on the dark background, and this label is the one thing standing
+                // between a model's prices and the reader assuming the app computed them.
+                color = if (byClaude) accentText else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (byClaude) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.weight(1f)
             )
