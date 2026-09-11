@@ -392,6 +392,12 @@ Tj's request, 2026-09-11 (his own words, two parts):
       `Semaphore(MAX_PARALLEL_REQUESTS)` gate; the chart `collectAsState`
       calls are now conditional on the Day Trading tab being the one open) -
       then the full suite re-run green.
+- [x] Shipped: v7.15 (code 72), GitHub Actions run #15 built, signed,
+      verified its own certificate, and published the Release; recorded in
+      BUILDLOG.md. sha256 fffe9cc28b61d42fc92303ff55f5986097f821e990d9711967f752e086943a26.
+      Tj grabs it himself from
+      https://github.com/tjshea90/Portfolio/releases/tag/v7.15 (Claude does
+      not relay release-asset bytes, per the standing rule in CLAUDE.md).
 
 ## Part 6.2: confidence-blended score — FLAGGED, not started
 
