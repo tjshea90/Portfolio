@@ -649,7 +649,11 @@ fun PriceChart(
 
         val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, baseIndexForRebase, zoomedIn) {
             val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
-            val baseIndex = baseIndexForRebase
+            // CLAMPED, not trusted outright: `drawn` can change under a live gesture - a quote
+            // tick rebuilds `shown` up to four times a minute, independent of the finger on
+            // screen - and the frozen index above was only ever validated against whichever
+            // `drawn` was current when the gesture began.
+            val baseIndex = baseIndexForRebase.coerceIn(0, drawn.points.lastIndex)
             // ON THE SAME TERMS AS `inside`, and keyed on the same flag. Short-circuiting to
             // "the series' own rule" whenever the base index happened to be 0 gave the overlay
             // the benchmark's PREVIOUS CLOSE while the readout beside it used the first point
