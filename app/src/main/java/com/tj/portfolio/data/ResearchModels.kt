@@ -242,7 +242,13 @@ data class ResearchRow(
     val prevHigh: Double = 0.0,
     val premarketHigh: Double = 0.0,
     val sessionHigh: Double = 0.0,
-    val sessionLow: Double = 0.0
+    val sessionLow: Double = 0.0,
+    /**
+     * The trading day the four intraday readings above belong to - see
+     * [com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals.sessionDay]. Blank until a live
+     * technicals sweep has filled them.
+     */
+    val sessionDay: String = "",
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("symbol", symbol)
@@ -290,6 +296,7 @@ data class ResearchRow(
         if (premarketHigh > 0) put("premarketHigh", premarketHigh)
         if (sessionHigh > 0) put("sessionHigh", sessionHigh)
         if (sessionLow > 0) put("sessionLow", sessionLow)
+        if (sessionDay.isNotBlank()) put("sessionDay", sessionDay)
     }
 
     companion object {

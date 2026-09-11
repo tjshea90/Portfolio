@@ -143,7 +143,19 @@ object DayTradingTechnicals {
         val sessionHigh: Double = 0.0,
         val sessionLow: Double = 0.0,
         /** True only while the regular session is actually open - see [fetch]. */
-        val sessionLive: Boolean = false
+        val sessionLive: Boolean = false,
+        /**
+         * WHICH TRADING DAY THE INTRADAY HALF OF THIS READING DESCRIBES ([MarketClock.dayKey]).
+         *
+         * Carried so a stale reading can be told from an out-of-date one. VWAP, the opening
+         * range and the session high/low are all defined per session and meaningless across
+         * sessions, and the live sweep reuses a row's previous values whenever this tick's
+         * intraday request failed. Without this key, a row cached overnight would hand
+         * YESTERDAY's session high and low to this morning's plan the first time the 09:31
+         * fetch missed - and since `rangeUsed` on a finished session is about 1.0, every
+         * affected row would open the day reading "already extended, do not chase".
+         */
+        val sessionDay: String = ""
     ) {
         /** Classic floor-trader pivot, from the prior completed session. 0.0 without one. */
         val pivot: Double get() =
@@ -219,7 +231,8 @@ object DayTradingTechnicals {
             premarketHigh = intradayAll?.let { premarketHigh(it) } ?: 0.0,
             sessionHigh = regular?.maxOfOrNull { it.high } ?: 0.0,
             sessionLow = regular?.minOfOrNull { it.low } ?: 0.0,
-            sessionLive = MarketClock.phase(now) == MarketClock.Phase.OPEN
+            sessionLive = MarketClock.phase(now) == MarketClock.Phase.OPEN,
+            sessionDay = MarketClock.dayKey(now)
         )
     }
 
