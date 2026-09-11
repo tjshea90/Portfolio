@@ -12,8 +12,8 @@ android {
         applicationId = "com.tj.portfolio"
         minSdk = 26
         targetSdk = 36
-        versionCode = 69
-        versionName = "7.12"
+        versionCode = 70
+        versionName = "7.13"
     }
 
     signingConfigs {
