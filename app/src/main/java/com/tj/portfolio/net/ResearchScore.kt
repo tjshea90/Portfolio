@@ -306,10 +306,15 @@ object ResearchScore {
      * happens next.
      *
      * "TARGET BUY / TARGET SELL", REFRAMED HONESTLY: since a genuine price forecast is not
-     * available, [tradeLevels] computes the entry/stop/target an ordinary risk-managed day
-     * trade would use instead - this stock's own current price, a stop-loss sized to its own
-     * recent volatility, and a profit target at a standard 2:1 reward-to-risk. Real, computed
-     * numbers - risk-management levels, not a forecast.
+     * available, [tradePlan] computes the entry/stop/target an ordinary risk-managed day trade
+     * would use instead - a TRIGGER LEVEL price has to reach before anything is bought, a stop
+     * under the structure that would invalidate it, and a target at the next real resistance.
+     * Real, computed numbers off real levels - a risk plan, not a forecast.
+     *
+     * ROUND 69 CORRECTION. Until then the "entry" was simply the last traded price, which Tj
+     * spotted and called out: *"the target buy price just matches the current market price. I
+     * don't think this is how day traders operate."* It does not, and [TradePlan]'s own header
+     * carries the fix and the reasoning.
      */
     fun dayTrading(
         r: ScreenRow,
