@@ -170,8 +170,15 @@ object DayTradingTechnicals {
         // intraday-bar fetch (VWAP, opening range) can succeed or fail independently, so a
         // technicals reading that got the opening range but not VWAP (or vice versa) is not
         // empty, and `withTechnicals` must still be able to award its breakout bonus.
+        //
+        // ROUND 69: `prevHigh` JOINS THEM, for exactly the same reason. Outside market hours
+        // the intraday half of the fetch has nothing to say (no VWAP, no opening range) while
+        // the daily half still carries the prior-session levels the overnight plan is built
+        // from - "break above yesterday's high" is the whole gap-and-go setup. Reading that as
+        // empty would have thrown away the only reading available for most of the day.
         val isEmpty: Boolean get() =
-            atr14 <= 0.0 && vwap <= 0.0 && openingRangeHigh <= 0.0 && openingRangeLow <= 0.0
+            atr14 <= 0.0 && vwap <= 0.0 && openingRangeHigh <= 0.0 && openingRangeLow <= 0.0 &&
+                prevHigh <= 0.0
     }
 
     private val ET: TimeZone = TimeZone.getTimeZone("America/New_York")
