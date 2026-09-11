@@ -472,6 +472,44 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         }
     }.getOrNull()
 
+    /**
+     * Rides the EXISTING `fundamentals` table under [Keys.KIND_RECOMMENDATION], same shape and
+     * same reasoning as [cacheHoldings] just above: one current snapshot per symbol, replaced
+     * wholesale, read by (symbol, kind) - no migration, because `kind` was always a free-form
+     * TEXT column. It also inherits [purgeFundamentals]'s retention for free.
+     *
+     * `fetched` is left as the ordinary write timestamp for that purge to age the row out with
+     * everything else - the field that actually decides whether TODAY's recompute is still
+     * owed is [com.tj.portfolio.data.Recommendation.dayKey], INSIDE the JSON, read by the
+     * caller. "Is this row worth keeping at all" and "is this row still today's answer" are two
+     * different questions, on two different fields, on purpose.
+     */
+    fun cacheRecommendation(r: Recommendation) {
+        runCatching {
+            writableDatabase.insertWithOnConflict(
+                "fundamentals", null,
+                ContentValues().apply {
+                    put("symbol", r.symbol.uppercase())
+                    put("kind", Keys.KIND_RECOMMENDATION)
+                    put("json", RecommendationJson.encode(r))
+                    put("fetched", if (r.computedAt > 0) r.computedAt else System.currentTimeMillis())
+                },
+                SQLiteDatabase.CONFLICT_REPLACE
+            )
+        }
+    }
+
+    /** Null for a missing row AND for an unreadable one - both must read as "compute it". */
+    fun cachedRecommendation(symbol: String): Recommendation? = runCatching {
+        readableDatabase.rawQuery(
+            "SELECT json FROM fundamentals WHERE symbol=? AND kind=?",
+            arrayOf(symbol.uppercase(), Keys.KIND_RECOMMENDATION)
+        ).use { c ->
+            if (!c.moveToFirst()) return@use null
+            RecommendationJson.decode(c.getString(0))
+        }
+    }.getOrNull()
+
     /** Rows older than [olderThanMs] are dropped. Called on the same schedule as the news purge. */
     fun purgeFundamentals(olderThanMs: Long = 30L * 86_400_000L): Int = runCatching {
         writableDatabase.delete(
