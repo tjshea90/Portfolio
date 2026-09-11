@@ -967,35 +967,78 @@ internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
 }
 
 /**
- * Entry, stop and target - the app's own computed risk-management levels for a day-trading
- * row (Round 67). See [ResearchRow.entryPrice]'s header: NOT a forecast, so this draws in
- * neutral colour rather than the green/red a prediction would earn - stop and target are both
- * "what a risk-managed plan would use", not "good news" and "bad news".
+ * Entry, stop and target for a day-trading row. NOT a forecast, so this draws in neutral
+ * colour rather than the green/red a prediction would earn.
+ *
+ * THE TRIGGER LINE IS THE POINT OF THIS BLOCK, NOT DECORATION (Round 69). "Buy at $12.40" sat
+ * here on its own for two rounds while $12.40 was simply the last traded price, and Tj read it
+ * exactly as it was written: a buy price that never moved off the quote. Now that the entry is
+ * a real trigger it will often be visibly ABOVE the price on the card (a breakout) or BELOW it
+ * (a pullback) - and a number that disagrees with the price two lines up reads as stale data
+ * unless something says why. [ResearchRow.trigger] is that something, so it is not optional
+ * chrome and must not be dropped to save a line.
  */
 @Composable
-internal fun TradeLevelsGrid(entry: Double, stop: Double, target: Double) {
+internal fun TradeLevelsGrid(r: ResearchRow) {
+    val byClaude = r.planByClaude
     Spacer(Modifier.height(9.dp))
     Column(
         Modifier
             .fillMaxWidth()
             .background(
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                if (byClaude) Accent.copy(alpha = 0.10f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                 RoundedCornerShape(10.dp)
             )
             .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
-        Text(
-            "RISK PLAN - computed, not a forecast",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(Modifier.fillMaxWidth()) {
+            Text(
+                // WHOSE PLAN THIS IS, ALWAYS ON SCREEN. Round 69 lets Claude set these three
+                // numbers; the app's rule that a model's figure is never shown as the app's
+                // own arithmetic survives only if the label is unmissable.
+                if (byClaude) "CLAUDE'S PLAN" else "RISK PLAN - computed, not a forecast",
+                style = MaterialTheme.typography.labelSmall,
+                color = if (byClaude) Accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = if (byClaude) FontWeight.Bold else FontWeight.Normal,
+                modifier = Modifier.weight(1f)
+            )
+            if (r.setup.isNotBlank()) Text(
+                r.setup.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth()) {
-            FactCell("Entry", Fmt.price(entry), weight = 1f)
-            FactCell("Stop", if (stop > 0) Fmt.price(stop) else DASH, weight = 1f)
-            FactCell("Target", if (target > 0) Fmt.price(target) else DASH, weight = 1f)
+            FactCell("Buy at", if (r.entryPrice > 0) Fmt.price(r.entryPrice) else DASH, weight = 1f)
+            FactCell("Stop", if (r.stopPrice > 0) Fmt.price(r.stopPrice) else DASH, weight = 1f)
+            FactCell("Target", if (r.targetPrice > 0) Fmt.price(r.targetPrice) else DASH, weight = 1f)
+        }
+        if (r.trigger.isNotBlank()) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                r.trigger,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        if (r.planNote.isNotBlank()) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                r.planNote,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
         }
     }
+}
+
+/** Reward-to-risk for a row's plan, or 0.0 when it has no usable plan. */
+internal fun rewardToRisk(r: ResearchRow): Double {
+    val risk = r.entryPrice - r.stopPrice
+    return if (r.entryPrice > 0 && risk > 1e-9) (r.targetPrice - r.entryPrice) / risk else 0.0
 }
 
 private const val DASH = "\u2014"
