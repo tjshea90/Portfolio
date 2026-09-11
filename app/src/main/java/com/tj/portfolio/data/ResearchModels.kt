@@ -423,6 +423,7 @@ data class ResearchSet(
         SECTION_TRENDING -> trending
         SECTION_BEST -> best
         SECTION_ETF -> etfs
+        SECTION_DAY_TRADING -> dayTrading
         else -> emptyList()
     }
 
@@ -430,6 +431,7 @@ data class ResearchSet(
         SECTION_TRENDING -> copy(trending = rows)
         SECTION_BEST -> copy(best = rows)
         SECTION_ETF -> copy(etfs = rows)
+        SECTION_DAY_TRADING -> copy(dayTrading = rows)
         else -> this
     }
 
