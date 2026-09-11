@@ -121,21 +121,46 @@ feature, and his own words this time: "it must be accurate and give sound
 signals... do deep research... the advice must be well informed daily and it
 must be based on solid information and reasoning."
 
-- [ ] Research day-trading methodology: what legitimately separates a
+- [x] Research day-trading methodology: what legitimately separates a
       well-grounded "stocks worth watching today and why" screen from a
       false promise of predicting which stocks will rise and exactly where
-      to buy/sell them. Write up an honest feasibility finding before
-      designing anything.
-- [ ] Inventory what data this app can actually reach daily (screeners,
-      WSB/social, news/catalysts, technicals computable from OHLC already
-      fetched) versus what real day-trading edge requires (order flow,
-      options flow, Level 2) that it cannot reach.
-- [ ] Study the existing Claude-bridge file export/import pattern already
-      in the app (`ClaudeBridge`, `ResearchBridge`) so the new tab's
-      "export a prompt for the Claude app, import its answer back" buttons
-      match established conventions rather than inventing a new mechanism.
-- [ ] Design, build, test, ship - or report back why not, honestly, per
-      Tj's own explicit standard - once the research above is done.
+      to buy/sell them. The feasibility finding is written into
+      `net/ResearchScore.kt`'s `dayTrading()` header and `net/DayTradingBridge.kt`'s
+      class header: genuine same-day price prediction is not achievable from
+      free public data (market efficiency), so the feature surfaces stocks
+      OBJECTIVELY IN PLAY today (volume, a real move, attention, breakout,
+      squeeze setup) with entry/stop/target reframed honestly as a computed
+      risk-management plan, not a forecast.
+- [x] Inventory what data this app can actually reach daily - done: the
+      section is built from the SAME nine-screener universe and trending's
+      own WSB/news signal `buildTrending` already pays for, zero new
+      requests, exactly the constraint the feasibility finding above rests on.
+- [x] Studied and mirrored the existing Claude-bridge pattern: `DayTradingBridge.kt`
+      has the same prompt/bundleJson/apiPrompt/parse/merge shape as
+      `ResearchBridge.kt`, and the ViewModel wiring (explain/import/prompt-file)
+      mirrors the Research tab's functions one-for-one.
+- [x] Designed, built, tested and shipped: Research.kt scoring/build,
+      DayTradingBridge.kt + Claude.kt's dayTrading(), full ViewModel wiring
+      (with its own dtExplained/dtNotes state, kept separate from Research's
+      so a rebuild cannot silently wipe either one - a real bug found and
+      fixed along the way), ResearchScreen.kt's Day Trading tab with an
+      Entry/Stop/Target risk-plan grid and honest disclaimer copy, and 22 new
+      tests (scorer, trade-levels arithmetic and its volatility clamp, bridge
+      parse/merge/prompt, carry-forward-across-rebuild). Full suite: 871
+      tests, 0 failures. Shipped as v7.12 (code 69), GitHub Actions run #11
+      built, signed, verified its own certificate, and published the Release;
+      recorded in BUILDLOG.md.
+      **Not yet done:** the APK itself could not be relayed through this chat -
+      this session's tool access has no way to download a PRIVATE repo's
+      release-asset bytes (the GitHub MCP tools here cover metadata/API calls
+      but not binary asset download, and raw curl/credential-based workarounds
+      are correctly blocked). Tj needs to grab v7.12 himself from
+      https://github.com/tjshea90/Portfolio/releases/tag/v7.12 (logged into
+      GitHub in his own browser) - sha256 of Portfolio-v7.12.apk is
+      19376b15dd94ac421f7175499e582a6de093236256ca1f09a4623fdcf8f89a7f, per
+      the Release's own asset digest. A future session should not re-attempt
+      raw curl/credential extraction for this - it is a session-tooling gap,
+      not a fixable bug here.
 
 ## The flow, verified 2026-09-11 (details in CLAUDE.md)
 
