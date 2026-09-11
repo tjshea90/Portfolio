@@ -159,7 +159,8 @@ fun PortfolioScreen(
                     onClick = { onOpen(row.symbol) },
                     onNews = { onOpenNews(row.symbol) },
                     onAction = { a -> pending = PendingAction(row.symbol, a) },
-                    plMode = state.plMode
+                    plMode = state.plMode,
+                    recommendation = recommendations[row.symbol]
                 )
                 RowSeparator()
             }
