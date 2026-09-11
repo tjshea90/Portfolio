@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performClick
@@ -17,11 +18,16 @@ import com.tj.portfolio.data.AnalystRating
 import com.tj.portfolio.data.Consensus
 import com.tj.portfolio.data.EarningsEstimate
 import com.tj.portfolio.data.Fundamentals
+import com.tj.portfolio.data.Recommendation
+import com.tj.portfolio.data.TradeVerdict
 import com.tj.portfolio.ui.AnalystsTab
+import com.tj.portfolio.ui.DetailTab
+import com.tj.portfolio.ui.DetailTabRow
 import com.tj.portfolio.ui.EarningsTab
 import com.tj.portfolio.ui.Explain
 import com.tj.portfolio.ui.ExplainDialog
 import com.tj.portfolio.ui.PortfolioTheme
+import com.tj.portfolio.ui.RecommendationDialog
 import com.tj.portfolio.ui.StatsTab
 import org.junit.Assert.assertTrue
 import org.junit.Rule
