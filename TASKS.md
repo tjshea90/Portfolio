@@ -70,19 +70,40 @@ separately rather than as a block:
 
 ## Part 1 + 2: proceeding on Sonnet
 
-- [ ] Move the recommendation tab out of the tab row, to the price header
-      area near the after-hours price (per the screenshot's arrow) -
-      same tap behaviour (opens `RecommendationDialog`), same verdict
-      word/color, just relocated. `DetailTab.RECOMMENDATION` stops being a
-      tab in `visibleTabs()`; a standalone badge composable takes its
-      place near `PriceBlock`.
-- [ ] Root-cause the SPY/compare-line pan bug in the full-screen chart
-      (`PriceChart.kt`, `FullScreenChart.kt`) and fix it - the stock's own
-      line pans correctly; the SPY overlay and a dashed reference line do
-      not.
-- [ ] Unit/UI tests for both.
-- [ ] Full Gradle unit suite green before shipping.
-- [ ] Checkpoint after every completed step.
+- [x] Moved the recommendation indicator out of the tab row entirely - it
+      was never really a tab (tapping it never switched content), so
+      `DetailTab.RECOMMENDATION` is gone and `DetailTabRow` is back to its
+      original simple form. New `RecommendationBadge` composable sits
+      beside `PriceBlock` in ordinary flow layout (not an overlay, so it
+      cannot collide with the after-hours column at a large font scale) -
+      same verdict word/color/tap-opens-`RecommendationDialog` as before,
+      just relocated near the price where the screenshot's arrow pointed.
+      The Portfolio list row's own chip (`StockRow.kt`) is untouched.
+- [x] Root-caused and fixed the SPY/compare-line pan bug. Real cause: the
+      comparison-mode rebase anchor was a CANDLE INDEX that only advances
+      once a full day of drag crosses a real candle on a 1Y chart, so both
+      percent lines re-rebased from a new anchor in discrete steps - hidden
+      on the stock's own line by the shared, stock-dominated y-axis, a
+      violent jump on the benchmark's line and the dashed zero-reference
+      line that reads off the same axis. Fixed by freezing the anchor for
+      the life of a live gesture and re-syncing once it ends - by
+      TIMESTAMP, not by index (a first draft froze an index into a
+      re-sliced view and was wrong in a way that would have been worse
+      than the original bug; caught and corrected before shipping).
+- [x] Tests: DetailTabCrashTest's counts reverted (RECOMMENDATION no
+      longer inflates them), 3 new RecommendationBadge render tests
+      replacing the 2 retired DetailTabRow-param ones, 2 new pure-logic
+      cases for `primaryPercents`' `fromValue` override, and a full
+      gesture-simulation regression test (`ComparePanAnchorUiTest`) that
+      drives a real multi-step pan across many candles in one continuous
+      gesture and proves the rendered readout matches the frozen-anchor
+      expectation mid-drag and the live-anchor expectation after release -
+      computed via the same production functions, fed the real window
+      `PriceChart` reported, not hand-predicted.
+- [x] Full Gradle unit suite green: 849 tests, 0 failures, 0 errors -
+      including all 176 pre-existing chart tests (no regressions) and the
+      33 tests from the earlier tab-placement/StockRow work this session.
+- [x] Checkpointed after every completed step (ckpt 625-627).
 - [ ] Ship following CLAUDE.md's normal release flow.
 
 ## Part 3: Day Trading tab - AWAITING TJ
