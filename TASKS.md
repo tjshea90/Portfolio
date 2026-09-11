@@ -164,8 +164,9 @@ must be based on solid information and reasoning."
 
 ## Part 4: Day Trading — research-backed signals, per-stock explanations, tab-gated live data
 
-**Flagged in chat, not started** (SCREENER.md) - see the flag in chat for
-why. TASKS.md recording is not code, so this is written down now regardless.
+**Tj, 2026-09-11: "go ahead with sonnet"** - explicit override of the
+SCREENER flag, per SCREENER.md's protocol step 3. Proceeding without
+re-asking.
 
 Tj's request, 2026-09-11 (his own words):
 
