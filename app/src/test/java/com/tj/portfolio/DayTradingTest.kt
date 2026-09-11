@@ -151,6 +151,80 @@ class DayTradingTest {
         assertTrue("stop distance should have a floor, was $flatStopPct%", flatStopPct >= 0.89)
     }
 
+    // ==================================================== technicals overlay (Round 68)
+
+    private fun tech(
+        atr: Double = 0.0,
+        vwap: Double = 0.0,
+        orHigh: Double = 0.0,
+        orLow: Double = 0.0,
+        orComplete: Boolean = false
+    ) = DayTradingTechnicals.DayTechnicals(atr, vwap, orHigh, orLow, orComplete)
+
+    @Test fun `upgradeLevels refuses without a real ATR rather than guessing`() {
+        assertNull(ResearchScore.upgradeLevels(100.0, tech(atr = 0.0)))
+        assertNull(ResearchScore.upgradeLevels(0.0, tech(atr = 2.0)))
+    }
+
+    @Test fun `upgradeLevels sets entry to price, stop 1-5x ATR below it, target at 2-to-1`() {
+        val levels = ResearchScore.upgradeLevels(100.0, tech(atr = 2.0))!!
+        assertEquals(100.0, levels.entry, 0.001)
+        // stop = 100 - (2.0 * 1.5) = 97.0
+        assertEquals(97.0, levels.stop, 0.001)
+        // target = 100 + (100 - 97) * 2 = 106.0
+        assertEquals(106.0, levels.target, 0.001)
+    }
+
+    @Test fun `upgradeLevels floors the stop so an extreme ATR cannot erase the trade`() {
+        // ATR of 40 on a $100 stock would place a naive stop at 100 - 60 = 40, more than half
+        // the entry price away - floored at 50.0 instead.
+        val levels = ResearchScore.upgradeLevels(100.0, tech(atr = 40.0))!!
+        assertEquals(50.0, levels.stop, 0.001)
+    }
+
+    @Test fun `withTechnicals leaves the score untouched when nothing was fetched`() {
+        val base = ResearchScore.Scored(60, listOf("base reason"), 80)
+        val out = ResearchScore.withTechnicals(base, tech(), price = 100.0)
+        assertEquals(60, out.score)
+        assertEquals(listOf("base reason"), out.reasons)
+    }
+
+    @Test fun `withTechnicals rewards trading above VWAP and says so`() {
+        val base = ResearchScore.Scored(50, listOf("base reason"), 80)
+        val above = ResearchScore.withTechnicals(base, tech(vwap = 95.0), price = 100.0)
+        assertTrue(above.score > 50)
+        assertTrue(above.reasons.any { it.contains("VWAP") })
+        // Below VWAP earns nothing - the same "only adds, never subtracts" rule every other
+        // reason line in this list follows.
+        val below = ResearchScore.withTechnicals(base, tech(vwap = 105.0), price = 100.0)
+        assertEquals(50, below.score)
+        assertEquals(listOf("base reason"), below.reasons)
+    }
+
+    @Test fun `withTechnicals rewards a completed opening-range breakout and says so`() {
+        val base = ResearchScore.Scored(50, listOf("base reason"), 80)
+        val broke = ResearchScore.withTechnicals(
+            base, tech(orHigh = 98.0, orComplete = true), price = 100.0
+        )
+        assertTrue(broke.score > 50)
+        assertTrue(broke.reasons.any { it.contains("opening-range breakout") })
+        // Not yet complete - too early to call it a breakout of a range that has not finished.
+        val tooEarly = ResearchScore.withTechnicals(
+            base, tech(orHigh = 98.0, orComplete = false), price = 100.0
+        )
+        assertEquals(50, tooEarly.score)
+    }
+
+    @Test fun `withTechnicals combines both bonuses and never exceeds 100`() {
+        val base = ResearchScore.Scored(95, listOf("base reason"), 80)
+        val out = ResearchScore.withTechnicals(
+            base, tech(vwap = 95.0, orHigh = 98.0, orComplete = true), price = 100.0
+        )
+        assertEquals(100, out.score)
+        assertTrue(out.reasons.any { it.contains("VWAP") })
+        assertTrue(out.reasons.any { it.contains("opening-range breakout") })
+    }
+
     // ================================================================== bridge
 
     private val realReply = """
