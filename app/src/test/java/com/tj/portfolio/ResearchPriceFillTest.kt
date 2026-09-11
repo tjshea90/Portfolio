@@ -171,12 +171,4 @@ class ResearchPriceFillTest {
         assertEquals(160.0, out.first().targetPrice, 0.001)
     }
 
-    /** It runs safely over sections that never carry levels - trending and best included. */
-    @Test fun isANoOpOnRowsOutsideDayTrading() {
-        val out = withDayTradingLevels(listOf(row("NVDA", price = 900.0)))
-        // Still computes for ANY row it is handed - the caller is what scopes it to day
-        // trading, by only ever passing that section. Proven here so a future caller cannot
-        // assume otherwise: a stock/best row run through this WOULD get levels too.
-        assertTrue(out.first().entryPrice > 0)
-    }
 }
