@@ -16,6 +16,7 @@ session. So collection is now separated from emission, and emission happens
 once, here.
 
     ... | python3 emit.py session-start
+    ... | python3 emit.py user-prompt-submit
     ... | python3 emit.py system-message
 """
 import json, sys
@@ -27,6 +28,9 @@ if not text:
 
 if mode == "session-start":
     out = {"hookSpecificOutput": {"hookEventName": "SessionStart",
+                                  "additionalContext": text}}
+elif mode == "user-prompt-submit":
+    out = {"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
                                   "additionalContext": text}}
 else:
     out = {"systemMessage": text}
