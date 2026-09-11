@@ -162,6 +162,82 @@ must be based on solid information and reasoning."
       raw curl/credential extraction for this - it is a session-tooling gap,
       not a fixable bug here.
 
+## Part 4: Day Trading — research-backed signals, per-stock explanations, tab-gated live data
+
+**Flagged in chat, not started** (SCREENER.md) - see the flag in chat for
+why. TASKS.md recording is not code, so this is written down now regardless.
+
+Tj's request, 2026-09-11 (his own words):
+
+> for the day trading section of this app. review the logic behind the buy
+> and sell signals and their price targets. do comprehensive, deep research
+> on proven day trading algorithms, timing, volatility, and how to calculate
+> good buy and sell price targets. use many legitimate and professional
+> sources for the research. incorporate the research and algorithms into the
+> app in the day trading section. make sure it works well and follows the
+> research accurately. each day should name new, updated stocks and their
+> price targets to buy and sell. right now the app doesn't have buy and sell
+> target numbers. also, the market is currently closed and yet the stocks
+> claim to be "already up today" which makes no sense. include a feature
+> where I can click on each stock and there is an explanation for the buy
+> and sell points and why the stock is recommended. this feature may pull
+> from as many Internet sources as it needs each refresh. but if it is data
+> intensive, make sure it only refreshes this section of the app if I am
+> actively using it (the tab is open). time and Claude usage to make this is
+> no concern, accuracy is important. when this is complete, run tests for ui
+> and code improvements to the app and bug fixes
+
+Two clarifying questions were asked before screening, and Tj's answers
+**lock in the design** (his own words, verbatim):
+
+> [Should entry/stop/target stay honest risk-management math, or attempt
+> real price predictions?] Keep it honest and improve the algorithm and
+> input quality but do deep research on how to project good buy and sell
+> target prices. This can use Claude if needed in the app or with the
+> export to Claude app system
+
+> [Should live research run automatically on tab open, or only on a button
+> tap?] Do not use Claude api at all in the app unless I explicitly press a
+> button, or alternatively export it so the Claude app can respond and
+> import back to the portfolio app. When I said time and usage are no
+> concern, I meant right now as you are building this app. The app should do
+> as much as possible without Claude in making the best day trading
+> recommendations, and it can use as much mobile Internet data as needed,
+> and it can do this all automatically, but only when I have that tab open.
+> The feature should be asleep when I'm not using it
+
+So, decided (do not re-litigate; implement to this):
+
+- **No automatic Claude calls, anywhere in this feature.** Claude only runs
+  when Tj taps Explain/Re-explain (API key path) or through the existing
+  export-prompt-file / import-answer round trip - exactly like today. The
+  scoring/level algorithm itself must be Claude-free.
+- **The app's own data pipeline may be as aggressive as it needs while the
+  Day Trading tab is open** - more screeners, more technicals, more
+  news/volatility inputs, refreshed live - and must go fully idle (no
+  network activity from this section) the moment the tab is not visible.
+  This is an app-side live-refresh behavior, separate from the "no
+  automatic Claude" rule above.
+- **Stay in the "risk plan, not a forecast" honest framing** - see
+  `ResearchScore.dayTrading()`'s existing header for the feasibility finding
+  this already rests on - but do real, sourced research (legitimate,
+  professional sources - not guessing) on proven day-trading methodology,
+  volatility modeling and target-price calculation, and use it to make the
+  actual algorithm meaningfully better than today's simple 2:1/volatility
+  clamp.
+- **Fix: "already up today" while the market is closed.** `changePct` is
+  last-close-vs-current, which is correct data but mislabeled - it needs to
+  read honestly depending on market state (e.g. "up X% - last session" when
+  closed vs "up X% today" while open), and the day-trading list needs a real
+  day-boundary so it names picks for the CURRENT session rather than stale
+  ones from a closed market.
+- **New: tap a stock for a full explanation** of its buy/sell points and why
+  it's recommended - a detail view/dialog, mirroring the existing
+  buy/hold/sell `RecommendationDialog` pattern already in the app rather
+  than inventing a new one.
+- **After the feature lands:** a UI/code-improvement and bug-fix pass, per
+  Tj's own words closing out the request.
+
 ## The flow, verified 2026-09-11 (details in CLAUDE.md)
 
 Tj describes what he wants -> Claude codes, tests and checkpoints -> `ship.sh`
