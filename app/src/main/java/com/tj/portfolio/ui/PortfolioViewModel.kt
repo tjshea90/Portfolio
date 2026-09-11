@@ -5631,12 +5631,24 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
             .coerceAtMost(rows.size)
         val head = rows.take(shown)
+        // CONCURRENT, GATED - the same `Semaphore(MAX_PARALLEL_REQUESTS)` + `async`/`awaitAll`
+        // shape this file already uses for every other visible-window fetch (sparkline
+        // refresh, insider refresh, fundamentals prefetch). Fetching this sequentially - a
+        // real inefficiency caught by review before shipping - meant a window past the
+        // default ten rows (any "Load more" tap) could take several times the nominal
+        // 30-second cadence to complete a single sweep, since each symbol pays up to two
+        // chained HTTP round trips.
         val fetched = withContext(Dispatchers.IO) {
-            head.associate { row ->
-                row.symbol to runCatching {
-                    com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
-                }.getOrNull()
-            }
+            val gate = Semaphore(MAX_PARALLEL_REQUESTS)
+            head.map { row ->
+                async {
+                    gate.withPermit {
+                        row.symbol to runCatching {
+                            com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
+                        }.getOrNull()
+                    }
+                }
+            }.awaitAll().toMap()
         }
         var changed = false
         // RE-READ, NOT THE `head` SNAPSHOT - same reason enrichPass does this (Round 66 audit,
