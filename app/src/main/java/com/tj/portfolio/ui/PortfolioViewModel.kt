@@ -668,6 +668,39 @@ internal fun mergeDayTradingTech(
 }
 
 /**
+ * The likelihood/confidence half of a Day Trading row's live enrichment (Round 72) - split out
+ * from [PortfolioViewModel.enrichDayTradingVisible] for the same reason [mergeDayTradingTech] is
+ * its own top-level function: PURE, so a test can check it with no network and no ViewModel.
+ *
+ * [withLevels] must already carry the row's build-time [ResearchRow.dtLikelihood] and
+ * [ResearchRow.dtConfidence] (i.e. be [mergeDayTradingTech]'s own output) and [effective] must be
+ * the SAME reading the levels above it were computed from - see [effectiveTechnicals]'s own
+ * header for why. The caller is responsible for guarding this against a Claude-authored row and
+ * against running it more than once per symbol - see the call site for both, and
+ * [ResearchScore.technicalConfirmationBonus]'s header for why running it twice would double-
+ * count the technicals half of the confidence checklist.
+ */
+internal fun scoreDayTradingRow(
+    withLevels: com.tj.portfolio.data.ResearchRow,
+    effective: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
+): com.tj.portfolio.data.ResearchRow {
+    val scored = com.tj.portfolio.net.ResearchScore.withTechnicals(
+        com.tj.portfolio.net.ResearchScore.Scored(withLevels.dtLikelihood, withLevels.reasons, 100),
+        effective,
+        withLevels.price
+    )
+    val confidence = (withLevels.dtConfidence +
+        com.tj.portfolio.net.ResearchScore.technicalConfirmationBonus(withLevels.price, effective)
+    ).coerceIn(0, 100)
+    return withLevels.copy(
+        score = com.tj.portfolio.net.ResearchScore.blendedScore(scored.score, confidence),
+        reasons = scored.reasons,
+        dtLikelihood = scored.score,
+        dtConfidence = confidence
+    )
+}
+
+/**
  * One reading combining THIS tick's technicals with whatever the row already had, per field.
  *
  * WHY THE PLAN MUST BE COMPUTED FROM THIS AND NOT FROM `tech` DIRECTLY. The daily-bar request
