@@ -224,18 +224,34 @@ class DayTradingTest {
     }
 
     @Test fun `a stop is never wider than a same-session trade should carry`() {
-        // Structure 8 ATRs below entry would be a swing-trade stop, not a day-trade one.
+        // A pullback to 105 whose next support below is 102 - a 3.15 structural stop, wider
+        // than a trade meant to be closed this afternoon should carry.
         val plan = ResearchScore.tradePlan(
-            100.0,
+            110.0,
             tech(
-                atrIntraday = 1.0, vwap = 99.5,
-                orHigh = 100.5, orLow = 92.0,
-                sessionHigh = 100.5, sessionLow = 92.0
+                atrIntraday = 1.0, vwap = 100.0,
+                orHigh = 105.0, orLow = 102.0,
+                sessionHigh = 110.0, sessionLow = 99.0
             )
         )!!
         val risk = plan.entry - plan.stop
         assertTrue("risk $risk should be clamped to 2.5 intraday ATRs", risk <= 2.5001)
-        assertTrue(plan.note.contains("tightened"))
+        assertTrue("the clamp has to be disclosed: ${plan.note}", plan.note.contains("tightened"))
+    }
+
+    @Test fun `a stop is never tighter than market noise either`() {
+        // The level just broken sits 0.30 below entry - inside the noise of a 1.00 intraday
+        // ATR, so the stop widens to the 0.75-ATR floor instead of sitting where it would be
+        // taken out by a single ordinary 5-minute bar.
+        val plan = ResearchScore.tradePlan(
+            100.0,
+            tech(
+                atrIntraday = 1.0, vwap = 99.0,
+                orHigh = 100.5, orLow = 99.5,
+                sessionHigh = 100.5, sessionLow = 99.0
+            )
+        )!!
+        assertEquals(0.75, plan.entry - plan.stop, 0.001)
     }
 
     @Test fun `a day that has already run its whole range says so`() {
@@ -430,10 +446,12 @@ Here is my read on today's list. I searched the web for what is actually moving.
         assertEquals("BBB", p.picks[0].symbol)
     }
 
-    @Test fun `merging keeps the app score and computed levels, and adds Claude's explanation`() {
+    @Test fun `Claude's list REPLACES the section - a row it left out is gone`() {
+        // ROUND 69, and the reverse of what this file asserted for two rounds. Tj: "the Claude
+        // prompt can change the stocks in the list if it finds better ones."
         val app = listOf(
             ResearchRow(
-                symbol = "GME", price = 22.5, score = 88,
+                symbol = "GME", price = 22.5, score = 88, reasons = listOf("6x normal volume"),
                 entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5
             ),
             ResearchRow(symbol = "MEH", price = 5.0, score = 40)
@@ -443,21 +461,83 @@ Here is my read on today's list. I searched the web for what is actually moving.
             ResearchRow(symbol = "NEW", why = "The app missed this one.", catalyst = "Earnings tonight.", conviction = 6)
         )
         val merged = DayTradingBridge.merge(app, claude)
-        assertEquals(3, merged.size)
+        assertEquals(2, merged.size)
+        assertEquals("Claude's order is the list's order", listOf("GME", "NEW"), merged.map { it.symbol })
+        assertTrue("a name Claude dropped must be gone", merged.none { it.symbol == "MEH" })
+
         val gme = merged.first { it.symbol == "GME" }
         assertEquals("Short squeeze in progress.", gme.why)
-        assertEquals("Could fade fast.", gme.catalyst)
         assertEquals(8, gme.conviction)
-        // The app's own arithmetic and risk plan survive untouched.
+        // What the APP measured still survives - the score, the reason lines, the price.
         assertEquals(88, gme.score)
+        assertEquals(listOf("6x normal volume"), gme.reasons)
+        assertEquals(22.5, gme.price, 0.001)
+        // Claude sent no levels, so the app's own plan is untouched.
         assertEquals(22.5, gme.entryPrice, 0.001)
-        assertEquals(21.0, gme.stopPrice, 0.001)
-        assertEquals(25.5, gme.targetPrice, 0.001)
-        // A pick the app never had is appended, not dropped, with no levels yet.
-        val added = merged.first { it.symbol == "NEW" }
-        assertEquals(0.0, added.entryPrice, 0.0)
-        // A pick Claude ignored is untouched.
-        assertEquals("", merged.first { it.symbol == "MEH" }.why)
+        assertFalse(gme.planByClaude)
+    }
+
+    @Test fun `an empty answer never wipes the list`() {
+        val app = listOf(ResearchRow(symbol = "GME", price = 22.5, score = 88))
+        assertEquals(app, DayTradingBridge.merge(app, emptyList()))
+    }
+
+    @Test fun `Claude's own entry, stop and target are accepted and labelled as Claude's`() {
+        val app = listOf(
+            ResearchRow(
+                symbol = "GME", price = 22.5, score = 88,
+                entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5, setup = "Breakout"
+            )
+        )
+        val claude = DayTradingBridge.parse(
+            """{"dayTrading":{"picks":[{"symbol":"GME","why":"Squeeze.","setup":"Gap and go",
+               "entry":23.10,"stop":22.40,"target":25.00,
+               "trigger":"Buy the break of the premarket high at 23.10."}]}}"""
+        ).picks
+        val gme = DayTradingBridge.merge(app, claude).first()
+        assertEquals(23.10, gme.entryPrice, 0.001)
+        assertEquals(22.40, gme.stopPrice, 0.001)
+        assertEquals(25.00, gme.targetPrice, 0.001)
+        assertEquals("Gap and go", gme.setup)
+        assertTrue("the card must be able to say whose plan this is", gme.planByClaude)
+        assertEquals("the app's own score is still not Claude's to set", 88, gme.score)
+    }
+
+    @Test fun `a mangled level set is refused and the app's own plan survives`() {
+        val app = listOf(
+            ResearchRow(
+                symbol = "GME", price = 22.5, score = 88,
+                entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5
+            )
+        )
+        // A decimal point in the wrong place: a $2.31 entry on a $22.50 stock. Structurally a
+        // valid trade, which is exactly why the price check has to exist as well.
+        val slipped = DayTradingBridge.parse(
+            """{"dayTrading":{"picks":[{"symbol":"GME","why":"Squeeze.","entry":2.31,"stop":2.24,"target":2.50}]}}"""
+        ).picks
+        val gme = DayTradingBridge.merge(app, slipped).first()
+        assertEquals("the app's own entry must survive a bad one", 22.5, gme.entryPrice, 0.001)
+        assertFalse(gme.planByClaude)
+        assertEquals("the explanation is still taken", "Squeeze.", gme.why)
+    }
+
+    @Test fun `a level set that is not a trade at all is refused at parse time`() {
+        // Target below the stop - not a long, not a short, not anything.
+        val p = DayTradingBridge.parse(
+            """{"dayTrading":{"picks":[{"symbol":"GME","why":"Real reason.","entry":22.5,"stop":23.0,"target":21.0}]}}"""
+        )
+        assertEquals(1, p.picks.size)
+        assertEquals(0.0, p.picks[0].entryPrice, 0.0)
+        assertFalse(p.picks[0].planByClaude)
+    }
+
+    @Test fun `levelsUsable checks the shape and the distance from the real price`() {
+        assertTrue(DayTradingBridge.levelsUsable(22.5, entry = 23.0, stop = 22.0, target = 24.0))
+        assertFalse("stop above entry", DayTradingBridge.levelsUsable(22.5, 23.0, 23.5, 24.0))
+        assertFalse("target below entry", DayTradingBridge.levelsUsable(22.5, 23.0, 22.0, 22.9))
+        assertFalse("a decimal slip", DayTradingBridge.levelsUsable(22.5, 2.3, 2.2, 2.4))
+        assertFalse("a stale price from another era", DayTradingBridge.levelsUsable(22.5, 90.0, 88.0, 95.0))
+        assertTrue("no app price to check against yet", DayTradingBridge.levelsUsable(0.0, 23.0, 22.0, 24.0))
     }
 
     @Test fun `a research reply is not mistaken for a day-trading reply, and vice versa`() {
