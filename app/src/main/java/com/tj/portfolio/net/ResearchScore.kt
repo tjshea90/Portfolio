@@ -433,6 +433,35 @@ object ResearchScore {
         )
     }
 
+    /** Day-trading stop: the tight end of the 1.5x-2x ATR range professional sources describe
+     *  for a same-session trade - see [DayTradingTechnicals]'s header for the citations. */
+    private const val ATR_STOP_MULTIPLIER = 1.5
+
+    /** The standard "at least 2:1" reward:risk floor - see [DayTradingTechnicals]'s header. */
+    private const val TARGET_REWARD_RISK_RATIO = 2.0
+
+    /**
+     * [tradeLevels] upgraded with a REAL ATR(14), once [DayTradingTechnicals.fetch] has
+     * answered for this row - separate from [tradeLevels] for the same reason [withAnalyst]
+     * is separate from [best]: the technicals arrive later, for the rows on screen only, so a
+     * row that has not been enriched yet keeps [tradeLevels]'s honest volatility-clamp
+     * estimate rather than showing nothing while it waits.
+     *
+     * Null when there is nothing to upgrade with - [DayTradingTechnicals.DayTechnicals.atr14]
+     * is 0.0 for a fetch that failed, was still loading, or hit a symbol with too little price
+     * history (a recent IPO); the caller then simply leaves [tradeLevels]'s estimate in place.
+     */
+    fun upgradeLevels(price: Double, tech: DayTradingTechnicals.DayTechnicals): TradeLevels? {
+        if (price <= 0.0 || tech.atr14 <= 0.0) return null
+        val risk = tech.atr14 * ATR_STOP_MULTIPLIER
+        // A SANITY FLOOR, NOT A CEILING ON RISK. ATR is a historical average; a single extreme
+        // reading inside the 3-month lookback (an earnings-day gap) should not be able to place
+        // a stop so far below entry that it stops being a same-session day-trading stop at all.
+        val stop = (price - risk).coerceAtLeast(price * 0.5)
+        val target = price + (price - stop) * TARGET_REWARD_RISK_RATIO
+        return TradeLevels(entry = price, stop = stop, target = target)
+    }
+
     // ----------------------------------------------------------- analyst overlay
 
     /**
