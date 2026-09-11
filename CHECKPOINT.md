@@ -1,13 +1,13 @@
-# CHECKPOINT 614 — read me first, then TASKS.md
+# CHECKPOINT 615 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T00:57:12Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `81453dd` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T01:02:12Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `c15c5d3` (this checkpoint is the commit after it)
 
 ## Just done
-Full Gradle unit suite verified GREEN: BUILD SUCCESSFUL, 831 tests total across the whole app, 0 failures/0 errors - includes RecommendationScoreTest (17/17), the 2 new MarketClock.dayKey tests in NetLogicTest (20/20), the 6 new recommendation round-trip tests in DbTest (41/41), and the 2 bumped tab-count assertions in DetailTabCrashTest (2/2). tools/checkinit.py also confirms every PortfolioViewModel property (including the two new recommendation StateFlows) is declared above init. The BUY/HOLD/SELL feature is code-complete and test-verified.
+Added Robolectric render tests for the actual UI (RecommendationDialog and DetailTabRow with a live verdict label) in DetailTabsUiTest.kt, matching this project's own established substitute for 'ran it on a phone' since no emulator/device is attached to this container - the same discipline that file's header already documents catching two real layout bugs source-reading couldn't. Caught and fixed one real mistake in the process: assertDoesNotExist needed no import (it's a member of SemanticsNodeInteraction, not a top-level function) and an incorrect import broke the build - fixed and reverified. Full suite green: BUILD SUCCESSFUL, 838 tests total, 0 failures/0 errors, verified in a clean final run after all edits.
 
 ## Do this next
-Update TASKS.md: tick every box now satisfied (scoring rule designed+tested, zero new network requests confirmed by construction since it reads Fundamentals the app already fetches, per-day cache verified by DB round-trip tests, tab+popup wired, background-safety confirmed by inspection, full suite green). Then do the one thing not yet done - actually exercise the feature visually before calling it finished, since Gradle unit tests don't prove the tab renders or the popup looks right on a real screen. After that: bump versionCode+versionName in app/build.gradle.kts and run ship.sh.
+Finish the TASKS.md checklist (tick every box, all now genuinely done and tested) under the buy/hold/sell section, then bump versionCode+versionName in app/build.gradle.kts and run ship.sh per CLAUDE.md's normal release flow.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Update TASKS.md: tick every box now satisfied (scoring rule designed+tested, zer
 
 ## Last ten checkpoints
 ```
+  876f950 ckpt 614: Full Gradle unit suite verified GREEN: BUILD SUCCESSFUL, 831 tests total acros
   81453dd ckpt 613: Built the per-holding BUY/HOLD/SELL feature end to end (proceeding on Sonnet p
   340d345 ckpt 612: Ticked off the screener TASKS.md boxes — all built, tested (11 new + 37 exis
   543813b ckpt 611: Built the model screener: SCREENER.md (protocol + Opus-escalation criteria), t
@@ -25,5 +26,7 @@ Update TASKS.md: tick every box now satisfied (scoring rule designed+tested, zer
   2101672 ckpt 607: Verified origin/main is fully restored after my fixture contamination: version
   47d403b ckpt 606: MY MISTAKE, and its cleanup: the end-to-end interruption simulation contaminat
   a3ea6f2 ckpt 605: gated v7.9 (code 66) and pushed it. NOT yet built - GitHub has not been asked.
-  0e3effd ckpt 604: Closed the four gaps in the permanent release flow. (1) CLAUDE.md now describe
 ```
+
+(4 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
