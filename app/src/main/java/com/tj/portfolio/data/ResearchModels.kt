@@ -206,6 +206,18 @@ data class ResearchRow(
     /** Anything about the plan that should give the reader pause. Often blank. */
     val planNote: String = "",
     /**
+     * TRUE WHEN THE THREE PRICES ABOVE ARE CLAUDE'S, NOT THE APP'S ARITHMETIC.
+     *
+     * Round 69 is the first time anything in this app lets a language model set a NUMBER a
+     * decision gets made on - Tj asked for it explicitly ("it can give advice and buy and sell
+     * targets for all the stocks"), and it is a real departure from the rule [conviction]'s own
+     * note describes, where a model's figure is kept out of a field the app computes. The rule
+     * is preserved the only way it still can be: the two sources are never blended and never
+     * indistinguishable. A plan is wholly the app's or wholly Claude's, this flag says which,
+     * and the card and the dialog both label it on screen.
+     */
+    val planByClaude: Boolean = false,
+    /**
      * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
      * volume-weighted average price, and the 09:30-10:00 ET opening range. See
      * `net/DayTradingTechnicals.kt`'s header for the research these come from. All zero until
