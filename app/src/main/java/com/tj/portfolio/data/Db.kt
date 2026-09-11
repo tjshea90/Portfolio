@@ -1738,6 +1738,12 @@ object Keys {
      */
     const val KIND_HOLDINGS = "holdings"
 
+    /**
+     * The per-holding BUY/HOLD/SELL recommendation. A fourth kind on the same table, same
+     * reasoning as [KIND_HOLDINGS] - see `Db.cacheRecommendation`.
+     */
+    const val KIND_RECOMMENDATION = "recommendation"
+
     /** Which detail-screen tab was last open, so reopening a stock lands where you left. */
     const val DETAIL_TAB = "detail_tab"
 }
