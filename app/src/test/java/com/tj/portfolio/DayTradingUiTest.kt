@@ -177,6 +177,51 @@ class DayTradingUiTest {
         assertFalse("nothing to summarise yet: $t", t.contains("IN PLAIN ENGLISH"))
     }
 
+    // ==================================== the likelihood x confidence score (Round 72)
+    //
+    // Tj: "make the scores reflect a blend of how likely the stock is to rise... and how
+    // confident this prediction is." These check the actual rendered breakdown, and that the
+    // score badge's own description reaches a screen reader too.
+
+    private fun scoredRow(likelihood: Int = 82, confidence: Int = 60) = ResearchRow(
+        symbol = "GME", name = "GameStop", price = 22.50,
+        score = ResearchScore.blendedScore(likelihood, confidence),
+        dtLikelihood = likelihood, dtConfidence = confidence
+    )
+
+    @Test fun `a day-trading row the app scored shows the likelihood x confidence breakdown`() {
+        show { Column(Modifier.fillMaxWidth()) {
+            ResearchCard(scoredRow(likelihood = 82, confidence = 60), followed = false, onOpen = {}, onOpenUrl = { _, _ -> })
+        } }
+        val t = texts().joinToString(" ")
+        assertTrue("the breakdown must show both halves: $t", t.contains("82"))
+        assertTrue(t.contains("60%"))
+        // 82 x 60 / 100 = 49 - the number actually shown in the score circle.
+        assertTrue("the badge itself must show the blended number: $t", t.contains("49"))
+    }
+
+    @Test fun `a row the app never scored - Trending, Best, ETF, or a Claude pick - shows no breakdown`() {
+        show { Column(Modifier.fillMaxWidth()) {
+            ResearchCard(
+                ResearchRow(symbol = "AAPL", name = "Apple", price = 190.0, score = 75),
+                followed = false, onOpen = {}, onOpenUrl = { _, _ -> }
+            )
+        } }
+        val t = texts().joinToString(" ")
+        assertFalse("no likelihood/confidence to show for a row with no dtLikelihood: $t",
+            t.contains("likelihood"))
+    }
+
+    @Test fun `the score badge describes the blend to a screen reader, not just a bare number`() {
+        show { Column(Modifier.fillMaxWidth()) {
+            ResearchCard(scoredRow(likelihood = 82, confidence = 60), followed = false, onOpen = {}, onOpenUrl = { _, _ -> })
+        } }
+        rule.onNodeWithContentDescription(
+            "Score 49 out of 100 - a blend of how likely this stock is to keep rising " +
+                "(82 out of 100) and how confident that call is (60 percent)"
+        ).assertExists()
+    }
+
     // ============================================================ DayTradingDetailDialog
 
     private fun row(
