@@ -971,6 +971,8 @@ private fun OverviewTab(
     state: UiState,
     symbol: String,
     row: Row?,
+    /** Today's Day Trading pick for this symbol, or null - see the note at its call site. */
+    dayTradingRow: com.tj.portfolio.data.ResearchRow?,
     tracked: Boolean,
     /**
      * Whether the symbol is on the WATCHLIST, which for a held stock is a different question
