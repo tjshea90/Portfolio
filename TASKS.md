@@ -51,7 +51,10 @@ firing every holding's request in the same tick.
       including `SparklineSizeUiTest`, confirming the new chip did not
       disturb the row's chart-sizing layout it sits beside.
 - [x] Checkpointed after every completed step (ckpt 620-622).
-- [ ] Ship following CLAUDE.md's normal release flow.
+- [x] Shipped: v7.10 (code 67), GitHub Actions run #9 built, signed,
+      verified its own certificate, and published the Release; APK
+      downloaded (sha256 verified against the Release's own digest), sent
+      to Tj, and recorded in BUILDLOG.md.
 
 ## The flow, verified 2026-09-11 (details in CLAUDE.md)
 
