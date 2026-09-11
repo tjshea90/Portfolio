@@ -18,9 +18,11 @@ hook_root() {
 # and print the concatenation. $2 is the total time budget in seconds; it is
 # SHARED between repos rather than per-repo, because the hook's own timeout is
 # what actually gets enforced and blowing it loses everything, not just the
-# slow repo.
+# slow repo. $3, if given, is fed to each script as stdin — empty for
+# resume/autosave/toobig (they need nothing from the event itself) and the
+# raw UserPromptSubmit JSON for screen.sh, which does (see tools/screener.sh).
 hook_collect() {
-  local script="$1" budget="${2:-100}" d n per
+  local script="$1" budget="${2:-100}" input="${3-}" d n per
   local -a repos=()
   local root; root="$(hook_root)"
   [ -d "$root" ] || return 0
