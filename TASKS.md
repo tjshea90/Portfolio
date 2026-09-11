@@ -41,8 +41,6 @@ firing every holding's request in the same tick.
 - [ ] Checkpoint after every completed step.
 - [ ] Ship following CLAUDE.md's normal release flow.
 
-## The flow (details in CLAUDE.md)
-
 ## The flow, verified 2026-09-11 (details in CLAUDE.md)
 
 Tj describes what he wants -> Claude codes, tests and checkpoints -> `ship.sh`
