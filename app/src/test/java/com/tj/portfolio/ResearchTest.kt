@@ -469,6 +469,25 @@ Here is my read on your lists. I searched the web for the latest on each name.
      * so both halves have to round-trip WITHOUT bleeding into each other.
      */
     @Test
+    fun `a pre-Round-69 cached plan is dropped rather than relabelled as a trigger`() {
+        // The Research cache survives the app upgrade. Before Round 69 `entryPrice` WAS the
+        // last traded price; after it, the card labels that number "Buy at" and the dialog
+        // insists it is a level the market has to reach. A row left on disk from the old build
+        // would carry the exact defect Tj reported, under prose claiming it was fixed.
+        val old = JSONObject(
+            """{"dayTrading":[{"symbol":"GME","price":22.5,"score":88,
+               "entryPrice":22.5,"stopPrice":21.0,"targetPrice":25.5}],"generated":1757000000000}"""
+        )
+        val row = ResearchSet.fromJson(old).dayTrading.single()
+        assertEquals("the stale plan must not reach the card", 0.0, row.entryPrice, 0.0)
+        assertEquals(0.0, row.stopPrice, 0.0)
+        assertEquals(0.0, row.targetPrice, 0.0)
+        // Everything the app actually measured is untouched - only the plan is dropped.
+        assertEquals(88, row.score)
+        assertEquals(22.5, row.price, 0.001)
+    }
+
+    @Test
     fun `a day-trading row and its own explain state survive the cache round trip`() {
         val original = ResearchSet(
             dayTrading = listOf(
@@ -476,7 +495,8 @@ Here is my read on your lists. I searched the web for the latest on each name.
                     symbol = "GME", price = 22.5, changePct = 12.0, score = 88,
                     reasons = listOf("Trading at 6.0x its normal volume today"),
                     catalyst = "Could fade fast if the squeeze stalls.",
-                    entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5
+                    entryPrice = 23.1, stopPrice = 22.4, targetPrice = 25.5,
+                    setup = "Breakout", trigger = "Buy the break above 23.10."
                 )
             ),
             generated = 1_757_000_000_000L,
@@ -489,9 +509,11 @@ Here is my read on your lists. I searched the web for the latest on each name.
         )
         val back = ResearchSet.fromJson(JSONObject(original.toJson().toString()))
         assertEquals(original.toJson().toString(), back.toJson().toString())
-        assertEquals(22.5, back.dayTrading[0].entryPrice, 0.001)
-        assertEquals(21.0, back.dayTrading[0].stopPrice, 0.001)
+        assertEquals(23.1, back.dayTrading[0].entryPrice, 0.001)
+        assertEquals(22.4, back.dayTrading[0].stopPrice, 0.001)
         assertEquals(25.5, back.dayTrading[0].targetPrice, 0.001)
+        assertEquals("Breakout", back.dayTrading[0].setup)
+        assertEquals("Buy the break above 23.10.", back.dayTrading[0].trigger)
         // The two explain states did not bleed into each other in either direction.
         assertEquals("Claude app", back.dtExplainedBy)
         assertEquals("API", back.explainedBy)

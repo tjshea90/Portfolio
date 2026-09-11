@@ -197,22 +197,50 @@ class ResearchPriceFillTest {
     // what has to tell "this field genuinely failed this tick" from "the whole reading is
     // fresh", and get it right per field, not per reading.
 
-    private fun leveled(atr: Double = 0.0, vwap: Double = 0.0, orHigh: Double = 0.0, orLow: Double = 0.0) =
-        ResearchRow(
-            symbol = "GME", price = 22.5, score = 88,
-            entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5,
-            atr = atr, vwap = vwap, openingRangeHigh = orHigh, openingRangeLow = orLow
-        )
+    /**
+     * A DAY IDENTIFIER ON BOTH SIDES, because the per-field fallback for the INTRADAY readings
+     * is now scoped to one session - see `effectiveTechnicals`. A row and a reading that do not
+     * name the same day are two different sessions, and carrying VWAP or a session high across
+     * that boundary is not staleness, it is the wrong number.
+     */
+    private val TODAY = "2026-09-11"
+
+    private fun leveled(
+        atr: Double = 0.0, vwap: Double = 0.0, orHigh: Double = 0.0, orLow: Double = 0.0,
+        day: String = TODAY
+    ) = ResearchRow(
+        symbol = "GME", price = 22.5, score = 88,
+        entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5, setup = "Breakout",
+        atr = atr, vwap = vwap, openingRangeHigh = orHigh, openingRangeLow = orLow,
+        sessionDay = day
+    )
 
     private fun tech(
         atr: Double = 0.0, vwap: Double = 0.0, orHigh: Double = 0.0, orLow: Double = 0.0,
         orComplete: Boolean = false, prevHigh: Double = 0.0, prevLow: Double = 0.0,
-        prevClose: Double = 0.0
+        prevClose: Double = 0.0, day: String = TODAY
     ) = DayTradingTechnicals.DayTechnicals(
         atr14 = atr, vwap = vwap, openingRangeHigh = orHigh, openingRangeLow = orLow,
         openingRangeComplete = orComplete, prevHigh = prevHigh, prevLow = prevLow,
-        prevClose = prevClose
+        prevClose = prevClose, sessionDay = day
     )
+
+    @Test fun `a previous session's VWAP is never carried into a new one`() {
+        // THE 09-31 BUG. A row cached overnight holds yesterday's VWAP and session range. The
+        // first intraday fetch of the new day fails, so the per-field fallback would hand those
+        // to today's plan - and a finished session has spent its whole average daily range, so
+        // every affected row would open the morning reading "already extended, do not chase".
+        val yesterday = ResearchRow(
+            symbol = "GME", price = 22.5, vwap = 21.9, sessionHigh = 23.0, sessionLow = 21.0,
+            atrIntraday = 0.1, atr = 1.0, sessionDay = "2026-09-10"
+        )
+        val out = mergeDayTradingTech(yesterday, tech(atr = 1.0, day = "2026-09-11"))
+        assertEquals("yesterday's VWAP must not survive the open", 0.0, out.vwap, 0.0)
+        assertEquals(0.0, out.sessionHigh, 0.0)
+        assertEquals(0.0, out.sessionLow, 0.0)
+        // The DAILY readings are about completed days by construction and do survive.
+        assertEquals(1.0, out.atr, 0.001)
+    }
 
     @Test fun `a fresh full reading replaces every technicals field`() {
         val out = mergeDayTradingTech(
