@@ -672,7 +672,7 @@ object ResearchScore {
         // trade is reported as the thin one it is, instead of drawing an obedient 2:1 target
         // straight through the level that is going to stop the move.
         val rr = if (risk > 1e-9) (target - entry) / risk else 0.0
-        if (rr in 0.0..1.5) parts.add(
+        if (rr in 0.0..THIN_REWARD_RATIO) parts.add(
             "Only ${Fmt.oneDp(rr)} to 1 - the next resistance sits closer than a 2:1 target " +
                 "would, so this is a thin trade for the risk"
         )
