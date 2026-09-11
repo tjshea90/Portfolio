@@ -236,9 +236,18 @@ fun ResearchScreen(
 
     // The tap-to-explain dialog Tj asked for: "click on each stock and there is an
     // explanation for the buy and sell points and why the stock is recommended."
-    var dayTradingDetail by remember { mutableStateOf<ResearchRow?>(null) }
-    dayTradingDetail?.let { r ->
-        DayTradingDetailDialog(r, onDismiss = { dayTradingDetail = null })
+    //
+    // HOLDS THE SYMBOL, NOT A ROW SNAPSHOT (a real bug caught by review before shipping). The
+    // whole point of the live loop above is that a row's technicals and levels keep improving
+    // while the tab is open - a dialog that captured `r` once at tap time would freeze on
+    // whatever the row looked like at that instant, including a "still gathering" placeholder
+    // for a stock whose real ATR/VWAP arrive forty seconds into reading it. Re-deriving from
+    // `set` on every recomposition means the open dialog updates the moment the live loop does.
+    var dayTradingDetailSymbol by remember { mutableStateOf<String?>(null) }
+    dayTradingDetailSymbol?.let { sym ->
+        val r = set.dayTrading.firstOrNull { it.symbol == sym }
+        if (r != null) DayTradingDetailDialog(r, onDismiss = { dayTradingDetailSymbol = null })
+        else dayTradingDetailSymbol = null // the row is gone (a rebuild dropped it) - nothing to show
     }
 
     // KEYED ON ALL THREE CLOCKS. `etfGenerated` was missing, so on the ETFs tab the
