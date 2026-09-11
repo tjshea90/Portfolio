@@ -257,6 +257,38 @@ fun StockRowItem(
 
             Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Spacer(Modifier.weight(1f))
+                // LEFT OF NEWS, same as the detail screen's tab - see DetailTab.RECOMMENDATION.
+                // Not offered on a watch-only row: the verdict is about whether to change a
+                // position TJ already holds, and a watched-but-unheld symbol has none.
+                if (!row.watchOnly) {
+                    val tint = recommendation?.let { verdictTint(it.verdict) }
+                    Box(
+                        Modifier
+                            .minTapTarget()
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(6.dp)
+                            )
+                            .then(
+                                if (tint != null) Modifier.border(1.dp, tint, RoundedCornerShape(6.dp))
+                                else Modifier
+                            )
+                            .combinedClickable(
+                                onClick = { showRecommendation = true },
+                                onLongClick = { menu = true }
+                            )
+                            .padding(horizontal = 16.dp, vertical = 9.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            recommendation?.let { verdictWord(it.verdict) } ?: "...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = tint ?: accentText
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                }
                 Box(
                     Modifier
                         // 48dp, MEASURED. The previous attempt at this raised the padding and
@@ -278,6 +310,10 @@ fun StockRowItem(
                     )
                 }
             }
+        }
+
+        if (showRecommendation) {
+            RecommendationDialog(recommendation, row.symbol) { showRecommendation = false }
         }
 
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
