@@ -768,10 +768,15 @@ object ResearchScore {
         if (tech.isEmpty || price <= 0.0) return base
         var s = base.score.toDouble()
         val why = ArrayList(base.reasons)
+        // SAME SESSION-WORDING RULE AS [dayTrading]'s reason lines, and it needs no parameter
+        // here: `tech` carries [DayTradingTechnicals.DayTechnicals.sessionLive] itself, so this
+        // stays a pure function of its inputs while still refusing to say "today" about a
+        // session that ended hours ago.
+        val word = if (tech.sessionLive) "today" else "in the last session"
         if (tech.vwap > 0.0 && price > tech.vwap) {
             s += 8.0
             why.add(
-                "Trading above its session VWAP (${Fmt.price(tech.vwap)}) - buyers in control today"
+                "Trading above its session VWAP (${Fmt.price(tech.vwap)}) - buyers in control $word"
             )
         }
         if (tech.openingRangeComplete && tech.openingRangeHigh > 0.0 && price > tech.openingRangeHigh) {

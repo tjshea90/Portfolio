@@ -210,6 +210,7 @@ object DayTradingTechnicals {
         // and [regularSession] splits them back apart so VWAP, the opening range and the
         // session high/low stay regular-hours-only, exactly as their definitions require.
         val intradayAll = fetchBars(symbol, range = "1d", interval = "5m", prePost = true)
+            ?.let { latestDay(it) }
         val regular = intradayAll?.let { regularSession(it) }
         // COMPUTED ONCE, not once per field - `openingRange` filters and re-scans the whole
         // intraday bar list, and calling it twice (once for the high, once for the low) did
@@ -354,6 +355,22 @@ object DayTradingTechnicals {
     private const val OR_START_MIN = 9 * 60 + 30
     private const val OR_END_MIN = 10 * 60
     private const val SESSION_END_MIN = 16 * 60
+
+    /**
+     * Just the most recent trading day's bars.
+     *
+     * REQUIRED BECAUSE THE INTRADAY REQUEST NOW ASKS FOR PRE/POST BARS. Everything below
+     * filters purely on TIME OF DAY, which was safe while one request meant one session's
+     * regular hours. With extended hours included, a `range=1d` window can straddle a
+     * boundary - yesterday's after-hours alongside this morning's pre-market - and a
+     * time-of-day filter would then quietly merge two days: an "opening range" spanning two
+     * 09:30-10:00 windows, a "session high" set yesterday afternoon. Anchoring to the newest
+     * date present makes every window below mean one session again.
+     */
+    internal fun latestDay(intraday: List<Bar>): List<Bar> {
+        val newest = intraday.maxOfOrNull { etDateKey(it.t) } ?: return intraday
+        return intraday.filter { etDateKey(it.t) == newest }
+    }
 
     /**
      * The regular-hours slice of a pre/post-inclusive bar list - 09:30 up to 16:00 ET.
