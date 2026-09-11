@@ -310,3 +310,70 @@ Two defects Tj had reported earlier were also closed along the way:
   TIMEFRAME TRADED, so it is now sized from a 5-minute ATR.
 - "Up X% already today" over a closed market - Round 68 fixed the price line on
   the card and left the two REASON lines saying it, a centimetre lower.
+
+## Part 6: Day Trading — per-stock charts, tabbed detail (mirroring the app's
+existing pattern), watchlist button; and a rescored, confidence-blended score
+
+Tj's request, 2026-09-11 (his own words, two parts):
+
+> for this app, for the day trading section include stock charts just like
+> the other sections of the app put a stock chart next to each of the stocks
+> in the day trading section. the stock charts should show only that current
+> day's chart, good for day trading. the card for each stock in this section
+> can be as big as needed for the visually appealing UI and so all
+> information is easy to see and read. make it so that when I press on any
+> of the stocks in the section, in addition to what it already shows, there
+> are tabs for more information similar to other parts of the app, for
+> example charts and financial information. you can probably adopt this
+> function from other parts of the app so you don't have to recode it. also
+> add a button to add the stock to my watchlist.
+
+> for the scores in the day trading section next to each stock make the
+> scores reflect a blend of how likely the stock is to rise in value from
+> its target buy price and how confident this prediction is. for example a
+> score of 100 means the stock is very likely to raise in value from its
+> current or Target buy price and that the model is extremely confident that
+> this will happen.
+
+## Screening these two parts separately (SCREENER.md)
+
+1. **Charts, bigger cards, tabbed detail, watchlist button.** UI work with
+   an explicit existing pattern to mirror - Tj names it himself
+   ("adopt this function from other parts of the app"): `DetailScreen.kt`'s
+   `DetailTabRow`/tab-content pattern (Stats/Analysts/Earnings/News) and its
+   full-screen 1D-capable chart, and `StockRow`'s existing add-to-watchlist
+   action. No new design decision - reuse, not invention. **Stays on
+   Sonnet.**
+2. **Confidence-blended score.** This redefines what the Day Trading score
+   MEANS (currently a stocks-in-play screener score) into a probability-like
+   "likely to rise x confident it will" blend - squarely
+   SCREENER.md's money-accuracy category ("any future recommendation
+   feature," any buy/sell scoring logic) AND ambiguous/high-judgment design
+   (no existing pattern in the app defines "confidence" as a number, and
+   nothing here can honestly measure a real probability of a stock rising -
+   the definition has to be built from scratch and it is exactly the kind of
+   subtle-logic-error-misinforms-a-real-decision case the category exists
+   for). **Flagged in chat 2026-09-11, not started** (TASKS.md recording is
+   not code).
+
+## Part 6.1: charts + tabbed detail + watchlist button — proceeding on Sonnet
+
+- [ ] Add a compact 1-day-only chart to each Day Trading card, reusing the
+      app's existing chart component rather than a new one.
+- [ ] Let each card grow to fit its content (chart + trigger/stop/target +
+      reasons) instead of a fixed compact height.
+- [ ] Tapping a card opens a tabbed detail view mirroring `DetailScreen`'s
+      pattern (Chart / Stats / financial info), reusing those tabs/composables
+      for the symbol rather than re-deriving them, with the existing
+      trigger/stop/target/why-in-play content from `DayTradingDetailDialog`
+      folded in as its own tab or section rather than dropped.
+- [ ] Add a button in that detail view to add the stock to the watchlist,
+      reusing the existing add-to-watchlist action/path.
+- [ ] Tests for the new UI paths, then the full Gradle unit suite.
+
+## Part 6.2: confidence-blended score — FLAGGED, not started
+
+**Money-accuracy + ambiguous-design match per SCREENER.md. Session is on
+Sonnet (`claude-sonnet-5`, confirmed via get_session). Not started - waiting
+on Tj to switch to Opus (or explicitly say to proceed on Sonnet, as he did
+for Parts 3-5).**
