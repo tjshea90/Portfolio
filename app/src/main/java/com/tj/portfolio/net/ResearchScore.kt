@@ -870,18 +870,37 @@ object ResearchScore {
         var confirmed = 0
         if (r.volumeRatio >= 2.0) confirmed++
         if (r.changePct.isFinite() && r.changePct >= 3.0) confirmed++
-        if (tech != null && tech.vwap > 0.0 && r.price > tech.vwap) confirmed++
-        if (tech != null && tech.openingRangeComplete && tech.openingRangeHigh > 0.0 &&
-            r.price > tech.openingRangeHigh
-        ) confirmed++
         val squeeze = Screener.Lists.MOST_SHORTED in r.lists &&
             r.volumeRatio >= 2.0 && r.changePct >= 3.0
         val nearHigh = r.rangePos in 0.0..1.0 && r.rangePos > 0.85
         if (squeeze || nearHigh) confirmed++
-        return confirmed * 100 / CONFIRMATION_CHECKS
+        return confirmed * 100 / CONFIRMATION_CHECKS + technicalConfirmationBonus(r.price, tech)
     }
 
     private const val CONFIRMATION_CHECKS = 5
+
+    /**
+     * Checks 3 and 4 of [dayTradingConfidence]'s checklist (trading above VWAP, a confirmed
+     * opening-range breakout), split out on their own points scale (0, 20 or 40) so a caller
+     * that no longer has a [ScreenRow] - only a [ResearchRow], once a row has been built and the
+     * raw relative-volume/52-week-range/most-shorted facts checks 1, 2 and 5 need are gone - can
+     * still add just the technicals half once real readings arrive, instead of re-deriving all
+     * five checks from data it no longer has. See
+     * [com.tj.portfolio.ui.PortfolioViewModel.enrichDayTradingVisible]'s merge for the one place
+     * this is used, and why it is safe there (an at-most-once gate on the caller's side, so the
+     * base it adds this to never already has a technicals contribution baked in).
+     */
+    internal fun technicalConfirmationBonus(
+        price: Double,
+        tech: DayTradingTechnicals.DayTechnicals?
+    ): Int {
+        if (tech == null) return 0
+        var confirmed = 0
+        if (tech.vwap > 0.0 && price > tech.vwap) confirmed++
+        if (tech.openingRangeComplete && tech.openingRangeHigh > 0.0 && price > tech.openingRangeHigh)
+            confirmed++
+        return confirmed * 100 / CONFIRMATION_CHECKS
+    }
 
     /**
      * THE SCORE TJ ASKED FOR: how likely this stock is to rise, blended with how confident that
