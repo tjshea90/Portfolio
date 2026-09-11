@@ -443,35 +443,54 @@ fun ResearchScreen(
                 item(key = "tools") {
                     Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Text(
-                            if (section == Section.ETFS)
-                                "About 850 funds screened on this phone from free feeds and " +
-                                    "scored here - not recommendations. Yahoo's fund screens " +
-                                    "do not cover every US ETF, so ask Claude below: it can " +
-                                    "search the web and add the funds this list cannot see."
-                            else
-                                "Whole-market lists built on this phone from free feeds, and " +
-                                    "scored here - not recommendations. Every score shows its " +
-                                    "reasons.",
+                            when (section) {
+                                Section.ETFS ->
+                                    "About 850 funds screened on this phone from free feeds and " +
+                                        "scored here - not recommendations. Yahoo's fund screens " +
+                                        "do not cover every US ETF, so ask Claude below: it can " +
+                                        "search the web and add the funds this list cannot see."
+                                Section.DAY_TRADING ->
+                                    "Screened on this phone from the same free feeds, right " +
+                                        "now - not a prediction of what rises next, and not " +
+                                        "recommendations. Ask Claude below for the specific " +
+                                        "reason each name is in play today, and the specific " +
+                                        "risk that could invalidate it - it can search the web."
+                                else ->
+                                    "Whole-market lists built on this phone from free feeds, and " +
+                                        "scored here - not recommendations. Every score shows its " +
+                                        "reasons."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(12.dp))
                         Button(
-                            onClick = { vm.explainResearch() },
-                            enabled = busy.isEmpty() && !set.isFullyEmpty,
+                            onClick = {
+                                if (section == Section.DAY_TRADING) vm.explainDayTrading()
+                                else vm.explainResearch()
+                            },
+                            enabled = busy.isEmpty() &&
+                                if (section == Section.DAY_TRADING) set.dayTrading.isNotEmpty()
+                                else !set.isFullyEmpty,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                if (set.explained > 0) "Re-explain with Claude"
-                                else "Explain with Claude"
-                            )
+                            val explainedBefore = if (section == Section.DAY_TRADING)
+                                set.dtExplained > 0 else set.explained > 0
+                            Text(if (explainedBefore) "Re-explain with Claude" else "Explain with Claude")
                         }
 
                         SectionHeader("No API key? Use the Claude app")
                         Row {
                             OutlinedButton(
-                                onClick = { vm.writeResearchPrompt { msg -> vm.toast(msg) } },
-                                enabled = !set.isFullyEmpty,
+                                onClick = {
+                                    if (section == Section.DAY_TRADING) {
+                                        vm.writeDayTradingPrompt { msg -> vm.toast(msg) }
+                                    } else {
+                                        vm.writeResearchPrompt { msg -> vm.toast(msg) }
+                                    }
+                                },
+                                enabled = if (section == Section.DAY_TRADING)
+                                    set.dayTrading.isNotEmpty() else !set.isFullyEmpty,
                                 modifier = Modifier.weight(1f)
                             ) { Text("Make prompt file") }
                             Spacer(Modifier.width(8.dp))
@@ -481,6 +500,11 @@ fun ResearchScreen(
                             // - `enrichPass` no longer LOSES the import, but the two writing
                             // to the same list a second apart still makes the screen jump for
                             // no reason anyone can see.
+                            //
+                            // ALWAYS `importResearchFile` (Round 67), regardless of which tab
+                            // is open: it recognises a Day Trading answer file by its own
+                            // payload key and routes it correctly, so picking the reply file
+                            // works the same from either tab.
                             OutlinedButton(
                                 onClick = { filePicker.launch(arrayOf("*/*")) },
                                 enabled = busy.isEmpty(),
@@ -493,36 +517,55 @@ fun ResearchScreen(
                         if (howTo) {
                             StatCard {
                                 Text(
-                                    "The prompt file carries every row on this screen - the " +
-                                        "prices, the scores and the reasons - so Claude needs " +
-                                        "no explanation from you. Attach " +
-                                        "Downloads/Portfolio/" +
-                                        com.tj.portfolio.net.ResearchBridge.PROMPT_FILE +
-                                        " to a chat in the Claude app, save the reply as a " +
-                                        ".txt or .md file, then tap \"Import answer\" and pick " +
-                                        "THAT file - not the prompt file. The explanations " +
-                                        "fill in and no API key is used. Anything Claude adds " +
-                                        "that the app missed is added to the list.\n\n" +
-                                        "The ETF list is the one that asks Claude to go and " +
-                                        "research rather than just explain: the prompt names " +
-                                        "the funds Yahoo's screens leave out and asks for the " +
-                                        "ones that belong on a best-ETF list. Funds Claude " +
-                                        "adds are kept when the list rebuilds itself, because " +
-                                        "the app's own screen can never find them again.",
+                                    if (section == Section.DAY_TRADING)
+                                        "The prompt file carries every row on this screen - " +
+                                            "the price, the app's own score and reasons, and " +
+                                            "the entry/stop/target it computed - so Claude " +
+                                            "needs no explanation from you. Attach " +
+                                            "Downloads/Portfolio/" +
+                                            com.tj.portfolio.net.DayTradingBridge.PROMPT_FILE +
+                                            " to a chat in the Claude app, save the reply as a " +
+                                            ".txt or .md file, then tap \"Import answer\" and " +
+                                            "pick THAT file - not the prompt file. Claude " +
+                                            "explains WHY each name is in play and names the " +
+                                            "risk; it never sets entry/stop/target, and its " +
+                                            "own conviction never overwrites the app's score. " +
+                                            "A stock Claude adds is priced and given its own " +
+                                            "risk levels the moment it is imported."
+                                    else
+                                        "The prompt file carries every row on this screen - the " +
+                                            "prices, the scores and the reasons - so Claude needs " +
+                                            "no explanation from you. Attach " +
+                                            "Downloads/Portfolio/" +
+                                            com.tj.portfolio.net.ResearchBridge.PROMPT_FILE +
+                                            " to a chat in the Claude app, save the reply as a " +
+                                            ".txt or .md file, then tap \"Import answer\" and pick " +
+                                            "THAT file - not the prompt file. The explanations " +
+                                            "fill in and no API key is used. Anything Claude adds " +
+                                            "that the app missed is added to the list.\n\n" +
+                                            "The ETF list is the one that asks Claude to go and " +
+                                            "research rather than just explain: the prompt names " +
+                                            "the funds Yahoo's screens leave out and asks for the " +
+                                            "ones that belong on a best-ETF list. Funds Claude " +
+                                            "adds are kept when the list rebuilds itself, because " +
+                                            "the app's own screen can never find them again.",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
                         }
 
-                        if (set.explained > 0) {
+                        val explainedAt = if (section == Section.DAY_TRADING) set.dtExplained else set.explained
+                        val explainedVia = if (section == Section.DAY_TRADING) set.dtExplainedBy else set.explainedBy
+                        if (explainedAt > 0) {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                "Explained ${Fmt.relative(set.explained)} via ${set.explainedBy}",
+                                "Explained ${Fmt.relative(explainedAt)} via $explainedVia",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        if (set.notes.isNotBlank()) {
+                        val claudeNotes = if (section == Section.DAY_TRADING) set.dtNotes else set.notes
+                        if (claudeNotes.isNotBlank()) {
                             Spacer(Modifier.height(8.dp))
                             StatCard {
                                 Text(
@@ -531,7 +574,7 @@ fun ResearchScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(Modifier.height(4.dp))
-                                Text(set.notes, style = MaterialTheme.typography.bodyMedium)
+                                Text(claudeNotes, style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                         val warnings =
