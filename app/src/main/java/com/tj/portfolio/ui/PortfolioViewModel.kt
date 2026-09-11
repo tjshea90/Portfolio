@@ -5184,7 +5184,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun dismissResearchError() { _researchError.value = null }
 
-    /** The rows currently on screen - what both Claude paths are asked about. */
+    /** The rows currently on screen - what every Claude path (Research and Day Trading) is asked about. */
     private fun visibleResearch(): com.tj.portfolio.data.ResearchSet {
         val s = _research.value
         fun cut(name: String) = s.section(name)
@@ -5192,7 +5192,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         return s.copy(
             trending = cut(com.tj.portfolio.data.ResearchSet.SECTION_TRENDING),
             best = cut(com.tj.portfolio.data.ResearchSet.SECTION_BEST),
-            etfs = cut(com.tj.portfolio.data.ResearchSet.SECTION_ETF)
+            etfs = cut(com.tj.portfolio.data.ResearchSet.SECTION_ETF),
+            dayTrading = cut(com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING)
         )
     }
 
