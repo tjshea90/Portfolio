@@ -3688,6 +3688,37 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * Fundamentals - and through them, the BUY/HOLD/SELL badge - for every row on the
+     * Portfolio tab, not just whichever one the user has opened in detail.
+     *
+     * TJ: *"include them in the main portfolio tab next to each stock."* Until this,
+     * [loadFundamentals] had exactly one caller, `DetailScreen`, asking for one symbol at a
+     * time. Showing a verdict on the WHOLE list is what makes this the first place in the app
+     * that can ask for several holdings' fundamentals within the same few seconds, so
+     * dispatch is staggered - a few symbols, a short pause, the next few - rather than firing
+     * all of them in one instant. Same "do not hammer a provider" rule TJ asked for when this
+     * scoring feature was built in the first place, now applied to fan-out rather than to a
+     * single symbol.
+     *
+     * [loadFundamentals] is itself fire-and-forget - it launches its own coroutine and
+     * returns immediately - so what is staggered here is DISPATCH, not completion. Each call
+     * still goes through that function's own disk-first, TTL-gated, per-symbol-guarded path;
+     * on an ordinary day most of the ~16 are already fresh and this loop costs nothing but the
+     * guard checks themselves.
+     */
+    fun loadPortfolioFundamentals(symbols: List<String>) {
+        fgScope.launch {
+            symbols.distinct().forEachIndexed { i, sym ->
+                // Three symbols, then a short pause, for the rest - not a hard concurrency
+                // cap (loadFundamentals does not return a handle to gate one), just enough
+                // spacing that a cold portfolio of sixteen holdings does not read as a burst.
+                if (i > 0 && i % 3 == 0) delay(400L)
+                loadFundamentals(sym)
+            }
+        }
+    }
+
+    /**
      * True when an intraday chart cannot gain another point until the next session, so the
      * automatic refresh should stop even though its TTL has lapsed.
      *
