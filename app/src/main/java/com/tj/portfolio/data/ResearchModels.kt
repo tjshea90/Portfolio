@@ -382,6 +382,14 @@ data class ResearchSet(
     val etfGenerated: Long = 0L,
     /** Non-fatal problems from the ETF pass alone, kept apart from [warnings]. */
     val etfWarnings: List<String> = emptyList(),
+    /**
+     * TODAY'S DAY-TRADING CANDIDATES (Round 67) - built from the SAME screener universe as
+     * [trending] and [best] in the same pass, so it shares [generated] rather than owning a
+     * clock of its own. See `net/ResearchScore.kt`'s `dayTrading()` for what it is actually
+     * ranked on, and its own header for why "accurate same-day price prediction" is not the
+     * question this answers.
+     */
+    val dayTrading: List<ResearchRow> = emptyList(),
     val generated: Long = 0L,
     /** Where the numbers came from, shown under each section. */
     val sources: String = "",
