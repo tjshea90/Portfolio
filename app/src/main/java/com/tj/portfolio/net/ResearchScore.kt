@@ -276,6 +276,163 @@ object ResearchScore {
         return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(sources, 3))
     }
 
+    // --------------------------------------------------------------- DAY TRADING
+
+    /**
+     * WHY THIS IS SEPARATE FROM [trending] AND [best], AND WHAT IT DOES NOT CLAIM.
+     *
+     * TJ asked for a tab that surfaces "that day's top stocks for day trading... expected to
+     * rise in value... due to things like short squeezes or news or catalysts," with "a
+     * target buy price and target sell price," and said explicitly: "it must be accurate and
+     * give sound signals... if this is not possible do not make the feature."
+     *
+     * RESEARCHED BEFORE THIS WAS WRITTEN, per that instruction - see `TASKS.md`'s day-trading
+     * feasibility write-up for the sources. The literal ask - reliably predicting WHICH
+     * stocks will rise TODAY, with price targets accurate enough to trade on - is not
+     * something this app, or any system built on free public data, can honestly deliver.
+     * Published research on intraday prediction reports that whatever edge machine-learning
+     * models found in market data largely vanished after 2009 as markets absorbed it, and the
+     * mainstream finding on market efficiency is that future returns are "hardly predictable"
+     * from public information at the timescale of a single trading day. If reliably possible
+     * from data this app can reach for free, the edge would already be priced in by people
+     * with far better data and far more compute than a phone app.
+     *
+     * WHAT THIS ACTUALLY DOES INSTEAD, HONESTLY: surfaces stocks that are OBJECTIVELY IN PLAY
+     * RIGHT NOW - unusually heavy volume, a real price move already under way, elevated
+     * wallstreetbets/news attention, a technical breakout, or a short-squeeze-prone setup -
+     * and says WHY, the same "app scores, shows its work" rule [best] and [trending] already
+     * follow. None of this is a claim that the move continues. It describes what is
+     * happening, for a reader about to make their own trading decision, not a promise of what
+     * happens next.
+     *
+     * "TARGET BUY / TARGET SELL", REFRAMED HONESTLY: since a genuine price forecast is not
+     * available, [tradeLevels] computes the entry/stop/target an ordinary risk-managed day
+     * trade would use instead - this stock's own current price, a stop-loss sized to its own
+     * recent volatility, and a profit target at a standard 2:1 reward-to-risk. Real, computed
+     * numbers - risk-management levels, not a forecast.
+     */
+    fun dayTrading(
+        r: ScreenRow,
+        t: TrendInput?,
+        maxMentions: Int,
+        maxNews: Int,
+        /** Reports earnings today or tomorrow - the caller already knows this from [catalystFor]. */
+        catalystSoon: Boolean = false
+    ): Scored {
+        val why = ArrayList<String>()
+        var s = 0.0
+        var have = 0
+        var want = 0
+
+        // --- relative volume (0-30): the single best "is this actually in play today" proxy
+        // the published day-trading literature points to - see the class header.
+        want++
+        val rvol = r.volumeRatio
+        if (rvol > 0) {
+            have++
+            s += ramp(rvol, 1.0, 5.0, 30.0)
+            if (rvol >= 2.0) why.add(
+                "Trading at ${Fmt.priceBare(rvol)}x its normal volume today" +
+                    if (rvol >= 5.0) " - heavily in play" else ""
+            )
+        }
+
+        // --- today's move (0-20): already RISING, not just active. "Expected to rise" means
+        // stocks moving up now, not merely loud ones - a falling stock earns nothing here
+        // even with huge volume.
+        want++
+        if (r.changePct.isFinite() && r.price > 0) {
+            have++
+            s += ramp(r.changePct, 0.0, 12.0, 20.0)
+            if (r.changePct >= 3.0) why.add("Up ${pct(r.changePct)} already today")
+        }
+
+        // --- social + news attention (0-20), at a lower weight than in [trending]: day
+        // trading needs the move and the volume to be REAL first - chatter alone describes
+        // what people are saying, not what the tape is doing.
+        want++
+        if (t != null) {
+            have++
+            var chat = 0.0
+            if (t.mentions > 0 && maxMentions > 0) {
+                chat += ramp(t.mentions.toDouble(), 0.0, maxMentions.toDouble(), 12.0)
+                why.add("${t.mentions} r/wallstreetbets mentions today")
+            }
+            if (t.newsCount > 0 && maxNews > 0) {
+                chat += ramp(t.newsCount.toDouble(), 0.0, maxNews.toDouble(), 8.0)
+                why.add("${t.newsCount} news ${if (t.newsCount == 1) "story" else "stories"} today")
+            }
+            s += chat
+        }
+
+        // --- short-squeeze setup: membership on Yahoo's own most-shorted screen, boosted
+        // when it is ALSO showing real volume and a real move today - the classic squeeze
+        // shape (heavy short interest meeting buying pressure). Short interest alone is a
+        // slow-moving structural fact (FINRA reports it twice a month), not a trigger for
+        // today, so plain membership earns far less than the combination does.
+        if (Screener.Lists.MOST_SHORTED in r.lists) {
+            val squeeze = rvol >= 2.0 && r.changePct >= 3.0
+            s += if (squeeze) 20.0 else 8.0
+            why.add(
+                if (squeeze)
+                    "Heavily shorted AND moving up on strong volume - a classic short-squeeze shape"
+                else "On Yahoo's most-shorted screen - squeeze-prone if volume picks up"
+            )
+        }
+
+        // --- breakout / trend (0-10)
+        want++
+        if (r.price > 0 && r.fiftyDayAvg > 0) {
+            have++
+            if (r.rangePos in 0.0..1.0 && r.rangePos > 0.85) {
+                s += 10.0
+                why.add("Within 15% of its 52-week high - breaking out")
+            } else if (r.price > r.fiftyDayAvg) {
+                s += 5.0
+            }
+        }
+
+        if (catalystSoon) {
+            s += 8.0
+            why.add("Reports earnings today or tomorrow")
+        }
+
+        if (why.isEmpty()) why.add("Screened in, but nothing about it stands out today")
+
+        return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
+    }
+
+    /** Real, computed price levels for one candidate - see [dayTrading]'s header. */
+    data class TradeLevels(val entry: Double, val stop: Double, val target: Double)
+
+    /**
+     * A RISK PLAN, NOT A FORECAST - see [dayTrading]'s header for why. [entry] is simply
+     * today's price; [stop] and [target] are set from THIS STOCK'S OWN recent volatility -
+     * its 52-week range and how far it has already moved today, both real and already
+     * realised - at a standard 2:1 reward-to-risk, the same ratio a day trader's own risk
+     * plan would use by hand.
+     */
+    fun tradeLevels(r: ScreenRow): TradeLevels? {
+        if (r.price <= 0.0) return null
+        val yearRangePct = if (r.fiftyTwoWeekHigh > r.fiftyTwoWeekLow && r.fiftyTwoWeekHigh > 0.0)
+            (r.fiftyTwoWeekHigh - r.fiftyTwoWeekLow) / r.price * 100.0
+        else 0.0
+        val todayMovePct = if (r.changePct.isFinite()) abs(r.changePct) else 0.0
+        // A single day's realistic range is a small slice of the 52-week range for an
+        // actively-moving stock; blended with today's own already-realised move and clamped
+        // to a sane band so an illiquid or a wildly volatile row cannot produce a stop a
+        // point away, or half the stock's price away.
+        val dailyVolPct = maxOf(todayMovePct, yearRangePct * 0.08).coerceIn(1.5, 15.0)
+        val stopPct = dailyVolPct * 0.6
+        val targetPct = stopPct * 2.0
+        val entry = r.price
+        return TradeLevels(
+            entry = entry,
+            stop = entry * (1.0 - stopPct / 100.0),
+            target = entry * (1.0 + targetPct / 100.0)
+        )
+    }
+
     // ----------------------------------------------------------- analyst overlay
 
     /**
