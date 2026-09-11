@@ -75,12 +75,14 @@ stocks that are ALREADY moving, with real volume behind the move, for a reader w
 make their own trading decision and wants to understand WHY each name showed up.
 
 Each row also carries `entry`, `stop` and `target` - these are the APP'S OWN computed
-risk-management levels (today's price, a stop sized at 1.5x this stock's own 14-day Average
-True Range, and a 2:1 reward-to-risk target), NOT a forecast of where the price is going. Do
-not replace or second-guess these numbers - just explain the setup around them. When present,
-`atr14`, `vwap` and `openingRangeHigh`/`openingRangeLow` are the real technicals those levels
-came from - use them if they help explain the setup (e.g. "trading above VWAP" or "broke the
-opening range").
+risk-management levels, sized from this stock's own recent volatility at a 2:1 reward-to-risk,
+NOT a forecast of where the price is going. Do not replace or second-guess these numbers - just
+explain the setup around them. When `atr14` is present, the stop was sized at 1.5x that
+14-day Average True Range specifically - when it is absent, a coarser volatility estimate was
+used instead while the real reading was still loading, so do not assert an ATR-based stop for
+a row that has no `atr14`. `vwap` and `openingRangeHigh`/`openingRangeLow`, when present, are
+this stock's own real technicals too - use any of the three if they help explain the setup
+(e.g. "trading above VWAP" or "broke the opening range").
 
 Each row carries the app's own score out of 100 and the reason lines behind it, so you can see
 exactly what the app based its ranking on.
