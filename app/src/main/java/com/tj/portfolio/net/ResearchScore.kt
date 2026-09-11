@@ -735,8 +735,15 @@ object ResearchScore {
      * section disagrees with. [THIN_REWARD_RATIO] is shared with [planNote] for the same reason:
      * the two pieces of text may describe the same trade differently, but never contradict it.
      *
-     * Null when there is no plan to summarise - the same "a blank is honest, a fabricated one is
-     * not" rule [tradePlan] itself follows for a row with no real levels yet.
+     * Null when there is no plan to summarise, OR when [price] itself is not known yet - the
+     * same "a blank is honest, a fabricated one is not" rule [tradePlan] itself follows for a
+     * row with no real levels. A DAY-TRADING ROW CAN HAVE LEVELS WITH NO PRICE (Round 71 review
+     * fix): `PortfolioViewModel.applyDayTradingAnswer` can publish a Claude-imported pick before
+     * its price fill resolves, and `levelsUsable` deliberately leaves such a row's levels intact
+     * while `price <= 0.0` ("no price to sanity-check... taken on trust"). Without this guard
+     * every branch below that compares [price] against a level would silently fall through to
+     * the default "Buy if it climbs..." case for a stock whose current price the app has not
+     * actually fetched - a confident instruction built from a placeholder zero.
      */
     data class BeginnerSummary(
         /** The one-line instruction - "Buy if it climbs to $12.40, then sell at $13.10..." */
@@ -754,13 +761,17 @@ object ResearchScore {
         stop: Double,
         target: Double
     ): BeginnerSummary? {
-        if (entry <= 0.0 || stop <= 0.0 || target <= 0.0) return null
+        if (price <= 0.0 || entry <= 0.0 || stop <= 0.0 || target <= 0.0) return null
         val risk = entry - stop
-        val rr = if (risk > 1e-9) (target - entry) / risk else 0.0
+        val rr = rewardRisk(entry, risk, target)
+        val thin = if (rr in 0.0..THIN_REWARD_RATIO)
+            " Heads up: the likely profit here is small next to the risk, so even experienced " +
+                "traders might pass on this particular one."
+        else ""
 
         return when {
             // The price already reached the profit target - most of the likely gain is gone.
-            price > 0.0 && price >= target -> BeginnerSummary(
+            price >= target -> BeginnerSummary(
                 headline = "Too late for this one today - don't buy now.",
                 explanation = "$symbol already climbed to the price this plan was hoping it " +
                     "would reach. Buying now means paying close to the top, with much less " +
@@ -768,11 +779,27 @@ object ResearchScore {
                 skip = true
             )
             // The price already fell through the level that would have kept the plan valid.
-            price > 0.0 && price <= stop -> BeginnerSummary(
+            price <= stop -> BeginnerSummary(
                 headline = "Skip this one - the plan already fell apart.",
                 explanation = "$symbol already dropped through the price this plan needed to " +
                     "hold. The original reason to buy it doesn't apply anymore today.",
                 skip = true
+            )
+            // THE ENTRY IS ALREADY REACHED (Round 71 review fix). [tradePlan] always computes
+            // entry strictly on the far side of the price it was built from - above it for a
+            // breakout or a VWAP reclaim, below it for a pullback - so entry == price never
+            // happens at the instant a plan is actually built. But this row's live price and
+            // its plan are not always read at that same instant, and guessing a "climb" or
+            // "drop" direction from a price sitting exactly ON the level would be a coin flip
+            // that is right for a breakout and backwards for a pullback. Say the one thing that
+            // is true regardless of which setup this is, instead.
+            price == entry -> BeginnerSummary(
+                headline = "It's at the buy price right now (${Fmt.price(entry)}) - sell at " +
+                    "${Fmt.price(target)} for a profit.",
+                explanation = "This is the exact level the plan was watching for. If it falls " +
+                    "to ${Fmt.price(stop)} instead of going up, sell there too to keep a loss " +
+                    "small.$thin",
+                skip = false
             )
             else -> {
                 val climbing = entry > price
@@ -784,10 +811,6 @@ object ResearchScore {
                     "It has already jumped up fast, so buying at today's price would mean " +
                         "paying a premium - this waits for it to cool off and come back down " +
                         "a bit first, for a better price."
-                val thin = if (rr in 0.0..THIN_REWARD_RATIO)
-                    " Heads up: the likely profit here is small next to the risk, so even " +
-                        "experienced traders might pass on this particular one."
-                else ""
                 BeginnerSummary(
                     headline = (if (climbing) "Buy if it climbs to " else "Buy if it drops to ") +
                         "${Fmt.price(entry)}, then sell at ${Fmt.price(target)} for a profit.",
