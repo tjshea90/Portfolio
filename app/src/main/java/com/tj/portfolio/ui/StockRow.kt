@@ -261,7 +261,9 @@ fun StockRowItem(
 
             Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
                 Spacer(Modifier.weight(1f))
-                // LEFT OF NEWS, same as the detail screen's tab - see DetailTab.RECOMMENDATION.
+                // LEFT OF NEWS. The detail screen's own indicator moved to sit beside the
+                // price instead (see `RecommendationBadge`, `DetailScreen.kt`'s price-header
+                // block) - this row's chip is unaffected, Tj only asked to move the other one.
                 // Not offered on a watch-only row: the verdict is about whether to change a
                 // position TJ already holds, and a watched-but-unheld symbol has none.
                 if (!row.watchOnly) {
