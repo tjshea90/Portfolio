@@ -380,6 +380,10 @@ private const val MAX_SYMBOL_NEWS = 60
  */
 private const val MAX_PRICE_FILL = 20
 
+/** How often [PortfolioViewModel.enrichDayTradingVisible] re-fetches technicals for the
+ *  visible Day Trading window, while [PortfolioViewModel.startDayTradingLive]'s loop runs at all. */
+private const val DAY_TRADING_LIVE_INTERVAL_MS = 30_000L
+
 /**
  * How many Form 4 filings the Insider tab holds.
  *
