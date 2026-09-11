@@ -11,16 +11,41 @@ import org.json.JSONObject
  * THE DAY TRADING TAB'S NO-API-KEY PATH - same shape as [ResearchBridge], one section instead
  * of three.
  *
- * WHAT CLAUDE IS, AND IS NOT, ASKED FOR HERE. See [ResearchScore.dayTrading]'s header for the
- * feasibility finding this whole section rests on: a genuine same-day price forecast is not
- * something this app, or Claude, can honestly deliver. So this bridge asks Claude for exactly
- * two things a language model that can search the web is actually good at - explaining WHY
- * each name is in play today, in plain English, and naming the SPECIFIC risk that could
- * invalidate the setup (an earnings print tonight, a halt, a lockup expiry) - and nothing that
- * would look like Claude inventing a price. `entry`/`stop`/`target` are the app's OWN computed
- * risk-management levels ([ResearchScore.tradeLevels]), sent to Claude as context and never
- * accepted back: same rule [ResearchRow.conviction] already states for `score`, applied to the
- * numbers that matter most on this particular tab.
+ * ROUND 69: CLAUDE NOW OWNS THIS SECTION, AND THAT IS A DELIBERATE REVERSAL.
+ *
+ * Until Round 69 this file did the opposite of what it does now. It told Claude, in these
+ * words, *"Do not replace or second-guess these numbers"*, sent the app's entry/stop/target as
+ * read-only context, and [merge] threw away any level that came back - the same rule
+ * [ResearchRow.conviction]'s note describes, which keeps a model's figure out of a field the
+ * app computes.
+ *
+ * Tj, 2026-09-11, asked for the reverse, explicitly: *"for the Claude prompt, allow Claude to
+ * change the entire section as needed using real time information from the market. for example,
+ * the Claude prompt can change the stocks in the list if it finds better ones and it can give
+ * advice and buy and sell targets for all the stocks."*
+ *
+ * So this prompt now hands over the whole section: the picks array that comes back IS the new
+ * list, in Claude's order, and Claude sets its own entry, stop and target per name.
+ *
+ * WHY THAT IS DEFENSIBLE AND NOT A REGRESSION. The reason the app's arithmetic was protected
+ * from the model in the first place was that a screener score is REPRODUCIBLE - it can be
+ * recomputed, tested, and shown its own workings - where an asserted number cannot be checked
+ * against anything. That reasoning is intact, and it is exactly why the two are kept apart
+ * rather than blended:
+ *
+ *  - `score` and `reasons` are STILL the app's alone. Claude cannot write either. A row it adds
+ *    still arrives with score 0 and shows "CLAUDE n/10" on a visibly different scale.
+ *  - A trade plan is now wholly one or the other, never a mixture, and
+ *    [ResearchRow.planByClaude] records which. The card and the dialog both label it.
+ *  - Claude's levels are validated as a SHAPE before they are accepted ([levelsUsable]):
+ *    stop < entry < target, all positive and finite, and each within half-to-double the price
+ *    the app independently knows for that symbol. That catches the failure that actually
+ *    happens - a decimal slipped, a stale price from last year, a target below the stop - and
+ *    refuses it without needing to second-guess the judgment itself.
+ *
+ * And the thing the app genuinely cannot do, Claude can: read the news that moved the stock an
+ * hour ago. The app's own plan is computed from price structure alone and is blind to a halt,
+ * an offering priced overnight, or a guidance cut - all of which change where a sane entry sits.
  */
 object DayTradingBridge {
 
@@ -37,13 +62,18 @@ object DayTradingBridge {
     "picks": [
       {
         "symbol": <string - ticker, uppercase>,
-        "why": <string - 1-3 sentences: the SPECIFIC reason this stock is in play today. Name the event: the short squeeze, the earnings beat, the FDA decision, the guidance, the halt and reopen, the analyst upgrade. Never "high investor interest">,
+        "why": <string - 1-3 sentences: the SPECIFIC reason this stock is worth trading today. Name the event: the short squeeze, the earnings beat, the FDA decision, the guidance, the halt and reopen, the analyst upgrade. Never "high investor interest">,
         "risk": <string - 1 sentence: the specific thing that could invalidate this setup today, e.g. an earnings print after the close, a lockup expiry, a pending halt, a Fed announcement>,
-        "conviction": <integer 1-10, 10 = strongest case that this is genuinely in play right now>
+        "conviction": <integer 1-10, 10 = strongest case>,
+        "setup": <string - the setup in 1-3 words: "Breakout", "Pullback", "VWAP reclaim", "Gap and go", "Short squeeze", "Range">,
+        "entry": <number - the price the BUY TRIGGERS AT. A level the market has to reach, above resistance for a breakout or down at support for a pullback. NOT the current price>,
+        "stop": <number - the price that says the setup failed. Must be below entry>,
+        "target": <number - where you would take profit. Must be above entry>,
+        "trigger": <string - one sentence saying exactly what has to happen before buying, e.g. "Buy the break above 12.40 on volume; if it opens above it, wait for the first pullback to hold 12.40">
       }
-      ... one per stock in the list below, PLUS any genuinely in-play stock you find that the app missed - see below
+      ... your list, best first. See the instructions above for how many and which.
     ],
-    "notes": <string - anything the app's numbers got wrong or missed, one short paragraph>
+    "notes": <string - your overall read on the day: the tape, which names you dropped and why, anything the app's numbers got wrong. One short paragraph>
   }
 }"""
 
@@ -58,51 +88,50 @@ object DayTradingBridge {
         return """
 <!-- ${ClaudeBridge.PROMPT_MARK}: this file is the QUESTION for Claude, not the ANSWER. Attach it to a chat in the Claude app - do NOT import this file back. -->
 
-# Day trading watchlist request
+# Day trading watchlist - please rebuild it
 
-I am attaching live market data exported from my personal Android portfolio app. The app has
-screened the whole market for stocks that are OBJECTIVELY IN PLAY RIGHT NOW - unusually heavy
-volume, a real price move already under way, elevated wallstreetbets/news attention, a
-technical breakout, or a short-squeeze-prone setup - and scored them with its own arithmetic.
-It cannot explain them in plain English, and it cannot search the web. That is what I need
-from you.
+I am attaching live market data exported from my personal Android portfolio app. The app
+screened the whole market for stocks that are objectively in play right now - unusually heavy
+volume, a real move already under way, elevated wallstreetbets/news attention, a technical
+breakout, or a short-squeeze-prone setup - and computed a trade plan for each from its own
+intraday levels. It cannot search the web, so it is blind to anything that happened in the
+news today. That is what I need from you.
 
-## What this list is, and is not
+## You own this list
 
-This is NOT a prediction of which stocks will keep rising - no system built on free public
-data can honestly promise that, and I don't want you to pretend otherwise. It is a list of
-stocks that are ALREADY moving, with real volume behind the move, for a reader who is about to
-make their own trading decision and wants to understand WHY each name showed up.
+$AUTHORITY
 
-Each row also carries `entry`, `stop` and `target` - these are the APP'S OWN computed
-risk-management levels, sized from this stock's own recent volatility at a 2:1 reward-to-risk,
-NOT a forecast of where the price is going. Do not replace or second-guess these numbers - just
-explain the setup around them. When `atr14` is present, the stop was sized at 1.5x that
-14-day Average True Range specifically - when it is absent, a coarser volatility estimate was
-used instead while the real reading was still loading, so do not assert an ATR-based stop for
-a row that has no `atr14`. `vwap` and `openingRangeHigh`/`openingRangeLow`, when present, are
-this stock's own real technicals too - use any of the three if they help explain the setup
-(e.g. "trading above VWAP" or "broke the opening range").
+## What the app already did, so you can improve on it rather than repeat it
 
-Each row carries the app's own score out of 100 and the reason lines behind it, so you can see
-exactly what the app based its ranking on.
+For each name the app computed a real trade plan from real intraday structure - not from the
+current price. `entry` is a TRIGGER: a buy-stop above the level price has to clear, or a
+buy-limit down at support when the stock has already run too far to chase. `stop` sits under
+the structure that would invalidate the setup, sized from this stock's own 5-minute ATR.
+`target` is the next real resistance above entry, floored at 2:1 reward-to-risk and capped by
+how much of a normal day's range is left.
+
+The levels it worked from are in each row where available, and you should reason from the same
+ones: `vwap`, `openingRangeHigh`/`openingRangeLow`, `prevHigh` (the prior session's high),
+`premarketHigh`, `sessionHigh`/`sessionLow`, `atr14` (daily), `atrIntraday` (5-minute) and
+`adr` (average daily range - how big a normal day is for this stock). A field that is absent
+was not available; do not assert a level the data does not contain.
+
+$LEVEL_RULES
 
 ## What I want back
 
-1. For **every** row below, one plain-English explanation of WHY it is in play today. Name the
-   specific event - the short squeeze, the earnings beat, the FDA news, the halt - never
-   "high investor interest."
-2. **Search the web** for what is actually happening with these names right now, and correct
-   the app where its data is stale or wrong - say so in `notes`.
-3. For every row, name the one SPECIFIC thing that could go wrong today - an earnings print
-   after the close, a lockup expiry, a scheduled Fed announcement, a pending halt.
-4. If a stock is genuinely in play today for a real reason - a short squeeze, breaking news, a
-   halt and reopen - and the app missed it, ADD it. A new object with a symbol not in my data
-   is fine; the app will price it and compute its own risk levels for it. Only add stocks
-   trading at $2 a share or more.
+1. **The list you would actually trade**, best first, with a plain-English `why` that names the
+   specific event - never "high investor interest."
+2. **Search the web** for what is happening with these names right now, and with anything you
+   want to add. Correct the app where its data is stale or wrong, and say so in `notes`.
+3. **Entry, stop and target for every name**, to the rules above.
+4. **The one specific thing that could go wrong today** for each - an earnings print after the
+   close, a lockup expiry, a scheduled Fed announcement, a pending halt.
+5. Only stocks trading at $2 a share or more.
 
-Be candid. If a row does not actually look like it is in play, or the app's score looks wrong,
-say so in `notes` rather than inventing a reason.
+Be candid. If a name the app found does not actually look worth trading, drop it and say why in
+`notes`. If the whole tape looks bad today, say that too - a short list, or a list with low
+conviction scores, is a more useful answer than a padded one.
 
 ## IMPORTANT - how to answer
 
@@ -133,6 +162,32 @@ $bundle
     }
 
     /**
+     * The grant of authority, shared word-for-word by the file prompt and the API prompt.
+     *
+     * ONE CONSTANT, NOT TWO COPIES. The two paths are the same request asked in two places, and
+     * the thing most likely to drift between them is exactly this - the part that says what
+     * Claude is allowed to change. A user who exports the file and a user who taps Explain
+     * must not get different lists because one prompt was edited and the other was not.
+     */
+    private const val AUTHORITY = """You can change all of it. Drop any name you would not trade
+today and add any name you would - the array you return IS my new list, in your order, and
+anything you leave out is removed. Set your own entry, stop and target for every name, from
+what you can see in the market right now. You are not annotating the app's list; you are
+replacing it with the one you would trade."""
+
+    /** The rules an entry price has to satisfy - shared by both prompts for the same reason. */
+    private const val LEVEL_RULES =
+        """**Your entry must be a level, not the last price.** This matters more than anything
+else here: an "entry" equal to the current quote is not a plan, it is the absence of one, and
+it was the bug in this app that prompted the rewrite. Give me the price at which I should
+actually place the order - above a level for a breakout so the move has to prove itself first,
+or below the current price at real support when the stock has already extended and buying it
+here would be chasing. If a name is worth watching but there is no sane entry right now, say so
+in `trigger` and set the entry where it WOULD become buyable. Keep stop and target on real
+levels too, and keep the reward at least twice the risk unless you explain in `why` why a
+thinner trade is still worth it."""
+
+    /**
      * The data bundle, also used verbatim by the API path - same reason [ResearchBridge]'s
      * does.
      */
@@ -150,18 +205,26 @@ $bundle
                     if (r.newsCount > 0) put("headlinesToday", r.newsCount)
                     if (r.headline.isNotBlank()) put("topHeadline", r.headline)
                     if (r.catalyst.isNotBlank()) put("nextEvent", r.catalyst)
-                    if (r.entryPrice > 0) put("entry", round2(r.entryPrice))
-                    if (r.stopPrice > 0) put("stop", round2(r.stopPrice))
-                    if (r.targetPrice > 0) put("target", round2(r.targetPrice))
-                    // THE REAL TECHNICALS THE LEVELS ABOVE WERE COMPUTED FROM (Round 68) - so
-                    // Claude's explanation can reference this stock's own ATR/VWAP/opening
-                    // range instead of describing the entry/stop/target in the abstract. Zero
-                    // for a row the live enrichment pass has not reached yet - see
-                    // `net/DayTradingTechnicals.kt`'s header for what these are and why.
+                    if (r.entryPrice > 0) put("appEntry", round2(r.entryPrice))
+                    if (r.stopPrice > 0) put("appStop", round2(r.stopPrice))
+                    if (r.targetPrice > 0) put("appTarget", round2(r.targetPrice))
+                    if (r.setup.isNotBlank()) put("appSetup", r.setup)
+                    if (r.trigger.isNotBlank()) put("appTrigger", r.trigger)
+                    if (r.planNote.isNotBlank()) put("appPlanWarning", r.planNote)
+                    // THE REAL LEVELS THE PLAN ABOVE WAS COMPUTED FROM - so Claude reasons from
+                    // the same structure the app did rather than describing the entry in the
+                    // abstract. Absent for a row the live enrichment pass has not reached yet -
+                    // see `net/DayTradingTechnicals.kt`'s header for what each one is.
                     if (r.atr > 0) put("atr14", round2(r.atr))
+                    if (r.atrIntraday > 0) put("atrIntraday", round2(r.atrIntraday))
+                    if (r.adr > 0) put("adr", round2(r.adr))
                     if (r.vwap > 0) put("vwap", round2(r.vwap))
                     if (r.openingRangeHigh > 0) put("openingRangeHigh", round2(r.openingRangeHigh))
                     if (r.openingRangeLow > 0) put("openingRangeLow", round2(r.openingRangeLow))
+                    if (r.prevHigh > 0) put("prevHigh", round2(r.prevHigh))
+                    if (r.premarketHigh > 0) put("premarketHigh", round2(r.premarketHigh))
+                    if (r.sessionHigh > 0) put("sessionHigh", round2(r.sessionHigh))
+                    if (r.sessionLow > 0) put("sessionLow", round2(r.sessionLow))
                 })
             }
         }
@@ -169,6 +232,7 @@ $bundle
         val root = JSONObject().apply {
             put("app", "portfolio-day-trading")
             put("asOf", Fmt.day(System.currentTimeMillis()))
+            put("marketPhase", MarketClock.label())
             put("dataAgeMinutes", if (set.generated > 0)
                 (System.currentTimeMillis() - set.generated) / 60000L else 0L)
             put("sources", set.sources.ifBlank { Research.SOURCES })
@@ -188,29 +252,30 @@ $bundle
      */
     fun apiPrompt(bundleJson: String, useWebSearch: Boolean): String = """
 You are a candid, numerate day-trading desk analyst. Below is live market data from a personal
-Android portfolio app. The app has screened the whole market for stocks OBJECTIVELY IN PLAY
-RIGHT NOW - unusually heavy volume, a real price move already under way, elevated
-wallstreetbets/news attention, a technical breakout, or a short-squeeze-prone setup - and
-scored them with its own arithmetic. It cannot explain them and it cannot search the web.
+Android portfolio app. The app screened the whole market for stocks objectively in play right
+now - unusually heavy volume, a real move already under way, elevated wallstreetbets/news
+attention, a technical breakout, or a short-squeeze-prone setup - and computed a trade plan for
+each from its own intraday levels. It cannot search the web.
 
-This is NOT a request to predict which stocks will keep rising - no system built on free
-public data can honestly promise that. Each row carries `entry`, `stop` and `target`: the
-app's OWN computed risk-management levels (today's price, a volatility-sized stop, a 2:1
-reward-to-risk target), not a forecast. Do not replace or second-guess these numbers. When
-present, `atr14` (the stop was sized at 1.5x this stock's own 14-day Average True Range),
-`vwap` and `openingRangeHigh`/`openingRangeLow` are this stock's own real technicals - use any
-of them if they help explain the setup, but do not assert one that is absent from a row.
+$AUTHORITY
+
+Each row carries what the app computed (`appEntry`, `appStop`, `appTarget`, `appSetup`,
+`appTrigger`) and the levels it reasoned from, where available: `vwap`,
+`openingRangeHigh`/`openingRangeLow`, `prevHigh`, `premarketHigh`, `sessionHigh`/`sessionLow`,
+`atr14` (daily), `atrIntraday` (5-minute) and `adr` (average daily range). A field that is
+absent was not available - do not assert a level the data does not contain.
+
+$LEVEL_RULES
 
 DATA:
 $bundleJson
 
-${if (useWebSearch) "Search the web for what is actually happening with these names right now before you write anything, and correct the app's data where it is stale - say so in \"notes\".\n" else ""}
-For every row, write one plain-English explanation of WHY it is in play today - name the
-specific event, never "high investor interest" - and name the one specific thing that could
-go wrong today (earnings after the close, a lockup expiry, a scheduled Fed announcement, a
-pending halt). If a stock is genuinely in play today and the app missed it, add it - only
-stocks trading at \$2 a share or more. Be candid in "notes" if a row does not actually look
-like it is in play.
+${if (useWebSearch) "Search the web for what is actually happening with these names right now, and with anything you want to add, before you write anything. Correct the app's data where it is stale and say so in \"notes\".\n" else ""}
+For every name you return, write one plain-English explanation of WHY it is worth trading today
+- name the specific event, never "high investor interest" - and name the one specific thing
+that could go wrong today (earnings after the close, a lockup expiry, a scheduled Fed
+announcement, a pending halt). Only stocks trading at \$2 a share or more. Be candid in "notes"
+about what you dropped and why; a short list is a better answer than a padded one.
 
 Return ONLY a JSON object, no markdown fences. The block below is a SCHEMA, not an example
 answer: replace every <...> with your own real value. The output must be valid JSON with no
@@ -267,16 +332,30 @@ $SHAPE
             if (sym.isBlank() || sym.length > 6) continue
             val why = ClaudeBridge.scrub(o.text("why"))
             val risk = ClaudeBridge.scrub(o.text("risk"))
-            // A row with nothing but a ticker adds nothing and would blank a good app row.
-            if (why.isBlank() && risk.isBlank()) continue
+            val entry = o.optDouble("entry", 0.0)
+            val stop = o.optDouble("stop", 0.0)
+            val target = o.optDouble("target", 0.0)
+            // SHAPE-CHECKED HERE, PRICE-CHECKED IN `merge`. This half needs no market data:
+            // a triple that is not stop < entry < target does not describe a trade at all,
+            // whatever the prices are. The half that does need it - are these numbers anywhere
+            // near this stock's actual price - can only run where the app's own price is known.
+            val sane = levelsSane(entry, stop, target)
+            // A row with nothing but a ticker adds nothing.
+            if (why.isBlank() && risk.isBlank() && !sane) continue
             out.add(
                 ResearchRow(
                     symbol = sym,
                     why = why,
                     // NOT `score` - see the class header. A model's conviction never
-                    // overwrites the app's own arithmetic.
+                    // overwrites the app's own arithmetic, even now that its LEVELS can.
                     conviction = o.optInt("conviction", 0).coerceIn(0, 10),
-                    catalyst = risk
+                    catalyst = risk,
+                    entryPrice = if (sane) entry else 0.0,
+                    stopPrice = if (sane) stop else 0.0,
+                    targetPrice = if (sane) target else 0.0,
+                    setup = if (sane) ClaudeBridge.scrub(o.text("setup")) else "",
+                    trigger = if (sane) ClaudeBridge.scrub(o.text("trigger")) else "",
+                    planByClaude = sane
                 )
             )
         }
@@ -289,30 +368,71 @@ $SHAPE
         return Parsed(picks = out, notes = notes)
     }
 
+    /** Does this triple describe a trade at all? Shape only - no market data needed. */
+    internal fun levelsSane(entry: Double, stop: Double, target: Double): Boolean =
+        entry.isFinite() && stop.isFinite() && target.isFinite() &&
+            entry > 0.0 && stop > 0.0 && target > 0.0 &&
+            stop < entry && entry < target
+
+    /** How far from the app's own price a level may sit before it reads as a mistake. */
+    private const val LEVEL_SANITY_LOW = 0.5
+    private const val LEVEL_SANITY_HIGH = 2.0
+
+    /**
+     * [levelsSane] plus the check that needs the app's own price: every level within
+     * half-to-double it.
+     *
+     * WHAT THIS IS FOR, AND WHAT IT IS NOT. It is not a second opinion on the trade - Tj asked
+     * for Claude's judgment and this does not override it. It catches the mechanical failure:
+     * a decimal point in the wrong place, a price recalled from an old training snapshot, a
+     * pre-split number. A stop at $1.20 on a $120 stock is not a tight stop, it is a typo, and
+     * the app cannot tell the difference from the number alone - but it can tell that no day
+     * trade has levels that far from the price it just quoted.
+     */
+    internal fun levelsUsable(price: Double, entry: Double, stop: Double, target: Double): Boolean {
+        if (!levelsSane(entry, stop, target)) return false
+        if (price <= 0.0) return true
+        val low = price * LEVEL_SANITY_LOW
+        val high = price * LEVEL_SANITY_HIGH
+        return entry in low..high && stop in low..high && target in low..high
+    }
+
     /**
      * Fold Claude's answer into the rows the app already has.
      *
-     * The app's score AND its entry/stop/target risk levels SURVIVE - they are reproducible
-     * arithmetic and a model's conviction is not, same rule [ResearchBridge.merge] follows for
-     * `score`. Rows Claude adds arrive with no price and no risk levels yet; the caller fills
-     * both from a live quote, the same way a Research import fills price for an added row.
+     * ROUND 69: CLAUDE'S LIST IS THE NEW LIST. This used to keep every app row and append
+     * Claude's additions to the end. It now returns Claude's picks, in Claude's order, and a
+     * row the app found that Claude left out is GONE - which is what "the Claude prompt can
+     * change the stocks in the list if it finds better ones" asks for, and what the prompt
+     * tells Claude will happen. Nothing is lost permanently: the next screener rebuild
+     * repopulates the section from the app's own feeds.
+     *
+     * What survives from the app's row for a symbol both sides know: the score, the reason
+     * lines, the price, the technicals - everything the app measured. Only the explanation and,
+     * when they pass [levelsUsable], the trade plan come from Claude.
      */
     fun merge(existing: List<ResearchRow>, incoming: List<ResearchRow>): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
-        val byIncoming = incoming.associateBy { it.symbol }
-        val merged = existing.map { row ->
-            val c = byIncoming[row.symbol] ?: return@map row
-            row.copy(
-                why = c.why.ifBlank { row.why },
-                catalyst = c.catalyst.ifBlank { row.catalyst },
-                conviction = if (c.conviction > 0) c.conviction else row.conviction
+        val byExisting = existing.associateBy { it.symbol }
+        // De-duplicated - same reason [ResearchBridge.merge] does it: a keyed LazyColumn
+        // crashes on a repeated key, and a model repeating a ticker is not a hypothetical.
+        return incoming.distinctBy { it.symbol }.map { c ->
+            val app = byExisting[c.symbol] ?: return@map c
+            val takeLevels = c.planByClaude &&
+                levelsUsable(app.price, c.entryPrice, c.stopPrice, c.targetPrice)
+            app.copy(
+                why = c.why.ifBlank { app.why },
+                catalyst = c.catalyst.ifBlank { app.catalyst },
+                conviction = if (c.conviction > 0) c.conviction else app.conviction,
+                // ALL SIX MOVE TOGETHER OR NONE DO - the same rule the live technicals pass
+                // follows. A Claude entry over an app stop is a trade neither of them planned.
+                entryPrice = if (takeLevels) c.entryPrice else app.entryPrice,
+                stopPrice = if (takeLevels) c.stopPrice else app.stopPrice,
+                targetPrice = if (takeLevels) c.targetPrice else app.targetPrice,
+                setup = if (takeLevels) c.setup.ifBlank { app.setup } else app.setup,
+                trigger = if (takeLevels) c.trigger.ifBlank { app.trigger } else app.trigger,
+                planByClaude = takeLevels
             )
         }
-        val known = existing.map { it.symbol }.toSet()
-        // De-duplicated within the incoming list too - same reason [ResearchBridge.merge]
-        // does this: a keyed LazyColumn crashes on a repeated key, and a model repeating a
-        // ticker is not a hypothetical.
-        val added = incoming.filter { it.symbol !in known }.distinctBy { it.symbol }
-        return merged + added
     }
 }
