@@ -152,6 +152,21 @@ class DayTradingUiTest {
         assertFalse("must not tell a beginner to buy at the top: $t", t.contains("Buy if"))
     }
 
+    @Test fun `a price sitting exactly on the entry says so, not a guessed direction`() {
+        show { Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            BeginnerSummaryCard(
+                ResearchRow(
+                    symbol = "GME", price = 22.50,
+                    entryPrice = 22.50, stopPrice = 21.00, targetPrice = 30.00
+                )
+            )
+        } }
+        val t = texts().joinToString(" ")
+        assertTrue("must say it's at the price now: $t", t.contains("right now"))
+        assertFalse("must not guess a direction: $t", t.contains("climbs"))
+        assertFalse(t.contains("drops"))
+    }
+
     @Test fun `a row with no plan yet draws no beginner summary at all`() {
         show { Column(Modifier.fillMaxWidth().padding(16.dp)) {
             BeginnerSummaryCard(ResearchRow(symbol = "GME", price = 21.00))
