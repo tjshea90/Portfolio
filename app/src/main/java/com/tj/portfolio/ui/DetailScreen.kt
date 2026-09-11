@@ -199,8 +199,10 @@ internal fun DetailTabRow(
                         if (isRec) recommendationLabel ?: t.label else t.label,
                         fontSize = 14.sp,
                         fontWeight = if (selected == t) FontWeight.Bold else FontWeight.Normal,
-                        color = (if (isRec) recommendationColor else null)
-                            ?: MaterialTheme.colorScheme.onSurface
+                        // UNSPECIFIED FOR EVERY OTHER TAB, exactly as before this change: Tab
+                        // itself dims an unselected tab's text via LocalContentColor, and
+                        // passing a resolved color here for every tab would flatten that.
+                        color = if (isRec) recommendationColor ?: Color.Unspecified else Color.Unspecified
                     )
                 }
             )
