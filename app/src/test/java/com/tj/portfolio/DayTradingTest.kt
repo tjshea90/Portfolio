@@ -171,10 +171,11 @@ class DayTradingTest {
         // 100.50 + 0.15 (0.15x the 1.00 intraday ATR) - NOT 100.00.
         assertEquals(100.65, plan.entry, 0.001)
         assertTrue("entry must be above the last price, not equal to it", plan.entry > 100.0)
-        // Structure says 100.35; that is inside the minimum 0.75-ATR risk, so the stop widens.
-        assertEquals(99.90, plan.stop, 0.001)
-        // Clear air above, so the standard 2:1 applies: 100.65 + 2 * 0.75.
-        assertEquals(102.15, plan.target, 0.001)
+        // Structure alone says 100.35, which is inside one 5-minute bar of noise - widened to
+        // the 1.5-ATR floor.
+        assertEquals(99.15, plan.stop, 0.001)
+        // Clear air above, so the standard 2:1 applies: 100.65 + 2 * 1.50.
+        assertEquals(103.65, plan.target, 0.001)
         assertEquals(2.0, plan.rMultiple, 0.001)
         assertTrue(plan.trigger.contains("break above"))
     }
@@ -219,8 +220,11 @@ class DayTradingTest {
                 sessionHigh = 100.2, sessionLow = 99.0
             )
         )!!
-        assertEquals(100.8, plan.target, 0.001)
+        // Pivot R1 at 100.867 is the first real obstacle clear of the entry - the target is
+        // placed AT it, not at an obedient 2:1 that would sit above it.
+        assertEquals(100.867, plan.target, 0.01)
         assertTrue("reward is thinner than 2:1 and must not be inflated", plan.rMultiple < 2.0)
+        assertTrue("a thin trade has to say so: ${plan.note}", plan.note.contains("thin trade"))
     }
 
     @Test fun `a stop is never wider than a same-session trade should carry`() {
@@ -240,9 +244,9 @@ class DayTradingTest {
     }
 
     @Test fun `a stop is never tighter than market noise either`() {
-        // The level just broken sits 0.30 below entry - inside the noise of a 1.00 intraday
-        // ATR, so the stop widens to the 0.75-ATR floor instead of sitting where it would be
-        // taken out by a single ordinary 5-minute bar.
+        // The level just broken sits 0.30 below entry - a third of one 5-minute ATR, a stop
+        // any ordinary bar would take out with the setup still perfectly intact. It widens to
+        // the 1.5-ATR floor instead.
         val plan = ResearchScore.tradePlan(
             100.0,
             tech(
@@ -251,7 +255,7 @@ class DayTradingTest {
                 sessionHigh = 100.5, sessionLow = 99.0
             )
         )!!
-        assertEquals(0.75, plan.entry - plan.stop, 0.001)
+        assertEquals(1.5, plan.entry - plan.stop, 0.001)
     }
 
     @Test fun `a day that has already run its whole range says so`() {
