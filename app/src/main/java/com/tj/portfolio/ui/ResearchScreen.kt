@@ -813,7 +813,7 @@ private fun ResearchCard(
             // treatment [EtfFactsGrid] gets for the same reason: three numbers a reader
             // compares row to row want the same place on every card. Zero for every row
             // outside the day-trading section, so this never draws elsewhere.
-            if (r.entryPrice > 0) TradeLevelsGrid(r.entryPrice, r.stopPrice, r.targetPrice)
+            if (r.entryPrice > 0) TradeLevelsGrid(r)
 
             // --- THE FUND NUMBERS, as a grid rather than as prose (Round 63).
             //
