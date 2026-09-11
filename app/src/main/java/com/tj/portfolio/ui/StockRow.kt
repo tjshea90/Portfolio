@@ -91,9 +91,17 @@ fun StockRowItem(
      * screen with P/L on it - a watchlist row is `watchOnly` and its money half is not drawn
      * at all.
      */
-    plMode: PlMode = PlMode.DOLLAR
+    plMode: PlMode = PlMode.DOLLAR,
+    /**
+     * TJ: *"I like the buy sell hold symbols but also include them in the main portfolio tab
+     * next to each stock."* Null before the day's verdict has been computed for this symbol
+     * (or for a symbol nothing could be computed for) - the chip then shows "..." rather than
+     * a blank space, the same placeholder the detail screen's tab uses while it waits.
+     */
+    recommendation: Recommendation? = null
 ) {
     var menu by remember { mutableStateOf(false) }
+    var showRecommendation by remember { mutableStateOf(false) }
     val q = row.quote
     // the price/session numbers all live in PriceBlock now; this is only for the money half
     val hasDay = row.price > 0 && (q?.prevClose ?: 0.0) > 0.0
