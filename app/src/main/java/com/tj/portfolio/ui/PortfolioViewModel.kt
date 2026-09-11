@@ -5737,6 +5737,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
             .coerceAtMost(rows.size)
         val head = rows.take(shown)
+        // THE CARD'S OWN 1-DAY CHART (Round 70). Tj: "put a stock chart next to each of the
+        // stocks in the day trading section... only that current day's chart". [loadChart] is
+        // the exact function every other chart in the app already calls - cache-first and a
+        // no-op within its own freshness window, so calling it on every tick of this loop costs
+        // nothing beyond the first fetch per symbol until the 1D series actually goes stale.
+        // Fire-and-forget: it launches its own coroutine on `fgScope`, which this loop's own
+        // `DisposableEffect` gate already starts and stops with the tab, same as everything
+        // else this pass fetches.
+        head.forEach { loadChart(it.symbol, com.tj.portfolio.data.ChartRange.D1) }
         // CONCURRENT, GATED - the same `Semaphore(MAX_PARALLEL_REQUESTS)` + `async`/`awaitAll`
         // shape this file already uses for every other visible-window fetch (sparkline
         // refresh, insider refresh, fundamentals prefetch). Fetching this sequentially - a
