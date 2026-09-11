@@ -290,6 +290,7 @@ fun DetailScreen(
     var editingTxn by remember { mutableStateOf<Txn?>(null) }
     var addingTxn by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf<Long?>(null) }
+    var showRecommendation by remember(symbol) { mutableStateOf(false) }
 
     /**
      * Which explanation sheet is open, by metric key or topic id. Null is closed.
