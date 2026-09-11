@@ -223,6 +223,9 @@ data class ResearchRow(
         if (catalyst.isNotBlank()) put("catalyst", catalyst)
         if (conviction > 0) put("conviction", conviction)
         etf?.let { if (!it.isEmpty || it.dollarVolume > 0 || it.inceptionMs > 0) put("etf", it.toJson()) }
+        if (entryPrice > 0) put("entryPrice", entryPrice)
+        if (stopPrice > 0) put("stopPrice", stopPrice)
+        if (targetPrice > 0) put("targetPrice", targetPrice)
     }
 
     companion object {
