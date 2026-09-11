@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tj.portfolio.data.PlMode
+import com.tj.portfolio.data.Recommendation
 import com.tj.portfolio.util.Fmt
 
 /** What the long-press menu asked for. */
