@@ -391,7 +391,7 @@ class DetailTabsUiTest {
         assertTrue("the confirm button must call back", !open)
     }
 
-    @Test fun `tapping the recommendation tab shows its live verdict word and color, not the placeholder`() {
+    @Test fun `the recommendation tab shows its live verdict word, not the placeholder`() {
         show {
             DetailTabRow(
                 tabs = listOf(DetailTab.ANALYSTS, DetailTab.RECOMMENDATION, DetailTab.NEWS),
