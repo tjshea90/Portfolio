@@ -702,6 +702,18 @@ object ResearchScore {
      */
     private const val THIN_REWARD_RATIO = 1.5
 
+    /**
+     * Reward:risk for one trade plan - the SAME arithmetic [planNote], [beginnerSummary] and
+     * the UI's own reward:risk line ([com.tj.portfolio.ui.rewardToRisk]) all need, pulled into
+     * one place after a code-review pass (Round 71) found it independently reimplemented in all
+     * three: a future fix to how this number is derived (the kind [com.tj.portfolio.ui
+     * .rewardToRisk] itself already needed once, for a stopless plan) had to land in three spots
+     * by hand, and missing one would leave the plain-English card, the technical note and the
+     * dialog's own reward:risk line silently disagreeing about the same trade.
+     */
+    internal fun rewardRisk(entry: Double, risk: Double, target: Double): Double =
+        if (risk > 1e-9) (target - entry) / risk else 0.0
+
     // ======================================================= THE BEGINNER SUMMARY (Round 71)
 
     /**
