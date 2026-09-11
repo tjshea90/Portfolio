@@ -115,6 +115,51 @@ class DayTradingUiTest {
         rule.onNodeWithText("Target").assertIsDisplayed()
     }
 
+    // ==================================================== BeginnerSummaryCard (Round 71)
+    //
+    // Tj: "add a summary of what to do and why that is simple to read for complete beginners
+    // who don't understand market technical language." These check the actual rendered words a
+    // beginner would read, not just that [ResearchScore.beginnerSummary] returns something.
+
+    @Test fun `a normal plan tells a beginner what to buy and sell in plain words`() {
+        show { Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            BeginnerSummaryCard(
+                ResearchRow(
+                    symbol = "GME", price = 21.00,
+                    entryPrice = 22.50, stopPrice = 21.00, targetPrice = 30.00
+                )
+            )
+        } }
+        val t = texts().joinToString(" ")
+        assertTrue("must say IN PLAIN ENGLISH: $t", t.contains("IN PLAIN ENGLISH"))
+        assertTrue("must state the buy trigger: $t", t.contains("22.50"))
+        assertTrue("must state the sell target: $t", t.contains("30.00"))
+        assertFalse("must not use jargon a beginner won't know: $t", t.contains("VWAP"))
+        assertFalse(t.contains("reclaim", ignoreCase = true))
+    }
+
+    @Test fun `a plan the price already blew past reads as too late, not a buy`() {
+        show { Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            BeginnerSummaryCard(
+                ResearchRow(
+                    symbol = "GME", price = 31.00,
+                    entryPrice = 22.50, stopPrice = 21.00, targetPrice = 30.00
+                )
+            )
+        } }
+        val t = texts().joinToString(" ")
+        assertTrue("must say it's too late: $t", t.contains("Too late", ignoreCase = true))
+        assertFalse("must not tell a beginner to buy at the top: $t", t.contains("Buy if"))
+    }
+
+    @Test fun `a row with no plan yet draws no beginner summary at all`() {
+        show { Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            BeginnerSummaryCard(ResearchRow(symbol = "GME", price = 21.00))
+        } }
+        val t = texts().joinToString(" ")
+        assertFalse("nothing to summarise yet: $t", t.contains("IN PLAIN ENGLISH"))
+    }
+
     // ============================================================ DayTradingDetailDialog
 
     private fun row(
