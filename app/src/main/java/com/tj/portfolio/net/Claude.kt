@@ -296,6 +296,46 @@ say so in notes. Numbers must not contain commas or currency symbols."""
         return ResearchBridge.parse(text)
     }
 
+    suspend fun dayTrading(
+        key: String,
+        model: String,
+        bundleJson: String,
+        useWebSearch: Boolean
+    ): DayTradingBridge.Parsed {
+        val prompt = DayTradingBridge.apiPrompt(bundleJson, useWebSearch)
+        val msg = JSONObject().apply {
+            put("model", model)
+            put("max_tokens", 16000)
+            put("messages", JSONArray().put(JSONObject().apply {
+                put("role", "user")
+                put("content", prompt)
+            }))
+        }
+        if (useWebSearch) {
+            msg.put("tools", JSONArray().put(JSONObject().apply {
+                put("type", "web_search_20250305")
+                put("name", "web_search")
+                put("max_uses", 10)
+            }))
+        }
+
+        var r = Http.postJson("$BASE/messages", msg.toString(), headers(key))
+        if (!r.ok && useWebSearch && r.code != 401 && r.code != 429) {
+            msg.remove("tools")
+            r = Http.postJson("$BASE/messages", msg.toString(), headers(key))
+        }
+        if (!r.ok) return DayTradingBridge.Parsed(error = apiError(r.code, r.body))
+
+        val text = textOf(r.body)
+        if (stopReason(r.body) == "max_tokens" && DayTradingBridge.parse(text).isEmpty) {
+            return DayTradingBridge.Parsed(
+                error = "Claude ran out of room before finishing the JSON. Turn web search " +
+                    "off in Settings, or explain fewer picks at a time."
+            )
+        }
+        return DayTradingBridge.parse(text)
+    }
+
     // -------------------------------------------------------------- advice
 
     suspend fun advice(
