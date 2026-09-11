@@ -23,29 +23,36 @@ coordinator as the other three hooks, so it survives sitting in a container
 alongside Tj's other checkpoint-hook repo without clashing, and through
 `tools/install-hooks.sh` so it installs automatically like the rest.
 
-- [ ] `SCREENER.md` — the protocol Claude runs on every message (read the
+- [x] `SCREENER.md` — the protocol Claude runs on every message (read the
       request, check `get_session` if a criterion matches, stop and flag
       rather than proceed on Sonnet) and the actual escalation criteria
       (money-accuracy, irreversible actions, locked architecture, ambiguous
       design, a previously-failed fix, security, or Tj's own words).
-- [ ] `tools/screener.sh` — the per-repo hook script (mirrors
+- [x] `tools/screener.sh` — the per-repo hook script (mirrors
       `resume.sh`/`autosave.sh`/`toobig.sh`: `--text` mode, JSON mode,
       always exits 0, never blocks the prompt) plus the keyword hint.
-- [ ] `tools/hooks/screen.sh` + supporting `lib.sh`/`emit.py` changes for a
+- [x] `tools/hooks/screen.sh` + supporting `lib.sh`/`emit.py` changes for a
       `UserPromptSubmit` event, following the existing SessionStart/
       PostToolUse/PreCompact pattern exactly.
-- [ ] Wire `UserPromptSubmit` into `tools/session-root-hooks.json` (the
+- [x] Wire `UserPromptSubmit` into `tools/session-root-hooks.json` (the
       multi-repo template) AND this repo's own `.claude/settings.json`
       (the direct, single-repo path), same as the other four events.
-- [ ] Hermetic tests (`tools/test_screener.sh`, auto-run by `tools/ckpt.sh`)
-      proving the JSON/text output shapes, the keyword hint, the multi-repo
-      aggregation, and that `install-hooks.sh` actually installs the entry.
-- [ ] `CLAUDE.md` gets a short section pointing at `SCREENER.md`, same
+- [x] Hermetic tests (`tools/test_screener.sh`, 11 checks, auto-run by
+      `tools/ckpt.sh`) proving the JSON/text output shapes, the keyword
+      hint, the multi-repo aggregation, and that `install-hooks.sh`
+      actually installs the entry. `test_resume.sh` (37 checks) and
+      `checkinit.py` still green — no regressions.
+- [x] `CLAUDE.md` gets a short section pointing at `SCREENER.md`, same
       pattern as the existing pointer to `BRIEF.md`.
-- [ ] Checkpoint after every completed step.
-- [ ] Apply it once built: weigh the pending BUY/HOLD/SELL scoring-design
-      step already in this file against the new criteria and flag it to Tj
-      before resuming that work, rather than only protecting future asks.
+- [x] Checkpoint after every completed step (ckpt 610, 611).
+- [x] Installed live in this session (`tools/install-hooks.sh`) and
+      smoke-tested end to end through the real installed command — confirmed
+      working, not just unit-tested.
+- [x] Applied it once built: the pending BUY/HOLD/SELL scoring-design step
+      below matches money-accuracy + ambiguous-design + Tj's own "very
+      important" wording. Confirmed via `get_session` this session is still
+      on `claude-sonnet-5` — flagged to Tj in chat rather than resumed here.
+      Design work on that step has NOT started.
 
 ## Previous request, 2026-09-10 (his own words, lightly trimmed)
 
