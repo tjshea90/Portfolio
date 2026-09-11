@@ -586,6 +586,34 @@ internal fun carryExplanations(
 }
 
 /**
+ * The other half of [com.tj.portfolio.net.DayTradingBridge]'s level check, run once a price
+ * finally exists to check against.
+ *
+ * WHY IT CANNOT ALL HAPPEN AT MERGE TIME. A pick Claude ADDED is a symbol the app has never
+ * seen, so at merge there is no price to sanity-check its entry/stop/target against and they
+ * are taken on trust. The price fill is the first moment that check becomes possible, and a
+ * decimal slip on a name the app never screened is exactly the case most likely to go
+ * unnoticed - the reader has nothing else on the card to compare it with. A plan that fails
+ * here is cleared rather than corrected: the live technicals sweep computes the app's own plan
+ * for that row on its next tick.
+ *
+ * Rows whose plan is the app's own are returned untouched - it was computed from this same
+ * price and has nothing to disagree with.
+ */
+internal fun dropUnusableClaudeLevels(
+    rows: List<com.tj.portfolio.data.ResearchRow>
+): List<com.tj.portfolio.data.ResearchRow> = rows.map { r ->
+    if (!r.planByClaude || r.price <= 0.0) r
+    else if (com.tj.portfolio.net.DayTradingBridge
+            .levelsUsable(r.price, r.entryPrice, r.stopPrice, r.targetPrice)
+    ) r
+    else r.copy(
+        entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
+        setup = "", trigger = "", planByClaude = false
+    )
+}
+
+/**
  * Merges one fresh [DayTradingTechnicals.DayTechnicals] reading into a row - TOP-LEVEL AND
  * PURE, same reason the price fill is, so a test can check it with no network and no
  * ViewModel.
