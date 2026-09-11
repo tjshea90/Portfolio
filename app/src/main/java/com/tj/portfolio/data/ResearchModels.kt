@@ -520,7 +520,10 @@ data class ResearchSet(
                 warnings = warn,
                 explained = o.optLong("explained", 0L),
                 explainedBy = o.text("explainedBy"),
-                notes = o.text("notes")
+                notes = o.text("notes"),
+                dtExplained = o.optLong("dtExplained", 0L),
+                dtExplainedBy = o.text("dtExplainedBy"),
+                dtNotes = o.text("dtNotes")
             )
         }
     }
