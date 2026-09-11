@@ -176,4 +176,37 @@ class CompareChartTest {
         assertEquals(0.0, other[0], 1e-9)
         assertEquals(10.0, other[1], 1e-9)
     }
+
+    // -------------------------------------------------- primaryPercents' fromValue override
+    //
+    // Added for the frozen-during-a-gesture rebase anchor (round 67) - see the note in
+    // `PriceChart.kt` where `cmp` is built. `baseIndex` names a position in the series being
+    // measured, which stops meaning the same candle the instant that series is re-sliced to a
+    // different window; `fromValue` is the anchor PRICE itself, looked up once by timestamp
+    // from a series that is not being re-sliced, so it keeps meaning the same candle no matter
+    // how the view around it changes afterward.
+
+    @Test fun `fromValue overrides baseIndex and fromPoint entirely`() {
+        val s = series("TEST", ChartRange.Y1, listOf(100.0, 150.0, 200.0), stepSecs = 86_400L)
+        // Without fromValue: measured from index 1 (150.0) per the ordinary rule.
+        val byIndex = primaryPercents(s, baseIndex = 1, fromPoint = true)!!
+        assertEquals(-33.33, byIndex[0], 0.01)
+        assertEquals(0.0, byIndex[1], 1e-9)
+        assertEquals(33.33, byIndex[2], 0.01)
+
+        // With fromValue given, baseIndex/fromPoint are ignored entirely - measured from an
+        // anchor that appears nowhere in this series' own points, exactly the shape of a
+        // benchmark's own close price fed in as the stock's frozen anchor.
+        val byValue = primaryPercents(s, baseIndex = 1, fromPoint = true, fromValue = 50.0)!!
+        assertEquals(100.0, byValue[0], 1e-9)
+        assertEquals(200.0, byValue[1], 1e-9)
+        assertEquals(300.0, byValue[2], 1e-9)
+    }
+
+    @Test fun `a non-finite or non-positive fromValue is refused, same as an unusable baseline`() {
+        val s = series("TEST", ChartRange.Y1, listOf(100.0, 150.0), stepSecs = 86_400L)
+        assertNull(primaryPercents(s, fromValue = 0.0))
+        assertNull(primaryPercents(s, fromValue = -5.0))
+        assertNull(primaryPercents(s, fromValue = Double.NaN))
+    }
 }
