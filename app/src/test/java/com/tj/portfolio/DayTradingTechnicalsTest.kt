@@ -7,6 +7,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.util.Calendar
 import java.util.TimeZone
 
@@ -18,7 +21,13 @@ import java.util.TimeZone
  * value worked out by hand, not just "did it run" - a sign error or an off-by-one in a
  * volatility formula produces a confident, plausible, WRONG stop-loss, which is exactly the
  * class of bug this app's own scoring-file header warns about.
+ *
+ * ROBOLECTRIC, LIKE EVERY OTHER TEST IN THIS PROJECT THAT PARSES JSON. Plain `org.json` on
+ * the JVM unit-test classpath is the Android SDK's stub jar, not a working implementation -
+ * only Robolectric's shadow makes [DayTradingTechnicals.parseBars] usable here.
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class DayTradingTechnicalsTest {
 
     private val ET: TimeZone = TimeZone.getTimeZone("America/New_York")
