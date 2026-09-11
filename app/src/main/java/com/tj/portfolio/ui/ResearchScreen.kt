@@ -1041,10 +1041,19 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
     }
 }
 
-/** Reward-to-risk for a row's plan, or 0.0 when it has no usable plan. */
+/**
+ * Reward-to-risk for a row's plan, or 0.0 when it has no usable plan.
+ *
+ * ALL THREE PRICES CHECKED, not just the arithmetic. A missing stop is stored as 0.0 - the
+ * same sentinel the grid above draws as an em dash - and `entry - 0.0` is a perfectly
+ * well-formed subtraction that yields the entire share price as the "risk". Without the
+ * explicit `stopPrice > 0`, a row whose stop never arrived would report a confident
+ * "risking $22.50 a share" on a trade that has no stop at all.
+ */
 internal fun rewardToRisk(r: ResearchRow): Double {
+    if (r.entryPrice <= 0.0 || r.stopPrice <= 0.0 || r.targetPrice <= 0.0) return 0.0
     val risk = r.entryPrice - r.stopPrice
-    return if (r.entryPrice > 0 && risk > 1e-9) (r.targetPrice - r.entryPrice) / risk else 0.0
+    return if (risk > 1e-9) (r.targetPrice - r.entryPrice) / risk else 0.0
 }
 
 private const val DASH = "\u2014"
