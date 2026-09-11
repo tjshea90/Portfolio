@@ -308,4 +308,64 @@ class ResearchPriceFillTest {
         assertEquals(stale.stopPrice, notUpgraded.stopPrice, 0.001)
         assertEquals(stale.targetPrice, notUpgraded.targetPrice, 0.001)
     }
+
+    // ============================================================ scoreDayTradingRow (Round 72)
+    //
+    // Tj: "make the scores reflect a blend of how likely the stock is to rise... and how
+    // confident this prediction is." [scoreDayTradingRow] is the LIVE half of that blend - the
+    // one that runs once real VWAP/opening-range readings arrive; the build-time half
+    // ([ResearchScore.dayTradingConfidence] with no technicals yet) has its own tests in
+    // [com.tj.portfolio.DayTradingTest].
+
+    private fun scoredRow(
+        likelihood: Int = 50, confidence: Int = 40, price: Double = 22.5,
+        reasons: List<String> = listOf("base reason")
+    ) = ResearchRow(
+        symbol = "GME", price = price,
+        score = ResearchScore.blendedScore(likelihood, confidence),
+        reasons = reasons, dtLikelihood = likelihood, dtConfidence = confidence
+    )
+
+    @Test fun `the likelihood half still updates from withTechnicals, exactly as before this round`() {
+        val row = scoredRow(likelihood = 50, confidence = 0)
+        val out = scoreDayTradingRow(row, tech(vwap = 21.0)) // price 22.5 is above VWAP 21.0
+        assertTrue("the VWAP bonus must lift the likelihood", out.dtLikelihood > 50)
+        assertTrue(out.reasons.any { it.contains("VWAP") })
+    }
+
+    @Test fun `nothing technical confirming leaves both halves exactly where they were`() {
+        val row = scoredRow(likelihood = 50, confidence = 40)
+        val out = scoreDayTradingRow(row, tech()) // no VWAP, no opening range at all
+        assertEquals(50, out.dtLikelihood)
+        assertEquals(40, out.dtConfidence)
+        assertEquals(listOf("base reason"), out.reasons)
+    }
+
+    @Test fun `confidence is the build-time base plus whatever technicals confirm this tick`() {
+        val row = scoredRow(likelihood = 50, confidence = 40)
+        val out = scoreDayTradingRow(row, tech(vwap = 21.0)) // above VWAP: +20
+        assertEquals(60, out.dtConfidence)
+    }
+
+    @Test fun `confidence does not move when the technicals check fails, not a negative`() {
+        val row = scoredRow(likelihood = 50, confidence = 40)
+        val out = scoreDayTradingRow(row, tech(vwap = 30.0)) // price 22.5 is BELOW VWAP 30.0
+        assertEquals(40, out.dtConfidence)
+    }
+
+    @Test fun `confidence is clamped at 100, never allowed past it`() {
+        val row = scoredRow(likelihood = 90, confidence = 80)
+        val out = scoreDayTradingRow(
+            row, tech(vwap = 21.0, orHigh = 22.0, orLow = 21.5, orComplete = true)
+        )
+        assertEquals(100, out.dtConfidence)
+    }
+
+    @Test fun `the displayed score is always the blend of the two halves returned alongside it`() {
+        val row = scoredRow(likelihood = 50, confidence = 40)
+        val out = scoreDayTradingRow(
+            row, tech(vwap = 21.0, orHigh = 22.0, orLow = 21.5, orComplete = true)
+        )
+        assertEquals(ResearchScore.blendedScore(out.dtLikelihood, out.dtConfidence), out.score)
+    }
 }
