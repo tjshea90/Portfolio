@@ -439,20 +439,32 @@ Design, decided before writing code:
 by "continue all tasks with sonnet," 2026-09-11 - now explicitly re-confirmed above with its own
 "skip the screener" instruction for this specific task.)
 
-- [ ] `ResearchScore.dayTradingConfidence(r, tech)`: the 5-item checklist, pure and testable.
-- [ ] `ResearchScore.blendedScore(likelihood, confidence)`: the multiplication, clamped 0-100.
-- [ ] `ResearchRow.dtLikelihood`/`dtConfidence` fields (JSON codec too), zero outside Day
+- [x] `ResearchScore.dayTradingConfidence(r, tech)`: the 5-item checklist, pure and testable.
+      Plus `technicalConfirmationBonus(price, tech)`, its VWAP/opening-range half split out so
+      the live-refresh path can add just that half without re-deriving data it no longer has.
+- [x] `ResearchScore.blendedScore(likelihood, confidence)`: the multiplication, clamped 0-100.
+- [x] `ResearchRow.dtLikelihood`/`dtConfidence` fields (JSON codec too), zero outside Day
       Trading, same pattern `entryPrice`/`setup`/etc. already follow.
-- [ ] Wire into `Research.buildDayTrading`/`toDayTradingRow` (build time, tech = null) and the
-      ViewModel's technicals-enrichment merge (fuller confidence once VWAP/opening range
-      arrive) - re-blend and re-sort at both stages.
-- [ ] Leave Claude-authored Day Trading rows alone - no likelihood/confidence to blend.
-- [ ] UI: the score badge's meaning/accessibility text for Day Trading rows, plus a visible
-      breakdown (likelihood, confidence, how they combine) in the card and the tap-to-expand
+- [x] Wired into `Research.buildDayTrading`/`toDayTradingRow` (build time, tech = null, sorts by
+      the blend now - confidence computed once per row, not inside the sort comparator, a
+      code-review catch) and a new top-level `scoreDayTradingRow` in `PortfolioViewModel.kt`
+      (mirrors `mergeDayTradingTech`'s own pattern so it stays independently testable).
+- [x] Claude-authored Day Trading rows are left alone - gated on `dtLikelihood <= 0`, not the
+      mutable `planByClaude` flag. A code-review pass caught that the first draft's
+      `planByClaude` guard could be bypassed: `dropUnusableClaudeLevels` can flip `planByClaude`
+      back to false without resetting `dtLikelihood`, which would have let a Claude-added pick
+      get scored from nothing the moment its levels were dropped - fixed before shipping.
+- [x] UI: the score badge's accessibility text for Day Trading rows, a visible
+      "Score = likelihood × confidence%" line on the card, and a fuller "How the score is
+      built" explanation (with an explicit not-a-probability disclaimer) in the tap-to-expand
       detail view - "app shows its work," same as every other score in this app.
-- [ ] Tests: the checklist function, the blend arithmetic, the build-time and enrichment-time
-      wiring, Claude-row exemption, UI render tests for the breakdown.
-- [ ] Full Gradle suite green, code review, checkpoint, ship.
+- [x] Tests: the checklist function, the technicals-bonus split, the blend arithmetic,
+      `scoreDayTradingRow`'s live-refresh wiring, the Claude-row exemption (including the
+      specific bypass shape the review found), UI render tests for the breakdown and the
+      accessibility text. 30 new tests.
+- [x] Full Gradle suite green (971 tests, 0 failures), high-effort `/code-review` pass found and
+      fixed 2 real issues (the `planByClaude`-bypass bug above, and confidence being recomputed
+      up to 3x per row instead of once) plus a test-coverage gap, all fixed before shipping.
 
 ## Part 7: Day Trading — a beginner-friendly plain-English summary per stock
 
