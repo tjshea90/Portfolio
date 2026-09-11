@@ -184,6 +184,18 @@ class DayTradingUiTest {
         assertTrue(t.any { it.contains("Trading at 6.0x its normal volume today") })
     }
 
+    @Test fun `the explanation dialog also shows the plain-English beginner summary`() {
+        // Tj: "keep all the advice it already shows for each stock, but add a summary... simple
+        // to read for complete beginners" - this dialog is the OTHER place [TradeLevelsGrid]
+        // already draws (`DayTradingPlanContent`), so the beginner summary has to be there too,
+        // not only on the list card.
+        show { DayTradingDetailDialog(row(), onDismiss = {}) }
+        val t = texts().joinToString(" ")
+        assertTrue("the beginner summary must show in the tap-to-expand view: $t",
+            t.contains("IN PLAIN ENGLISH"))
+        assertTrue("it must state the buy trigger in plain words: $t", t.contains("Buy if"))
+    }
+
     @Test fun `the explanation names the real technicals behind the plan`() {
         show { DayTradingDetailDialog(row(), onDismiss = {}) }
         val t = texts().joinToString(" ")
