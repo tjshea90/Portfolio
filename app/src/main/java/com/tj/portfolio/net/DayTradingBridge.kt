@@ -368,6 +368,11 @@ $SHAPE
         return Parsed(picks = out, notes = notes)
     }
 
+    /** The fallback trigger sentence, for a reply that gave levels but no wording of its own. */
+    private fun describe(r: ResearchRow): String =
+        "Claude's plan: buy at ${Fmt.price(r.entryPrice)}, stop ${Fmt.price(r.stopPrice)}, " +
+            "target ${Fmt.price(r.targetPrice)}."
+
     /** Does this triple describe a trade at all? Shape only - no market data needed. */
     internal fun levelsSane(entry: Double, stop: Double, target: Double): Boolean =
         entry.isFinite() && stop.isFinite() && target.isFinite() &&
