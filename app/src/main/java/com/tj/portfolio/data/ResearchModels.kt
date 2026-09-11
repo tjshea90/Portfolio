@@ -412,7 +412,9 @@ data class ResearchRow(
                 premarketHigh = o.optDouble("premarketHigh", 0.0).orZero(),
                 sessionHigh = o.optDouble("sessionHigh", 0.0).orZero(),
                 sessionLow = o.optDouble("sessionLow", 0.0).orZero(),
-                sessionDay = o.text("sessionDay")
+                sessionDay = o.text("sessionDay"),
+                dtLikelihood = o.optInt("dtLikelihood", 0).coerceIn(0, 100),
+                dtConfidence = o.optInt("dtConfidence", 0).coerceIn(0, 100)
             ).let {
                 if (isFundList && version < VERSION_CONVICTION_SPLIT) it.repairModelScore()
                 else it
