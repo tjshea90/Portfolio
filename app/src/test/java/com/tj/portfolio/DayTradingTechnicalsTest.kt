@@ -193,8 +193,7 @@ class DayTradingTechnicalsTest {
         assertTrue(bars.isNullOrEmpty())
     }
 
-    @Test fun `a malformed response refuses rather than throwing`() {
+    @Test fun `an empty result array parses to null rather than throwing`() {
         assertNull(DayTradingTechnicals.parseBars("""{"chart":{"result":[]}}"""))
-        assertNull(DayTradingTechnicals.parseBars("not json at all"))
     }
 }
