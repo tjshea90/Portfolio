@@ -101,12 +101,28 @@ private enum class Section(
             "best-scoring fund of each exposure appears - the others are named on its card. " +
             "What this cannot see is what a fund actually holds or how closely it tracks its " +
             "index, so read the fund page before you buy."
+    ),
+    /**
+     * DAY TRADING (Round 67) - today's stocks OBJECTIVELY IN PLAY, not a price prediction.
+     * See `net/ResearchScore.kt`'s `dayTrading()` header for the feasibility finding this
+     * blurb is written from, and why it says "in play" and never "will rise".
+     */
+    DAY_TRADING(
+        ResearchSet.SECTION_DAY_TRADING, "Day Trading",
+        "Stocks $2 a share or more that are objectively in play RIGHT NOW - unusually heavy " +
+            "volume, a real move already under way, elevated wallstreetbets/news attention, a " +
+            "breakout, or a short-squeeze-prone setup. Entry/stop/target are this app's own " +
+            "computed risk-management levels, sized to each stock's own recent volatility at " +
+            "2:1 reward-to-risk - not a forecast of where the price is going. No system built " +
+            "on free public data can honestly promise which stocks will rise today; this list " +
+            "says what is already happening, not what happens next."
     );
 
     fun rowsIn(set: ResearchSet): List<ResearchRow> = when (this) {
         TRENDING -> set.trending
         BEST -> set.best
         ETFS -> set.etfs
+        DAY_TRADING -> set.dayTrading
     }
 }
 
