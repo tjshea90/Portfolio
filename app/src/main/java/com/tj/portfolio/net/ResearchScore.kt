@@ -402,64 +402,239 @@ object ResearchScore {
         return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
     }
 
-    /** Real, computed price levels for one candidate - see [dayTrading]'s header. */
-    data class TradeLevels(val entry: Double, val stop: Double, val target: Double)
+    // =============================================================== THE TRADE PLAN (Round 69)
 
     /**
-     * A RISK PLAN, NOT A FORECAST - see [dayTrading]'s header for why. [entry] is simply
-     * today's price; [stop] and [target] are set from THIS STOCK'S OWN recent volatility -
-     * its 52-week range and how far it has already moved today, both real and already
-     * realised - at a standard 2:1 reward-to-risk, the same ratio a day trader's own risk
-     * plan would use by hand.
+     * One day trade, planned off real levels.
+     *
+     * WHY [entry] IS NOT THE CURRENT PRICE, WHICH IS THE WHOLE POINT OF THIS TYPE. Tj,
+     * 2026-09-11: *"the target buy price just matches the current market price. I don't think
+     * this is how day traders operate."* He was right, and the two functions this replaced
+     * both literally assigned `entry = price`. A day trader's buy price is a LEVEL THE MARKET
+     * HAS TO COME TO - a buy-STOP placed above overhead resistance, so the trade only starts
+     * if the move actually proves itself, or a buy-LIMIT down at support, so a move that has
+     * already run is bought on the retrace instead of chased. Both are orders that sit unfilled
+     * until price arrives. "Buy at whatever it is right now" is not a setup, it is the absence
+     * of one, and every level derived from it (a stop under it, a target 2:1 above it) inherits
+     * that emptiness.
+     *
+     * [setup] names which of those it is; [trigger] is the instruction in plain English; [note]
+     * carries anything that should make the reader hesitate. See [tradePlan] for the rules.
      */
-    fun tradeLevels(r: ScreenRow): TradeLevels? {
-        if (r.price <= 0.0) return null
-        val yearRangePct = if (r.fiftyTwoWeekHigh > r.fiftyTwoWeekLow && r.fiftyTwoWeekHigh > 0.0)
-            (r.fiftyTwoWeekHigh - r.fiftyTwoWeekLow) / r.price * 100.0
-        else 0.0
-        val todayMovePct = if (r.changePct.isFinite()) abs(r.changePct) else 0.0
-        // A single day's realistic range is a small slice of the 52-week range for an
-        // actively-moving stock; blended with today's own already-realised move and clamped
-        // to a sane band so an illiquid or a wildly volatile row cannot produce a stop a
-        // point away, or half the stock's price away.
-        val dailyVolPct = maxOf(todayMovePct, yearRangePct * 0.08).coerceIn(1.5, 15.0)
-        val stopPct = dailyVolPct * 0.6
-        val targetPct = stopPct * 2.0
-        val entry = r.price
-        return TradeLevels(
-            entry = entry,
-            stop = entry * (1.0 - stopPct / 100.0),
-            target = entry * (1.0 + targetPct / 100.0)
-        )
+    data class TradePlan(
+        val entry: Double,
+        val stop: Double,
+        val target: Double,
+        val setup: String,
+        val trigger: String,
+        val note: String = ""
+    ) {
+        val risk: Double get() = entry - stop
+        val reward: Double get() = target - entry
+
+        /** Reward-to-risk. The number a day trader actually decides on. */
+        val rMultiple: Double get() = if (risk > 1e-9) reward / risk else 0.0
     }
 
-    /** Day-trading stop: the tight end of the 1.5x-2x ATR range professional sources describe
-     *  for a same-session trade - see [DayTradingTechnicals]'s header for the citations. */
-    private const val ATR_STOP_MULTIPLIER = 1.5
+    /** Price breaks a level, it does not touch it - so a trigger sits this far past the line. */
+    private const val BREAK_BUFFER_ATRS = 0.15
 
-    /** The standard "at least 2:1" reward:risk floor - see [DayTradingTechnicals]'s header. */
+    /** Above this many intraday ATRs over VWAP, buying the current price is chasing. */
+    private const val EXTENDED_ATRS = 2.5
+
+    /** Or: it has already travelled this much of a normal day's whole range. */
+    private const val EXTENDED_RANGE_USED = 0.85
+
+    /** Day-trade stop, in intraday ATRs - the range practitioner sources give for a hold of
+     *  minutes-to-hours, tightened at the bottom end so a structural stop can be tight. */
+    private const val MIN_RISK_ATRS = 0.75
+    private const val MAX_RISK_ATRS = 2.5
+
+    /** The standard "at least 2:1" reward:risk floor, and the ceiling on projecting one day. */
     private const val TARGET_REWARD_RISK_RATIO = 2.0
+    private const val MAX_REWARD_RISK_RATIO = 3.0
 
     /**
-     * [tradeLevels] upgraded with a REAL ATR(14), once [DayTradingTechnicals.fetch] has
-     * answered for this row - separate from [tradeLevels] for the same reason [withAnalyst]
-     * is separate from [best]: the technicals arrive later, for the rows on screen only, so a
-     * row that has not been enriched yet keeps [tradeLevels]'s honest volatility-clamp
-     * estimate rather than showing nothing while it waits.
-     *
-     * Null when there is nothing to upgrade with - [DayTradingTechnicals.DayTechnicals.atr14]
-     * is 0.0 for a fetch that failed, was still loading, or hit a symbol with too little price
-     * history (a recent IPO); the caller then simply leaves [tradeLevels]'s estimate in place.
+     * A 5-minute ATR as a fraction of the daily one, for the overnight case where no intraday
+     * bars exist yet. Ranges grow with roughly the square root of time, and a session holds 78
+     * five-minute bars, so a 5-minute range lands near 1/sqrt(78) - about a tenth - of the
+     * day's. An estimate, used only when the measured one is unavailable.
      */
-    fun upgradeLevels(price: Double, tech: DayTradingTechnicals.DayTechnicals): TradeLevels? {
-        if (price <= 0.0 || tech.atr14 <= 0.0) return null
-        val risk = tech.atr14 * ATR_STOP_MULTIPLIER
-        // A SANITY FLOOR, NOT A CEILING ON RISK. ATR is a historical average; a single extreme
-        // reading inside the 3-month lookback (an earnings-day gap) should not be able to place
-        // a stop so far below entry that it stops being a same-session day-trading stop at all.
-        val stop = (price - risk).coerceAtLeast(price * 0.5)
-        val target = price + (price - stop) * TARGET_REWARD_RISK_RATIO
-        return TradeLevels(entry = price, stop = stop, target = target)
+    private const val INTRADAY_ATR_FROM_DAILY = 0.10
+
+    /** One candidate price level, with the name the trigger sentence calls it by. */
+    private data class Level(val price: Double, val name: String)
+
+    private fun levelsOf(vararg pairs: Pair<Double, String>): List<Level> =
+        pairs.filter { it.first > 0.0 }.map { Level(it.first, it.second) }
+
+    /**
+     * THE ENGINE. Turns one live technicals reading into a real day-trading plan.
+     *
+     * The rules, and where each comes from (full citations in [DayTradingTechnicals]'s header):
+     *
+     *  1. **Which setup.** Where price sits against real structure decides it, not a preference.
+     *     Below VWAP, buyers are not in control and a long is premature - the trigger is a
+     *     RECLAIM of VWAP. Already extended (more than [EXTENDED_ATRS] intraday ATRs above VWAP,
+     *     or [EXTENDED_RANGE_USED] of a normal day's range spent) - the published guidance is
+     *     unanimous that this is where chasing loses, so the trigger is a PULLBACK to the
+     *     nearest level below. Otherwise it is a BREAKOUT of the nearest level overhead.
+     *  2. **Entry.** The level itself - plus [BREAK_BUFFER_ATRS] of an ATR when the trade needs
+     *     price to clear a line rather than reach it. The candidate levels are the ones
+     *     intraday traders actually watch: the premarket high, the opening range, the prior
+     *     session's high, the session high so far, and floor-trader R1/R2.
+     *  3. **Stop.** Under the structure that would invalidate the setup - the level below
+     *     entry, buffered - then clamped into [MIN_RISK_ATRS]..[MAX_RISK_ATRS] intraday ATRs so
+     *     it stays a same-session stop.
+     *  4. **Target.** The nearest real resistance above entry, because that is where the move
+     *     runs into supply. Floored at [TARGET_REWARD_RISK_RATIO]R when there is clear air
+     *     above, capped at [MAX_REWARD_RISK_RATIO]R, and capped again by how much of the day's
+     *     average range is left. When the nearest resistance is closer than 2R the target is
+     *     placed AT IT and the thin reward is reported rather than a 2R target being drawn
+     *     straight through a wall.
+     *
+     * Null when there is nothing real to build from - no price, or neither an intraday nor a
+     * daily ATR. The caller then shows no plan at all, which is the honest output: the levels
+     * ARE the feature, and a fabricated one is worse than a blank.
+     */
+    fun tradePlan(price: Double, tech: DayTradingTechnicals.DayTechnicals): TradePlan? {
+        if (price <= 0.0) return null
+        val vol = when {
+            tech.atrIntraday > 0.0 -> tech.atrIntraday
+            tech.atr14 > 0.0 -> tech.atr14 * INTRADAY_ATR_FROM_DAILY
+            else -> return null
+        }
+        if (vol <= 0.0) return null
+        val buffer = maxOf(0.01, vol * BREAK_BUFFER_ATRS)
+
+        val overhead = levelsOf(
+            tech.premarketHigh to "the premarket high",
+            tech.openingRangeHigh to "the opening-range high",
+            tech.prevHigh to "the prior session's high",
+            tech.sessionHigh to "the high of day",
+            tech.r1 to "pivot R1",
+            tech.r2 to "pivot R2"
+        )
+        val below = levelsOf(
+            tech.vwap to "VWAP",
+            tech.openingRangeHigh to "the opening-range high, now support",
+            tech.openingRangeLow to "the opening-range low",
+            tech.prevHigh to "the prior session's high, now support",
+            tech.prevClose to "the prior close",
+            tech.pivot to "the daily pivot",
+            tech.sessionLow to "the session low",
+            tech.s1 to "pivot S1"
+        )
+
+        val extendedOverVwap = tech.vwap > 0.0 && (price - tech.vwap) / vol >= EXTENDED_ATRS
+        val rangeSpent = tech.rangeUsed >= EXTENDED_RANGE_USED
+
+        // ---- 1 and 2: the setup, and the price it triggers at.
+        val setup: String
+        val entry: Double
+        val entryLevel: String
+        when {
+            tech.vwap > 0.0 && price < tech.vwap -> {
+                setup = SETUP_RECLAIM
+                entry = tech.vwap + buffer
+                entryLevel = "VWAP"
+            }
+
+            extendedOverVwap || rangeSpent -> {
+                val support = below.filter { it.price < price }.maxByOrNull { it.price }
+                setup = SETUP_PULLBACK
+                entry = support?.price ?: (price - vol)
+                entryLevel = support?.name ?: "one intraday ATR below the current price"
+            }
+
+            else -> {
+                val next = overhead.filter { it.price >= price }.minByOrNull { it.price }
+                setup = SETUP_BREAKOUT
+                entry = (next?.price ?: price) + buffer
+                entryLevel = next?.name ?: "the current session high"
+            }
+        }
+        if (entry <= 0.0) return null
+
+        // ---- 3: the stop, under the structure that would say the setup failed.
+        val structural = below.filter { it.price < entry }.maxByOrNull { it.price }
+        val rawRisk = structural?.let { entry - (it.price - buffer) } ?: (vol * 1.5)
+        val minRisk = maxOf(vol * MIN_RISK_ATRS, 0.01)
+        val maxRisk = maxOf(vol * MAX_RISK_ATRS, minRisk)
+        val risk = rawRisk.coerceIn(minRisk, maxRisk)
+        val stop = entry - risk
+        if (stop <= 0.0) return null
+
+        // ---- 4: the target.
+        val nearestAbove = overhead
+            .filter { it.price > entry + risk * 0.3 }
+            .minByOrNull { it.price }
+        val standard = entry + risk * TARGET_REWARD_RISK_RATIO
+        val ceiling = if (tech.adr > 0.0 && tech.sessionLow > 0.0) tech.sessionLow + tech.adr
+        else Double.MAX_VALUE
+        val target = when {
+            nearestAbove == null -> standard
+            nearestAbove.price < standard -> nearestAbove.price
+            else -> minOf(
+                nearestAbove.price,
+                entry + risk * MAX_REWARD_RISK_RATIO,
+                if (ceiling >= standard) ceiling else Double.MAX_VALUE
+            )
+        }
+        if (target <= entry) return null
+
+        val plan = TradePlan(
+            entry = entry,
+            stop = stop,
+            target = target,
+            setup = setup,
+            trigger = when (setup) {
+                SETUP_RECLAIM ->
+                    "Trading BELOW VWAP - sellers in control. No long until it reclaims " +
+                        "${Fmt.price(entry)}; a buy-stop there, not here."
+                SETUP_PULLBACK ->
+                    "Already extended - do not chase. Buy the pullback to " +
+                        "${Fmt.price(entry)} ($entryLevel); a buy-limit there, not here."
+                else ->
+                    "Buy the break above ${Fmt.price(entry)} ($entryLevel) - a buy-stop, " +
+                        "so nothing is bought unless the move proves itself."
+            },
+            note = planNote(price, entry, tech, rawRisk, maxRisk)
+        )
+        return plan
+    }
+
+    const val SETUP_BREAKOUT = "Breakout"
+    const val SETUP_PULLBACK = "Pullback"
+    const val SETUP_RECLAIM = "VWAP reclaim"
+
+    /** Everything about a plan that should give the reader pause, in one line. */
+    private fun planNote(
+        price: Double,
+        entry: Double,
+        tech: DayTradingTechnicals.DayTechnicals,
+        rawRisk: Double,
+        maxRisk: Double
+    ): String {
+        val parts = ArrayList<String>(3)
+        if (tech.rangeUsed >= EXTENDED_RANGE_USED) parts.add(
+            "Already travelled ${(tech.rangeUsed * 100).toInt()}% of its average daily range - " +
+                "little room left today"
+        )
+        if (rawRisk > maxRisk * 1.05) parts.add(
+            "The level that would invalidate this sits further away than a same-session stop " +
+                "should carry, so the stop is tightened to ${Fmt.priceBare(MAX_RISK_ATRS)}x the " +
+                "5-minute ATR - it can be taken out with the setup still intact"
+        )
+        if (!tech.sessionLive) parts.add(
+            "Market closed - these are the last completed session's levels, to plan from before " +
+                "the open, not live readings"
+        )
+        if (entry < price) parts.add(
+            "The entry is BELOW the last price (${Fmt.price(price)}) on purpose - it waits for " +
+                "the pullback instead of buying the extension"
+        )
+        return parts.joinToString(". ")
     }
 
     // ----------------------------------------------------------- analyst overlay
