@@ -326,6 +326,25 @@ class DayTradingUiTest {
             t.contains("How the score is built"))
     }
 
+    @Test fun `the breakdown stays absent even once planByClaude is cleared, if dtLikelihood never was set`() {
+        // THE SPECIFIC SHAPE OF THE VIEWMODEL BUG THIS UI HAS TO STAY SAFE AGAINST (Round 72
+        // review fix): `dropUnusableClaudeLevels` can flip a Claude-added pick's `planByClaude`
+        // back to false without ever giving it a real `dtLikelihood` - the ViewModel-side fix is
+        // `scoreDayTradingRow`'s own tests, but the UI's OWN gate has to hold up independently
+        // of whatever `planByClaude` says once that happens, since this exact row shape
+        // (planByClaude = false, conviction > 0, dtLikelihood = 0) is precisely what it produces.
+        show {
+            DayTradingDetailDialog(
+                row().copy(planByClaude = false, conviction = 8, entryPrice = 0.0,
+                    stopPrice = 0.0, targetPrice = 0.0, score = 0),
+                onDismiss = {}
+            )
+        }
+        val t = texts().joinToString(" ")
+        assertFalse("must not fabricate a breakdown for a row with no real dtLikelihood: $t",
+            t.contains("How the score is built"))
+    }
+
     @Test fun `a plan Claude set is labelled as Claude's, never as the app's arithmetic`() {
         show {
             DayTradingDetailDialog(
