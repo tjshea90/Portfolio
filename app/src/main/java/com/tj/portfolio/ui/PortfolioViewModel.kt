@@ -5288,8 +5288,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** The offline path's other half: an answer file picked in the Research section. */
+    /**
+     * The offline path's other half: an answer file picked in the Research section.
+     *
+     * ONE FILE PICKER SERVES BOTH TABS (Round 67) - the Research screen's "Import answer"
+     * button is shared by Trending/Best/ETFs and Day Trading, and a Day Trading reply carries
+     * its own payload key, recognised and routed first, the same rule [importClaudeFile]
+     * already follows for a Research reply picked from the Advice tab by mistake.
+     */
     fun importResearchFile(text: String): String {
+        if (com.tj.portfolio.net.DayTradingBridge.looksLikeDayTrading(text)) {
+            return importDayTradingFile(text)
+        }
         val parsed = runCatching { com.tj.portfolio.net.ResearchBridge.parse(text) }
             .getOrElse {
                 return "Couldn't read that file: ${it.message}"
