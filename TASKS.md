@@ -358,18 +358,40 @@ Tj's request, 2026-09-11 (his own words, two parts):
 
 ## Part 6.1: charts + tabbed detail + watchlist button — proceeding on Sonnet
 
-- [ ] Add a compact 1-day-only chart to each Day Trading card, reusing the
-      app's existing chart component rather than a new one.
-- [ ] Let each card grow to fit its content (chart + trigger/stop/target +
-      reasons) instead of a fixed compact height.
-- [ ] Tapping a card opens a tabbed detail view mirroring `DetailScreen`'s
-      pattern (Chart / Stats / financial info), reusing those tabs/composables
-      for the symbol rather than re-deriving them, with the existing
-      trigger/stop/target/why-in-play content from `DayTradingDetailDialog`
-      folded in as its own tab or section rather than dropped.
-- [ ] Add a button in that detail view to add the stock to the watchlist,
-      reusing the existing add-to-watchlist action/path.
-- [ ] Tests for the new UI paths, then the full Gradle unit suite.
+- [x] Added a compact 1-day-only chart to each Day Trading card. Reused
+      `PriceChart` (the exact composable `DetailScreen`'s Overview tab already
+      draws, at `ChartRange.D1`, no zoom/expand controls) rather than a new
+      widget - card is a preview, tapping it opens the full one.
+- [x] Cards already grow to fit their content (`StatCard`'s Column has no
+      fixed height) - the chart just adds another block, so "as big as
+      needed" needed no layout change of its own.
+- [x] Tapping a Day Trading card now navigates to the stock's own
+      `DetailScreen` through the SAME `onOpen` every other list (Trending,
+      Best, ETFs) already uses - not a new path. `DetailScreen` already
+      handled a symbol that is neither held nor watched (the search case),
+      which covers a pure Day Trading pick with zero new code. The old
+      `DayTradingDetailDialog` no longer opens from the list; its body was
+      extracted into `DayTradingPlanContent` (shared, unchanged content) and
+      `OverviewTab` now draws it at the top of the tab for any symbol that is
+      today's Day Trading pick - "in addition to what it already shows" plus
+      the Stats/Analysts/Earnings/News tabs and the full chart, all reused.
+- [x] Watchlist button: `DetailScreen`'s existing header star
+      ("Add to watchlist" / `vm.addWatch`) already renders for exactly this
+      case (a tracked-nothing symbol) - reused as-is, no new button.
+- [x] `enrichDayTradingVisible` (the existing Round 68 live loop, already
+      gated to "only while the tab is open") now also fetches each visible
+      row's 1D chart via the same `vm.loadChart` every other chart in the app
+      calls - no new fetch path.
+- [x] 3 new tests (`DayTradingUiTest`: chart renders once arrived, loading
+      state, absent when not requested) plus the full Gradle unit suite: 933
+      tests, 0 failures.
+- [x] `/code-review` (high effort) over the diff found 2 real issues -
+      unbounded chart-fetch concurrency past the default 10 rows, and
+      ResearchScreen subscribing to app-wide chart state even off the Day
+      Trading tab - both fixed (chart fetch now awaited inside the existing
+      `Semaphore(MAX_PARALLEL_REQUESTS)` gate; the chart `collectAsState`
+      calls are now conditional on the Day Trading tab being the one open) -
+      then the full suite re-run green.
 
 ## Part 6.2: confidence-blended score — FLAGGED, not started
 
