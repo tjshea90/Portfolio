@@ -812,6 +812,25 @@ private fun ResearchCard(
                 }
             }
 
+            // --- TODAY'S CHART (Round 70). Tj: "put a stock chart next to each of the stocks
+            // in the day trading section... only that current day's chart, good for day
+            // trading." [PriceChart] is the SAME composable [DetailScreen]'s Overview tab
+            // draws - not a re-implementation - fed `ChartRange.D1` and nothing that lets it
+            // zoom or expand, because a list card is a preview, not where you'd pinch a chart;
+            // tapping the card already opens the full one. `dayChart` is null for every row
+            // outside the Day Trading tab, so this never draws elsewhere, and null here too
+            // until the live loop has actually fetched it - in which case the loading spinner
+            // [PriceChart] already knows how to draw covers the gap.
+            if (dayChart != null || dayChartLoading) {
+                Spacer(Modifier.height(9.dp))
+                PriceChart(
+                    series = dayChart,
+                    range = com.tj.portfolio.data.ChartRange.D1,
+                    loading = dayChartLoading,
+                    chartHeight = 130.dp
+                )
+            }
+
             // --- THE DAY-TRADING RISK PLAN (Round 67) - a computed levels grid, same
             // treatment [EtfFactsGrid] gets for the same reason: three numbers a reader
             // compares row to row want the same place on every card. Zero for every row
