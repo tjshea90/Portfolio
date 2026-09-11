@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
  * Same three concerns [ResearchTest] exists for, on the newer section: the scorer that decides
  * what is "objectively in play" (see [ResearchScore.dayTrading]'s header for the feasibility
  * finding it is written from - accurate same-day price prediction is not the question this
- * answers), the risk-plan arithmetic in [ResearchScore.tradeLevels] that stands in for a
+ * answers), the setup-and-trigger arithmetic in [ResearchScore.tradePlan] that stands in for a
  * forecast honestly, and the bridge, because a Day Trading reply must not be mistaken for a
  * Research or Advice reply now that one file chooser accepts all three.
  */
