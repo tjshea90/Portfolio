@@ -5353,6 +5353,140 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         return "Research updated - $n explained" + (if (added > 0) ", $added added" else "")
     }
 
+    // ------------------------------------------------ DAY TRADING Claude bridge (Round 67)
+    //
+    // Same shape as the block above - one bundle/prompt/explain/import/apply per Claude path -
+    // for a section with its own bridge, its own prompt and its own button. See
+    // [ResearchSet.dtExplained] for why it does NOT share state with [applyResearchAnswer].
+
+    fun dayTradingBundle(): String = com.tj.portfolio.net.DayTradingBridge.bundleJson(
+        visibleResearch(),
+        heldSymbols().toList().sorted(),
+        watchedSymbols().toList().sorted()
+    )
+
+    fun dayTradingPromptFile(): String = com.tj.portfolio.net.DayTradingBridge.prompt(
+        visibleResearch(),
+        heldSymbols().toList().sorted(),
+        watchedSymbols().toList().sorted()
+    )
+
+    /** Write the offline prompt file - one fixed name, replaced, same as [writeResearchPrompt]. */
+    fun writeDayTradingPrompt(onDone: (String) -> Unit) {
+        if (_research.value.dayTrading.isEmpty()) {
+            onDone("Load the research lists first - there is nothing to ask about yet.")
+            return
+        }
+        viewModelScope.launch {
+            val body = dayTradingPromptFile()
+            val msg = withContext(Dispatchers.IO) {
+                runCatching {
+                    val saved = com.tj.portfolio.util.Storage.saveOrReplaceInDownloads(
+                        getApplication(),
+                        com.tj.portfolio.net.DayTradingBridge.PROMPT_FILE,
+                        body,
+                        "text/markdown"
+                    )
+                    if (saved != null) "Saved to ${saved.display}"
+                    else "Couldn't write to Downloads"
+                }.getOrElse { "Couldn't build the prompt file: ${it.message}" }
+            }
+            onDone(msg)
+        }
+    }
+
+    /** The API-key path: same question, same parser, no file round trip. */
+    fun explainDayTrading() {
+        val key = claudeKey()
+        if (key.isBlank()) {
+            _researchError.value =
+                "Add your Claude API key in Settings, or use \"Make prompt file\" to do this " +
+                    "through the Claude app instead - both give the same answer."
+            return
+        }
+        if (_research.value.dayTrading.isEmpty()) {
+            _researchError.value = "Load the research lists first."
+            return
+        }
+        if (_researchBusy.value.isNotEmpty()) return
+        viewModelScope.launch {
+            _researchBusy.value = BUSY_EXPLAINING
+            _researchError.value = null
+            try {
+                val bundle = dayTradingBundle()
+                val chosen = ensureModel()
+                var out = withContext(Dispatchers.IO) {
+                    runCatching { Claude.dayTrading(key, chosen, bundle, webSearch()) }
+                        .getOrElse {
+                            com.tj.portfolio.net.DayTradingBridge.Parsed(
+                                error = it.message ?: "Request failed"
+                            )
+                        }
+                }
+                if (out.error?.contains("404") == true) {
+                    val list = withContext(Dispatchers.IO) {
+                        runCatching { Claude.models(key) }.getOrDefault(emptyList())
+                    }
+                    if (list.isNotEmpty()) {
+                        val fresh = Claude.preferredModel(list)
+                        db.set(Keys.CLAUDE_MODEL, fresh)
+                        _models.value = list
+                        out = withContext(Dispatchers.IO) {
+                            runCatching { Claude.dayTrading(key, fresh, bundle, webSearch()) }
+                                .getOrElse {
+                                    com.tj.portfolio.net.DayTradingBridge.Parsed(
+                                        error = it.message ?: "Request failed"
+                                    )
+                                }
+                        }
+                    }
+                }
+                applyDayTradingAnswer(out, "API")
+            } finally {
+                _researchBusy.value = ""
+            }
+        }
+    }
+
+    /** The offline path's other half: an answer file recognised and routed by [importResearchFile]. */
+    fun importDayTradingFile(text: String): String {
+        val parsed = runCatching { com.tj.portfolio.net.DayTradingBridge.parse(text) }
+            .getOrElse {
+                return "Couldn't read that file: ${it.message}"
+            }
+        return applyDayTradingAnswer(parsed, "Claude app")
+    }
+
+    private fun applyDayTradingAnswer(
+        parsed: com.tj.portfolio.net.DayTradingBridge.Parsed,
+        via: String
+    ): String {
+        if (parsed.error != null) {
+            _researchError.value = parsed.error
+            return parsed.error
+        }
+        val cur = _research.value
+        val merged = cur.copy(
+            dayTrading = com.tj.portfolio.net.DayTradingBridge.merge(cur.dayTrading, parsed.picks),
+            dtExplained = System.currentTimeMillis(),
+            dtExplainedBy = via,
+            // MERGED, not overwritten - same reason [applyResearchAnswer] does this for `notes`.
+            dtNotes = parsed.notes.ifBlank { cur.dtNotes }
+        )
+        cacheResearch(merged)
+        _researchError.value = null
+        val known = cur.dayTrading.map { it.symbol }.toSet()
+        val added = parsed.picks.map { it.symbol }.distinct().count { it !in known }
+        // Anything Claude ADDED has no price and no trade levels yet - [fillPricesNow]
+        // computes both for a day-trading row, the same way it fills price alone for the
+        // other three sections.
+        val newSymbols = merged.dayTrading
+            .filter { it.price <= 0.0 }.map { it.symbol }.distinct().take(MAX_PRICE_FILL)
+        if (newSymbols.isNotEmpty()) fillResearchPrices(newSymbols)
+        return "Day trading updated - ${parsed.picks.size} explained" +
+            (if (added > 0) ", $added added" else "")
+    }
+
     /**
      * Which rows of a freshly built set still have no price, highest-scoring first.
      *
