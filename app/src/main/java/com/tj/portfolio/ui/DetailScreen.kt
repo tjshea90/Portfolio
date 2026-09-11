@@ -161,6 +161,15 @@ fun visibleTabs(isFund: Boolean): List<DetailTab> =
 internal fun DetailTabRow(
     tabs: List<DetailTab>,
     selected: DetailTab,
+    /**
+     * What [DetailTab.RECOMMENDATION] actually shows, live - "Buy" / "Hold" / "Sell" once
+     * computed. Null (the default) leaves the enum's own placeholder label in place, which is
+     * what every OTHER tab always shows and what this one shows before the first compute
+     * lands. Passed as a plain nullable string/color rather than a `Recommendation` so this
+     * crash-sensitive component (see the note below) stays decoupled from that data shape.
+     */
+    recommendationLabel: String? = null,
+    recommendationColor: Color? = null,
     onSelect: (DetailTab) -> Unit
 ) {
     // INDEXED INTO THE VISIBLE LIST, NOT THE ENUM. `tab.ordinal` was fine while every tab was
@@ -181,14 +190,17 @@ internal fun DetailTabRow(
         }
     ) {
         tabs.forEach { t ->
+            val isRec = t == DetailTab.RECOMMENDATION
             Tab(
                 selected = selected == t,
                 onClick = { onSelect(t) },
                 text = {
                     Text(
-                        t.label,
+                        if (isRec) recommendationLabel ?: t.label else t.label,
                         fontSize = 14.sp,
-                        fontWeight = if (selected == t) FontWeight.Bold else FontWeight.Normal
+                        fontWeight = if (selected == t) FontWeight.Bold else FontWeight.Normal,
+                        color = (if (isRec) recommendationColor else null)
+                            ?: MaterialTheme.colorScheme.onSurface
                     )
                 }
             )
