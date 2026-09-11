@@ -101,10 +101,7 @@ class StockRowRecommendationUiTest {
     }
 
     @Test fun `dismissing the popup returns to the row`() {
-        show {
-            var recommendation by mutableStateOf<Recommendation?>(rec(TradeVerdict.BUY))
-            StockRowItem(row(), {}, {}, plMode = PlMode.DOLLAR, recommendation = recommendation)
-        }
+        show { StockRowItem(row(), {}, {}, plMode = PlMode.DOLLAR, recommendation = rec(TradeVerdict.BUY)) }
         rule.onNodeWithTag(RECOMMENDATION_CHIP_TEST_TAG).performClick()
         rule.onNodeWithText("Got it").performClick()
         rule.onNodeWithText("NVDA - Buy").assertDoesNotExist()
