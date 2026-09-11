@@ -429,16 +429,27 @@ presentation layer over an already-decided design rather than new
 money-accuracy logic. Tj's blanket Sonnet override above covers it either
 way.
 
-- [ ] Add a plain-English "what to do" summary to each Day Trading card,
-      alongside (not replacing) the existing technical risk-plan grid,
-      trigger sentence and reasons.
-- [ ] Cover the cases Tj's examples name: a normal buy/sell instruction in
-      beginner terms, and a "too late / don't buy" case when the numbers
-      say the move (or the setup) has already played out.
-- [ ] Add simple-language reasoning (why wait / why buy / why skip) next to
-      the instruction - no jargon like "VWAP", "reclaim", "ATR", "R1 pivot".
-- [ ] Show the same summary in the tap-to-expand detail view
-      (`DayTradingPlanContent`), not just the card.
-- [ ] Unit tests for the new logic (it is a real branching function over
-      real numbers, same testing bar as `ResearchScore.tradePlan`).
-- [ ] Full Gradle unit suite green, then checkpoint/ship per usual.
+- [x] Added `ResearchScore.beginnerSummary()`: a pure function that restates
+      the SAME entry/stop/target numbers `tradePlan` already computes as a
+      plain-English "Buy if it climbs/drops to $X, then sell at $Y"
+      instruction, alongside (not replacing) the existing technical
+      risk-plan grid, trigger sentence and reasons.
+- [x] Covers Tj's named cases: the normal buy/sell instruction, "too late -
+      don't buy now" when the price already reached the target, and "skip -
+      the plan already fell apart" when the price already broke the stop.
+- [x] Simple-language reasoning (why wait / why buy / why skip) next to the
+      instruction - no jargon like "VWAP", "reclaim", "ATR", "R1 pivot".
+- [x] Shown in both places `TradeLevelsGrid` already draws: the Day Trading
+      list card (`BeginnerSummaryCard` in `ResearchScreen.kt`) and the
+      tap-to-expand detail view (`DayTradingPlanContent`).
+- [x] 12 new pure-logic tests (`DayTradingTest.kt`) and 8 new render tests
+      (`DayTradingUiTest.kt`). A high-effort `/code-review` pass found and
+      fixed 3 real issues before shipping: a missing `price > 0` guard (a
+      Claude-imported pick can have real levels with no price yet, which
+      was falling through to a confident "Buy if it climbs..." built from
+      a placeholder zero), the reward:risk arithmetic reimplemented in
+      three places instead of one shared `ResearchScore.rewardRisk`, and a
+      `price == entry` boundary that guessed a "climbs"/"drops" direction
+      that is right for a breakout but backwards for a pullback - now
+      answered honestly ("it's at the buy price right now") instead.
+- [x] Full Gradle unit suite green: 948 tests, 0 failures.
