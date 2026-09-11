@@ -692,8 +692,10 @@ fun ResearchScreen(
     }
 }
 
+// `internal`, not private, so `DayTradingUiTest` can render it directly - the same reasoning
+// [EtfFactsGrid] and [TradeLevelsGrid] already document for this file.
 @Composable
-private fun ResearchCard(
+internal fun ResearchCard(
     r: ResearchRow,
     followed: Boolean,
     onOpen: (String) -> Unit,
