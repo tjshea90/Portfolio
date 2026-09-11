@@ -586,10 +586,7 @@ object Research {
             headlineUrl = tr?.headlineUrl.orEmpty(),
             headlineSource = tr?.headlineSource.orEmpty(),
             onYahooTrending = tr?.onYahooTrending ?: false,
-            catalyst = catalystFor(r),
-            entryPrice = levels?.entry ?: 0.0,
-            stopPrice = levels?.stop ?: 0.0,
-            targetPrice = levels?.target ?: 0.0
+            catalyst = catalystFor(r)
         )
     }
 
