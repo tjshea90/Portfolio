@@ -565,7 +565,16 @@ object Research {
                 )
             }
             .filter { it.second.score > 0 }
-            .sortedByDescending { it.second.score }
+            // SORTED BY THE BLENDED SCORE (Round 72), not the raw "in play" score - see
+            // [ResearchRow.dtLikelihood]'s header for what the two halves mean. No live
+            // technicals exist yet at build time, so [ResearchScore.dayTradingConfidence] runs
+            // with `tech = null` here - VWAP and the opening-range breakout checks simply cannot
+            // confirm yet, which is the honest state, not a false negative - and is recomputed
+            // with real readings once the live sweep enriches the rows actually on screen (see
+            // `PortfolioViewModel.mergeDayTradingTech`).
+            .sortedByDescending { (row, sc) ->
+                ResearchScore.blendedScore(sc.score, ResearchScore.dayTradingConfidence(row))
+            }
             .take(DAY_TRADING_BUFFER)
             .map { (row, sc) -> toDayTradingRow(row, sc, trendBy[row.symbol]) }
             .toList()
@@ -583,12 +592,18 @@ object Research {
         // ([ResearchScore.tradePlan]), which the live technicals pass fetches for the rows
         // actually on screen moments later. A blank plan for those few seconds is the honest
         // output; a fabricated one that reads like a real trigger is not.
+        //
+        // THE SCORE IS NOW THE BLEND (Round 72) - see [ResearchRow.dtLikelihood]'s header. `sc`
+        // is the raw "in play" likelihood, carried forward unchanged; [dtConfidence] is the
+        // build-time confirmation checklist (no live technicals yet); `score` is the two
+        // multiplied together, the number the card and the sort above both use.
+        val confidence = ResearchScore.dayTradingConfidence(r)
         return ResearchRow(
             symbol = r.symbol,
             name = r.name,
             price = r.price,
             changePct = r.changePct,
-            score = sc.score,
+            score = ResearchScore.blendedScore(sc.score, confidence),
             reasons = sc.reasons,
             mentions = tr?.mentions ?: 0,
             newsCount = tr?.newsCount ?: 0,
@@ -596,7 +611,9 @@ object Research {
             headlineUrl = tr?.headlineUrl.orEmpty(),
             headlineSource = tr?.headlineSource.orEmpty(),
             onYahooTrending = tr?.onYahooTrending ?: false,
-            catalyst = catalystFor(r)
+            catalyst = catalystFor(r),
+            dtLikelihood = sc.score,
+            dtConfidence = confidence
         )
     }
 
