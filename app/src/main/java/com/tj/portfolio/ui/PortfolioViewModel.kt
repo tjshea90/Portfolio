@@ -4981,7 +4981,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     resetResearchPaging(
                         listOf(
                             com.tj.portfolio.data.ResearchSet.SECTION_TRENDING,
-                            com.tj.portfolio.data.ResearchSet.SECTION_BEST
+                            com.tj.portfolio.data.ResearchSet.SECTION_BEST,
+                            com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING
                         )
                     )
                     // A rebuild carries forward the explanations already on file for the same
