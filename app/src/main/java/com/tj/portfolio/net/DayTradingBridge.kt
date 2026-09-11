@@ -196,7 +196,10 @@ scored them with its own arithmetic. It cannot explain them and it cannot search
 This is NOT a request to predict which stocks will keep rising - no system built on free
 public data can honestly promise that. Each row carries `entry`, `stop` and `target`: the
 app's OWN computed risk-management levels (today's price, a volatility-sized stop, a 2:1
-reward-to-risk target), not a forecast. Do not replace or second-guess these numbers.
+reward-to-risk target), not a forecast. Do not replace or second-guess these numbers. When
+present, `atr14` (the stop was sized at 1.5x this stock's own 14-day Average True Range),
+`vwap` and `openingRangeHigh`/`openingRangeLow` are this stock's own real technicals - use any
+of them if they help explain the setup, but do not assert one that is absent from a row.
 
 DATA:
 $bundleJson
