@@ -54,11 +54,11 @@ class DetailTabCrashTest {
         }
         rule.waitForIdle()
 
-        // Five tabs, News selected at index 4. Now the lookup returns "fund" and the list
-        // becomes six, so News moves to index 5 while the measured positions still hold five.
-        assertEquals(5, visibleTabs(false).size)
-        assertEquals(6, visibleTabs(true).size)
-        assertEquals(5, visibleTabs(true).indexOf(DetailTab.NEWS))
+        // Six tabs, News selected at index 5. Now the lookup returns "fund" and the list
+        // becomes seven, so News moves to index 6 while the measured positions still hold six.
+        assertEquals(6, visibleTabs(false).size)
+        assertEquals(7, visibleTabs(true).size)
+        assertEquals(6, visibleTabs(true).indexOf(DetailTab.NEWS))
 
         isFund = true
         rule.waitForIdle()      // threw before the indicator was bounded
