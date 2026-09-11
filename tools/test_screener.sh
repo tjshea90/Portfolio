@@ -26,10 +26,10 @@ export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t GIT_COMMITTER_NAME=t GIT_COMMITTER
 
 # ---- 1. JSON mode: one parseable UserPromptSubmit object -------------------
 PROMPT_JSON='{"session_id":"x","prompt":"bump versionCode and touch app/sideload.jks signing"}'
-OUT="$(printf '%s' "$PROMPT_JSON" | bash tools/screener.sh 2>/dev/null)"
-printf '%s' "$OUT" | python3 - <<'PY' >/dev/null 2>&1
+printf '%s' "$PROMPT_JSON" | bash tools/screener.sh >"$TMP/out1.json" 2>/dev/null
+python3 - "$TMP/out1.json" <<'PY' >/dev/null 2>&1
 import json, sys
-d = json.loads(sys.stdin.read())
+d = json.load(open(sys.argv[1]))
 assert d["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
 ctx = d["hookSpecificOutput"]["additionalContext"]
 assert ctx.strip()
