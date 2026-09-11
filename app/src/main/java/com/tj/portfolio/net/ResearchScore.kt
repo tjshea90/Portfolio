@@ -696,6 +696,98 @@ object ResearchScore {
         return parts.joinToString(". ")
     }
 
+    /**
+     * Reward:risk at or below this reads as thin - shared by [planNote] and [beginnerSummary]
+     * so the plain-English summary can never disagree with the technical warning under it.
+     */
+    private const val THIN_REWARD_RATIO = 1.5
+
+    // ======================================================= THE BEGINNER SUMMARY (Round 71)
+
+    /**
+     * ONE PLAIN-ENGLISH VERDICT ON TOP OF [tradePlan]'S NUMBERS, FOR A READER WHO DOES NOT KNOW
+     * WHAT "VWAP", "RECLAIM" OR "R1 PIVOT" MEAN.
+     *
+     * Tj, 2026-09-11: *"add a summary of what to do and why that is simple to read for complete
+     * beginners who don't understand market technical language (for example, 'buy this at
+     * $3.56, and sell at $3.98' or 'too late for this one, don't buy') plus any reasoning in
+     * simple language for beginners."*
+     *
+     * THIS NEVER COMPUTES A NEW NUMBER OR A NEW JUDGMENT. It restates [entry]/[stop]/[target] -
+     * the same three prices the technical grid already shows - in a sentence a beginner can act
+     * on. Its "too late" / "skip" cases are read directly off those same numbers rather than a
+     * separate opinion: a plan the app is still showing as live, sitting next to a plain-English
+     * summary calling it "too late", would be a worse bug than not having the summary at all. So
+     * every branch here is a direct comparison of [price] against the levels [tradePlan] already
+     * computed - never a new signal, a new threshold Tj hasn't seen, or a claim the technical
+     * section disagrees with. [THIN_REWARD_RATIO] is shared with [planNote] for the same reason:
+     * the two pieces of text may describe the same trade differently, but never contradict it.
+     *
+     * Null when there is no plan to summarise - the same "a blank is honest, a fabricated one is
+     * not" rule [tradePlan] itself follows for a row with no real levels yet.
+     */
+    data class BeginnerSummary(
+        /** The one-line instruction - "Buy if it climbs to $12.40, then sell at $13.10..." */
+        val headline: String,
+        /** One or two sentences of why, in plain language - no jargon. */
+        val explanation: String,
+        /** True for a "too late" / "skip" verdict, so the UI can de-emphasise it. */
+        val skip: Boolean
+    )
+
+    fun beginnerSummary(
+        symbol: String,
+        price: Double,
+        entry: Double,
+        stop: Double,
+        target: Double
+    ): BeginnerSummary? {
+        if (entry <= 0.0 || stop <= 0.0 || target <= 0.0) return null
+        val risk = entry - stop
+        val rr = if (risk > 1e-9) (target - entry) / risk else 0.0
+
+        return when {
+            // The price already reached the profit target - most of the likely gain is gone.
+            price > 0.0 && price >= target -> BeginnerSummary(
+                headline = "Too late for this one today - don't buy now.",
+                explanation = "$symbol already climbed to the price this plan was hoping it " +
+                    "would reach. Buying now means paying close to the top, with much less " +
+                    "room left for it to go up and just as much room for it to fall.",
+                skip = true
+            )
+            // The price already fell through the level that would have kept the plan valid.
+            price > 0.0 && price <= stop -> BeginnerSummary(
+                headline = "Skip this one - the plan already fell apart.",
+                explanation = "$symbol already dropped through the price this plan needed to " +
+                    "hold. The original reason to buy it doesn't apply anymore today.",
+                skip = true
+            )
+            else -> {
+                val climbing = entry > price
+                val direction = if (climbing)
+                    "It hasn't proven the move is real yet, so this waits for it to climb a " +
+                        "little higher first - buying too early risks jumping in before " +
+                        "anything has actually happened."
+                else
+                    "It has already jumped up fast, so buying at today's price would mean " +
+                        "paying a premium - this waits for it to cool off and come back down " +
+                        "a bit first, for a better price."
+                val thin = if (rr in 0.0..THIN_REWARD_RATIO)
+                    " Heads up: the likely profit here is small next to the risk, so even " +
+                        "experienced traders might pass on this particular one."
+                else ""
+                BeginnerSummary(
+                    headline = (if (climbing) "Buy if it climbs to " else "Buy if it drops to ") +
+                        "${Fmt.price(entry)}, then sell at ${Fmt.price(target)} for a profit.",
+                    explanation = "$direction If it falls to ${Fmt.price(stop)} instead of " +
+                        "going up, sell there too - that keeps a loss small instead of " +
+                        "letting it grow.$thin",
+                    skip = false
+                )
+            }
+        }
+    }
+
     // ----------------------------------------------------------- analyst overlay
 
     /**
