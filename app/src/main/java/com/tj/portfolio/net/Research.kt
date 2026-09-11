@@ -530,6 +530,14 @@ object Research {
         val trendBy = trending.associateBy { it.symbol }
         val maxMentions = trending.maxOfOrNull { it.mentions } ?: 0
         val maxNews = trending.maxOfOrNull { it.newsCount } ?: 0
+        // WHICH SESSION THE SCREENER'S OWN NUMBERS DESCRIBE - read once for the whole pass,
+        // not per row, so every line in one build agrees with every other. See the parameter's
+        // note in [ResearchScore.dayTrading] for the bug this closes.
+        val sessionWord = when (MarketClock.phase()) {
+            MarketClock.Phase.OPEN -> "today"
+            MarketClock.Phase.EXTENDED -> "this session"
+            MarketClock.Phase.CLOSED -> "in the last session"
+        }
 
         return universe.values
             .asSequence()
