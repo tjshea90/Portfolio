@@ -166,7 +166,10 @@ not a guess, and the reasoning list already prints in the user's language.
       a clean final run after every edit — 838 tests, 0 failures, 0 errors.
 - [x] Checkpointed after every completed step (ckpt 609, 613, 614, 615),
       not just at the end.
-- [ ] Ship following CLAUDE.md's normal release flow.
+- [x] Shipped: v7.9 (code 66), GitHub Actions run #8 built, signed, verified
+      its own certificate, and published the Release; APK downloaded
+      (sha256 verified against the Release's own digest), sent to Tj, and
+      recorded in BUILDLOG.md.
 
 ## The flow (details in CLAUDE.md)
 
