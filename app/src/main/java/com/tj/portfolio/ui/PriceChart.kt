@@ -618,9 +618,38 @@ fun PriceChart(
         // too. The colour and the number it colours have to come from the same series.
         val line = signColor(inside.change)
 
-        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, insideRange, zoomedIn) {
+        // ---- THE REBASE ANCHOR IS FROZEN FOR THE LIFE OF A GESTURE.
+        //
+        // TJ, with a screen recording: *"when I put a stock chart in full screen and scroll
+        // left to right, the stock chart stays accurate but the spy line jumps up and down
+        // with the dotted line."*
+        //
+        // `insideRange.first` is a CANDLE INDEX, not a continuous position - on a 1Y chart of
+        // daily candles it only advances once a full day of drag has crossed a real candle's
+        // timestamp. Every time it did, `own` (the stock, in comparison mode) and `other`
+        // (the benchmark) below were both re-rebased from a brand-new anchor point in one
+        // discrete step rather than gliding with the finger. That step is mathematically
+        // identical on both lines - but [ComparePair.boundsIn] scales the shared y-axis to
+        // whichever line has the wider range, which on a stock like this is the stock's own
+        // line by a wide margin. The same absolute step is therefore a rounding error against
+        // the stock's scale and a violent jump against the benchmark's, and the dashed zero
+        // line moves with it because its position is read off that same shared axis.
+        //
+        // FROZEN, NOT INTERPOLATED. The stock's own line has the identical discontinuity
+        // today; fixing only the benchmark's anchor would leave that defect in place and could
+        // resurface the moment two similarly-volatile series are compared. Freezing the whole
+        // anchor while `gestureLive` is true - and letting it track the live window again the
+        // instant the finger lifts - removes the mid-drag step from both lines symmetrically,
+        // the same way `held.window` above is seeded once per gesture and held rather than
+        // re-read every frame.
+        val liveBaseIndex = insideRange.first
+        val frozenBaseIndex = remember { mutableIntStateOf(liveBaseIndex) }
+        if (!gestureLive) frozenBaseIndex.intValue = liveBaseIndex
+        val baseIndexForRebase = frozenBaseIndex.intValue
+
+        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, baseIndexForRebase, zoomedIn) {
             val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
-            val baseIndex = insideRange.first
+            val baseIndex = baseIndexForRebase
             // ON THE SAME TERMS AS `inside`, and keyed on the same flag. Short-circuiting to
             // "the series' own rule" whenever the base index happened to be 0 gave the overlay
             // the benchmark's PREVIOUS CLOSE while the readout beside it used the first point
