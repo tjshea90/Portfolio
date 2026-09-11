@@ -4007,13 +4007,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * cancels it and disconnects the socket. The DISK WRITE goes on `viewModelScope`,
      * because a series already paid for should be kept even if the user leaves mid-write.
      */
-    fun loadChart(symbol: String, range: ChartRange, force: Boolean = false) {
+    /**
+     * Returns the launched fetch as a [Job] so a caller that needs to BOUND how many run at
+     * once - [enrichDayTradingVisible], across up to a screenful of symbols - can await it
+     * inside its own semaphore instead of firing every symbol's disk-read-plus-HTTP-fetch at
+     * the same instant. Null when nothing was launched at all (already fresh, already
+     * in-flight, or backing off) - there is then nothing to wait for.
+     */
+    fun loadChart(symbol: String, range: ChartRange, force: Boolean = false): Job? {
         val sym = symbol.uppercase()
         val key = chartKey(sym, range)
         // The in-flight guard is INSIDE nothing - it is checked here and cleared in a
         // `finally` below. A guard set here and cleared only on the happy path is how
         // loadInsider once locked a symbol out for the rest of the session.
-        if (_chartLoading.value.contains(key)) return
+        if (_chartLoading.value.contains(key)) return null
 
         // THE CHEAP WAY OUT, TAKEN BEFORE A COROUTINE IS EVEN STARTED.
         //
@@ -4025,16 +4032,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // A RECENT FAILURE IS AN ANSWER TOO. Without this the detail screen re-requested
             // a chart that cannot be had on every quote tick, because a failed fetch leaves
             // no entry in `_charts` for the freshness test below to find. See [RetryClock].
-            if (chartRetry.blocked(key)) return
+            if (chartRetry.blocked(key)) return null
             if (sym in chartDiskRead) {
                 val cached = _charts.value[key]
                 if (cached != null && !cached.isEmpty &&
                     (!cached.stale() || intradayChartIsFinal(cached))
-                ) return
+                ) return null
             }
         }
 
-        fgScope.launch {
+        return fgScope.launch {
             _chartLoading.value = _chartLoading.value + key
             try {
                 // ---- 1. disk first, every range for this symbol in one query
