@@ -645,7 +645,7 @@ object ResearchScore {
         maxRisk: Double
     ): String {
         val parts = ArrayList<String>(3)
-        if (tech.rangeUsed >= EXTENDED_RANGE_USED) parts.add(
+        if (tech.sessionLive && tech.rangeUsed >= EXTENDED_RANGE_USED) parts.add(
             "Already travelled ${(tech.rangeUsed * 100).toInt()}% of its average daily range - " +
                 "little room left today"
         )
