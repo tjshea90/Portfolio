@@ -12,7 +12,7 @@ import kotlin.math.abs
  * and how to calculate good buy and sell price targets. use many legitimate and professional
  * sources."* This file is that research, made into code - three measures with decades of
  * published, practitioner-verified use behind them, computed from real price history rather
- * than the single ad-hoc volatility blend [ResearchScore.tradeLevels] used before this:
+ * than the single ad-hoc volatility blend the pre-Round-68 level maths used before this:
  *
  *  - **ATR (Average True Range)**, J. Welles Wilder, "New Concepts in Technical Trading
  *    Systems" (1978) - the industry-standard volatility measure for stop-loss placement,

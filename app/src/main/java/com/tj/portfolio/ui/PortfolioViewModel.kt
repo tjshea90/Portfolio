@@ -587,7 +587,7 @@ internal fun carryExplanations(
 
 /**
  * Merges one fresh [DayTradingTechnicals.DayTechnicals] reading into a row - TOP-LEVEL AND
- * PURE, same reason [withDayTradingLevels] is, so a test can check it with no network and no
+ * PURE, same reason the price fill is, so a test can check it with no network and no
  * ViewModel.
  *
  * EACH FIELD KEPT SEPARATELY ON A PARTIAL FETCH (a real bug caught by code review before
@@ -5630,7 +5630,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * THE SCORE BONUS APPLIES EXACTLY ONCE PER SYMBOL PER REBUILD, via [dayTradingTechScored].
      * [ResearchScore.withTechnicals] ADDS to whatever score it is handed; calling it again on
      * an already-boosted score and an already-appended reason line on the next 30-second tick
-     * would compound both forever. The risk-plan levels ([ResearchScore.upgradeLevels]) have no
+     * would compound both forever. The risk plan ([ResearchScore.tradePlan]) has no
      * such problem - they are computed fresh from the current price and ATR every time, never
      * from their own last output - so those DO refresh on every tick.
      */

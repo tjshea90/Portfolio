@@ -209,7 +209,7 @@ data class ResearchRow(
      * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
      * volume-weighted average price, and the 09:30-10:00 ET opening range. See
      * `net/DayTradingTechnicals.kt`'s header for the research these come from. All zero until
-     * [com.tj.portfolio.net.ResearchScore.upgradeLevels]/`withTechnicals` have enriched this
+     * [com.tj.portfolio.net.ResearchScore.tradePlan]/`withTechnicals` have enriched this
      * row - which only happens for rows actually on screen, the same rule analyst consensus
      * already follows for the Best list - and all zero for every row outside the day-trading
      * section, same as [entryPrice] and its siblings.
