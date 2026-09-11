@@ -73,14 +73,15 @@ class DayTradingTechnicalsTest {
     }
 
     @Test fun `a real volatility spike moves the smoothed average, not just the raw one`() {
-        // 14 quiet bars (TR = 2.0 each) bootstrap the average at 2.0, then one violent bar
-        // (TR = 30.0) should pull it up - by Wilder's formula, not by much, because that is
-        // the whole point of smoothing: (2*13 + 30) / 14 = 4.142857...
+        // 15 quiet bars produce 14 true-range values (TR = 2.0 each), bootstrapping the
+        // average at 2.0; one violent 16th bar (TR = 30.0) then smooths in by Wilder's
+        // formula - not the raw jump to 30, and not left at 2.0 either:
+        // (2.0*13 + 30.0) / 14 = 4.0.
         val quiet = (0..14).map { bar(etEpoch(0, 0, it), h = 101.0, l = 99.0, c = 100.0) }
         val spike = bar(etEpoch(0, 0, 15), h = 130.0, l = 100.0, c = 115.0)
         val atr = DayTradingTechnicals.atr14(quiet + spike)!!
         assertTrue("a real spike should raise the smoothed ATR: got $atr", atr > 2.0)
-        assertEquals(4.142857, atr, 0.001)
+        assertEquals(4.0, atr, 0.001)
     }
 
     @Test fun `out-of-order bars are sorted before the true range is computed`() {
