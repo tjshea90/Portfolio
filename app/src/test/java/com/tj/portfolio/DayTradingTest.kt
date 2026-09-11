@@ -395,7 +395,6 @@ class DayTradingTest {
     private fun confRow(
         rvol: Double = 1.0,
         changePct: Double = 0.0,
-        rangePos52w: Double? = null,
         mostShorted: Boolean = false
     ) = ScreenRow(
         symbol = "HOT",
@@ -404,7 +403,7 @@ class DayTradingTest {
         volume = (rvol * 4_000_000.0),
         avgVolume3M = 4_000_000.0,
         fiftyTwoWeekLow = 6.0,
-        fiftyTwoWeekHigh = if (rangePos52w != null) 6.0 + (12.0 - 6.0) / rangePos52w.coerceAtLeast(0.01) else 20.0,
+        fiftyTwoWeekHigh = 20.0,
         lists = if (mostShorted) setOf(Screener.Lists.MOST_SHORTED) else emptySet()
     )
 
