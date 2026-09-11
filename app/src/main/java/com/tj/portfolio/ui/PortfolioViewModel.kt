@@ -5820,7 +5820,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // [com.tj.portfolio.net.ResearchScore.tradePlan]), which a price fill does not
                 // have, and the live technicals sweep covers added rows anyway - it enriches
                 // whatever is in the visible window, not just rows the screener produced.
-                dayTrading = fill(s.dayTrading)
+                dayTrading = dropUnusableClaudeLevels(fill(s.dayTrading))
             )
         )
     }
