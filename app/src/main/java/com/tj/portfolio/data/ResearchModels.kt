@@ -248,7 +248,7 @@ data class ResearchRow(
      * [com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals.sessionDay]. Blank until a live
      * technicals sweep has filled them.
      */
-    val sessionDay: String = "",
+    val sessionDay: String = ""
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("symbol", symbol)
@@ -392,7 +392,8 @@ data class ResearchRow(
                 prevHigh = o.optDouble("prevHigh", 0.0).orZero(),
                 premarketHigh = o.optDouble("premarketHigh", 0.0).orZero(),
                 sessionHigh = o.optDouble("sessionHigh", 0.0).orZero(),
-                sessionLow = o.optDouble("sessionLow", 0.0).orZero()
+                sessionLow = o.optDouble("sessionLow", 0.0).orZero(),
+                sessionDay = o.text("sessionDay")
             ).let {
                 if (isFundList && version < VERSION_CONVICTION_SPLIT) it.repairModelScore()
                 else it
