@@ -588,4 +588,63 @@ class DbTest {
         db.setOverride(Override("csco", avgCost = 50.0, shares = null))
         assertNotNull(db.overrides()["CSCO"])
     }
+
+    // ------------------------------------------------------ recommendation cache
+
+    private fun rec(symbol: String, dayKey: String, verdict: TradeVerdict = TradeVerdict.HOLD) =
+        Recommendation(
+            symbol = symbol, verdict = verdict, score = 55,
+            reasons = listOf("a reason", "another reason"), confidence = 80,
+            targetMean = 123.45, targetHigh = 150.0, targetLow = 100.0, analystCount = 12,
+            price = 111.11, dayKey = dayKey, computedAt = 1_757_000_000_000L
+        )
+
+    @Test fun `a cached recommendation round-trips every field`() {
+        db.cacheRecommendation(rec("NVDA", "20260911"))
+        val back = db.cachedRecommendation("NVDA")!!
+        assertEquals("NVDA", back.symbol)
+        assertEquals(TradeVerdict.HOLD, back.verdict)
+        assertEquals(55, back.score)
+        assertEquals(listOf("a reason", "another reason"), back.reasons)
+        assertEquals(80, back.confidence)
+        assertEquals(123.45, back.targetMean, 1e-9)
+        assertEquals(150.0, back.targetHigh, 1e-9)
+        assertEquals(100.0, back.targetLow, 1e-9)
+        assertEquals(12, back.analystCount)
+        assertEquals(111.11, back.price, 1e-9)
+        assertEquals("20260911", back.dayKey)
+    }
+
+    @Test fun `a missing recommendation reads as null, not as an exception`() {
+        assertNull(db.cachedRecommendation("GHOST"))
+    }
+
+    @Test fun `caching again for the same symbol replaces, not duplicates`() {
+        db.cacheRecommendation(rec("AAPL", "20260910", TradeVerdict.SELL))
+        db.cacheRecommendation(rec("AAPL", "20260911", TradeVerdict.BUY))
+        val back = db.cachedRecommendation("AAPL")!!
+        assertEquals("20260911", back.dayKey)
+        assertEquals(TradeVerdict.BUY, back.verdict)
+    }
+
+    @Test fun `symbols are uppercased on write and on read`() {
+        db.cacheRecommendation(rec("tsla", "20260911"))
+        assertNotNull(db.cachedRecommendation("TSLA"))
+        assertNotNull(db.cachedRecommendation("tsla"))
+    }
+
+    @Test fun `the recommendation kind does not collide with holdings or core fundamentals`() {
+        db.cacheRecommendation(rec("SPY", "20260911"))
+        assertNull(db.cachedFundamentals("SPY", Keys.KIND_CORE))
+        assertNull(db.cachedHoldings("SPY"))
+        assertNotNull(db.cachedRecommendation("SPY"))
+    }
+
+    @Test fun `purgeFundamentals ages out a stale recommendation like any other kind`() {
+        val stale = rec("OLD", "20260101").copy(computedAt = 1L)
+        db.cacheRecommendation(stale)
+        assertNotNull(db.cachedRecommendation("OLD"))
+        db.purgeFundamentals(olderThanMs = 1000L)
+        assertNull(db.cachedRecommendation("OLD"))
+    }
 }
