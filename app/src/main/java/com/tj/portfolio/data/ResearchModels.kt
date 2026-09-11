@@ -304,7 +304,10 @@ data class ResearchRow(
                 ),
                 catalyst = o.text("catalyst"),
                 conviction = o.optInt("conviction", 0).coerceIn(0, 10),
-                etf = EtfFacts.fromJson(o.optJSONObject("etf"))
+                etf = EtfFacts.fromJson(o.optJSONObject("etf")),
+                entryPrice = o.optDouble("entryPrice", 0.0).orZero(),
+                stopPrice = o.optDouble("stopPrice", 0.0).orZero(),
+                targetPrice = o.optDouble("targetPrice", 0.0).orZero()
             ).let {
                 if (isFundList && version < VERSION_CONVICTION_SPLIT) it.repairModelScore()
                 else it
