@@ -400,6 +400,30 @@ class DayTradingTest {
         assertNull(ResearchScore.beginnerSummary("HOT", price = 100.0, entry = 105.0, stop = 0.0, target = 0.0))
     }
 
+    @Test fun `real levels with no price yet also means no beginner summary`() {
+        // Round 71 review fix: `applyDayTradingAnswer` can publish a Claude-imported pick whose
+        // levels are real but whose price fill has not resolved yet (`levelsUsable` leaves such
+        // a row's levels intact while price <= 0.0). Without this guard every branch below would
+        // fall through to a confident "Buy if it climbs..." built from a placeholder zero.
+        assertNull(
+            ResearchScore.beginnerSummary("HOT", price = 0.0, entry = 105.0, stop = 100.0, target = 115.0)
+        )
+    }
+
+    @Test fun `a price sitting exactly on the entry says so, instead of guessing a direction`() {
+        // Round 71 review fix: guessing "climbs" vs "drops" from price vs entry is right for a
+        // breakout and backwards for a pullback - at the exact level, say what is actually true
+        // for both instead of a coin flip.
+        val s = ResearchScore.beginnerSummary(
+            "HOT", price = 105.0, entry = 105.0, stop = 100.0, target = 115.0
+        )
+        assertNotNull(s)
+        assertFalse(s!!.skip)
+        assertTrue("must say it's at the price now: ${s.headline}", s.headline.contains("right now"))
+        assertFalse("must not guess a direction: ${s.headline}", s.headline.contains("climbs"))
+        assertFalse(s.headline.contains("drops"))
+    }
+
     @Test fun `once the price already reached the target, it is too late - not a buy instruction`() {
         val s = ResearchScore.beginnerSummary(
             "HOT", price = 115.0, entry = 105.0, stop = 100.0, target = 110.0
