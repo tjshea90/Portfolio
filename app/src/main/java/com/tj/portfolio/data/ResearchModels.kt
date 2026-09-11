@@ -464,6 +464,9 @@ data class ResearchSet(
         if (etfGenerated > 0) put("etfGenerated", etfGenerated)
         if (etfWarnings.isNotEmpty()) put("etfWarnings", JSONArray(etfWarnings))
         put("dayTrading", JSONArray().also { a -> dayTrading.forEach { a.put(it.toJson()) } })
+        if (dtExplained > 0) put("dtExplained", dtExplained)
+        if (dtExplainedBy.isNotBlank()) put("dtExplainedBy", dtExplainedBy)
+        if (dtNotes.isNotBlank()) put("dtNotes", dtNotes)
     }
 
     companion object {
