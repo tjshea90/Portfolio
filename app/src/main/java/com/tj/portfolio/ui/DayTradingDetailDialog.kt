@@ -43,46 +43,82 @@ fun DayTradingDetailDialog(r: ResearchRow, onDismiss: () -> Unit) {
                     .verticalScroll(rememberScrollState())
             ) {
                 if (r.entryPrice > 0) {
-                    TradeLevelsGrid(r.entryPrice, r.stopPrice, r.targetPrice)
+                    TradeLevelsGrid(r)
                     Spacer(Modifier.height(10.dp))
+                    val rr = rewardToRisk(r)
                     Text(
-                        if (r.atr > 0)
-                            "Stop is 1.5x this stock's own ATR(14) - ${Fmt.price(r.atr)} of " +
-                                "average daily range - below entry; target is a 2:1 reward-to-" +
-                                "risk off that same distance. A computed risk plan, not a " +
-                                "forecast of where the price is going."
+                        "Risking ${Fmt.price(r.entryPrice - r.stopPrice)} a share to make " +
+                            "${Fmt.price(r.targetPrice - r.entryPrice)}" +
+                            (if (rr > 0) " - ${Fmt.oneDp(rr)} to 1" else "") + ".",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        if (r.planByClaude)
+                            "These three prices are CLAUDE'S, not the app's arithmetic - set " +
+                                "from its own reading of what is happening in this stock right " +
+                                "now. The app checked only that they describe a real trade " +
+                                "(stop below entry, target above it, all near the live price); " +
+                                "the judgment behind them is Claude's."
                         else
-                            "Stop and target are a first estimate from this stock's 52-week " +
-                                "range and today's own move, while the real ATR-based reading " +
-                                "loads - not a forecast either way.",
+                            "The buy price is a TRIGGER, not the current price - a level the " +
+                                "market has to reach before anything is bought, which is how a " +
+                                "day trade is actually placed. The stop sits under the " +
+                                "structure that would say the setup failed, sized from this " +
+                                "stock's own 5-minute ATR so it is a same-session stop; the " +
+                                "target is the next real resistance above the entry. Computed " +
+                                "from real levels - not a forecast of where the price is going.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                if (r.atr > 0 || r.vwap > 0) {
+                if (r.atr > 0 || r.vwap > 0 || r.prevHigh > 0) {
                     Spacer(Modifier.height(14.dp))
                     Text(
-                        "The technicals behind it",
+                        "The levels behind it",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(4.dp))
-                    if (r.atr > 0) Text(
-                        "ATR(14): ${Fmt.price(r.atr)} - this stock's own average daily trading range.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
                     if (r.vwap > 0) Text(
-                        (if (r.price > r.vwap)
+                        if (r.price > r.vwap)
                             "VWAP: ${Fmt.price(r.vwap)} - trading ABOVE it, buyers in control today."
                         else
-                            "VWAP: ${Fmt.price(r.vwap)} - trading below it.") ,
+                            "VWAP: ${Fmt.price(r.vwap)} - trading BELOW it, sellers in control.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     if (r.openingRangeHigh > 0) Text(
                         "Opening range (9:30-10:00 ET): ${Fmt.price(r.openingRangeLow)} - " +
                             "${Fmt.price(r.openingRangeHigh)}" +
                             if (r.price > r.openingRangeHigh) " - broken above" else "",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (r.premarketHigh > 0) Text(
+                        "Premarket high: ${Fmt.price(r.premarketHigh)}.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (r.prevHigh > 0) Text(
+                        "Prior session's high: ${Fmt.price(r.prevHigh)}.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (r.sessionHigh > 0 && r.sessionLow > 0) Text(
+                        "Session range so far: ${Fmt.price(r.sessionLow)} - " +
+                            "${Fmt.price(r.sessionHigh)}" +
+                            if (r.adr > 0)
+                                " - ${((r.sessionHigh - r.sessionLow) / r.adr * 100).toInt()}% " +
+                                    "of a normal day's ${Fmt.price(r.adr)} range"
+                            else "",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (r.atrIntraday > 0) Text(
+                        "5-minute ATR: ${Fmt.price(r.atrIntraday)} - the volatility the stop is " +
+                            "sized from.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (r.atr > 0) Text(
+                        "Daily ATR(14): ${Fmt.price(r.atr)} - this stock's average daily range.",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
