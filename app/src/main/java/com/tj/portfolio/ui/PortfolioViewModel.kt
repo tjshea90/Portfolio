@@ -662,11 +662,7 @@ internal fun mergeDayTradingTech(
         targetPrice = plan?.target ?: row.targetPrice,
         setup = plan?.setup ?: row.setup,
         trigger = plan?.trigger ?: row.trigger,
-        planNote = plan?.note ?: row.planNote,
-        // The app just recomputed this plan, so it is the app's again - a Claude plan the
-        // import wrote is superseded by live structure rather than left labelled as Claude's
-        // over numbers Claude did not choose.
-        planByClaude = if (plan != null) false else row.planByClaude
+        planNote = plan?.note ?: row.planNote
     )
 }
 
