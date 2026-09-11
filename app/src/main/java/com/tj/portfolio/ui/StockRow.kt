@@ -43,6 +43,9 @@ enum class RowAction { OPEN, EDIT_POSITION, ADD_TXN, NEWS, WATCH_TOGGLE, DELETE 
 /** Test handle for the row's chart, so its size can be measured rather than assumed. */
 internal const val SPARK_TEST_TAG = "rowSparkline"
 
+/** Test handle for the row's BUY/HOLD/SELL chip, whose text varies with the verdict. */
+internal const val RECOMMENDATION_CHIP_TEST_TAG = "rowRecommendationChip"
+
 /** The breathing space between the holdings text and the chart beside it. */
 private val ROW_CHART_GAP = 8.dp
 
