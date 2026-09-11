@@ -399,6 +399,18 @@ data class ResearchSet(
     val explained: Long = 0L,
     val explainedBy: String = "",
     val notes: String = "",
+    /**
+     * [explained]/[explainedBy]/[notes]'s own counterparts for [dayTrading] (Round 67) - NOT
+     * shared with them, on purpose. Those three are already shared across Trending, Best and
+     * ETFs because one `ResearchBridge` call explains all three at once; Day Trading is a
+     * wholly separate bridge, prompt and button, the same reason [etfGenerated] is not
+     * [generated]. Sharing the fields would mean explaining Day Trading silently overwrites
+     * the timestamp and paragraph the Research tab is showing, and vice versa, for two
+     * conversations that never touched each other.
+     */
+    val dtExplained: Long = 0L,
+    val dtExplainedBy: String = "",
+    val dtNotes: String = "",
     val error: String? = null
 ) {
     /**
