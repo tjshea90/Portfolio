@@ -843,6 +843,13 @@ internal fun ResearchCard(
                 )
             }
 
+            // --- THE PLAIN-ENGLISH SUMMARY (Round 71) - drawn BEFORE the technical grid below
+            // it, not instead of it. Tj: "keep all the advice it already shows for each stock,
+            // but add a summary of what to do and why that is simple to read for complete
+            // beginners." No-ops (draws nothing) for every row outside the day-trading section,
+            // same as [TradeLevelsGrid] just below it.
+            if (r.entryPrice > 0) BeginnerSummaryCard(r)
+
             // --- THE DAY-TRADING RISK PLAN (Round 67) - a computed levels grid, same
             // treatment [EtfFactsGrid] gets for the same reason: three numbers a reader
             // compares row to row want the same place on every card. Zero for every row
