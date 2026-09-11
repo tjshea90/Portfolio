@@ -276,21 +276,37 @@ both hardcode `entry = price` — the app's "target buy" is literally the last
 trade. That is a stop/target plan bolted onto a non-existent entry decision,
 not a day-trading signal.
 
-- [ ] Deep research (professional/legitimate sources) on how real day traders
+- [x] Deep research (professional/legitimate sources) on how real day traders
       derive ENTRY triggers — not just stops/targets: opening-range breakout,
       VWAP reclaim/pullback, prior-day high/low, floor-trader pivots,
       measured-move and ATR-based target projection, R-multiples.
-- [ ] Replace `entry = price` with a real, setup-specific TRIGGER level, with
+- [x] Replace `entry = price` with a real, setup-specific TRIGGER level, with
       the setup named, plus its invalidation (stop) and target derived from
       that setup's own structure — not a blanket 2:1 off spot.
-- [ ] Targets that come from real structure (pivot resistance, measured move,
+- [x] Targets that come from real structure (pivot resistance, measured move,
       ATR projection, prior-day high) instead of only a fixed R multiple.
-- [ ] Show the setup + trigger condition in the UI and the tap-to-explain
+- [x] Show the setup + trigger condition in the UI and the tap-to-explain
       dialog ("buy the break above X", "buy the pullback to Y"), so a level
       that is not the current price reads as deliberate.
-- [ ] Rewrite the Claude prompt so Claude MAY change the whole section: swap
+- [x] Rewrite the Claude prompt so Claude MAY change the whole section: swap
       out stocks it judges worse, add better ones, and set its own
       entry/stop/target per stock with its own reasoning, using live web
       data. Reverse the current "do not second-guess these numbers" rule and
       the merge path that discards Claude's levels.
-- [ ] Tests for every new level/trigger path, then the full gradle suite.
+- [x] Tests for every new level/trigger path, then the full gradle suite.
+
+All six done and verified: `ResearchScore.tradePlan` (setup + trigger + structural
+stop + structural target), `DayTradingTechnicals` extended with intraday ATR,
+ADR(14), prior-session H/L/C, floor-trader pivots, premarket high and session
+H/L, `DayTradingBridge` reversed so Claude owns the section, the card and dialog
+showing the setup/trigger/warnings, and 929 tests green (23 new). A high-effort
+`/code-review` pass over the whole diff found 9 issues, all fixed before ship.
+
+Two defects Tj had reported earlier were also closed along the way:
+
+- The stop was `1.5x the DAILY ATR` on a same-session trade - about 1.5 whole
+  average sessions of risk, which is why the old numbers looked implausible.
+  Practitioner sources are unanimous that an ATR stop uses the ATR OF THE
+  TIMEFRAME TRADED, so it is now sized from a 5-minute ATR.
+- "Up X% already today" over a closed market - Round 68 fixed the price line on
+  the card and left the two REASON lines saying it, a centimetre lower.
