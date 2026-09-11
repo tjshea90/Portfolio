@@ -532,7 +532,10 @@ internal fun carryExplanations(
             etfWarnings = old.etfWarnings,
             notes = old.notes,
             explained = old.explained,
-            explainedBy = old.explainedBy
+            explainedBy = old.explainedBy,
+            dtNotes = old.dtNotes,
+            dtExplained = old.dtExplained,
+            dtExplainedBy = old.dtExplainedBy
         )
     }
     if (old.isEmpty) return keepEtfs(fresh)
