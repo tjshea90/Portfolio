@@ -173,19 +173,14 @@ internal fun DetailTabRow(
         }
     ) {
         tabs.forEach { t ->
-            val isRec = t == DetailTab.RECOMMENDATION
             Tab(
                 selected = selected == t,
                 onClick = { onSelect(t) },
                 text = {
                     Text(
-                        if (isRec) recommendationLabel ?: t.label else t.label,
+                        t.label,
                         fontSize = 14.sp,
-                        fontWeight = if (selected == t) FontWeight.Bold else FontWeight.Normal,
-                        // UNSPECIFIED FOR EVERY OTHER TAB, exactly as before this change: Tab
-                        // itself dims an unselected tab's text via LocalContentColor, and
-                        // passing a resolved color here for every tab would flatten that.
-                        color = if (isRec) recommendationColor ?: Color.Unspecified else Color.Unspecified
+                        fontWeight = if (selected == t) FontWeight.Bold else FontWeight.Normal
                     )
                 }
             )
