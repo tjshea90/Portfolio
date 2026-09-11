@@ -5819,18 +5819,24 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             if (tech.isEmpty) return@map row
             changed = true
             val withLevels = mergeDayTradingTech(row, tech)
-            // A CLAUDE-AUTHORED PICK'S SCORE IS NEVER THE APP'S TO SET (Round 72 fix, found
-            // while wiring the likelihood/confidence blend below into this call site). Its
-            // `score` stays 0 and its `conviction` stays whatever Claude gave it - the same rule
-            // [ResearchRow.conviction]'s own header states for a Claude-added ETF row. Before
-            // this guard, [scoreDayTradingRow] below ran unconditionally and could turn a Claude
-            // row's score 0 into a small nonzero number the moment its VWAP/opening-range bonus
-            // applied - at which point `fromClaude = r.score <= 0 && r.conviction > 0` in
-            // `ResearchCard` would have started reading it as an APP score and drawn "SCORE 20"
-            // over a row the app never computed anything for. The levels above still refresh
-            // underneath it either way ([mergeDayTradingTech] already handles that) - only the
-            // scoring below is skipped.
-            if (row.planByClaude || row.symbol in dayTradingTechScored) return@map withLevels
+            // A ROW WITH NO APP-COMPUTED LIKELIHOOD HAS NOTHING FOR THIS TO BUILD ON (Round 72
+            // fix, and a correction to this guard's own first draft - caught by code review
+            // before shipping). A pick Claude added from scratch never runs through
+            // [com.tj.portfolio.net.Research.buildDayTrading]/`toDayTradingRow`, so its
+            // `dtLikelihood` stays exactly 0 forever, the same way its `score` stays 0 - the
+            // rule [ResearchRow.conviction]'s own header states for a Claude-added ETF row.
+            // `dtLikelihood <= 0` is what this actually needs to check, NOT `row.planByClaude`:
+            // the first draft guarded on `planByClaude`, but [dropUnusableClaudeLevels] can flip
+            // that flag back to false (a bad price-check clears Claude's levels) WITHOUT
+            // resetting `dtLikelihood`, which would have reopened the exact bug this guard
+            // exists to close for exactly that row - a small nonzero score built from nothing,
+            // turning "CLAUDE 8/10" into a fabricated "SCORE 12" the moment `fromClaude =
+            // r.score <= 0 && r.conviction > 0` in `ResearchCard` saw a nonzero score. A row the
+            // app DID screen keeps updating live even if Claude later relabels its price plan -
+            // whose entry/stop/target this shows is a separate question from how likely the app
+            // itself thinks the stock is to rise, and [TradeLevelsGrid] already labels that half
+            // on its own.
+            if (row.dtLikelihood <= 0 || row.symbol in dayTradingTechScored) return@map withLevels
             dayTradingTechScored.add(row.symbol)
             scoreDayTradingRow(withLevels, effectiveTechnicals(row, tech))
         }
