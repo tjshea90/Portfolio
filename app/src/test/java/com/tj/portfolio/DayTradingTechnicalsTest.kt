@@ -206,4 +206,90 @@ class DayTradingTechnicalsTest {
     @Test fun `an empty result array parses to null rather than throwing`() {
         assertNull(DayTradingTechnicals.parseBars("""{"chart":{"result":[]}}"""))
     }
+
+    // ============================================ session splitting and levels (Round 69)
+    //
+    // The intraday fetch now asks for pre- and post-market bars too, because the premarket
+    // high is a real trigger level. Everything that means "the session" has to be split back
+    // out of that list, or VWAP silently starts averaging 4am prints and a "session high"
+    // becomes a price no regular-hours order could have been filled at.
+
+    @Test fun `the regular session is 09-30 up to 16-00, and nothing else`() {
+        val bars = listOf(
+            bar(etEpoch(7, 0), h = 120.0, l = 118.0, c = 119.0),   // premarket
+            bar(etEpoch(9, 25), h = 121.0, l = 119.0, c = 120.0),  // still premarket
+            bar(etEpoch(9, 30), h = 105.0, l = 100.0, c = 104.0),  // the open
+            bar(etEpoch(15, 55), h = 106.0, l = 103.0, c = 105.0), // the close
+            bar(etEpoch(16, 5), h = 130.0, l = 128.0, c = 129.0)   // after hours
+        )
+        val regular = DayTradingTechnicals.regularSession(bars)
+        assertEquals(2, regular.size)
+        assertEquals(
+            "an after-hours print must never become the session high",
+            106.0, regular.maxOf { it.high }, 0.001
+        )
+    }
+
+    @Test fun `the premarket high is the 04-00 to 09-30 window only`() {
+        val bars = listOf(
+            bar(etEpoch(3, 30), h = 200.0, l = 199.0, c = 199.5),  // before 4am - excluded
+            bar(etEpoch(7, 0), h = 120.0, l = 118.0, c = 119.0),
+            bar(etEpoch(9, 25), h = 122.0, l = 119.0, c = 121.0),  // the premarket high
+            bar(etEpoch(10, 0), h = 130.0, l = 125.0, c = 129.0)   // regular hours - excluded
+        )
+        assertEquals(122.0, DayTradingTechnicals.premarketHigh(bars), 0.001)
+    }
+
+    @Test fun `no premarket bars is zero, not a crash`() {
+        assertEquals(0.0, DayTradingTechnicals.premarketHigh(emptyList()), 0.0)
+    }
+
+    // ---- the in-progress session, which must never count as a completed one
+
+    /** Milliseconds for an ET wall-clock time on the same fixed weekday scheme. */
+    private fun etMillis(hour: Int, minute: Int, dayOffset: Int = 0): Long =
+        etEpoch(hour, minute, dayOffset) * 1000L
+
+    @Test fun `today's partial bar is excluded while the market is still open`() {
+        val daily = listOf(
+            bar(etEpoch(16, 0, -2), h = 101.0, l = 99.0, c = 100.0),
+            bar(etEpoch(16, 0, -1), h = 103.0, l = 101.0, c = 102.0),
+            bar(etEpoch(11, 0, 0), h = 104.0, l = 103.5, c = 103.8)  // today, mid-session
+        )
+        val completed = DayTradingTechnicals.completedSessions(daily, etMillis(11, 30, 0))
+        assertEquals(2, completed.size)
+        assertEquals(
+            "\"yesterday's high\" must not mean \"the high it made an hour ago\"",
+            103.0, completed.last().high, 0.001
+        )
+    }
+
+    @Test fun `after the close, today IS the prior session`() {
+        val daily = listOf(
+            bar(etEpoch(16, 0, -1), h = 103.0, l = 101.0, c = 102.0),
+            bar(etEpoch(11, 0, 0), h = 104.0, l = 103.5, c = 103.8)
+        )
+        val completed = DayTradingTechnicals.completedSessions(daily, etMillis(18, 0, 0))
+        assertEquals(2, completed.size)
+        assertEquals(104.0, completed.last().high, 0.001)
+    }
+
+    @Test fun `ADR averages the completed daily ranges and refuses too short a history`() {
+        val bars = (0 until 6).map { i ->
+            bar(etEpoch(16, 0, -6 + i), h = 102.0 + i, l = 100.0 + i, c = 101.0 + i)
+        }
+        // Every range is exactly 2.0.
+        assertEquals(2.0, DayTradingTechnicals.adr(bars)!!, 0.001)
+        assertNull("four sessions is not a typical day", DayTradingTechnicals.adr(bars.take(4)))
+    }
+
+    @Test fun `ADR looks back only the requested number of sessions`() {
+        // Nine quiet 2.0-range days, then five wide 10.0-range ones.
+        val quiet = (0 until 9).map { i -> bar(etEpoch(16, 0, -20 + i), h = 102.0, l = 100.0, c = 101.0) }
+        val wide = (0 until 5).map { i -> bar(etEpoch(16, 0, -5 + i), h = 110.0, l = 100.0, c = 105.0) }
+        val adr = DayTradingTechnicals.adr(quiet + wide)!!
+        assertEquals((9 * 2.0 + 5 * 10.0) / 14.0, adr, 0.001)
+        // A shorter window weights the recent, wider days far more heavily.
+        assertEquals(10.0, DayTradingTechnicals.adr(quiet + wide, lookback = 5)!!, 0.001)
+    }
 }
