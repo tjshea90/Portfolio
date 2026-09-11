@@ -510,6 +510,77 @@ object Research {
         )
     }
 
+    /**
+     * See [ResearchScore.dayTrading]'s header for what this section is and, at length, is not.
+     *
+     * ZERO NEW REQUESTS: [universe] is the same nine-screener merge [build] already fetched,
+     * and the WSB/news attention signal comes from `trending`'s OWN output rather than
+     * re-running the O(headlines x universe) match [buildTrending] already paid for.
+     */
+    private fun buildDayTrading(
+        universe: Map<String, ScreenRow>,
+        trending: List<ResearchRow>
+    ): List<ResearchRow> {
+        val trendBy = trending.associateBy { it.symbol }
+        val maxMentions = trending.maxOfOrNull { it.mentions } ?: 0
+        val maxNews = trending.maxOfOrNull { it.newsCount } ?: 0
+
+        return universe.values
+            .asSequence()
+            .filter {
+                it.price >= MIN_PRICE_DAY_TRADING &&
+                    (it.marketCap <= 0.0 || it.marketCap >= MIN_MARKET_CAP)
+            }
+            .map { row ->
+                val tr = trendBy[row.symbol]
+                val t = tr?.let {
+                    ResearchScore.TrendInput(
+                        symbol = row.symbol,
+                        mentions = it.mentions,
+                        rankDelta = it.rankDelta,
+                        sentiment = it.sentiment,
+                        newsCount = it.newsCount,
+                        onYahooTrending = it.onYahooTrending,
+                        changePct = row.changePct
+                    )
+                }
+                val catalystSoon = row.earningsAt > 0 &&
+                    (row.earningsAt - System.currentTimeMillis()) / 86_400_000L in 0..1
+                row to ResearchScore.dayTrading(row, t, maxMentions, maxNews, catalystSoon)
+            }
+            .filter { it.second.score > 0 }
+            .sortedByDescending { it.second.score }
+            .take(DAY_TRADING_BUFFER)
+            .map { (row, sc) -> toDayTradingRow(row, sc, trendBy[row.symbol]) }
+            .toList()
+    }
+
+    private fun toDayTradingRow(
+        r: ScreenRow,
+        sc: ResearchScore.Scored,
+        tr: ResearchRow?
+    ): ResearchRow {
+        val levels = ResearchScore.tradeLevels(r)
+        return ResearchRow(
+            symbol = r.symbol,
+            name = r.name,
+            price = r.price,
+            changePct = r.changePct,
+            score = sc.score,
+            reasons = sc.reasons,
+            mentions = tr?.mentions ?: 0,
+            newsCount = tr?.newsCount ?: 0,
+            headline = tr?.headline.orEmpty(),
+            headlineUrl = tr?.headlineUrl.orEmpty(),
+            headlineSource = tr?.headlineSource.orEmpty(),
+            onYahooTrending = tr?.onYahooTrending ?: false,
+            catalyst = catalystFor(r),
+            entryPrice = levels?.entry ?: 0.0,
+            stopPrice = levels?.stop ?: 0.0,
+            targetPrice = levels?.target ?: 0.0
+        )
+    }
+
     /** The nearest dated event the screener knows about - almost always the next earnings. */
     private fun catalystFor(r: ScreenRow?): String {
         if (r == null || r.earningsAt <= 0) return ""
