@@ -100,6 +100,56 @@ class ResearchCarryTest {
         assertEquals("w", out.best.first().why)
     }
 
+    // ---------------------------------------- Day Trading's own explain state (Round 67)
+    //
+    // Same bug shape as the fund list above, on a newer section: `dtExplained`/
+    // `dtExplainedBy`/`dtNotes` are Day Trading's own counterparts to `explained`/
+    // `explainedBy`/`notes`, kept separate because Day Trading is a wholly different Claude
+    // bridge and button - but `Research.build()` knows nothing about them either, so the same
+    // "returns a fresh set verbatim" bug would silently blank them on the very next
+    // thirty-minute rebuild if `carryExplanations` did not carry them forward too.
+
+    @Test fun `a stock rebuild keeps the day-trading explanation, its clock and its notes`() {
+        val old = ResearchSet(
+            best = listOf(stock("NVDA")),
+            dayTrading = listOf(stock("GME", why = "old day-trading note")),
+            dtNotes = "Claude's note about the day-trading data",
+            dtExplained = 1_650_000_000_000L,
+            dtExplainedBy = "API",
+            generated = 1_700_000_000_000L
+        )
+        val fresh = ResearchSet(
+            best = listOf(stock("NVDA")),
+            dayTrading = listOf(stock("GME")),
+            generated = 1_700_001_800_000L
+        )
+        val out = carryExplanations(old, fresh)
+        assertEquals("Claude's note about the day-trading data", out.dtNotes)
+        assertEquals(1_650_000_000_000L, out.dtExplained)
+        assertEquals("API", out.dtExplainedBy)
+        assertEquals("old day-trading note", out.dayTrading.first().why)
+        // The two explain states stay apart - carrying Day Trading's forward must not leak
+        // into, or borrow from, Research's own.
+        assertEquals("", out.notes)
+        assertEquals(0L, out.explained)
+    }
+
+    @Test fun `an ETF-only cache is not thrown away and keeps day-trading state too`() {
+        // The same early-exit path as the ETF version of this test - `old.isEmpty` is true
+        // because it only asks about the STOCK lists - so this is the other place the bug
+        // shape above could have been reintroduced.
+        val old = ResearchSet(
+            etfs = listOf(fund("VOO")),
+            dtNotes = "day-trading note",
+            dtExplained = 1_600_000_000_000L,
+            dtExplainedBy = "Claude app"
+        )
+        val out = carryExplanations(old, ResearchSet(best = listOf(stock("NVDA"))))
+        assertEquals("day-trading note", out.dtNotes)
+        assertEquals(1_600_000_000_000L, out.dtExplained)
+        assertEquals("Claude app", out.dtExplainedBy)
+    }
+
     // ------------------------------------------------- the fund list's own rebuild
 
     @Test fun `a fund rebuild keeps the explanation for a fund that survived`() {
