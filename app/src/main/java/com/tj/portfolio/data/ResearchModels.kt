@@ -389,8 +389,32 @@ data class ResearchRow(
             ).let {
                 if (isFundList && version < VERSION_CONVICTION_SPLIT) it.repairModelScore()
                 else it
-            }
+            }.dropPreTriggerPlan()
         }
+
+        /**
+         * THROW AWAY A DAY-TRADING PLAN WRITTEN BEFORE [entryPrice] MEANT WHAT IT MEANS NOW.
+         *
+         * The Research cache is a settings row: it survives the app upgrade, the same reason
+         * [repairModelScore] has to exist. Before Round 69 `entryPrice` was simply the last
+         * traded price. After it, the card labels that number "Buy at" and the dialog explains
+         * at length that it is a TRIGGER the market has to reach - so a row still on disk from
+         * the old build would have the exact defect Tj reported dressed in new prose insisting
+         * it had been fixed. Worse than the original, because the prose is now a claim.
+         *
+         * Detected by SHAPE rather than by a cache version, because the shape is decisive and
+         * needs no plumbing: every Round 69 plan carries a [setup] (the app's own always names
+         * one) or [planByClaude]. A priced plan with neither can only be a pre-Round-69 row.
+         * Cleared rather than converted - the live technicals sweep computes a real one within
+         * a tick of the tab opening, and a blank is honest where a converted guess is not.
+         */
+        private fun ResearchRow.dropPreTriggerPlan(): ResearchRow =
+            if (entryPrice > 0.0 && setup.isBlank() && !planByClaude)
+                copy(
+                    entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
+                    trigger = "", planNote = ""
+                )
+            else this
 
         /**
          * See [VERSION_CONVICTION_SPLIT]. Only ever applied to the `etfs` array of a cache an
