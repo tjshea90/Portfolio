@@ -8,7 +8,6 @@ import com.tj.portfolio.data.ResearchSet
 import com.tj.portfolio.net.DayTradingTechnicals
 import com.tj.portfolio.ui.PortfolioViewModel
 import com.tj.portfolio.ui.mergeDayTradingTech
-import com.tj.portfolio.ui.withDayTradingLevels
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -137,41 +136,6 @@ class ResearchPriceFillTest {
         assertEquals(listOf("GME"), vm().pricelessRows(set))
     }
 
-    // ============================================================ withDayTradingLevels
-    //
-    // A DAY-TRADING ROW CLAUDE ADDED HAS NO TRADE LEVELS EITHER (Round 67) - only a symbol.
-    // `withDayTradingLevels` is the fill for that, the same shape as the price fill above:
-    // pure, so it can be checked with no network and no ViewModel, the moment a real price
-    // exists to compute entry/stop/target from.
-
-    /** The whole point: a priced row with no levels yet gets them computed. */
-    @Test fun computesLevelsForAPricedRowThatHasNone() {
-        val out = withDayTradingLevels(listOf(row("GME", price = 20.0)))
-        val g = out.first()
-        assertEquals(20.0, g.entryPrice, 0.001)
-        assertTrue("stop should sit below entry", g.stopPrice < g.entryPrice)
-        assertTrue("target should sit above entry", g.targetPrice > g.entryPrice)
-    }
-
-    /** Still no price - Claude's pick has not been quoted yet, so there is nothing to compute from. */
-    @Test fun leavesAPricelessRowAlone() {
-        val out = withDayTradingLevels(listOf(row("GME", price = 0.0)))
-        assertEquals(0.0, out.first().entryPrice, 0.0)
-        assertEquals(0.0, out.first().stopPrice, 0.0)
-        assertEquals(0.0, out.first().targetPrice, 0.0)
-    }
-
-    /** A row the screener already built carries its own levels - this fill must not touch it. */
-    @Test fun leavesAnAlreadyLeveledRowUntouched() {
-        val already = ResearchRow(
-            symbol = "AMD", price = 150.0, entryPrice = 150.0, stopPrice = 145.0, targetPrice = 160.0
-        )
-        val out = withDayTradingLevels(listOf(already))
-        assertEquals(150.0, out.first().entryPrice, 0.001)
-        assertEquals(145.0, out.first().stopPrice, 0.001)
-        assertEquals(160.0, out.first().targetPrice, 0.001)
-    }
-
     // ============================================================ mergeDayTradingTech
     //
     // A REAL BUG, CAUGHT BY CODE REVIEW BEFORE SHIPPING (Round 68). The daily-bar fetch
@@ -191,8 +155,13 @@ class ResearchPriceFillTest {
 
     private fun tech(
         atr: Double = 0.0, vwap: Double = 0.0, orHigh: Double = 0.0, orLow: Double = 0.0,
-        orComplete: Boolean = false
-    ) = DayTradingTechnicals.DayTechnicals(atr, vwap, orHigh, orLow, orComplete)
+        orComplete: Boolean = false, prevHigh: Double = 0.0, prevLow: Double = 0.0,
+        prevClose: Double = 0.0
+    ) = DayTradingTechnicals.DayTechnicals(
+        atr14 = atr, vwap = vwap, openingRangeHigh = orHigh, openingRangeLow = orLow,
+        openingRangeComplete = orComplete, prevHigh = prevHigh, prevLow = prevLow,
+        prevClose = prevClose
+    )
 
     @Test fun `a fresh full reading replaces every technicals field`() {
         val out = mergeDayTradingTech(
@@ -234,14 +203,25 @@ class ResearchPriceFillTest {
         assertEquals(3.0, out.atr, 0.001)
     }
 
-    @Test fun `entry-stop-target upgrade only when this tick's ATR is real`() {
-        val stale = leveled(atr = 0.0) // still on tradeLevels()'s pre-ATR estimate
-        val upgraded = mergeDayTradingTech(stale, tech(atr = 1.0))
-        assertEquals(22.5, upgraded.entryPrice, 0.001)
+    @Test fun `the trade plan is recomputed when a tick has levels, and left whole when it has none`() {
+        // ROUND 69: the assertion that used to live here was `entry == price`. That WAS the
+        // bug Tj reported - a test can pin a defect in place just as firmly as it pins correct
+        // behaviour, which is why this one is rewritten rather than adjusted.
+        val stale = leveled(atr = 0.0)
+        val upgraded = mergeDayTradingTech(
+            stale, tech(atr = 1.0, prevHigh = 23.0, prevLow = 22.0, prevClose = 22.4)
+        )
+        assertTrue(
+            "entry must be a trigger level above the price, not the price itself",
+            upgraded.entryPrice > 22.5
+        )
         assertTrue(upgraded.stopPrice < upgraded.entryPrice)
+        assertTrue(upgraded.targetPrice > upgraded.entryPrice)
+        assertTrue("the setup has to be named on the row", upgraded.setup.isNotBlank())
+        assertTrue("the trigger has to say what to do", upgraded.trigger.isNotBlank())
 
-        // No real ATR this tick either (both this reading's and the row's are 0) - the
-        // pre-existing entry/stop/target from the row are left exactly as they were.
+        // Nothing to plan from this tick - the previous plan survives INTACT, all six fields.
+        // A half-replaced plan would describe a trade nobody chose.
         val notUpgraded = mergeDayTradingTech(stale, tech(atr = 0.0))
         assertEquals(stale.entryPrice, notUpgraded.entryPrice, 0.001)
         assertEquals(stale.stopPrice, notUpgraded.stopPrice, 0.001)
