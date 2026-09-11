@@ -399,7 +399,43 @@ Tj's request, 2026-09-11 (his own words, two parts):
       https://github.com/tjshea90/Portfolio/releases/tag/v7.15 (Claude does
       not relay release-asset bytes, per the standing rule in CLAUDE.md).
 
-## Part 6.2: confidence-blended score — FLAGGED, not started
+## Part 6.2: confidence-blended score
+
+**Tj, 2026-09-11: "Skip the screener and use the current model for this task"** - explicit
+override of the SCREENER flag below, per SCREENER.md's protocol step 3. Proceeding on the
+current model (Sonnet) without stopping to check.
+
+Design, decided before writing code:
+
+- **`likelihood` (0-100)** is the app's EXISTING day-trading "in play" score
+  (`ResearchScore.dayTrading` + `withTechnicals`'s VWAP/opening-range bonus) - relative volume,
+  the move already under way, breakout structure, squeeze shape. These are the standard
+  continuation/momentum signals the day-trading literature already cited in this file points
+  to, and are the best proxy this app can honestly compute for "likely to keep rising" without
+  fabricating a real probability - see [ResearchScore.dayTrading]'s own header on why a genuine
+  forecast is not achievable from free public data. Nothing about how this number is computed
+  changes; it is only renamed conceptually and no longer the SCORE shown on screen by itself.
+- **`confidence` (0-100)** is NEW: a fixed 5-item checklist of independent, checkable
+  confirmations (heavy relative volume, the move already real, trading above VWAP, a confirmed
+  opening-range breakout, and structural strength - near the 52-week high or a genuine
+  short-squeeze shape), each counted ONLY when actually confirmed - never when merely unknown
+  (a signal not yet fetched, e.g. VWAP before the live technicals sweep runs, counts as "not
+  confirmed," not "confirmed false" and not "skip this check" - so confidence is honestly LOWER
+  before the fuller picture has arrived, not inflated by a smaller denominator). Earnings/
+  catalyst timing and WSB/news mention volume are deliberately EXCLUDED from this checklist -
+  the file's own existing reasoning already says a catalyst can cut either direction and chatter
+  alone describes what people are saying, not what the tape is doing.
+- **The displayed SCORE = likelihood × confidence / 100.** Matches Tj's own example directly:
+  100 requires both to be high. The list sorts by this blended score, not the raw likelihood -
+  it is now the number a reader compares row to row.
+- **Both raw numbers are kept on the row** (`dtLikelihood`, `dtConfidence`) and shown in the
+  breakdown, not just the blended result - the same "app shows its work" rule the rest of this
+  file follows, so "why is this only 62" has a visible answer.
+- **Claude-authored Day Trading picks are untouched** - they have no app-computed `Scored` to
+  blend from at all, the same reason [ResearchRow.conviction] is kept separate from [score] for
+  Claude-added ETF rows (Round 66 audit).
+
+## Part 6.2 (superseded note): confidence-blended score — FLAGGED, not started
 
 **Money-accuracy + ambiguous-design match per SCREENER.md. Session is on
 Sonnet (`claude-sonnet-5`, confirmed via get_session). Not started - waiting
