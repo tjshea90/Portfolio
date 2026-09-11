@@ -132,9 +132,18 @@ object Research {
             .map { (row, sc) -> toRow(row, sc, headlines) }
             .toList()
 
+        // ------------------------------------------------------------ day trading
+        //
+        // FROM THE SAME PASS, ZERO NEW REQUESTS. Reuses `universe` (the same nine screeners
+        // above) and `trending`'s own output for the WSB/news attention signal, rather than
+        // re-running the O(headlines x universe) matching `buildTrending` already paid for -
+        // see [ResearchScore.dayTrading] for what this section is (and, at length, is not).
+        val dayTrading = buildDayTrading(universe, trending)
+
         ResearchSet(
             trending = trending,
             best = best,
+            dayTrading = dayTrading,
             generated = System.currentTimeMillis(),
             sources = SOURCES,
             warnings = warnings
