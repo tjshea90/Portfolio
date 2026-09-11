@@ -619,6 +619,36 @@ internal fun withDayTradingLevels(
 }
 
 /**
+ * Merges one fresh [DayTradingTechnicals.DayTechnicals] reading into a row - TOP-LEVEL AND
+ * PURE, same reason [withDayTradingLevels] is, so a test can check it with no network and no
+ * ViewModel.
+ *
+ * EACH FIELD KEPT SEPARATELY ON A PARTIAL FETCH (a real bug caught by code review before
+ * shipping, fixed here). The daily-bar request (ATR) and the intraday-bar request (VWAP,
+ * opening range) fail independently - see [DayTradingTechnicals.DayTechnicals.isEmpty]'s own
+ * note - so a `tech` that is not empty only means AT LEAST ONE of the two answered this tick,
+ * not that all four fields did. Blindly copying `tech`'s zeros over the row's own previously-
+ * good reading would regress a real ATR the user is already looking at back to "not yet
+ * available" the moment only the VWAP half of the next fetch succeeds - each field here falls
+ * back to what the row already had, never to a blanket zero.
+ */
+internal fun mergeDayTradingTech(
+    row: com.tj.portfolio.data.ResearchRow,
+    tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
+): com.tj.portfolio.data.ResearchRow {
+    val levels = com.tj.portfolio.net.ResearchScore.upgradeLevels(row.price, tech)
+    return row.copy(
+        atr = if (tech.atr14 > 0) tech.atr14 else row.atr,
+        vwap = if (tech.vwap > 0) tech.vwap else row.vwap,
+        openingRangeHigh = if (tech.openingRangeHigh > 0) tech.openingRangeHigh else row.openingRangeHigh,
+        openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow else row.openingRangeLow,
+        entryPrice = levels?.entry ?: row.entryPrice,
+        stopPrice = levels?.stop ?: row.stopPrice,
+        targetPrice = levels?.target ?: row.targetPrice
+    )
+}
+
+/**
  * A PER-KEY FAILURE BACKOFF: ask again, but less and less often.
  *
  * TOP-LEVEL AND `internal` RATHER THAN PRIVATE TO THE VIEWMODEL (Round 63). It used to be a
