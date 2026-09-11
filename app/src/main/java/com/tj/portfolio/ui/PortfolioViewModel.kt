@@ -5558,12 +5558,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     //   cancels outright, and `stopDayTradingLive` additionally cancels it the moment the
     //   Day Trading tab is no longer the one on screen, which backgrounding alone would not.
 
-    private var dayTradingLiveJob: Job? = null
-
-    /** Every symbol already given its one-time technicals score bonus this rebuild - see
-     *  [enrichDayTradingVisible] for why this must be "once", not "every refresh". Cleared on
-     *  every fresh stock rebuild in [loadResearch], the same cadence [analystDone] uses. */
-    private val dayTradingTechScored = HashSet<String>()
+    // dayTradingLiveJob and dayTradingTechScored are declared above `init` (checkinit.py) -
+    // see the note there. Cleared on every fresh stock rebuild in [loadResearch], the same
+    // cadence [analystDone] uses.
 
     /** How often the live loop re-fetches technicals for the visible window, while it runs at all. */
     private const val DAY_TRADING_LIVE_INTERVAL_MS = 30_000L
