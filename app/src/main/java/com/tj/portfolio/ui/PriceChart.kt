@@ -2514,10 +2514,22 @@ internal fun primaryPercents(
      * the rule from it silently put this line back on the previous close while everything else
      * on the chart had moved to the first point on screen.
      */
-    fromPoint: Boolean = false
+    fromPoint: Boolean = false,
+    /**
+     * The anchor price itself, looked up by the caller - overrides [baseIndex]/[fromPoint]
+     * when given.
+     *
+     * FOR A FROZEN GESTURE ANCHOR (see the note in [PriceChart] where this is called). An
+     * index into [s]`.points` only means the same candle as long as [s] itself does not
+     * change shape, and a chart being actively panned re-slices its drawn series on every
+     * frame - so a frozen INDEX quietly points at a different candle each time, while a
+     * frozen VALUE, looked up once by timestamp from a series that is not being re-sliced,
+     * does not.
+     */
+    fromValue: Double? = null
 ): DoubleArray? {
     if (s.isEmpty) return null
-    val from = if (fromPoint && baseIndex in s.points.indices) {
+    val from = fromValue ?: if (fromPoint && baseIndex in s.points.indices) {
         s.points[baseIndex].close
     } else {
         s.from
