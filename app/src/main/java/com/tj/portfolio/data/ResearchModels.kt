@@ -362,7 +362,16 @@ data class ResearchRow(
                 atr = o.optDouble("atr", 0.0).orZero(),
                 vwap = o.optDouble("vwap", 0.0).orZero(),
                 openingRangeHigh = o.optDouble("openingRangeHigh", 0.0).orZero(),
-                openingRangeLow = o.optDouble("openingRangeLow", 0.0).orZero()
+                openingRangeLow = o.optDouble("openingRangeLow", 0.0).orZero(),
+                setup = o.text("setup"),
+                trigger = o.text("trigger"),
+                planNote = o.text("planNote"),
+                atrIntraday = o.optDouble("atrIntraday", 0.0).orZero(),
+                adr = o.optDouble("adr", 0.0).orZero(),
+                prevHigh = o.optDouble("prevHigh", 0.0).orZero(),
+                premarketHigh = o.optDouble("premarketHigh", 0.0).orZero(),
+                sessionHigh = o.optDouble("sessionHigh", 0.0).orZero(),
+                sessionLow = o.optDouble("sessionLow", 0.0).orZero()
             ).let {
                 if (isFundList && version < VERSION_CONVICTION_SPLIT) it.repairModelScore()
                 else it
