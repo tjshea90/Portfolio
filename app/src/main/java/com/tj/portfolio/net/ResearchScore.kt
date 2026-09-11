@@ -450,9 +450,18 @@ object ResearchScore {
     /** Or: it has already travelled this much of a normal day's whole range. */
     private const val EXTENDED_RANGE_USED = 0.85
 
-    /** Day-trade stop, in intraday ATRs - the range practitioner sources give for a hold of
-     *  minutes-to-hours, tightened at the bottom end so a structural stop can be tight. */
-    private const val MIN_RISK_ATRS = 0.75
+    /**
+     * Day-trade stop, in intraday ATRs - the 1.5x-2.5x band practitioner sources give for a
+     * hold of fifteen minutes to the close, on the ATR OF THE TIMEFRAME BEING TRADED.
+     *
+     * THE FLOOR IS THE HALF THAT DOES THE WORK, which is not obvious. For a breakout the
+     * nearest level below entry IS the level just broken, so the structural stop comes out a
+     * couple of cents under the trigger - far too tight to survive one ordinary 5-minute bar,
+     * and a stop taken out by noise while the setup is still intact is worse than no stop.
+     * The floor is what turns that into a real volatility stop. The ceiling matters in the
+     * other direction, on a pullback whose next support is a long way down.
+     */
+    private const val MIN_RISK_ATRS = 1.5
     private const val MAX_RISK_ATRS = 2.5
 
     /** The standard "at least 2:1" reward:risk floor, and the ceiling on projecting one day. */
@@ -627,7 +636,7 @@ object ResearchScore {
                     "Buy the break above ${Fmt.price(entry)} ($entryLevel) - a buy-stop, " +
                         "so nothing is bought unless the move proves itself."
             },
-            note = planNote(price, entry, tech, rawRisk, maxRisk)
+            note = planNote(price, entry, risk, target, tech, rawRisk, maxRisk)
         )
         return plan
     }
@@ -640,11 +649,22 @@ object ResearchScore {
     private fun planNote(
         price: Double,
         entry: Double,
+        risk: Double,
+        target: Double,
         tech: DayTradingTechnicals.DayTechnicals,
         rawRisk: Double,
         maxRisk: Double
     ): String {
-        val parts = ArrayList<String>(3)
+        val parts = ArrayList<String>(4)
+        // THE THIN-REWARD WARNING, which the target rule above deliberately creates rather than
+        // hides: when real resistance sits closer than 2R, the target is placed AT it and the
+        // trade is reported as the thin one it is, instead of drawing an obedient 2:1 target
+        // straight through the level that is going to stop the move.
+        val rr = if (risk > 1e-9) (target - entry) / risk else 0.0
+        if (rr in 0.0..1.5) parts.add(
+            "Only ${Fmt.oneDp(rr)} to 1 - the next resistance sits closer than a 2:1 target " +
+                "would, so this is a thin trade for the risk"
+        )
         if (tech.sessionLive && tech.rangeUsed >= EXTENDED_RANGE_USED) parts.add(
             "Already travelled ${(tech.rangeUsed * 100).toInt()}% of its average daily range - " +
                 "little room left today"
