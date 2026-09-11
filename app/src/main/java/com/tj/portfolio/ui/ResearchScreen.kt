@@ -892,7 +892,7 @@ internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
  * "what a risk-managed plan would use", not "good news" and "bad news".
  */
 @Composable
-private fun TradeLevelsGrid(entry: Double, stop: Double, target: Double) {
+internal fun TradeLevelsGrid(entry: Double, stop: Double, target: Double) {
     Spacer(Modifier.height(9.dp))
     Column(
         Modifier
