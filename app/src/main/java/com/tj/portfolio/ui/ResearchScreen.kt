@@ -623,7 +623,9 @@ private fun ResearchCard(
     r: ResearchRow,
     followed: Boolean,
     onOpen: (String) -> Unit,
-    onOpenUrl: (String, String) -> Unit
+    onOpenUrl: (String, String) -> Unit,
+    /** " - last session" etc. - see [Section.sessionSuffix]. Blank outside Day Trading. */
+    sessionSuffix: String = ""
 ) {
     // Colour is by score. See `scoreColor`, and the note there about why it no longer takes
     // a direction. This colour is printed as the score itself, on a 16%-alpha tint that
