@@ -251,3 +251,46 @@ starts: money-accuracy logic, irreversible actions, locked architecture,
 ambiguous design, a previously-failed fix, security, or Tj's own words
 flagging something as important all pause for an Opus check before any code
 is touched, unless Tj has already said to proceed on Sonnet.
+
+## Part 5: Day Trading — real entry triggers, not spot price; Claude may rewrite the whole section
+
+**Screened 2026-09-11: money-accuracy (buy/sell target logic). Flagged, Tj
+switched to Opus, said "opus is on, continue." Running on Opus.**
+
+Tj's request, 2026-09-11 (his own words):
+
+> in the day trade section, the target buy price just matches the current
+> market price. I don't think this is how day traders operate. do more deep
+> research on day trading and algorithms and timing buys and sells based on
+> charts and real time stock data. keep researching how day trading signals
+> are calculated or make your own method based off real algorithms and
+> methods. take as much time and usage as you need researching this. the day
+> trading section must have good advice with accurate buy and sell price
+> targets. for the Claude prompt, allow Claude to change the entire section
+> as needed using real time information from the market. for example, the
+> Claude prompt can change the stocks in the list if it finds better ones and
+> it can give advice and buy and sell targets for all the stocks
+
+He is right about the defect. `ResearchScore.tradeLevels`/`upgradeLevels`
+both hardcode `entry = price` — the app's "target buy" is literally the last
+trade. That is a stop/target plan bolted onto a non-existent entry decision,
+not a day-trading signal.
+
+- [ ] Deep research (professional/legitimate sources) on how real day traders
+      derive ENTRY triggers — not just stops/targets: opening-range breakout,
+      VWAP reclaim/pullback, prior-day high/low, floor-trader pivots,
+      measured-move and ATR-based target projection, R-multiples.
+- [ ] Replace `entry = price` with a real, setup-specific TRIGGER level, with
+      the setup named, plus its invalidation (stop) and target derived from
+      that setup's own structure — not a blanket 2:1 off spot.
+- [ ] Targets that come from real structure (pivot resistance, measured move,
+      ATR projection, prior-day high) instead of only a fixed R multiple.
+- [ ] Show the setup + trigger condition in the UI and the tap-to-explain
+      dialog ("buy the break above X", "buy the pullback to Y"), so a level
+      that is not the current price reads as deliberate.
+- [ ] Rewrite the Claude prompt so Claude MAY change the whole section: swap
+      out stocks it judges worse, add better ones, and set its own
+      entry/stop/target per stock with its own reasoning, using live web
+      data. Reverse the current "do not second-guess these numbers" rule and
+      the merge path that discards Claude's levels.
+- [ ] Tests for every new level/trigger path, then the full gradle suite.
