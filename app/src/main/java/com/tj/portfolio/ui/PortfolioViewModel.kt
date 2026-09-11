@@ -632,7 +632,16 @@ internal fun mergeDayTradingTech(
     tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
 ): com.tj.portfolio.data.ResearchRow {
     val effective = effectiveTechnicals(row, tech)
-    val plan = com.tj.portfolio.net.ResearchScore.tradePlan(row.price, effective)
+    // A PLAN CLAUDE SET IS NOT RECOMPUTED OVER. The live sweep ticks every 30 seconds, so
+    // computing the app's own plan here unconditionally would have silently replaced an
+    // imported Claude plan within half a minute of the import - the user taps Import, reads
+    // Claude's entry, and watches it turn back into the app's while looking at it. That
+    // defeats the round trip Tj asked for ("it can give advice and buy and sell targets for
+    // all the stocks"). The row's LEVELS still refresh underneath it, so the dialog shows live
+    // VWAP and session structure beside Claude's plan; the plan itself stands until the next
+    // full screener rebuild, which clears the whole section anyway.
+    val plan = if (row.planByClaude) null
+    else com.tj.portfolio.net.ResearchScore.tradePlan(row.price, effective)
     return row.copy(
         atr = effective.atr14,
         vwap = effective.vwap,
