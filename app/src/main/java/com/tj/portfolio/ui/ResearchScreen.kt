@@ -728,6 +728,12 @@ private fun ResearchCard(
                 }
             }
 
+            // --- THE DAY-TRADING RISK PLAN (Round 67) - a computed levels grid, same
+            // treatment [EtfFactsGrid] gets for the same reason: three numbers a reader
+            // compares row to row want the same place on every card. Zero for every row
+            // outside the day-trading section, so this never draws elsewhere.
+            if (r.entryPrice > 0) TradeLevelsGrid(r.entryPrice, r.stopPrice, r.targetPrice)
+
             // --- THE FUND NUMBERS, as a grid rather than as prose (Round 63).
             //
             // Choosing between two funds is a COMPARISON, and a comparison wants the same
