@@ -111,46 +111,6 @@ class DayTradingTest {
         assertTrue(soon.reasons.any { it.contains("earnings today or tomorrow") })
     }
 
-    // ================================================================== trade levels
-
-    @Test fun `tradeLevels refuses a priceless row rather than inventing a plan`() {
-        assertNull(ResearchScore.tradeLevels(ScreenRow(symbol = "X", price = 0.0)))
-    }
-
-    @Test fun `entry is simply today's price`() {
-        val levels = ResearchScore.tradeLevels(ScreenRow(symbol = "X", price = 42.0))
-        assertNotNull(levels)
-        assertEquals(42.0, levels!!.entry, 0.001)
-    }
-
-    @Test fun `stop sits below entry and target above it, at a 2 to 1 reward-to-risk`() {
-        val levels = ResearchScore.tradeLevels(
-            ScreenRow(symbol = "X", price = 100.0, changePct = 4.0)
-        )!!
-        assertTrue(levels.stop < levels.entry)
-        assertTrue(levels.target > levels.entry)
-        val risk = levels.entry - levels.stop
-        val reward = levels.target - levels.entry
-        assertEquals("reward should be exactly 2x the risk", reward, risk * 2.0, 0.01)
-    }
-
-    @Test fun `daily volatility is clamped so an illiquid or wild row cannot get an absurd stop`() {
-        // A huge 52-week range and a huge move today - would blow past 15% unclamped.
-        val wild = ResearchScore.tradeLevels(
-            ScreenRow(
-                symbol = "WILD", price = 10.0, changePct = 90.0,
-                fiftyTwoWeekHigh = 500.0, fiftyTwoWeekLow = 1.0
-            )
-        )!!
-        val stopPct = (wild.entry - wild.stop) / wild.entry * 100.0
-        assertTrue("stop distance should be clamped, was $stopPct%", stopPct <= 9.01)
-
-        // No move today and no usable 52-week range - would fall to zero unclamped.
-        val flat = ResearchScore.tradeLevels(ScreenRow(symbol = "FLAT", price = 10.0))!!
-        val flatStopPct = (flat.entry - flat.stop) / flat.entry * 100.0
-        assertTrue("stop distance should have a floor, was $flatStopPct%", flatStopPct >= 0.89)
-    }
-
     // ==================================================== technicals overlay (Round 68)
 
     private fun tech(
@@ -158,28 +118,193 @@ class DayTradingTest {
         vwap: Double = 0.0,
         orHigh: Double = 0.0,
         orLow: Double = 0.0,
-        orComplete: Boolean = false
-    ) = DayTradingTechnicals.DayTechnicals(atr, vwap, orHigh, orLow, orComplete)
+        orComplete: Boolean = false,
+        atrIntraday: Double = 0.0,
+        adr: Double = 0.0,
+        prevHigh: Double = 0.0,
+        prevLow: Double = 0.0,
+        prevClose: Double = 0.0,
+        premarketHigh: Double = 0.0,
+        sessionHigh: Double = 0.0,
+        sessionLow: Double = 0.0,
+        live: Boolean = true
+    ) = DayTradingTechnicals.DayTechnicals(
+        atr14 = atr,
+        vwap = vwap,
+        openingRangeHigh = orHigh,
+        openingRangeLow = orLow,
+        openingRangeComplete = orComplete,
+        atrIntraday = atrIntraday,
+        adr = adr,
+        prevHigh = prevHigh,
+        prevLow = prevLow,
+        prevClose = prevClose,
+        premarketHigh = premarketHigh,
+        sessionHigh = sessionHigh,
+        sessionLow = sessionLow,
+        sessionLive = live
+    )
 
-    @Test fun `upgradeLevels refuses without a real ATR rather than guessing`() {
-        assertNull(ResearchScore.upgradeLevels(100.0, tech(atr = 0.0)))
-        assertNull(ResearchScore.upgradeLevels(0.0, tech(atr = 2.0)))
+    // ============================================== the trade plan (Round 69)
+    //
+    // THE REGRESSION THESE EXIST FOR, in Tj's own words, 2026-09-11: "the target buy price just
+    // matches the current market price. I don't think this is how day traders operate." It did,
+    // literally - both level functions assigned `entry = price`. Every test below that compares
+    // `entry` against `price` is guarding that specific defect from coming back.
+
+    @Test fun `tradePlan refuses without a price or without any volatility reading`() {
+        assertNull(ResearchScore.tradePlan(0.0, tech(atrIntraday = 1.0)))
+        assertNull(ResearchScore.tradePlan(100.0, tech()))
     }
 
-    @Test fun `upgradeLevels sets entry to price, stop 1-5x ATR below it, target at 2-to-1`() {
-        val levels = ResearchScore.upgradeLevels(100.0, tech(atr = 2.0))!!
-        assertEquals(100.0, levels.entry, 0.001)
-        // stop = 100 - (2.0 * 1.5) = 97.0
-        assertEquals(97.0, levels.stop, 0.001)
-        // target = 100 + (100 - 97) * 2 = 106.0
-        assertEquals(106.0, levels.target, 0.001)
+    @Test fun `a breakout entry sits ABOVE the current price, at the level plus a break buffer`() {
+        // Price 100, holding above VWAP, with the opening-range high at 100.50 overhead.
+        val plan = ResearchScore.tradePlan(
+            100.0,
+            tech(
+                atrIntraday = 1.0, vwap = 99.0,
+                orHigh = 100.5, orLow = 99.5,
+                sessionHigh = 100.5, sessionLow = 99.0
+            )
+        )!!
+        assertEquals(ResearchScore.SETUP_BREAKOUT, plan.setup)
+        // 100.50 + 0.15 (0.15x the 1.00 intraday ATR) - NOT 100.00.
+        assertEquals(100.65, plan.entry, 0.001)
+        assertTrue("entry must be above the last price, not equal to it", plan.entry > 100.0)
+        // Structure says 100.35; that is inside the minimum 0.75-ATR risk, so the stop widens.
+        assertEquals(99.90, plan.stop, 0.001)
+        // Clear air above, so the standard 2:1 applies: 100.65 + 2 * 0.75.
+        assertEquals(102.15, plan.target, 0.001)
+        assertEquals(2.0, plan.rMultiple, 0.001)
+        assertTrue(plan.trigger.contains("break above"))
     }
 
-    @Test fun `upgradeLevels floors the stop so an extreme ATR cannot erase the trade`() {
-        // ATR of 40 on a $100 stock would place a naive stop at 100 - 60 = 40, more than half
-        // the entry price away - floored at 50.0 instead.
-        val levels = ResearchScore.upgradeLevels(100.0, tech(atr = 40.0))!!
-        assertEquals(50.0, levels.stop, 0.001)
+    @Test fun `an extended stock is a pullback to support, BELOW the price - never a chase`() {
+        // 10 intraday ATRs above VWAP: buying here is the mistake the research names.
+        val plan = ResearchScore.tradePlan(
+            110.0,
+            tech(
+                atrIntraday = 1.0, vwap = 100.0,
+                orHigh = 105.0, orLow = 102.0,
+                sessionHigh = 110.0, sessionLow = 99.0
+            )
+        )!!
+        assertEquals(ResearchScore.SETUP_PULLBACK, plan.setup)
+        assertEquals("buy the retest of the broken opening-range high", 105.0, plan.entry, 0.001)
+        assertTrue("a pullback entry must be below the last price", plan.entry < 110.0)
+        assertTrue(plan.stop < plan.entry)
+        assertTrue(plan.trigger.contains("do not chase"))
+        assertTrue(plan.note.contains("BELOW the last price"))
+    }
+
+    @Test fun `below VWAP there is no long until it is reclaimed`() {
+        val plan = ResearchScore.tradePlan(
+            98.0,
+            tech(atrIntraday = 1.0, vwap = 100.0, prevHigh = 101.0, prevLow = 97.0, prevClose = 99.0)
+        )!!
+        assertEquals(ResearchScore.SETUP_RECLAIM, plan.setup)
+        assertEquals(100.15, plan.entry, 0.001)
+        assertTrue(plan.trigger.contains("reclaims"))
+    }
+
+    @Test fun `the target stops at the nearest real resistance rather than drawing through it`() {
+        // Prior high 100.80 sits between entry and the 2R target - a wall, so the target goes
+        // to the wall and the thinner reward is reported honestly.
+        val plan = ResearchScore.tradePlan(
+            100.0,
+            tech(
+                atrIntraday = 1.0, vwap = 99.0,
+                orHigh = 100.2, orLow = 99.5,
+                prevHigh = 100.8, prevLow = 98.0, prevClose = 99.5,
+                sessionHigh = 100.2, sessionLow = 99.0
+            )
+        )!!
+        assertEquals(100.8, plan.target, 0.001)
+        assertTrue("reward is thinner than 2:1 and must not be inflated", plan.rMultiple < 2.0)
+    }
+
+    @Test fun `a stop is never wider than a same-session trade should carry`() {
+        // Structure 8 ATRs below entry would be a swing-trade stop, not a day-trade one.
+        val plan = ResearchScore.tradePlan(
+            100.0,
+            tech(
+                atrIntraday = 1.0, vwap = 99.5,
+                orHigh = 100.5, orLow = 92.0,
+                sessionHigh = 100.5, sessionLow = 92.0
+            )
+        )!!
+        val risk = plan.entry - plan.stop
+        assertTrue("risk $risk should be clamped to 2.5 intraday ATRs", risk <= 2.5001)
+        assertTrue(plan.note.contains("tightened"))
+    }
+
+    @Test fun `a day that has already run its whole range says so`() {
+        val plan = ResearchScore.tradePlan(
+            110.0,
+            tech(
+                atrIntraday = 1.0, vwap = 100.0, adr = 10.0,
+                orHigh = 105.0, orLow = 102.0,
+                sessionHigh = 110.0, sessionLow = 99.0
+            )
+        )!!
+        assertTrue(plan.note.contains("average daily range"))
+    }
+
+    @Test fun `outside market hours the plan is built from prior-session structure only`() {
+        // The same inputs as the reclaim case, but with the session closed. A dead session's
+        // VWAP must not produce a "reclaim VWAP" plan for tomorrow, and a completed session's
+        // range must not read as "already extended".
+        val plan = ResearchScore.tradePlan(
+            98.0,
+            tech(
+                atrIntraday = 1.0, vwap = 100.0, adr = 4.0,
+                orHigh = 99.0, orLow = 97.0,
+                prevHigh = 101.0, prevLow = 97.0, prevClose = 99.0,
+                sessionHigh = 101.0, sessionLow = 97.0,
+                live = false
+            )
+        )!!
+        assertEquals(ResearchScore.SETUP_BREAKOUT, plan.setup)
+        // The prior session's high, not the stale VWAP and not the stale opening range.
+        assertEquals(101.15, plan.entry, 0.001)
+        assertTrue(plan.note.contains("Market closed"))
+    }
+
+    @Test fun `with no intraday bars yet the daily ATR still sizes a plan`() {
+        val plan = ResearchScore.tradePlan(
+            100.0,
+            tech(atr = 10.0, prevHigh = 101.0, prevLow = 97.0, prevClose = 99.0, live = false)
+        )
+        assertNotNull("a daily ATR is enough to plan an overnight break", plan)
+        assertTrue(plan!!.entry > 100.0)
+    }
+
+    @Test fun `floor-trader pivots follow the published formula`() {
+        val t = tech(prevHigh = 110.0, prevLow = 90.0, prevClose = 100.0)
+        assertEquals(100.0, t.pivot, 0.001)          // (110 + 90 + 100) / 3
+        assertEquals(110.0, t.r1, 0.001)             // 2 * 100 - 90
+        assertEquals(120.0, t.r2, 0.001)             // 100 + (110 - 90)
+        assertEquals(90.0, t.s1, 0.001)              // 2 * 100 - 110
+    }
+
+    @Test fun `every plan is internally coherent - stop below entry below target`() {
+        // A sweep across the shapes the engine actually sees, guarding the one invariant that
+        // must never break no matter which branch produced the numbers.
+        val cases = listOf(
+            tech(atrIntraday = 0.5, vwap = 99.0, orHigh = 100.5, orLow = 99.5, sessionHigh = 101.0, sessionLow = 98.0),
+            tech(atrIntraday = 2.0, vwap = 120.0, sessionHigh = 100.0, sessionLow = 90.0),
+            tech(atr = 5.0, prevHigh = 102.0, prevLow = 95.0, prevClose = 99.0, live = false),
+            tech(atrIntraday = 0.05, vwap = 99.99, orHigh = 100.01, orLow = 99.98),
+            tech(atrIntraday = 1.0, adr = 2.0, vwap = 95.0, orHigh = 99.0, orLow = 96.0, sessionHigh = 100.0, sessionLow = 95.0)
+        )
+        cases.forEachIndexed { i, t ->
+            val plan = ResearchScore.tradePlan(100.0, t) ?: return@forEachIndexed
+            assertTrue("case $i: stop must be below entry", plan.stop < plan.entry)
+            assertTrue("case $i: target must be above entry", plan.target > plan.entry)
+            assertTrue("case $i: stop must be a real price", plan.stop > 0.0)
+            assertTrue("case $i: setup must be named", plan.setup.isNotBlank())
+            assertTrue("case $i: trigger must say what to do", plan.trigger.isNotBlank())
+        }
     }
 
     @Test fun `withTechnicals leaves the score untouched when nothing was fetched`() {
