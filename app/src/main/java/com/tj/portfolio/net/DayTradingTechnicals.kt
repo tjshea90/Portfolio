@@ -191,19 +191,35 @@ object DayTradingTechnicals {
      * enrichment overlay) treats 0.0 as "not available" and falls back to the pre-existing
      * estimate rather than showing a broken number.
      */
-    suspend fun fetch(symbol: String): DayTechnicals {
+    suspend fun fetch(symbol: String, now: Long = System.currentTimeMillis()): DayTechnicals {
         val daily = fetchBars(symbol, range = "3mo", interval = "1d", prePost = false)
-        val intraday = fetchBars(symbol, range = "1d", interval = "5m", prePost = false)
+        // PRE/POST INCLUDED SINCE ROUND 69 - the premarket high is a real trigger level (see
+        // the header), and it costs nothing: the same one request now carries both sessions,
+        // and [regularSession] splits them back apart so VWAP, the opening range and the
+        // session high/low stay regular-hours-only, exactly as their definitions require.
+        val intradayAll = fetchBars(symbol, range = "1d", interval = "5m", prePost = true)
+        val regular = intradayAll?.let { regularSession(it) }
         // COMPUTED ONCE, not once per field - `openingRange` filters and re-scans the whole
         // intraday bar list, and calling it twice (once for the high, once for the low) did
         // that work twice for no reason on every symbol, every 30-second tick.
-        val or = intraday?.let { openingRange(it) }
+        val or = regular?.let { openingRange(it) }
+        val completed = daily?.let { completedSessions(it, now) }
+        val prev = completed?.lastOrNull()
         return DayTechnicals(
-            atr14 = daily?.let { atr14(it) } ?: 0.0,
-            vwap = intraday?.let { vwap(it) } ?: 0.0,
+            atr14 = completed?.let { atr14(it) } ?: 0.0,
+            vwap = regular?.let { vwap(it) } ?: 0.0,
             openingRangeHigh = or?.first ?: 0.0,
             openingRangeLow = or?.second ?: 0.0,
-            openingRangeComplete = intraday?.let { openingRangeComplete(it) } ?: false
+            openingRangeComplete = regular?.let { openingRangeComplete(it) } ?: false,
+            atrIntraday = regular?.let { atr14(it) } ?: 0.0,
+            adr = completed?.let { adr(it) } ?: 0.0,
+            prevHigh = prev?.high ?: 0.0,
+            prevLow = prev?.low ?: 0.0,
+            prevClose = prev?.close ?: 0.0,
+            premarketHigh = intradayAll?.let { premarketHigh(it) } ?: 0.0,
+            sessionHigh = regular?.maxOfOrNull { it.high } ?: 0.0,
+            sessionLow = regular?.minOfOrNull { it.low } ?: 0.0,
+            sessionLive = MarketClock.phase(now) == MarketClock.Phase.OPEN
         )
     }
 
