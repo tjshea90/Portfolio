@@ -80,7 +80,13 @@ object DayTradingTechnicals {
         /** True once the 09:30-10:00 ET window has fully printed - false pre-market or mid-range. */
         val openingRangeComplete: Boolean = false
     ) {
-        val isEmpty: Boolean get() = atr14 <= 0.0 && vwap <= 0.0
+        // ALL FOUR CHECKED, NOT JUST atr14/vwap - a real bug caught by
+        // `DayTradingTest`'s opening-range-breakout case: the daily-bar fetch (ATR) and the
+        // intraday-bar fetch (VWAP, opening range) can succeed or fail independently, so a
+        // technicals reading that got the opening range but not VWAP (or vice versa) is not
+        // empty, and `withTechnicals` must still be able to award its breakout bonus.
+        val isEmpty: Boolean get() =
+            atr14 <= 0.0 && vwap <= 0.0 && openingRangeHigh <= 0.0 && openingRangeLow <= 0.0
     }
 
     private val ET: TimeZone = TimeZone.getTimeZone("America/New_York")
