@@ -1,13 +1,13 @@
-# CHECKPOINT 630 — read me first, then TASKS.md
+# CHECKPOINT 631 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T02:46:44Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `15807c9` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T08:29:34Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/session-continuity-check-tjlp6d` · **builds on:** `43496d2` (this checkpoint is the commit after it)
 
 ## Just done
-Wrote buildDayTrading() and toDayTradingRow() in Research.kt, restoring compilability - the module reuses the same nine-screener universe and trending's own attention signal, zero new requests, filters at 2 dollars a share per Tj's instruction, takes the top 40 by ResearchScore.dayTrading, and fills entry/stop/target from tradeLevels. Compiles clean (compileDebugKotlin + compileDebugUnitTestKotlin both green).
+Resumed after the interruption bootstrap flagged: verified the uncommitted net/DayTradingBridge.kt, Claude.kt's dayTrading(), and the partial PortfolioViewModel.kt wiring (carryExplanations, resetResearchPaging section list) all compile clean - compileDebugKotlin and compileDebugUnitTestKotlin both green, first build this container so it also installed the Android SDK. Nothing else changed yet.
 
 ## Do this next
-Create net/DayTradingBridge.kt mirroring ResearchBridge.kt (prompt/bundleJson/apiPrompt/looksLikeDayTrading/parse/merge), add Claude.dayTrading() to net/Claude.kt, wire ViewModel functions and the resetResearchPaging section list, then the ResearchScreen.kt DAY_TRADING tab UI with Claude-assist buttons, then tests, then full suite + ship.
+Add the remaining ViewModel wiring for Day Trading: visibleResearch()/researchBundle()/researchPromptFile()/writeResearchPrompt()/explainDayTrading()/importDayTradingFile()/applyDayTradingAnswer() mirroring the Research equivalents at PortfolioViewModel.kt:5187-5341, plus a price-and-trade-levels fill for Claude-added symbols (fillPricesNow around line 5377-5468 needs a dayTrading branch that also computes ResearchScore.tradeLevels via a minimal ScreenRow(symbol, price=q.price, changePct=q.dayChangePct) for newly-added rows with no levels yet). Then the ResearchScreen.kt DAY_TRADING tab UI with Claude-assist buttons (zero references there currently). Then tests, then full suite, then ship.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Create net/DayTradingBridge.kt mirroring ResearchBridge.kt (prompt/bundleJson/ap
 
 ## Last ten checkpoints
 ```
+  fcebfd2 ckpt 630: Wrote buildDayTrading() and toDayTradingRow() in Research.kt, restoring compil
   86067cb ckpt 629: Tj explicitly overrode the SCREENER flag: proceed with the day trading tab on 
   40d8c75 ckpt 628: gated v7.11 (code 68) and pushed it: checkinit, the full unit suite and the ve
   38d61c9 ckpt 627: Fixed the SPY compare-line pan bug (root-caused by a background Explore agent,
@@ -23,10 +24,7 @@ Create net/DayTradingBridge.kt mirroring ResearchBridge.kt (prompt/bundleJson/ap
   7d12935 ckpt 625: Wrote Tj's three-part request into TASKS.md verbatim, screened separately per 
   ccfdac2 ckpt 624: v7.10 (code 67) shipped end to end: GitHub Actions run #9 built, signed, verif
   ef6d8db ckpt 623: gated v7.10 (code 67) and pushed it: checkinit, the full unit suite and the ve
-  f092746 ckpt 622: Wrote 7 new tests (StockRowRecommendationUiTest.kt: placeholder chip, Buy/Hold
-  fe1ed74 ckpt 621: Wired the BUY/HOLD/SELL chip into the main Portfolio tab: StockRowItem (ui/Sto
-  837ccdf ckpt 620: Wrote Tj's request into TASKS.md verbatim - show the buy/hold/sell badge next 
 ```
 
-(12 automatic checkpoint(s) since the last deliberate one — the
+(4 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
