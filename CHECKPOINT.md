@@ -1,17 +1,13 @@
-# CHECKPOINT 617 — read me first, then TASKS.md
+# CHECKPOINT 618 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T01:04:43Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `be7e9b4` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T01:16:58Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/portfolio-recommendations-tab-jc8y40` · **builds on:** `e983652` (this checkpoint is the commit after it)
 
 ## Just done
-gated v7.9 (code 66) and pushed it: checkinit, the full unit suite and the
-versionCode check all passed here. NOT yet built - GitHub has not been asked.
+v7.9 (code 66) shipped end to end: GitHub Actions run #8 built, signed, verified its own certificate, and published the Release with the APK attached - downloaded it (sha256 verified against the Release's own digest), sent it to Tj, and recorded it in BUILDLOG.md. The per-holding BUY/HOLD/SELL feature is fully shipped: TASKS.md's checklist is now completely ticked, including the final 'ship' box.
 
 ## Do this next
-TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
-android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
-send Tj the APK from the Release and then run:
-  bash tools/record-release.sh v7.9 "Per-holding BUY/HOLD/SELL recommendation tab, left of News: analyst-consensus-weighted scoring (ResearchScore.holding) blended with valuation, growth and a year of relative performance, computed once per trading day from data already fetched for the Overview tab (zero new network requests), popup with full reasoning and analyst price target. 838 tests, 0 failures."
+No active job. Waiting on Tj for the next app change, same as after every prior release.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -20,6 +16,7 @@ send Tj the APK from the Release and then run:
 
 ## Last ten checkpoints
 ```
+  0c8acb5 ckpt 617: gated v7.9 (code 66) and pushed it: checkinit, the full unit suite and the ver
   5db1e35 ckpt 616: Finished the TASKS.md checklist for the buy/hold/sell feature - ticked every b
   866376c ckpt 615: Added Robolectric render tests for the actual UI (RecommendationDialog and Det
   876f950 ckpt 614: Full Gradle unit suite verified GREEN: BUILD SUCCESSFUL, 831 tests total acros
@@ -29,8 +26,4 @@ send Tj the APK from the Release and then run:
   2997e54 ckpt 610: Wrote Tj's request-screener ask into TASKS.md verbatim, with a design note (Us
   13ca548 ckpt 609: Wrote Tj's buy/hold/sell-per-holding request into TASKS.md verbatim with a fea
   a5254d3 ckpt 608: Final verification of the permanent flow. Chased the one RED that ckpt 607 rec
-  2101672 ckpt 607: Verified origin/main is fully restored after my fixture contamination: version
 ```
-
-(1 automatic checkpoint(s) since the last deliberate one — the
-session was still mid-step. `git diff` against it shows what changed.)
