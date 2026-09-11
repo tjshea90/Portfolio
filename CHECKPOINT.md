@@ -1,17 +1,13 @@
-# CHECKPOINT 654 — read me first, then TASKS.md
+# CHECKPOINT 655 — read me first, then TASKS.md
 
-**Written:** 2026-09-11T15:35:24Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/day-trading-signals-research-6t8rr3` · **builds on:** `534dde0` (this checkpoint is the commit after it)
+**Written:** 2026-09-11T15:42:45Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/day-trading-signals-research-6t8rr3` · **builds on:** `6390261` (this checkpoint is the commit after it)
 
 ## Just done
-gated v7.14 (code 71) and pushed it: checkinit, the full unit suite and the
-versionCode check all passed here. NOT yet built - GitHub has not been asked.
+v7.14 (code 71) shipped end to end: run #14 built the correct commit (e1e25b1, verified head_sha before and after), the Release is published with a signed APK, and BUILDLOG.md records it. Part 5 is complete - the Day Trading buy price is now a real entry trigger (buy-stop above structure / buy-limit at support / VWAP reclaim) instead of the last traded price, the stop is sized from a 5-minute ATR instead of 1.5x the daily one, and the Claude prompt is reversed so Claude owns the whole section. After the ship commit, one further fix landed on main and is NOT in v7.14: rewardToRisk now returns 0 when the stop or target is missing, so the dialog cannot report 'risking $22.50 a share' on a plan with no stop - it agrees with the em dash the grid already draws. 930 tests, 0 failures.
 
 ## Do this next
-TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
-android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
-send Tj the APK from the Release and then run:
-  bash tools/record-release.sh v7.14 "Day Trading: the buy price is now a real entry TRIGGER, not the last traded price"
+Nothing queued - wait for Tj. The rewardToRisk guard and its test are on main for whenever the next release goes out; they do not warrant a release of their own.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -20,6 +16,7 @@ send Tj the APK from the Release and then run:
 
 ## Last ten checkpoints
 ```
+  e1e25b1 ckpt 654: gated v7.14 (code 71) and pushed it: checkinit, the full unit suite and the ve
   534dde0 ckpt 653: pre-ship: Day Trading: the buy price is now a real entry TRIGGER, not the last
   616b01d ckpt 652: Fixed all 9 findings from the /code-review pass (high effort) over the whole R
   87237be ckpt 651: Review pass on the new engine found and fixed three real issues before shippin
@@ -29,5 +26,7 @@ send Tj the APK from the Release and then run:
   1037269 ckpt 647: RESOLVED A BRANCH DIVERGENCE: a sibling session (branch claude/resume-function
   8ab5217 ckpt 646: gated v7.13 (code 70) and pushed it: checkinit, the full unit suite and the ve
   9770178 ckpt 645: Ran the /code-review skill (extra-high effort) against everything built this s
-  a16e560 ckpt 644: Grounded Claude's export/import path in the new real technicals: DayTradingBri
 ```
+
+(2 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
