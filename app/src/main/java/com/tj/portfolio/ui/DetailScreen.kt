@@ -91,6 +91,14 @@ enum class DetailTab(val label: String) {
     STATS("Stats"),
     ANALYSTS("Analysts"),
     EARNINGS("Earnings"),
+    /**
+     * TJ: *"to the left of the news tab, make a tab about the same size as the news tab that
+     * says either buy, hold, or sell."* [label] here is only the placeholder shown before the
+     * first recommendation lands ([DetailTabRow] overrides it live) - tapping this tab never
+     * switches the screen's body, it opens [RecommendationDialog] instead. See
+     * `PortfolioViewModel.loadRecommendation`.
+     */
+    RECOMMENDATION("..."),
     NEWS("News")
 }
 
