@@ -390,26 +390,30 @@ class DetailTabsUiTest {
         assertTrue("the confirm button must call back", !open)
     }
 
-    @Test fun `the recommendation tab shows its live verdict word, not the placeholder`() {
-        show {
-            DetailTabRow(
-                tabs = listOf(DetailTab.ANALYSTS, DetailTab.RECOMMENDATION, DetailTab.NEWS),
-                selected = DetailTab.ANALYSTS,
-                recommendationLabel = "Sell",
-                recommendationColor = androidx.compose.ui.graphics.Color(0xFFC62828)
-            ) {}
-        }
+    // -------------------------------------------- the relocated badge (no longer a tab)
+    //
+    // TJ, with a screenshot: *"move the buy sell hold tab from where it currently is to
+    // somewhere around where the arrow points. don't change it's function, only the
+    // placement."* `DetailTab.RECOMMENDATION` is gone; [RecommendationBadge] lives beside the
+    // price instead (see DetailScreen.kt's price-header block). Same properties as before -
+    // placeholder before a verdict exists, live word once it does, tap opens the popup - just
+    // proven on the standalone composable rather than through `DetailTabRow`.
+
+    @Test fun `the badge shows the placeholder before a verdict exists`() {
+        show { RecommendationBadge(null) {} }
+        rule.onNodeWithText("...").assertExists()
+    }
+
+    @Test fun `the badge shows the live verdict word once computed`() {
+        show { RecommendationBadge(rec(verdict = TradeVerdict.SELL)) {} }
         rule.onNodeWithText("Sell").assertExists()
         rule.onNodeWithText("...").assertDoesNotExist()
     }
 
-    @Test fun `before a recommendation lands the tab shows the placeholder, not a blank tab`() {
-        show {
-            DetailTabRow(
-                tabs = listOf(DetailTab.ANALYSTS, DetailTab.RECOMMENDATION, DetailTab.NEWS),
-                selected = DetailTab.ANALYSTS
-            ) {}
-        }
-        rule.onNodeWithText("...").assertExists()
+    @Test fun `tapping the badge calls back rather than doing nothing`() {
+        var tapped = false
+        show { RecommendationBadge(rec(verdict = TradeVerdict.BUY)) { tapped = true } }
+        rule.onNodeWithTag(RECOMMENDATION_BADGE_TEST_TAG).performClick()
+        assertTrue("the badge's tap handler must fire", tapped)
     }
 }
