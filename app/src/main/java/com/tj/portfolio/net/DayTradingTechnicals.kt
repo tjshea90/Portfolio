@@ -102,11 +102,15 @@ object DayTradingTechnicals {
     suspend fun fetch(symbol: String): DayTechnicals {
         val daily = fetchBars(symbol, range = "3mo", interval = "1d", prePost = false)
         val intraday = fetchBars(symbol, range = "1d", interval = "5m", prePost = false)
+        // COMPUTED ONCE, not once per field - `openingRange` filters and re-scans the whole
+        // intraday bar list, and calling it twice (once for the high, once for the low) did
+        // that work twice for no reason on every symbol, every 30-second tick.
+        val or = intraday?.let { openingRange(it) }
         return DayTechnicals(
             atr14 = daily?.let { atr14(it) } ?: 0.0,
             vwap = intraday?.let { vwap(it) } ?: 0.0,
-            openingRangeHigh = intraday?.let { openingRange(it) }?.first ?: 0.0,
-            openingRangeLow = intraday?.let { openingRange(it) }?.second ?: 0.0,
+            openingRangeHigh = or?.first ?: 0.0,
+            openingRangeLow = or?.second ?: 0.0,
             openingRangeComplete = intraday?.let { openingRangeComplete(it) } ?: false
         )
     }
