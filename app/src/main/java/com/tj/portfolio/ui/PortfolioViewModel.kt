@@ -3631,6 +3631,62 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ============================================================ RECOMMENDATION
+
+    /**
+     * BUY/HOLD/SELL for one symbol, computed once per TRADING DAY from data the app already
+     * holds - see `net/Recommend.kt` and `data/RecommendationModels.kt`'s header for why a
+     * day-key gates this rather than a rolling TTL like every other cache in this app.
+     *
+     * NO NETWORK CALL OF ITS OWN. It reads [_fundamentals], which [loadFundamentals] already
+     * fetches unconditionally for every symbol a detail screen opens - so this costs nothing
+     * on the wire beyond what the Overview/Stats tabs were already asking for. If fundamentals
+     * have not arrived yet this simply computes nothing THIS call; the caller (the tab's own
+     * `LaunchedEffect(symbol, fundamentals)`) re-invokes once they do, and that re-invocation
+     * is cheap because the guards below are the first thing that runs.
+     *
+     * DELIBERATELY HAS NO `force` PARAMETER. TJ asked explicitly that this "only needs to
+     * refresh for each new day session" - not on pull-to-refresh, not on resume - so the day
+     * check is the ONLY thing that can trigger a recompute, by construction rather than by a
+     * flag some caller could pass wrong. `refreshEverything` in DetailScreen does not call this
+     * at all, on purpose.
+     */
+    fun loadRecommendation(symbol: String, price: Double) {
+        val sym = symbol.uppercase()
+        if (_recLoading.value.contains(sym)) return
+        val today = MarketClock.dayKey()
+        val have = _recommendations.value[sym]
+        if (have != null && have.dayKey == today) return
+
+        fgScope.launch {
+            _recLoading.value = _recLoading.value + sym
+            try {
+                if (have == null) {
+                    val disk = withContext(Dispatchers.IO) {
+                        runCatching { db.cachedRecommendation(sym) }.getOrNull()
+                    }
+                    if (disk != null) {
+                        _recommendations.value = _recommendations.value + (sym to disk)
+                        // Already today's answer - nothing to recompute.
+                        if (disk.dayKey == today) return@launch
+                    }
+                }
+
+                val f = _fundamentals.value[sym] ?: return@launch
+                val fresh = com.tj.portfolio.net.Recommend.build(sym, price, f) ?: return@launch
+                _recommendations.value = _recommendations.value + (sym to fresh)
+                // On viewModelScope, not fgScope: a write already computed for today should
+                // land even if the screen is backgrounded a moment later - same reasoning as
+                // every other cache write in this file.
+                viewModelScope.launch(Dispatchers.IO) {
+                    runCatching { db.cacheRecommendation(fresh) }
+                }
+            } finally {
+                _recLoading.value = _recLoading.value - sym
+            }
+        }
+    }
+
     /**
      * True when an intraday chart cannot gain another point until the next session, so the
      * automatic refresh should stop even though its TTL has lapsed.
