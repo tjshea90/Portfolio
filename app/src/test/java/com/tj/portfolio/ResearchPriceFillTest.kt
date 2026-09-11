@@ -7,6 +7,7 @@ import com.tj.portfolio.data.ResearchRow
 import com.tj.portfolio.data.ResearchSet
 import com.tj.portfolio.net.DayTradingTechnicals
 import com.tj.portfolio.ui.PortfolioViewModel
+import com.tj.portfolio.ui.dropUnusableClaudeLevels
 import com.tj.portfolio.ui.mergeDayTradingTech
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -134,6 +135,55 @@ class ResearchPriceFillTest {
     @Test fun treatsNegativePriceAsMissing() {
         val set = ResearchSet(trending = listOf(row("GME", -1.0)))
         assertEquals(listOf("GME"), vm().pricelessRows(set))
+    }
+
+    // ====================================================== dropUnusableClaudeLevels (Round 69)
+    //
+    // Claude may now set entry/stop/target itself. A pick it ADDED is a symbol the app has
+    // never seen, so at merge time there is no price to check those levels against - the price
+    // fill is the first moment that check is possible, and the first moment a decimal slip on
+    // an unfamiliar ticker would otherwise reach the card looking authoritative.
+
+    @Test fun `a Claude plan that survives contact with a real price is kept`() {
+        val row = ResearchRow(
+            symbol = "NEW", price = 22.5, entryPrice = 23.1, stopPrice = 22.4,
+            targetPrice = 25.0, setup = "Gap and go", planByClaude = true
+        )
+        val out = dropUnusableClaudeLevels(listOf(row)).first()
+        assertEquals(23.1, out.entryPrice, 0.001)
+        assertTrue(out.planByClaude)
+    }
+
+    @Test fun `a Claude plan the real price contradicts is cleared, not shown`() {
+        // $2.31 entry on a stock the app just quoted at $22.50 - a decimal point, not a trade.
+        val row = ResearchRow(
+            symbol = "NEW", price = 22.5, entryPrice = 2.31, stopPrice = 2.24,
+            targetPrice = 2.50, setup = "Gap and go", trigger = "Buy 2.31.", planByClaude = true
+        )
+        val out = dropUnusableClaudeLevels(listOf(row)).first()
+        assertEquals(0.0, out.entryPrice, 0.0)
+        assertEquals(0.0, out.stopPrice, 0.0)
+        assertEquals(0.0, out.targetPrice, 0.0)
+        assertEquals("", out.setup)
+        assertEquals("", out.trigger)
+        assertFalse("it must stop claiming to be Claude's plan once cleared", out.planByClaude)
+    }
+
+    @Test fun `the app's own plan is never second-guessed by this pass`() {
+        // Deliberately outside the half-to-double band: the app computed this from the same
+        // price, so there is nothing here to disagree with and nothing to check.
+        val row = ResearchRow(
+            symbol = "GME", price = 22.5, entryPrice = 2.31, stopPrice = 2.24, targetPrice = 2.50
+        )
+        assertEquals(2.31, dropUnusableClaudeLevels(listOf(row)).first().entryPrice, 0.001)
+    }
+
+    @Test fun `a row with no price yet is left for the next pass`() {
+        val row = ResearchRow(
+            symbol = "NEW", price = 0.0, entryPrice = 2.31, stopPrice = 2.24,
+            targetPrice = 2.50, planByClaude = true
+        )
+        assertEquals(2.31, dropUnusableClaudeLevels(listOf(row)).first().entryPrice, 0.001)
     }
 
     // ============================================================ mergeDayTradingTech

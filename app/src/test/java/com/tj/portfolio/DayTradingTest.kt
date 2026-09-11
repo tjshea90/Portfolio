@@ -111,6 +111,21 @@ class DayTradingTest {
         assertTrue(soon.reasons.any { it.contains("earnings today or tomorrow") })
     }
 
+    @Test fun `the reason lines name the session they describe, not always "today"`() {
+        // Tj, Round 68: "the market is currently closed and yet the stocks claim to be
+        // 'already up today' which makes no sense." That round fixed the price line on the
+        // card; these two reason lines kept saying "today" regardless.
+        val closed = ResearchScore.dayTrading(
+            inPlay(), null, maxMentions = 0, maxNews = 0, sessionWord = "in the last session"
+        ).reasons.joinToString(" ")
+        assertTrue("the move must name the session: $closed", closed.contains("in the last session"))
+        assertFalse("must not claim 'today' over a closed market: $closed", closed.contains("today"))
+
+        val open = ResearchScore.dayTrading(inPlay(), null, maxMentions = 0, maxNews = 0)
+            .reasons.joinToString(" ")
+        assertTrue("and must still read naturally while open: $open", open.contains("today"))
+    }
+
     // ==================================================== technicals overlay (Round 68)
 
     private fun tech(
