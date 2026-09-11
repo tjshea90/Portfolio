@@ -1,7 +1,9 @@
 package com.tj.portfolio.net
 
+import com.tj.portfolio.data.Consensus
 import com.tj.portfolio.data.Consensus2
 import com.tj.portfolio.data.ScreenRow
+import com.tj.portfolio.data.TradeVerdict
 import com.tj.portfolio.util.Fmt
 import kotlin.math.abs
 import kotlin.math.ln
