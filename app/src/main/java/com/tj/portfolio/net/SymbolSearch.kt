@@ -63,6 +63,16 @@ object SymbolSearch {
     /** Dropped on a memory trim - it is a convenience, not state. */
     fun clearMemo() { synchronized(memo) { memo.clear() } }
 
+    /**
+     * Test-only seam. A unit test has no live network, so a real memo hit and a real memo
+     * miss both otherwise look identical (both come back empty) - this lets a test seed a
+     * KNOWN, non-empty result and prove [query] returns exactly that rather than falling
+     * through to the network path (which would come back empty in the sandbox, not match).
+     */
+    internal fun seedMemoForTest(term: String, hits: List<SearchHit>) {
+        synchronized(memo) { memo[term.trim().lowercase()] = hits }
+    }
+
     private suspend fun yahoo(term: String): List<SearchHit> {
         val r = Http.get(
             "https://query2.finance.yahoo.com/v1/finance/search?q=" + MarketData.enc(term) +
