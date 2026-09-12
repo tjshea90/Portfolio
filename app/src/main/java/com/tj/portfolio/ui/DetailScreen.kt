@@ -959,6 +959,30 @@ fun DetailScreen(
 // ========================================================================== Overview
 
 /**
+ * THE RECORDS DISAGREE WITH THEMSELVES - see [com.tj.portfolio.domain.Position.oversold].
+ * More shares have been sold for this symbol than were ever bought, which the ledger cannot
+ * resolve on its own: it books the proceeds in full and takes cost off only for shares it
+ * actually had, so the realized figure is overstated by whatever the missing buy cost.
+ *
+ * ONE COMPOSABLE, CALLED FROM BOTH BRANCHES of the position card below - the "still holds
+ * shares" one and the "no shares held" one - because the far likelier shape of an uncovered
+ * sale (sell out entirely) lands in the second, and a single copy of this warning is what
+ * keeps the two from silently drifting the way `txnSubtitle` (ActivityScreen.kt) once did.
+ */
+@Composable
+private fun OversoldWarning(shares: Double) {
+    if (shares <= 1e-9) return
+    Text(
+        "${Fmt.shares(shares)} more shares have been sold than bought. A buy is probably " +
+            "missing from your records - until it is added, the realized gain here is " +
+            "overstated by whatever those shares cost.",
+        style = MaterialTheme.typography.bodySmall,
+        color = redText,
+        modifier = Modifier.padding(top = 6.dp)
+    )
+}
+
+/**
  * Chart, what the price block's numbers mean, the position, a short summary of the
  * headline fundamentals, the company itself, and this stock's transactions.
  *
