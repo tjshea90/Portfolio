@@ -1071,7 +1071,19 @@ object ResearchScore {
      * institutional-style backtest of a 20-name long/short book; this is one person's actual
      * savings in a phone app, where a 4x intraday position is not a parameter but a different
      * financial decision, and not one this app should make on his behalf or quietly assume in a
-     * share count it prints. Sizing here never exceeds the cash value of the account.
+     * share count it prints. A position here never exceeds [MAX_POSITION_FRACTION] of total
+     * equity, so the whole account is never implied, let alone a multiple of it.
+     *
+     * ---- WHAT [equity] IS, AND THE ONE THING THIS CANNOT KNOW (code-review correction)
+     *
+     * It is TOTAL equity - holdings at market plus cash - which is the standard base for the
+     * fixed-fractional rule and what both papers size against. It is NOT buying power, and this
+     * app has no way to compute that: it is a tracker, not a broker, so it does not know what is
+     * settled, what is marginable, or what a given account will actually let through. An earlier
+     * draft of this note claimed sizing "never exceeds the cash value of the account", which was
+     * simply wrong - on a fully invested portfolio there may be no cash to buy with at all. The
+     * share count is a RISK answer, not a confirmation that the trade can be funded, and the
+     * note below says so on screen rather than leaving it to be inferred.
      *
      * Null when [equity] is not known (no portfolio loaded yet) or the levels are not a trade -
      * the same "a blank is honest, a fabricated number is not" rule [tradePlan] follows.
