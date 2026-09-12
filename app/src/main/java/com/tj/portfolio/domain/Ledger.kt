@@ -376,6 +376,9 @@ object Ledger {
                     // claimed and now tests: total lifetime P/L is identical under both
                     // methods, and only the realized/unrealized split moves.
                     val covered = minOf(qty, a.shares.coerceAtLeast(0.0))
+                    // Whatever the books could not cover - see [Position.oversold]. FIFO
+                    // records the same quantity from its own leftover `remaining`.
+                    if (qty - covered > 1e-9) a.oversold += qty - covered
                     a.realized += (qty * px - t.fees) - covered * avg
                     a.cost -= covered * avg
                     a.shares -= covered
