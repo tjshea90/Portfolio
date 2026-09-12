@@ -76,7 +76,14 @@ class ContrastTest {
         val rule: Color,
         val outline: Color,
         val green: Color,
-        val red: Color
+        val red: Color,
+        val buyText: Color,
+        val holdText: Color,
+        val sellText: Color,
+        val rating9: Color,
+        val rating7: Color,
+        val rating5: Color,
+        val rating2: Color
     )
 
     /**
