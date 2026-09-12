@@ -96,7 +96,10 @@ class ResearchTest {
         val seventeenHoursAgo = now - 17 * 3_600_000L
         assertEquals(-1L, Research.daysUntilEarnings(seventeenHoursAgo, now))
 
-        val r = ScreenRow(symbol = "OLD", price = 10.0, earningsAt = seventeenHoursAgo)
+        // catalystFor has no `now` parameter (it reads the real clock), so pin it against the
+        // real current time rather than the fixed [now] above used for the pure day-math check.
+        val realNow = System.currentTimeMillis()
+        val r = ScreenRow(symbol = "OLD", price = 10.0, earningsAt = realNow - 17 * 3_600_000L)
         val catalyst = Research.catalystFor(r)
         assertTrue("expected a 'reported' catalyst, got: $catalyst", catalyst.startsWith("Reported earnings"))
         assertFalse("must not read as today's earnings: $catalyst", catalyst.contains(Research.CATALYST_EARNINGS_TODAY))
@@ -108,7 +111,8 @@ class ResearchTest {
         val inThreeHours = now + 3 * 3_600_000L
         assertEquals(0L, Research.daysUntilEarnings(inThreeHours, now))
 
-        val r = ScreenRow(symbol = "SOON", price = 10.0, earningsAt = inThreeHours)
+        val realNow = System.currentTimeMillis()
+        val r = ScreenRow(symbol = "SOON", price = 10.0, earningsAt = realNow + 3 * 3_600_000L)
         assertEquals(Research.CATALYST_EARNINGS_TODAY, Research.catalystFor(r))
     }
 
