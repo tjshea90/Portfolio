@@ -1,13 +1,13 @@
-# CHECKPOINT 684 — read me first, then TASKS.md
+# CHECKPOINT 685 — read me first, then TASKS.md
 
-**Written:** 2026-09-12T20:45:06Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `1ab42a1` (this checkpoint is the commit after it)
+**Written:** 2026-09-12T20:55:28Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `488ce43` (this checkpoint is the commit after it)
 
 ## Just done
-Part 10 continued: the randomised cross-method property added with the first fix immediately caught a SECOND, deeper divergence in the same code - and the first fix was itself incomplete. Consuming 'everything that is not today' before today's shares is only correct when no transaction is dated AFTER the session window, and one routinely can be: the window is the session the QUOTES describe, which lags the calendar every evening, night and weekend (the exact scenario Ledger.dayBounds exists for). Seed 2444 of the python harness: sell before the window, buy inside it, buy after it, sell again - FIFO correctly consumed the in-window lot first, average consumed the later one and reported 3.66 shares bought today against FIFO's 0. averageCost now keeps three buckets (before the window, inside it, after it) and a sale consumes them in that order, which is exactly the order FIFO's date-sorted lots come out in. Also closed the harness blind spots that hid all of this: ledger_port.py's average() had no same-day tracking at all and its fifo() carried the pre-CRX-1 side-map that nothing returned, ledger_props.py never passed a session window so every transaction fell outside it, and LedgerPropTest.java pinned the session instant in the year 2255 against transactions dated 2025-26 so the whole path plus its own invariant 6 were inert across 20,000 runs. All three now exercise it and report how many histories actually did, so the question is answerable instead of assumed. Verified by reverting each fix in turn: the original bug fails the two hand-built cases, the two-bucket draft passes those and fails only the randomised property. 8000 python histories clean, 100 exercising the same-day path
+Part 10 (Opus) - overselling and stock splits. Overselling: both replays now record the shares a sale could not cover on Position.oversold, and DetailScreen says so in plain words next to the affected numbers. Deliberately NOT resolved into short-position accounting - the ledger cannot know whether an uncovered sale means a missing buy (overwhelmingly likelier in a screenshot-fed ledger, and the later buy really is a new long) or a short (where the same buy is a cover that should close to zero), and guessing either way produces confident wrong numbers in the other case; short selling is nowhere in this app's scope. The interpretation the app takes is now pinned by a test rather than implicit. An override corrects the position but does not clear the flag, because the records still disagree with themselves. Splits: new SPLIT transaction type with the ratio carried in quantity, handled in both replays - every open lot scales, total cost basis is untouched, no cash moves, nothing is realized - plus editor support (symbol and ratio only, its own validation, a plain-English preview) and an Activity row that reads as a split rather than 10 shares at zero dollars. Before this a ten-for-one split left the ledger reporting a tenth of the position forever and the manual override could not fix it, because overriding the share count carries the calculated average across and multiplies the basis by the same ratio. Ratios that are zero, negative or non-finite are ignored rather than applied, since multiplying a holding by one would destroy it. 15 new ledger tests, 1 new editor test, plus a new FeesTest putting Ally's fee schedule inside the gate for the first time - it feeds cost basis and the fee-looks-wrong warning but every one of its cases lived only in a hand-compiled Java file ship.sh never runs
 
 ## Do this next
-Part 10 remaining: port the Ally fee-schedule case table from tests/LedgerPropTest.java into a Kotlin FeesTest so it actually gates in ship.sh (it feeds cost basis and the fee-looks-wrong warning but has zero gated coverage today). Then make overselling visible (Position.oversold plus a UI line) rather than inventing short-position accounting, then add the SPLIT transaction type handled in both replays. Note for the report: the 560 reconciliation violations the python harness prints by default are PRE-EXISTING and are a harness artifact, not a ledger bug - they come entirely from its ZEROQ zero-quantity rows, a shape the transaction editor now refuses; with ZEROQ=0 it is 8000 clean.
+Full unit suite is running now. When it is green: run a high-effort code review over the whole Part 10 diff (Ledger, Models, TxnEditor, ActivityScreen, DetailScreen and the three harnesses), fix anything it finds, then report to Tj and ask before shipping. Do not ship without asking - his standing preference is to review UI changes first. Remaining known gaps, all deliberate and worth naming in the report: split detection is manual (nothing tells the user a split happened), the screenshot importer is deliberately not taught SPLIT, and the python harness still prints 560 pre-existing reconciliation violations by default that come entirely from its own zero-quantity rows, a shape the editor now refuses.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Part 10 remaining: port the Ally fee-schedule case table from tests/LedgerPropTe
 
 ## Last ten checkpoints
 ```
+  10df498 ckpt 684: Part 10 continued: the randomised cross-method property added with the first f
   7a43154 ckpt 683: Part 10 (Opus, money-accuracy): fixed the AVERAGE cost method's same-day pool 
   23b816d ckpt 682: Part 9 sweep batch 5 (final): fixed ReaderScreen's 3 sub-48dp touch targets, d
   02b6065 ckpt 681: Part 9 sweep batch 4 (ViewModel): commitImportAsync and clearIncorrectBuyFees 
@@ -25,8 +26,7 @@ Part 10 remaining: port the Ally fee-schedule case table from tests/LedgerPropTe
   24d5bad ckpt 677: Wrote Tj's app-wide audit request (bugs, UI, code, internet efficiency) into T
   80c96c2 ckpt 676: Shipped v7.19 (code 76) end to end: GitHub Actions run #19 built, signed, veri
   7e1d46e ckpt 675: gated v7.19 (code 76) and pushed it: checkinit, the full unit suite and the ve
-  bbf6e26 ckpt 674: Second code-review pass over Part 8b's own fixes is complete and the suite is 
 ```
 
-(21 automatic checkpoint(s) since the last deliberate one — the
+(29 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
