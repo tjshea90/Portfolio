@@ -137,7 +137,7 @@ fun ReaderScreen(
                 web?.reload()
             }
             androidx.compose.foundation.layout.Box {
-                BigIconButton(Icons.Filled.MoreVert, "More", size = 46, iconSize = 22) { menu = true }
+                BigIconButton(Icons.Filled.MoreVert, "More", iconSize = 22) { menu = true }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
                         text = { Text(if (readerMode) "Show the full page" else "Reader view") },
