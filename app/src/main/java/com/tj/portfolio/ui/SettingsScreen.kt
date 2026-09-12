@@ -557,6 +557,45 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             }
         }
 
+        // MORE SOLD THAN EVER BOUGHT. The stock's own page says this too, but only while it
+        // still HAS a position - and an uncovered sale usually closes the holding outright,
+        // which is precisely the case that would otherwise have nowhere to appear. See
+        // PortfolioViewModel.FeeAudit.oversold and domain/Position.oversold.
+        if (feeAudit.hasOversold) {
+            Spacer(Modifier.height(10.dp))
+            StatCard {
+                Text("More shares sold than bought", fontWeight = FontWeight.Bold, color = redText)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "A sale on file is bigger than the shares this app has a record of, so a " +
+                        "buy is probably missing. The money from the sale is counted in full, " +
+                        "which means the realized gain on " +
+                        (if (feeAudit.oversold.size == 1) "this stock is"
+                         else "these stocks are") +
+                        " overstated by whatever the missing shares cost.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(Modifier.height(6.dp))
+                feeAudit.oversold.take(6).forEach { (sym, n) ->
+                    KeyValue(sym, "${Fmt.shares(n)} uncovered")
+                }
+                if (feeAudit.oversold.size > 6) {
+                    Text(
+                        "...and ${feeAudit.oversold.size - 6} more",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Add the missing buy on the Activity tab and this clears itself. Nothing " +
+                        "is changed automatically.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = accentText
+                )
+            }
+        }
+
         SectionHeader("Cost basis method")
         Row(
             Modifier.fillMaxWidth(),
