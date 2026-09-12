@@ -2981,10 +2981,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
          * so the audit says so rather than leaving the total quietly wrong.
          */
         val quantityless: List<Txn> = emptyList(),
-        val quantitylessCash: Double = 0.0
+        val quantitylessCash: Double = 0.0,
+        /**
+         * Symbols where more shares have been sold than were ever bought, and by how many.
+         *
+         * WHY IT IS REPORTED HERE AND NOT ONLY ON THE STOCK'S OWN PAGE. The detail screen
+         * shows this too, but it can only show it for a symbol that still HAS a position -
+         * rows are built from `positions.filter { it.shares > 1e-9 }`, and an uncovered sale
+         * drives the holding to zero by definition. So the plainest case of all, "sold 10,
+         * only ever bought 4, position now closed", had nowhere to appear. This card sees
+         * every symbol the ledger knows about, open or closed.
+         *
+         * See [com.tj.portfolio.domain.Position.oversold] for why the ledger reports the
+         * discrepancy rather than resolving it.
+         */
+        val oversold: List<Pair<String, Double>> = emptyList()
     ) {
         val hasProblem: Boolean get() = buysWithFees.isNotEmpty()
         val hasGhostRows: Boolean get() = quantityless.isNotEmpty()
+        val hasOversold: Boolean get() = oversold.isNotEmpty()
     }
 
     /**
