@@ -250,10 +250,15 @@ fun ResearchScreen(
     // screen, LazyColumn and all, for a card three sections has no chart on. The `if` is a
     // conditional COMPOSABLE CALL, which Compose supports directly: leaving the Day Trading tab
     // tears the subscription down instead of merely ignoring what it delivers.
-    val chartMap = if (section == Section.DAY_TRADING) vm.charts.collectAsState().value
-    else emptyMap()
-    val chartLoadingSet = if (section == Section.DAY_TRADING) vm.chartLoading.collectAsState().value
-    else emptySet()
+    // STATE OBJECTS KEPT, NOT UNWRAPPED HERE (optimization pass). Reading `.value` at this
+    // point used to bind the invalidation to THIS function's own scope, so a single chart
+    // landing anywhere recomposed every visible Day Trading card - the whole list, for one
+    // row's data. Handing each item the `State` itself lets its own `derivedStateOf` below read
+    // `.value` from inside its own per-row scope, so only the row whose OWN chart actually
+    // changed recomposes. Still a conditional composable call, so the subscription still tears
+    // down the moment the tab is not Day Trading, exactly as before.
+    val chartMapState = if (section == Section.DAY_TRADING) vm.charts.collectAsState() else null
+    val chartLoadingState = if (section == Section.DAY_TRADING) vm.chartLoading.collectAsState() else null
 
     // KEYED ON ALL THREE CLOCKS. `etfGenerated` was missing, so on the ETFs tab the
     // watched/held set - two SQLite reads, which is why it is remembered at all - was only
