@@ -610,7 +610,7 @@ Tj's request, 2026-09-11 (his own words):
       time-of-day rules and the "too late to start" verdict (ckpt 670-671).
 - [x] First `/code-review` pass over Part 8b: 6 findings fixed, 8 regression
       tests added, 1012 tests green (ckpt 672).
-- [ ] **Second code-review pass over those fixes** — the step the last session
+- [x] **Second code-review pass over those fixes** — the step the last session
       was cut off inside. The code changes are all committed (`30de4b9..HEAD`,
       4 files), but were never compiled or tested, and carry no regression
       tests of their own yet. Five fixes are in the tree:
@@ -627,8 +627,35 @@ Tj's request, 2026-09-11 (his own words):
         declined", so a stock that has spent its ADR clears its stale levels
         instead of freezing the morning's plan on screen all afternoon;
       - the room ceiling measured from `max(entry, price)`, not `entry`.
-- [ ] Regression tests for each of the five, per this round's one-test-per-
-      finding convention (none of them are covered yet).
-- [ ] Full Gradle unit suite green.
+- [x] The second pass found two more real defects in the first pass's fixes,
+      both now fixed:
+      - **`tradePlan`'s last-resort 2:1 path could still target a price the
+        stock had already reached.** The pass corrected the two paths that
+        read structure and measured room to measure from `max(entry, price)`,
+        but left the 2:1 convention underneath them measuring from the entry
+        alone — and on a pullback the entry sits below the price. With no
+        overhead above and no ADR (one failed daily-bar half zeroes the ADR,
+        the prior session and the pivots together — an ordinary tick), a $110
+        stock pulling back to a $105 opening-range retest was handed
+        "buy 105, sell 110.00" with 110.00 on the screen at that moment. The
+        final guard now measures from the price too, so all three paths obey
+        one rule. Two existing fixtures were relying on that degenerate plan
+        and now carry real overhead instead; a third pins the rejection.
+      - **`MarketClock.sessionElapsedFraction`'s documentation still argued
+        for the linear scaling the pass replaced**, including a claim that is
+        now false ("can never exclude a stock for being early" — the `^0.7`
+        curve is deliberately stricter than the clock). In a file where the
+        comments are the reasoning, a doc that contradicts the code is a trap
+        for the next session. Rewritten to say what the function is (a clock
+        reading) and point at what converts it.
+- [x] Regression tests for each of the fixes, per this round's one-test-per-
+      finding convention: 10 new tests — the volume curve's shape and its
+      never-more-lenient-than-the-clock property, the paced ratio and the
+      clock artefact it removes, the morning gate now biting a stock that is
+      merely keeping up, `tooLateToStart` (including 0 meaning "no clock",
+      not "day over"), declined-vs-blind level clearing, a Claude row's
+      clock verdict refreshing while its levels are left alone, and the
+      three target-above-the-price paths.
+- [x] Full Gradle unit suite green — 1022 tests, 0 failures.
 - [ ] Ship v7.19 (`versionCode` 76) once the above is done — still at
       `versionCode 75` / `7.18`.
