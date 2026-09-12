@@ -314,13 +314,13 @@ object Form4 {
      * wrong is a name printed backwards on screen, so the guard is deliberately generous.
      */
     fun personName(raw: String): String {
-        val t = raw.trim().replace(Regex("\\s+"), " ")
+        val t = raw.trim().replace(WHITESPACE, " ")
         if (t.isBlank()) return ""
         val parts = t.split(' ')
         val cased = if (t.none { it.isLowerCase() }) titleCase(t) else t
         if (parts.size < 2 || parts.size > 4) return cased
         val lower = t.lowercase()
-        if (ENTITY_WORDS.any { w -> lower.split(Regex("[^a-z0-9]+")).contains(w) }) return cased
+        if (ENTITY_WORDS.any { w -> lower.split(NON_ALPHANUMERIC).contains(w) }) return cased
         val c = cased.split(' ')
         return (c.drop(1) + c.first()).joinToString(" ")
     }
