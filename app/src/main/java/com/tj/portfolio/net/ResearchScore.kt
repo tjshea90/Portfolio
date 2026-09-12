@@ -583,6 +583,12 @@ object ResearchScore {
     private const val MAX_TRIGGER_DISTANCE_ATRS = 2.0
 
     /**
+     * The least the day's remaining room must cover for a plan to be worth drawing at all -
+     * one times the risk. See [tradePlan] step 4 for the sub-1R "target" this prevents.
+     */
+    private const val MIN_CEILING_REWARD_RATIO = 1.0
+
+    /**
      * A 5-minute ATR as a fraction of the daily one, for the overnight case where no intraday
      * bars exist yet. Ranges grow with roughly the square root of time, and a session holds 78
      * five-minute bars, so a 5-minute range lands near 1/sqrt(78) - about a tenth - of the
