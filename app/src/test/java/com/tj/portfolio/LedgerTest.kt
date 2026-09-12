@@ -123,6 +123,149 @@ class LedgerTest {
         }
     }
 
+    // ================================================================ stock splits
+
+    private fun split(ratio: Double, at: Long, sym: String = "ONDS") =
+        Txn(type = TxnType.SPLIT, symbol = sym, quantity = ratio,
+            amount = Txn.cashEffect(TxnType.SPLIT, ratio, 0.0, 0.0, 0.0), date = at)
+
+    /**
+     * THE CASE THE FEATURE EXISTS FOR. Ten times the shares at a tenth of the price, and the
+     * money unchanged - which is what a split is. Before this, the ledger kept the pre-split
+     * count forever and under-reported the position by the whole ratio.
+     */
+    @Test fun `a ten for one split multiplies the shares and leaves the basis alone`() {
+        val txns = listOf(
+            buy(10.0, 1200.0, session - 60 * day),
+            split(10.0, session - 30 * day)
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val p = pos(txns, method)
+            assertEquals("$method: shares", 100.0, p.shares, 1e-9)
+            assertEquals("$method: total cost basis is untouched", 12_000.0, p.costBasis, 1e-6)
+            assertEquals("$method: so the cost per share is divided by the ratio",
+                120.0, p.avgCost, 1e-9)
+            assertEquals("$method: nothing is realized by a split", 0.0, p.realized, 1e-9)
+            assertEquals("$method: and no cash moves", 0.0, Ledger.cash(txns), 1e-9)
+        }
+    }
+
+    /** And the same arithmetic backwards, for a reverse split. */
+    @Test fun `a one for ten reverse split divides the shares`() {
+        val txns = listOf(
+            buy(500.0, 2.0, session - 60 * day),
+            split(0.1, session - 30 * day)
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val p = pos(txns, method)
+            assertEquals("$method: shares", 50.0, p.shares, 1e-9)
+            assertEquals("$method: basis", 1000.0, p.costBasis, 1e-6)
+            assertEquals("$method: cost per share", 20.0, p.avgCost, 1e-9)
+        }
+    }
+
+    /** Only what was held when the split happened scales - a later buy is already adjusted. */
+    @Test fun `a buy after the split is not scaled by it`() {
+        val txns = listOf(
+            buy(10.0, 1200.0, session - 60 * day),     // -> 100 shares at 120 after the split
+            split(10.0, session - 30 * day),
+            buy(50.0, 130.0, session - 10 * day)       // bought post-split, at post-split prices
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val p = pos(txns, method)
+            assertEquals("$method: shares", 150.0, p.shares, 1e-9)
+            assertEquals("$method: basis", 12_000.0 + 6_500.0, p.costBasis, 1e-6)
+        }
+    }
+
+    /** A sale after a split realizes against the SPLIT-ADJUSTED cost, not the old one. */
+    @Test fun `selling after a split realizes against the adjusted basis`() {
+        val txns = listOf(
+            buy(10.0, 100.0, session - 60 * day),      // basis 1,000 -> 100 shares at 10
+            split(10.0, session - 30 * day),
+            sell(50.0, 15.0, session - 10 * day)
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val p = pos(txns, method)
+            assertEquals("$method: shares left", 50.0, p.shares, 1e-9)
+            assertEquals("$method: 50 x (15 - 10)", 250.0, p.realized, 1e-6)
+            assertEquals("$method: basis left", 500.0, p.costBasis, 1e-6)
+        }
+    }
+
+    /** The same-day pool is a share count too, so it scales with everything else. */
+    @Test fun `a split scales the shares bought today`() {
+        val txns = listOf(
+            buy(10.0, 100.0, session - 4 * 3_600_000L),
+            split(10.0, session - 2 * 3_600_000L)
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val p = pos(txns, method)
+            assertEquals("$method: shares bought today", 100.0, p.sharesToday, 1e-9)
+            assertEquals("$method: at a tenth of the fill price", 10.0, p.avgCostToday, 1e-9)
+        }
+    }
+
+    /**
+     * A RATIO THAT MAKES NO SENSE IS IGNORED, NOT APPLIED. Multiplying a holding by zero or
+     * by a negative would destroy it outright - the one outcome worse than having no split
+     * support at all - so [TxnType.splitRatio] refuses it and the replay skips the row.
+     */
+    @Test fun `an unusable split ratio leaves the position untouched`() {
+        for (bad in listOf(0.0, -2.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            val txns = listOf(
+                buy(10.0, 100.0, session - 60 * day),
+                split(bad, session - 30 * day)
+            )
+            for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+                val p = pos(txns, method)
+                assertEquals("ratio $bad under $method: shares", 10.0, p.shares, 1e-9)
+                assertEquals("ratio $bad under $method: basis", 1000.0, p.costBasis, 1e-6)
+            }
+        }
+    }
+
+    /** A split for a symbol that was never held is a no-op, not a phantom holding. */
+    @Test fun `a split on an unheld symbol creates nothing`() {
+        val txns = listOf(
+            buy(10.0, 100.0, session - 60 * day, sym = "ONDS"),
+            split(10.0, session - 30 * day, sym = "NVDA")
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val all = Ledger.positions(txns, method = method, sessionInstant = session)
+            assertTrue("$method: NVDA should not appear", all.none { it.symbol == "NVDA" })
+            assertEquals("$method: ONDS untouched", 10.0, pos(txns, method).shares, 1e-9)
+        }
+    }
+
+    /** Whatever else is on the row, a split can never move the cash balance. */
+    @Test fun `a split has no cash effect`() {
+        assertEquals(0.0, Txn.cashEffect(TxnType.SPLIT, 10.0, 0.0, 0.0, 0.0), 1e-12)
+        // Even if a stray price/amount/fee were somehow recorded on one.
+        assertEquals(0.0, Txn.cashEffect(TxnType.SPLIT, 10.0, 55.0, 999.0, 3.0), 1e-12)
+    }
+
+    /** The lifetime identity has to survive a split under both methods, too. */
+    @Test fun `both methods still agree across a split`() {
+        val txns = listOf(
+            buy(10.0, 100.0, session - 80 * day),
+            buy(5.0, 140.0, session - 70 * day),
+            split(4.0, session - 60 * day),
+            sell(30.0, 40.0, session - 40 * day),
+            buy(10.0, 35.0, session - 20 * day)
+        )
+        val price = 38.0
+        val f = pos(txns, Ledger.FIFO)
+        val a = pos(txns, Ledger.AVERAGE)
+        assertEquals("shares", f.shares, a.shares, 1e-9)
+        assertEquals(
+            "lifetime P/L",
+            f.realized + (f.shares * price - f.costBasis),
+            a.realized + (a.shares * price - a.costBasis),
+            1e-6
+        )
+    }
+
     // ==================================================== the invariant both methods share
 
     /**
