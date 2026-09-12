@@ -383,11 +383,9 @@ object Ledger {
                     // FIFO correctly consumed the in-window lot first while this consumed the
                     // later one. A sale takes the pre-window shares, then the in-window ones,
                     // then whatever was bought after; only the middle bucket carries a cost.
-                    var rest = covered
-                    val fromBefore = minOf(rest, a.beforeShares)
-                    a.beforeShares -= fromBefore
-                    rest -= fromBefore
-                    val fromToday = minOf(rest, a.todayShares)
+                    val sharesBefore2 = a.shares + covered
+                    val heldFromBefore = (sharesBefore2 - a.todayShares).coerceAtLeast(0.0)
+                    val fromToday = (covered - heldFromBefore).coerceIn(0.0, a.todayShares)
                     if (fromToday > 1e-9 && a.todayShares > 1e-9) {
                         a.todayCost -= fromToday * (a.todayCost / a.todayShares)
                         a.todayShares -= fromToday
