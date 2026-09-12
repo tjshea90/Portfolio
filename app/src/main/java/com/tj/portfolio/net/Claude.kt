@@ -196,7 +196,8 @@ say so in notes. Numbers must not contain commas or currency symbols."""
         for (i in 0 until arr.length()) {
             val o = arr.optJSONObject(i) ?: continue
             val type = o.optString("type").uppercase()
-            if (type !in TxnType.ALL) continue
+            // IMPORTABLE, not ALL - a model reply may never carry a SPLIT. See its note.
+            if (type !in TxnType.IMPORTABLE) continue
             val sym = o.optString("symbol").takeIf { it.isNotBlank() && it != "null" }?.uppercase()
             val qty = o.optDouble("quantity", 0.0).let { if (it.isNaN()) 0.0 else it }
             var px = o.optDouble("price", 0.0).let { if (it.isNaN()) 0.0 else it }
