@@ -128,18 +128,22 @@ object MarketClock {
      * is 0, so the ratio is 0 and the gate would empty the section completely, including the
      * overnight planning path the rest of this feature deliberately supports.
      *
-     * Scaling the threshold by this fraction compares like with like.
+     * This function supplies the clock half of the correction that compares like with like.
      *
-     * ---- AND WHY LINEAR IS THE SAFE APPROXIMATION, THOUGH IT IS NOT THE TRUE SHAPE
+     * ---- BUT THE CLOCK IS NOT THE ANSWER ON ITS OWN, AND THIS FUNCTION IS NOT THE CONVERSION
      *
      * Real intraday volume is U-shaped, not flat - the open and the close carry far more than
      * their share of the day (Wood, McInish & Ord 1985; Harris 1986). So at 10:00 a stock at
      * genuinely normal pace has already done MORE of its day's volume than the 8% of the clock
-     * that has elapsed. Using the clock therefore always UNDERSTATES what normal participation
-     * looks like early on, which means the scaled gate is always at least as lenient as the
-     * true test and can never exclude a stock for being early. Being wrong in that direction
-     * costs a weaker filter in the first hour; being wrong in the other direction would empty
-     * the screen at exactly the hour it matters most.
+     * that has elapsed - roughly a sixth of it. Dividing by the elapsed clock fraction alone
+     * would therefore report a completely ordinary stock as running at twice its normal rate
+     * all morning, and the list would be nothing but that artefact.
+     *
+     * So callers do NOT use this number as the expected share of the day's volume. They pass it
+     * to [ResearchScore.expectedVolumeFraction], which bends it into that share, and compare
+     * against the result - see [ResearchScore.pacedVolumeRatio]. What this function returns is
+     * only ever "how much of the session has elapsed": a clock reading, nothing more. A second
+     * code-review pass replaced an earlier linear use of it, and this paragraph with it.
      */
     fun sessionElapsedFraction(now: Long = System.currentTimeMillis()): Double {
         val c = Calendar.getInstance(ET)
