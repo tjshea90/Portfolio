@@ -212,7 +212,7 @@ object Form4 {
         // Everything after the first comma is legal boilerplate, and it is long: Amazon files
         // its ordinary shares as "Common Stock, par value $.01 per share", which read on
         // screen as "sold 3,741 Common Stock, par value $.01 per share".
-        val head = raw.trim().replace(Regex("\\s+"), " ").substringBefore(',').trim()
+        val head = raw.trim().replace(WHITESPACE, " ").substringBefore(',').trim()
         if (head.isBlank()) return ""
         // The MATCH RANGE, not indexOf. Looking up the class letter by value finds the "a"
         // inside the word "Class" itself, so "Class A Common Stock" was left with the
