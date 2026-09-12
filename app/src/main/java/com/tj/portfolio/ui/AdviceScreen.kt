@@ -196,11 +196,15 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
 
 @Composable
 private fun RatingCard(s: StockRating) {
+    // Same fill-vs-text split as Theme.kt's greenText/redText/scoreColor: the two middle tiers
+    // were literally scoreColor's dark-only values used unconditionally, which read fine in
+    // dark mode but fail contrast as light-mode text - now theme-branched the same way.
+    val dark = LocalDarkTheme.current
     val c = when {
-        s.rating >= 8 -> Green
-        s.rating >= 6 -> Color(0xFF3D9A5B)
-        s.rating >= 4 -> Color(0xFFD79A2B)
-        else -> Red
+        s.rating >= 8 -> greenText
+        s.rating >= 6 -> if (dark) Color(0xFF3D9A5B) else Color(0xFF2F7A46)
+        s.rating >= 4 -> if (dark) Color(0xFFD79A2B) else Color(0xFF8A6410)
+        else -> redText
     }
     Box(Modifier.padding(horizontal = 16.dp, vertical = 5.dp)) {
         StatCard {
