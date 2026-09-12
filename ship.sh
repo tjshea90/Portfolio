@@ -138,8 +138,11 @@ bash tools/ckpt.sh \
 versionCode check all passed here. NOT yet built - GitHub has not been asked." \
   "TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
 android.yml, ref main, inputs {\"full_build\": \"true\"}. When that run is green,
-send Tj the APK from the Release and then run:
-  bash tools/record-release.sh v$VNAME \"$NOTE\"" >/dev/null 2>&1
+confirm the Release is published (get_release_by_tag is enough) and then run:
+  bash tools/record-release.sh v$VNAME \"$NOTE\"
+Do NOT try to send Tj the APK - he downloads it himself from the Release page
+(CLAUDE.md, his rule of 2026-09-11), and this container cannot fetch a private
+repo's release asset bytes anyway." >/dev/null 2>&1
 echo "  OK    next step recorded in CHECKPOINT.md (survives an interruption here)"
 echo
 echo "== v$VNAME (code $VCODE) is ready for GitHub to build =="
