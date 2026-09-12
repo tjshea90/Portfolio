@@ -639,6 +639,6 @@ class DayTradingSoundnessTest {
         assertFalse(ResearchScore.tooLateToStart(390))
     }
 
-    /** Shorthand - this curve is checked point by point, and the name is read a lot below. */
+    /** Shorthand - the curve above is checked point by point, and this name is read a lot. */
     private fun f(elapsed: Double) = ResearchScore.expectedVolumeFraction(elapsed)
 }
