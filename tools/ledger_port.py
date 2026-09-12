@@ -23,8 +23,12 @@ def unit_price(t, qty):
 def _key(t): return (t["date"], t["id"])
 
 def fifo(txns, today=range(0,0)):
+    # "BOUGHT TODAY" RIDES ON THE LOT, exactly as Ledger.kt does it (CRX-1). This used to be
+    # a pair of side maps that a BUY added to and nothing ever removed from - the very bug
+    # CRX-1 fixed in the Kotlin, left standing here - and nothing returned them anyway, so
+    # the port could not see a same-day defect of any kind. A lot carries its own flag, so
+    # whatever is still in the deque and flagged is genuinely what was bought today and held.
     lots, realized, first = {}, {}, {}
-    tshares, tcost = {}, {}
     for t in sorted(txns, key=_key):
         sym = (t["symbol"] or "").upper()
         if not sym: continue
@@ -36,10 +40,7 @@ def fifo(txns, today=range(0,0)):
         px = unit_price(t, qty)
         if t["type"] == BUY:
             first.setdefault(sym, t["date"])
-            q.append([qty, (qty*px + t["fees"])/qty])
-            if t["date"] in today:
-                tshares[sym] = tshares.get(sym,0.0)+qty
-                tcost[sym]  = tcost.get(sym,0.0)+qty*px+t["fees"]
+            q.append([qty, (qty*px + t["fees"])/qty, t["date"] in today])
         else:
             remaining, cost_out = qty, 0.0
             while remaining > 1e-9 and q:
@@ -52,8 +53,11 @@ def fifo(txns, today=range(0,0)):
     for sym, q in lots.items():
         shares = sum(l[0] for l in q)
         cost   = sum(l[0]*l[1] for l in q)
+        fresh  = [l for l in q if l[2]]
         out[sym] = dict(symbol=sym, shares=shares, costBasis=cost,
-                        realized=realized.get(sym,0.0))
+                        realized=realized.get(sym,0.0),
+                        sharesToday=sum(l[0] for l in fresh),
+                        costToday=sum(l[0]*l[1] for l in fresh))
     return out
 
 def average(txns, today=range(0,0)):
