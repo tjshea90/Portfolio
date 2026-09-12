@@ -13,7 +13,8 @@ data class SearchHit(
  * Type-ahead ticker lookup by symbol OR company name.
  *   1. Yahoo Finance search - no key, matches both name and ticker
  *   2. Finnhub /search      - if a key is configured
- * Results are equities/ETFs only; indices and futures are filtered out.
+ * Results are equities, ETFs, mutual funds and crypto pairs; indices and futures are filtered
+ * out (see the type allow-list below).
  */
 object SymbolSearch {
 
