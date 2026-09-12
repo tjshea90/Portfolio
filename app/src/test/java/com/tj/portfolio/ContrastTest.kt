@@ -4,10 +4,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.tj.portfolio.data.TradeVerdict
 import com.tj.portfolio.ui.PortfolioTheme
 import com.tj.portfolio.ui.greenText
+import com.tj.portfolio.ui.ratingColor
 import com.tj.portfolio.ui.redText
 import com.tj.portfolio.ui.rowRule
+import com.tj.portfolio.ui.verdictTextColor
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
