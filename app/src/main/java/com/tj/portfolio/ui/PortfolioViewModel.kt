@@ -5871,7 +5871,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // most [MAX_PARALLEL_REQUESTS] symbols are ever fetching their chart at
                         // once - null (already fresh, already in flight, or backing off) joins
                         // nothing and falls through immediately.
-                        loadChart(row.symbol, com.tj.portfolio.data.ChartRange.D1)?.join()
+                        // CALLED ON MAIN, NOT HERE ON IO (Part 9 audit finding). [loadChart]'s
+                        // in-flight guard is check-then-launch: it reads `_chartLoading`
+                        // synchronously, then sets it inside `fgScope.launch {}`. Every OTHER
+                        // call site is already on Main, where `Dispatchers.Main.immediate` runs
+                        // that launched body inline - closing the window instantly. This whole
+                        // function runs under `withContext(Dispatchers.IO)`, so calling
+                        // [loadChart] directly here dispatches the launch rather than running
+                        // it inline, leaving a real gap where a concurrent Main-thread call for
+                        // the same (symbol, D1) key could also pass the guard - two fetches for
+                        // the same chart. Getting the Job back on Main closes that gap; the
+                        // wait itself can still happen on any dispatcher.
+                        val chartJob = withContext(Dispatchers.Main) {
+                            loadChart(row.symbol, com.tj.portfolio.data.ChartRange.D1)
+                        }
+                        chartJob?.join()
                         row.symbol to runCatching {
                             com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
                         }.getOrNull()
