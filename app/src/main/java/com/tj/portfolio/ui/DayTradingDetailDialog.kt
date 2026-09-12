@@ -62,12 +62,22 @@ fun DayTradingDetailDialog(r: ResearchRow, onDismiss: () -> Unit) {
  * available yet, rather than drawn as a false zero.
  */
 @Composable
-internal fun DayTradingPlanContent(r: ResearchRow) {
+internal fun DayTradingPlanContent(
+    r: ResearchRow,
+    /**
+     * Total portfolio equity, for the share count (Round 73). 0.0 - the default - means "no
+     * portfolio to size against", and [com.tj.portfolio.net.ResearchScore.positionSize] then
+     * returns null and nothing is drawn, rather than a share count computed from nothing.
+     */
+    equity: Double = 0.0
+) {
     Column {
         if (r.entryPrice > 0) {
                     BeginnerSummaryCard(r)
                     TradeLevelsGrid(r)
                     Spacer(Modifier.height(10.dp))
+                    PositionSizeLine(r, equity)
+                    ExitPlanLine(r)
                     val rr = rewardToRisk(r)
                     // GUARDED THE SAME WAY THE GRID ABOVE GUARDS ITS CELLS. A row whose stop or
                     // target is missing draws an em dash up there; this line, unguarded, would
