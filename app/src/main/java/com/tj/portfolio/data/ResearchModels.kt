@@ -206,6 +206,17 @@ data class ResearchRow(
     /** Anything about the plan that should give the reader pause. Often blank. */
     val planNote: String = "",
     /**
+     * HOW THE TRADE ENDS (Round 73) - the take-profit-or-trail choice, and the flat-by-the-bell
+     * rule that is not a choice. See [com.tj.portfolio.net.ResearchScore.TradePlan.exit] for why
+     * a single [targetPrice] could never carry this on its own.
+     */
+    val planExit: String = "",
+    /**
+     * Too little of the session is left to START this trade - the levels stand, the clock does
+     * not. See [com.tj.portfolio.net.ResearchScore.tradePlan]'s time rules.
+     */
+    val tooLateToStart: Boolean = false,
+    /**
      * TRUE WHEN THE THREE PRICES ABOVE ARE CLAUDE'S, NOT THE APP'S ARITHMETIC.
      *
      * Round 69 is the first time anything in this app lets a language model set a NUMBER a
