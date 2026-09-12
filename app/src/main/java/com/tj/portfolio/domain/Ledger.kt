@@ -304,7 +304,8 @@ object Ledger {
             val fresh = q.filter { it.today }
             applyOverride(
                 sym, shares, cost, realized[sym] ?: 0.0, first[sym] ?: 0L, overrides,
-                fresh.sumOf { it.shares }, fresh.sumOf { it.shares * it.unitCost }
+                fresh.sumOf { it.shares }, fresh.sumOf { it.shares * it.unitCost },
+                oversold[sym] ?: 0.0
             )
         }
     }
