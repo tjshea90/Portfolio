@@ -843,7 +843,7 @@ object ResearchScore {
             },
             note = planNote(
                 price, entry, risk, target, tech, rawRisk, maxRisk,
-                minutesLeft, middayLull, earningsToday, vol, tooLate
+                minutesLeft, middayLull, earningsToday, vol, tooLate, targetFromRoom
             )
         )
         return plan
