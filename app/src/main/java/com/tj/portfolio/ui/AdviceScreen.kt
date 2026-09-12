@@ -240,8 +240,8 @@ private fun RatingCard(s: StockRating) {
                 }
                 if (s.action.isNotBlank()) {
                     val ac = when (s.action.uppercase()) {
-                        "BUY", "ADD" -> Green
-                        "SELL", "TRIM", "EXIT" -> Red
+                        "BUY", "ADD" -> greenText
+                        "SELL", "TRIM", "EXIT" -> redText
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
                     Box(
