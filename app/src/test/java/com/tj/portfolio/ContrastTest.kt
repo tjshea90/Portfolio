@@ -233,6 +233,47 @@ class ContrastTest {
         )
     }
 
+    /**
+     * BUY/HOLD/SELL AS TEXT, ON THE BADGE/CHIP/DIALOG'S OWN BACKGROUND (optimization pass).
+     *
+     * `verdictTint`'s raw values were being painted as text directly: BUY's green passed light
+     * but not dark, SELL's red the same, and HOLD's amber was the other way round entirely -
+     * 8.28:1 dark, 1.81:1 light. `verdictTextColor` exists so the badge, the portfolio row's
+     * chip and the recommendation dialog all read correctly in both themes.
+     */
+    @Test fun verdictTextIsLegibleOnItsOwnBackground() {
+        for (dark in listOf(false, true)) {
+            val p = palette(dark)
+            atLeast(4.5, "BUY text on surfaceVariant (dark=$dark)", p.buyText, p.surfaceVariant)
+            atLeast(4.5, "HOLD text on surfaceVariant (dark=$dark)", p.holdText, p.surfaceVariant)
+            atLeast(4.5, "SELL text on surfaceVariant (dark=$dark)", p.sellText, p.surfaceVariant)
+        }
+    }
+
+    /**
+     * THE ADVICE TAB'S RATING NUMBER, ALL FOUR TIERS (optimization pass).
+     *
+     * The middle two tiers were `scoreColor`'s dark-branch values, copied in and painted
+     * unconditionally - correct in dark mode, unmeasured and wrong in light. `ratingColor`
+     * gives all four tiers the same per-theme split every other coloured figure in this app
+     * already follows.
+     */
+    @Test fun ratingNumberIsLegibleInEveryTierAndTheme() {
+        for (dark in listOf(false, true)) {
+            val p = palette(dark)
+            for ((name, bg) in listOf(
+                "background" to p.background,
+                "surface" to p.surface,
+                "surfaceVariant (StatCard)" to p.surfaceVariant
+            )) {
+                atLeast(4.5, "rating>=8 on $name (dark=$dark)", p.rating9, bg)
+                atLeast(4.5, "rating 6-7 on $name (dark=$dark)", p.rating7, bg)
+                atLeast(4.5, "rating 4-5 on $name (dark=$dark)", p.rating5, bg)
+                atLeast(4.5, "rating<4 on $name (dark=$dark)", p.rating2, bg)
+            }
+        }
+    }
+
     /** The arithmetic itself, against two ratios anyone can check by hand. */
     @Test fun theContrastFormulaIsRight() {
         assertTrue(contrast(Color.Black, Color.White) > 20.9)
