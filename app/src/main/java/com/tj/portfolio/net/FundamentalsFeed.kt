@@ -7,6 +7,7 @@ import com.tj.portfolio.data.EarningsResult
 import com.tj.portfolio.data.Fundamentals
 
 import com.tj.portfolio.data.RatingTrend
+import com.tj.portfolio.util.yahooNum
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
