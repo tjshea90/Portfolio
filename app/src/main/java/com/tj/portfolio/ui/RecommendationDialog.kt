@@ -45,6 +45,25 @@ fun verdictTint(v: TradeVerdict): Color = when (v) {
     TradeVerdict.SELL -> Color(0xFFC62828)
 }
 
+/**
+ * [verdictTint] as TEXT - the same fill-vs-text split every other coloured text in this app
+ * follows (see Theme.kt's `greenText`/`redText`/`scoreColor`). Measured on `surfaceVariant`,
+ * the badge/chip/dialog's own background: BUY's green passes light (4.70:1) but not dark
+ * (3.18:1); HOLD's amber is the opposite - 8.28:1 dark, 1.81:1 light; SELL's red passes light
+ * (5.15:1) but not dark (2.91:1). [verdictTint] itself is untouched - it is right as a FILL/
+ * border, same as the fill colours in Theme.kt - only the text pulls a per-theme value, reusing
+ * the same greenText/redText/scoreColor tier-2-amber pairs already measured elsewhere.
+ */
+@Composable
+fun verdictTextColor(v: TradeVerdict): Color {
+    val dark = LocalDarkTheme.current
+    return when (v) {
+        TradeVerdict.BUY -> if (dark) greenText else verdictTint(v)
+        TradeVerdict.HOLD -> if (dark) Color(0xFFD79A2B) else Color(0xFF8A6410)
+        TradeVerdict.SELL -> if (dark) redText else verdictTint(v)
+    }
+}
+
 /** Test handle for the badge, whose text varies with the verdict. */
 internal const val RECOMMENDATION_BADGE_TEST_TAG = "recommendationBadge"
 
