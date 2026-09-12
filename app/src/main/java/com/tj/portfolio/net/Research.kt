@@ -572,6 +572,34 @@ object Research {
     }
 
     /**
+     * CAN THIS BE DAY TRADED AT ALL - asked before anything is scored (Round 73).
+     *
+     * See [MIN_AVG_VOLUME_DAY_TRADING] and [MIN_RVOL_DAY_TRADING] for where the two new floors
+     * come from and which parts of the cited study are deliberately NOT copied.
+     *
+     * ---- MISSING VOLUME EXCLUDES HERE, WHICH IS THE OPPOSITE OF THE HOUSE RULE
+     *
+     * Everywhere else in this file an unknown figure passes its filter - `marketCap <= 0.0 ||
+     * marketCap >= MIN_MARKET_CAP` is the pattern, and it is the right one when the number is
+     * a nice-to-have. Average volume is not a nice-to-have for this section: "is this stock
+     * unusually busy today" is the ENTIRE definition of in-play that the tab is built on, it
+     * is 30 of the 100 points [ResearchScore.dayTrading] can award, and it cannot be answered
+     * at all without a baseline to compare against. A row with no average volume is not a row
+     * whose liquidity is merely unproven - it is a row where the central question was never
+     * answerable, and admitting it on the grounds that the data is absent is how the
+     * untradeable $2 name reaches the top of the list.
+     *
+     * In practice this rejects almost nothing that would have ranked anyway: without
+     * `avgVolume3M` the row also scores zero on its single largest component, so it was never
+     * going to place. The exclusion is about the tail case where everything else scored.
+     */
+    internal fun dayTradable(r: ScreenRow): Boolean =
+        r.price >= MIN_PRICE_DAY_TRADING &&
+            (r.marketCap <= 0.0 || r.marketCap >= MIN_MARKET_CAP) &&
+            r.avgVolume3M >= MIN_AVG_VOLUME_DAY_TRADING &&
+            r.volumeRatio >= MIN_RVOL_DAY_TRADING
+
+    /**
      * See [ResearchScore.dayTrading]'s header for what this section is and, at length, is not.
      *
      * ZERO NEW REQUESTS: [universe] is the same nine-screener merge [build] already fetched,
