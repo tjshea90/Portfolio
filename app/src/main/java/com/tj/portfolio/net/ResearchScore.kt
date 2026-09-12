@@ -739,24 +739,42 @@ object ResearchScore {
         val stop = entry - risk
         if (stop <= 0.0) return null
 
-        // ---- 4: the target.
+        // ---- 4: the target - the nearest real supply, capped by the room the day has left.
+        //
+        // WHAT CHANGED IN ROUND 73: the hardcoded `entry + 3R` ceiling is gone. See
+        // [MAX_REWARD_RISK_RATIO]'s own header for the evidence (in short: this strategy family
+        // earns its expectancy in a thin right tail, and truncating every winner at 3R while
+        // keeping every full-sized loser is the single modification most likely to invert it).
+        // The realism constraint that remains is the measured one rather than the conventional
+        // one - how much of a normal day's range is actually left.
         val nearestAbove = overhead
             .filter { it.price > entry + risk * 0.3 }
             .minByOrNull { it.price }
-        val standard = entry + risk * TARGET_REWARD_RISK_RATIO
+
         // "How much room is left in the day" is a live-session question - the same reason the
         // extension checks above are gated on `live`. Yesterday's low plus a normal day's range
-        // is not a ceiling on tomorrow.
-        val ceiling = if (live && tech.adr > 0.0 && tech.sessionLow > 0.0) tech.sessionLow + tech.adr
-        else Double.MAX_VALUE
+        // is not a ceiling on tomorrow, so outside hours the ceiling is measured from the ENTRY
+        // instead: one whole average day's range above the trigger is already the optimistic
+        // end of what a single session delivers.
+        val roomCeiling = when {
+            live && tech.adr > 0.0 && tech.sessionLow > 0.0 -> tech.sessionLow + tech.adr
+            !live && tech.adr > 0.0 -> entry + tech.adr
+            else -> Double.MAX_VALUE
+        }
+        // A ceiling at or below the trigger says the day has no room left at all. That is worth
+        // warning about (and [planNote] does), but it is not a reason to compute a target below
+        // the entry - which would invert the trade. Ignored in that case; the notes carry it.
+        val ceiling = if (roomCeiling > entry) roomCeiling else Double.MAX_VALUE
+
         val target = when {
-            nearestAbove == null -> standard
-            nearestAbove.price < standard -> nearestAbove.price
-            else -> minOf(
-                nearestAbove.price,
-                entry + risk * MAX_REWARD_RISK_RATIO,
-                if (ceiling >= standard) ceiling else Double.MAX_VALUE
-            )
+            // Real supply overhead: that is the objective, never further than the day reaches.
+            nearestAbove != null -> minOf(nearestAbove.price, ceiling)
+            // Clear air above, and a measured idea of how far the day goes: use it. This is the
+            // case the old flat 2R rule served worst - it answered "how far can this run" with a
+            // convention when an actual measurement of this stock's normal day was available.
+            ceiling < Double.MAX_VALUE -> ceiling
+            // Neither structure nor range: the 2:1 convention, explicitly as a last resort.
+            else -> entry + risk * TARGET_REWARD_RISK_RATIO
         }
         if (target <= entry) return null
 
