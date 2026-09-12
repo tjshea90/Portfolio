@@ -662,6 +662,11 @@ internal fun mergeDayTradingTech(
             com.tj.portfolio.net.Research.CATALYST_EARNINGS_TODAY
         )
     )
+    // THE ENGINE LOOKED AND SAID NO, as opposed to not being able to look at all - the
+    // distinction the level fields below turn on. `tradePlan` bails early only on a missing
+    // price or a missing volatility reading, so with both present a null is a decision.
+    val declined = plan == null && !row.planByClaude && row.price > 0.0 &&
+        (effective.atrIntraday > 0.0 || effective.atr14 > 0.0)
     return row.copy(
         atr = effective.atr14,
         vwap = effective.vwap,
