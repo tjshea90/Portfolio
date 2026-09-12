@@ -602,3 +602,33 @@ Tj's request, 2026-09-11 (his own words):
 > the day trading logic very sound
 
 (The first sentence is Part 8a above, already shipped. This is the rest.)
+
+### Where Part 8b stands (written 2026-09-12, resuming after a usage cut-off)
+
+- [x] Part 8b logic layer: tradability gates (1M avg shares + RVOL), the
+      `MarketClock` session model, 5-minute opening-range/ADR structure, the
+      time-of-day rules and the "too late to start" verdict (ckpt 670-671).
+- [x] First `/code-review` pass over Part 8b: 6 findings fixed, 8 regression
+      tests added, 1012 tests green (ckpt 672).
+- [ ] **Second code-review pass over those fixes** — the step the last session
+      was cut off inside. The code changes are all committed (`30de4b9..HEAD`,
+      4 files), but were never compiled or tested, and carry no regression
+      tests of their own yet. Five fixes are in the tree:
+      - relative volume paced by an intraday volume curve
+        (`pacedVolumeRatio`/`expectedVolumeFraction`, `elapsed^0.7`) rather
+        than linearly by the clock, applied to the score, the confidence
+        checklist and the admission gate;
+      - a pre-market carve-out in `Research.dayTradable`, so "nothing has
+        traded yet" is not read as "quiet" and the whole universe is not
+        excluded before the bell;
+      - `tooLateToStart` computed from the clock every tick for every row
+        (including Claude-imported plans) instead of being pinned to a plan;
+      - `mergeDayTradingTech` telling "could not see" from "looked and
+        declined", so a stock that has spent its ADR clears its stale levels
+        instead of freezing the morning's plan on screen all afternoon;
+      - the room ceiling measured from `max(entry, price)`, not `entry`.
+- [ ] Regression tests for each of the five, per this round's one-test-per-
+      finding convention (none of them are covered yet).
+- [ ] Full Gradle unit suite green.
+- [ ] Ship v7.19 (`versionCode` 76) once the above is done — still at
+      `versionCode 75` / `7.18`.
