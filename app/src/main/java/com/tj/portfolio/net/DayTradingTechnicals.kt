@@ -230,6 +230,7 @@ object DayTradingTechnicals {
         // intraday bar list, and calling it twice (once for the high, once for the low) did
         // that work twice for no reason on every symbol, every 30-second tick.
         val or = regular?.let { openingRange(it) }
+        val or5 = regular?.let { openingBar(it) }
         val completed = daily?.let { completedSessions(it, now) }
         val prev = completed?.lastOrNull()
         return DayTechnicals(
@@ -238,6 +239,9 @@ object DayTradingTechnicals {
             openingRangeHigh = or?.first ?: 0.0,
             openingRangeLow = or?.second ?: 0.0,
             openingRangeComplete = regular?.let { openingRangeComplete(it) } ?: false,
+            or5High = or5?.high ?: 0.0,
+            or5Low = or5?.low ?: 0.0,
+            openingBarBullish = or5 != null && or5.close > or5.open,
             atrIntraday = regular?.let { atr14(it) } ?: 0.0,
             adr = completed?.let { adr(it) } ?: 0.0,
             prevHigh = prev?.high ?: 0.0,
