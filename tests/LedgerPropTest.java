@@ -61,10 +61,13 @@ public class LedgerPropTest {
             // ever fall inside `today`, so across all 20,000 runs `sharesToday` was always 0,
             // the entire same-day pool path of both replays was never executed, and invariant
             // 6 below ("day figures differ with boughtTodayCount 0") could not fire in either
-            // direction. Drawing the session from the SAME distribution as the transactions
-            // means roughly a tenth of runs now hold shares bought "today", which is what
-            // actually exercises it.
-            long session = 1_750_000_000_000L + r.nextInt(400)*DAY;
+            // direction.
+            //
+            // Taking the session FROM one of the generated rows, rather than redrawing over
+            // the same 400-day span, is what makes that reliable: a redraw only collides with
+            // a transaction about one run in a hundred, and the count printed at the end says
+            // so out loud rather than leaving it to be assumed again.
+            long session = txns.get(r.nextInt(txns.size())).getDate();
             List<Position> f = Ledger.INSTANCE.positions(txns, new HashMap<>(), Ledger.FIFO, session);
             List<Position> v = Ledger.INSTANCE.positions(txns, new HashMap<>(), Ledger.AVERAGE, session);
             for (Position p : f) if (p.getSharesToday() > 1e-9) { sawToday++; break; }
