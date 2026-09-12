@@ -116,6 +116,48 @@ object MarketClock {
     }
 
     /**
+     * HOW MUCH OF THE REGULAR SESSION HAS ALREADY HAPPENED, 0.0 to 1.0 (Round 73).
+     *
+     * ---- THE BUG THIS EXISTS TO PREVENT, WHICH A CODE REVIEW CAUGHT BEFORE SHIPPING
+     *
+     * `ScreenRow.volumeRatio` divides volume SO FAR TODAY by a full THREE-MONTH DAILY average.
+     * Those are not the same unit. At 10:00 ET a stock running at three times its normal pace
+     * has still only traded a fraction of a normal DAY, so its ratio reads something like 0.3 -
+     * and a naive "relative volume must be at least 1.0" gate would have excluded it, and
+     * almost everything else, for the entire morning. Pre-market it is worse: the day's volume
+     * is 0, so the ratio is 0 and the gate would empty the section completely, including the
+     * overnight planning path the rest of this feature deliberately supports.
+     *
+     * Scaling the threshold by this fraction compares like with like.
+     *
+     * ---- AND WHY LINEAR IS THE SAFE APPROXIMATION, THOUGH IT IS NOT THE TRUE SHAPE
+     *
+     * Real intraday volume is U-shaped, not flat - the open and the close carry far more than
+     * their share of the day (Wood, McInish & Ord 1985; Harris 1986). So at 10:00 a stock at
+     * genuinely normal pace has already done MORE of its day's volume than the 8% of the clock
+     * that has elapsed. Using the clock therefore always UNDERSTATES what normal participation
+     * looks like early on, which means the scaled gate is always at least as lenient as the
+     * true test and can never exclude a stock for being early. Being wrong in that direction
+     * costs a weaker filter in the first hour; being wrong in the other direction would empty
+     * the screen at exactly the hour it matters most.
+     */
+    fun sessionElapsedFraction(now: Long = System.currentTimeMillis()): Double {
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = now
+        return when (phase(now)) {
+            Phase.OPEN -> {
+                val total = (CLOSE_MINUTE - OPEN_MINUTE).toDouble()
+                ((etMinutes(c) - OPEN_MINUTE) / total).coerceIn(0.0, 1.0)
+            }
+            // Before the opening bell nothing of today has traded yet, so no comparison against
+            // today's participation is possible at all - which is a 0 threshold, not a 1.
+            Phase.EXTENDED -> if (etMinutes(c) < OPEN_MINUTE) 0.0 else 1.0
+            // Overnight and weekends: the volume figure describes a session that finished.
+            Phase.CLOSED -> 1.0
+        }
+    }
+
+    /**
      * THE MIDDAY LULL - 11:30-13:30 ET, when intraday continuation setups work least well.
      *
      * The U-shape in intraday volume and volatility is one of the oldest documented facts in
