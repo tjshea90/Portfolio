@@ -273,16 +273,43 @@ class DayTradingTest {
         assertEquals(1.5, plan.entry - plan.stop, 0.001)
     }
 
-    @Test fun `a day that has already run its whole range says so`() {
+    @Test fun `a day that has run most of its range still plans, and says so`() {
+        // 87% of a 12-point average day is spent (99.50 to 110.00), which trips the note - but
+        // the ceiling (session low + ADR = 111.50) is still a full risk unit above the LAST
+        // PRICE, so there is a trade to describe. The margin is deliberately only about half an
+        // intraday ATR: this fixture sits just on the plannable side of the ceiling rule below,
+        // and the case just past it is the next test.
         val plan = ResearchScore.tradePlan(
             110.0,
             tech(
-                atrIntraday = 1.0, vwap = 100.0, adr = 10.0,
+                atrIntraday = 0.5, vwap = 100.0, adr = 12.0,
                 orHigh = 105.0, orLow = 102.0,
-                sessionHigh = 110.0, sessionLow = 99.0
+                sessionHigh = 110.0, sessionLow = 99.5
             )
         )!!
         assertTrue(plan.note.contains("average daily range"))
+        assertTrue("a target must clear the last price", plan.target > 110.0)
+    }
+
+    @Test fun `a day whose remaining room sits below the last price produces no plan at all`() {
+        // THE SECOND-PASS CEILING FIX, pinned with the fixture that used to pass above.
+        //
+        // The ceiling (session low 99 + a 10-point ADR = 109) is more than a risk unit above the
+        // PULLBACK ENTRY near 105, so measuring its usefulness from the entry - which the first
+        // pass did - called it usable and published a target of 109 on a stock trading at 110.
+        // The grid then read "buy at 105, sell at 109" directly above a beginner card saying the
+        // day was done. A target the price has already passed is not a target, and the honest
+        // output is no plan.
+        assertNull(
+            ResearchScore.tradePlan(
+                110.0,
+                tech(
+                    atrIntraday = 1.0, vwap = 100.0, adr = 10.0,
+                    orHigh = 105.0, orLow = 102.0,
+                    sessionHigh = 110.0, sessionLow = 99.0
+                )
+            )
+        )
     }
 
     @Test fun `outside market hours the plan is built from prior-session structure only`() {
