@@ -268,6 +268,20 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_txn_date ON txns(date)")
     }
 
+    /**
+     * THE ONE CACHE TABLE THAT SLIPPED THROUGH (Part 9 audit finding).
+     *
+     * `fundamentals`, `news_cache`, `http_cache` and `chart_cache` each got an index on their
+     * own retention column ([idx_fund_fetched] etc.) alongside the `CREATE TABLE`; `quotes`
+     * never did, even though [purgeQuotes] filters on this exact column. Same fix, same
+     * shape, as [createTxnIndexes]: `IF NOT EXISTS` and its own function so it can be called
+     * from both [onCreate] and the [onOpen] repair block, healing every existing install with
+     * no migration step.
+     */
+    private fun createQuoteIndexes(db: SQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_quote_updated ON quotes(updated)")
+    }
+
     override fun onUpgrade(db: SQLiteDatabase, oldV: Int, newV: Int) {
         if (oldV < 2) createImports(db)
         if (oldV < 3) addColumn(db, "quotes", "quote_time", "INTEGER NOT NULL DEFAULT 0")
