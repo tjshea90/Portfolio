@@ -226,24 +226,8 @@ object FundamentalsFeed {
         return YahooReply(null, last)
     }
 
-    /**
-     * Yahoo wraps most numbers as `{ "raw": 36.68, "fmt": "36.68" }` but hands back a bare
-     * number for some and an EMPTY OBJECT for "not reported". All three shapes have to mean
-     * the same thing here: a value, or nothing. An empty object read as 0.0 is exactly the
-     * fabricated-zero bug this project fixed on previous close.
-     */
-    private fun num(o: JSONObject?, key: String): Double? {
-        if (o == null || !o.has(key) || o.isNull(key)) return null
-        val v = o.opt(key)
-        return when (v) {
-            is Number -> v.toDouble().takeIf { it.isFinite() }
-            is JSONObject -> if (v.has("raw") && !v.isNull("raw")) {
-                v.optDouble("raw", Double.NaN).takeIf { it.isFinite() }
-            } else null
-            is String -> v.toDoubleOrNull()
-            else -> null
-        }
-    }
+    /** See [com.tj.portfolio.util.yahooNum] - the shared Yahoo raw/bare/empty-object unwrap. */
+    private fun num(o: JSONObject?, key: String): Double? = o.yahooNum(key)
 
     private fun str(o: JSONObject?, key: String): String {
         if (o == null || !o.has(key) || o.isNull(key)) return ""
