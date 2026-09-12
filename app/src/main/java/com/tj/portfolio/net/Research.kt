@@ -665,7 +665,7 @@ object Research {
                     )
                 }
                 val catalystSoon = row.earningsAt > 0 &&
-                    (row.earningsAt - System.currentTimeMillis()) / 86_400_000L in 0..1
+                    daysUntilEarnings(row.earningsAt) in 0..1
                 row to ResearchScore.dayTrading(
                     row, t, maxMentions, maxNews, catalystSoon, sessionWord, sessionFraction
                 )
