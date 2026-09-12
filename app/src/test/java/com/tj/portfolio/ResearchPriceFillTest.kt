@@ -368,4 +368,73 @@ class ResearchPriceFillTest {
         )
         assertEquals(ResearchScore.blendedScore(out.dtLikelihood, out.dtConfidence), out.score)
     }
+
+    // ============================== the second code-review pass: a null plan now has two meanings
+
+    /**
+     * Levels a stock can no longer support: 110 with the session low at 99 and a 10-point
+     * average day. `tradePlan` sees good inputs and returns null because the room left sits
+     * below the last price - see `DayTradingTest`'s matching case.
+     */
+    private fun spentDay() = DayTradingTechnicals.DayTechnicals(
+        atr14 = 1.0, atrIntraday = 1.0, vwap = 100.0, adr = 10.0,
+        openingRangeHigh = 105.0, openingRangeLow = 102.0,
+        sessionHigh = 110.0, sessionLow = 99.0,
+        sessionLive = true, sessionDay = TODAY
+    )
+
+    private fun extended(planByClaude: Boolean = false) = ResearchRow(
+        symbol = "GME", price = 110.0, score = 88,
+        entryPrice = 105.1, stopPrice = 103.6, targetPrice = 109.0,
+        setup = "Pullback", trigger = "a limit at 105.10", planNote = "morning plan",
+        sessionDay = TODAY, planByClaude = planByClaude
+    )
+
+    @Test fun `levels the engine has DECLINED to stand behind are cleared, not frozen on screen`() {
+        // THE BUG. Round 73 made "no plan" reachable mid-session for the first time: once a
+        // stock has spent its average daily range, every subsequent tick declines. The old rule
+        // - keep the previous plan whenever this tick produced none - then pinned the MORNING's
+        // entry, stop and target to the card for the rest of the afternoon, describing a trade
+        // the app itself no longer believed in, directly above a beginner card reading "too late
+        // for this one today".
+        val out = mergeDayTradingTech(extended(), spentDay(), minutesLeft = 120)
+        assertEquals("a level the engine withdrew is a blank", 0.0, out.entryPrice, 0.0)
+        assertEquals(0.0, out.stopPrice, 0.0)
+        assertEquals(0.0, out.targetPrice, 0.0)
+        assertEquals("", out.setup)
+        assertEquals("", out.trigger)
+        assertEquals("", out.planNote)
+    }
+
+    @Test fun `but levels the engine could not even LOOK at survive, exactly as before`() {
+        // The other half of the same distinction, and the behaviour this file already protects
+        // elsewhere: with no volatility reading anywhere - this tick's or the row's -
+        // `tradePlan` bails before judging anything, and a transient gap must never erase a
+        // real plan. Only a DECISION clears levels.
+        val blind = DayTradingTechnicals.DayTechnicals(
+            vwap = 100.0, sessionHigh = 110.0, sessionLow = 99.0,
+            sessionLive = true, sessionDay = TODAY
+        )
+        val out = mergeDayTradingTech(extended(), blind, minutesLeft = 120)
+        assertEquals(105.1, out.entryPrice, 0.001)
+        assertEquals(103.6, out.stopPrice, 0.001)
+        assertEquals(109.0, out.targetPrice, 0.001)
+        assertEquals("Pullback", out.setup)
+    }
+
+    @Test fun `a Claude-imported plan keeps its levels but not a stale clock verdict`() {
+        // BOTH HALVES OF THE OTHER STICKING BUG IN ONE ROW. `mergeDayTradingTech` never
+        // re-plans a Claude row, so before this pass its `tooLateToStart` was whatever the flag
+        // happened to be when the plan was imported or built - and nothing could ever clear or
+        // set it again. Imported at 09:45 and read at 15:45, the card stayed confidently
+        // startable all afternoon. The flag is read off the clock now, for every row; the
+        // LEVELS, which are Claude's and not the app's, are still left alone.
+        val late = mergeDayTradingTech(extended(planByClaude = true), spentDay(), minutesLeft = 10)
+        assertTrue("10 minutes left is too late to start", late.tooLateToStart)
+        assertEquals("Claude's own entry is never overwritten here", 105.1, late.entryPrice, 0.001)
+        assertEquals(109.0, late.targetPrice, 0.001)
+
+        val early = mergeDayTradingTech(extended(planByClaude = true), spentDay(), minutesLeft = 300)
+        assertFalse("and it clears again on a row imported earlier", early.tooLateToStart)
+    }
 }
