@@ -480,28 +480,6 @@ private fun VerticalRule() {
     )
 }
 
-/** Solid green/red price pill, matching the reference screenshot's market-cap chip. */
-@Composable
-fun PricePill(
-    text: String,
-    positive: Boolean,
-    modifier: Modifier = Modifier,
-    neutral: Boolean = false
-) {
-    Box(
-        modifier = modifier
-            .background(
-                if (neutral) MaterialTheme.colorScheme.outline
-                else if (positive) Green else Red,
-                RoundedCornerShape(7.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-    }
-}
-
 @Composable
 fun StatCard(
     modifier: Modifier = Modifier,
