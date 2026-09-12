@@ -44,3 +44,22 @@ fun JSONArray.text(index: Int): String {
     val v = optString(index)
     return if (v == "null") "" else v
 }
+
+/**
+ * Yahoo wraps most numbers as `{"raw": 36.68, "fmt": "36.68"}` but hands back a bare number
+ * for some fields and an EMPTY OBJECT for "not reported". All three shapes have to mean the
+ * same thing: a value, or nothing. An empty object read as 0.0 is a fabricated zero - this
+ * app has been bitten by exactly that before, for a fundamentals field and again for a fund
+ * holding's weight. Was duplicated verbatim in `FundamentalsFeed` and `HoldingsFeed`; both now
+ * delegate here.
+ */
+fun JSONObject?.yahooNum(key: String): Double? {
+    if (this == null || !has(key) || isNull(key)) return null
+    return when (val v = opt(key)) {
+        is Number -> v.toDouble().takeIf { it.isFinite() }
+        is JSONObject -> if (v.has("raw") && !v.isNull("raw"))
+            v.optDouble("raw", Double.NaN).takeIf { it.isFinite() } else null
+        is String -> v.toDoubleOrNull()
+        else -> null
+    }
+}
