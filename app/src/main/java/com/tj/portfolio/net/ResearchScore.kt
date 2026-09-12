@@ -858,7 +858,7 @@ object ResearchScore {
         }
         if (target <= entry) return null
 
-        val tooLate = live && minutesLeft in 1 until MIN_MINUTES_FOR_NEW_ENTRY
+        val tooLate = live && tooLateToStart(minutesLeft)
         val plan = TradePlan(
             entry = entry,
             stop = stop,
