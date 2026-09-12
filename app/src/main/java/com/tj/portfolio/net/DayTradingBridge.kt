@@ -446,6 +446,23 @@ $SHAPE
                 // tightened-stop disclosure - and would otherwise be drawn in error red
                 // underneath Claude's levels, warning about a trade no longer on screen.
                 planNote = if (takeLevels) "" else app.planNote,
+                // THE EXIT TEXT CARRIES A PRICE TOO, so it cannot simply be kept either (Round 73,
+                // caught by code review). `planExit` names the app's own target - "Take profit at
+                // $12.00" - and leaving it over Claude's levels prints that under a grid showing
+                // Claude's $13.50, the exact mismatch the `trigger` note above exists to prevent.
+                // It is REBUILT from Claude's target rather than blanked, because the half of it
+                // that matters most is not about any price: a day trade is flat before the close
+                // whoever planned it. No clock is passed - this bridge has none, and the runner
+                // and flat-by rules are not clock-dependent.
+                planExit = if (takeLevels)
+                    ResearchScore.exitPlan(c.targetPrice, minutesLeft = 0, live = false)
+                else app.planExit,
+                // AND THE APP'S CLOCK VERDICT IS NOT CLAUDE'S. `mergeDayTradingTech` deliberately
+                // never recomputes a plan for a `planByClaude` row, so a `tooLateToStart` left
+                // set here would stick to Claude's plan for the rest of the session with nothing
+                // able to clear it - stamping "TOO LATE TO START TODAY" over levels imported
+                // minutes ago.
+                tooLateToStart = if (takeLevels) false else app.tooLateToStart,
                 planByClaude = takeLevels
             )
         }
