@@ -189,7 +189,12 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
             }
         }
 
-        items(advice?.stocks.orEmpty(), key = { it.symbol }) { s -> RatingCard(s) }
+        // DISTINCT BY SYMBOL BEFORE THE KEY, not just keyed. `advice` is Claude's free-text JSON
+        // reply (Claude.kt's `advice()`), parsed with no dedup and no blank-symbol skip - unlike
+        // ResearchScreen's own keyed lists, which document the same risk (nearby comment: "handed
+        // one key twice it throws"). A repeated or blank ticker in Claude's answer would otherwise
+        // crash this tab's LazyColumn outright.
+        items(advice?.stocks.orEmpty().distinctBy { it.symbol }, key = { it.symbol }) { s -> RatingCard(s) }
     }
     }
 }
