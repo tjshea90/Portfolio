@@ -320,9 +320,14 @@ object Ledger {
                     if (a.first == 0L) a.first = t.date
                     a.shares += qty
                     a.cost += qty * px + t.fees
+                    // Three buckets, because a sale consumes them in this order: shares
+                    // bought before the window, then inside it, then after it. The third
+                    // needs no counter - it is whatever `shares` has left over.
                     if (t.date in today) {
                         a.todayShares += qty
                         a.todayCost += qty * px + t.fees
+                    } else if (t.date < today.first) {
+                        a.beforeShares += qty
                     }
                 }
                 TxnType.SELL -> {
