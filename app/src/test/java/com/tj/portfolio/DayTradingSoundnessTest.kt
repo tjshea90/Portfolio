@@ -553,4 +553,92 @@ class DayTradingSoundnessTest {
         assertEquals(108.0, plan.target, 0.001)
         assertTrue(plan.note.contains("The next real resistance"))
     }
+
+    // ================================== the second code-review pass over this round's own fixes
+    //
+    // The five tests below guard the fixes the SECOND review pass made to the first pass's
+    // fixes. None of them had coverage when the session writing them was cut off mid-step.
+
+    @Test fun `the volume curve matches the published intraday shape, not the clock`() {
+        // `elapsed^0.7` stands in for the U-shaped intraday volume profile (Wood, McInish & Ord
+        // 1985; Harris 1986). Exact at both ends, and between them these are the three
+        // checkpoints `expectedVolumeFraction`'s own header commits to in prose.
+        assertEquals("nothing has traded at the bell", 0.0, f(0.0), 0.0)
+        assertEquals("a finished session is a whole session", 1.0, f(1.0), 0.0)
+        assertEquals("about a sixth of the day by 10:00", 0.166, f(30.0 / 390.0), 0.01)
+        assertEquals("about half by noon", 0.512, f(150.0 / 390.0), 0.01)
+        assertEquals("about 90% by 15:00", 0.890, f(330.0 / 390.0), 0.01)
+    }
+
+    @Test fun `the curve is never more lenient than the clock it replaced`() {
+        // THE PROPERTY THAT MAKES THE APPROXIMATION SAFE TO SHIP. Expecting MORE volume by now
+        // than the clock alone would means the bar a stock has to clear to look busy is if
+        // anything overstated - the error flatters nothing. Checked every minute of the session
+        // rather than at a few sampled points, and monotonic throughout.
+        var previous = 0.0
+        for (minute in 0..390) {
+            val clock = minute / 390.0
+            val expected = f(clock)
+            assertTrue("minute $minute: curve fell below the clock", expected >= clock - 1e-12)
+            assertTrue("minute $minute: curve went backwards", expected >= previous - 1e-12)
+            previous = expected
+        }
+    }
+
+    @Test fun `relative volume is projected to a full session, and the clock artefact is gone`() {
+        // The morning stock from the gate test above: 0.3 of a normal DAY's volume traded, 8%
+        // of the session gone. Pacing by the CLOCK would call that 3.75x normal - which is the
+        // artefact, not the stock: by 8% of the clock a perfectly ordinary name has already done
+        // about 17% of its day. Against that, it is running at a real but far more modest 1.8x.
+        assertEquals(1.76, ResearchScore.pacedVolumeRatio(0.3, 0.08), 0.02)
+        assertTrue(
+            "clock-pacing would have manufactured most of that reading",
+            ResearchScore.pacedVolumeRatio(0.3, 0.08) < 0.3 / 0.08 / 2.0
+        )
+        assertEquals(
+            "a whole session is the ratio itself, untouched",
+            2.4, ResearchScore.pacedVolumeRatio(2.4, 1.0), 0.0001
+        )
+        assertEquals(
+            "before the bell there is no rate to measure, which is 0 - not a quiet stock",
+            0.0, ResearchScore.pacedVolumeRatio(0.0, 0.0), 0.0
+        )
+        assertEquals(
+            "and no volume is 0 however far into the day it is",
+            0.0, ResearchScore.pacedVolumeRatio(0.0, 0.5), 0.0
+        )
+    }
+
+    @Test fun `the morning gate now bites - a stock merely keeping up is not in play`() {
+        // THE DIRECTION OF THE SECOND-PASS CHANGE, which the first pass had backwards. Scaling
+        // the THRESHOLD linearly by the clock asked a stock at 10:00 for only 7.7% of a normal
+        // day's volume, so a name trading at 60% of its usual pace sailed through the one gate
+        // that defines "in play". Measured against the volume a normal day would have produced
+        // BY NOW, it does not.
+        val tenAm = 30.0 / 390.0
+        assertFalse(
+            "0.10 of a normal day by 10:00 is 60% of the usual pace, not elevated",
+            Research.dayTradable(row(avgVolume3M = 5e6, volume = 5e5), sessionFraction = tenAm)
+        )
+        assertTrue(
+            "0.33 by 10:00 is genuinely twice the pace, and is admitted",
+            Research.dayTradable(row(avgVolume3M = 5e6, volume = 1.65e6), sessionFraction = tenAm)
+        )
+    }
+
+    @Test fun `too-late-to-start is a fact about the clock, and zero is not the end of the day`() {
+        // The flag now comes from this function on every tick for every row, instead of riding
+        // on a plan that a null tick or a Claude import could freeze - see `mergeDayTradingTech`
+        // and `ResearchPriceFillTest` for the two ways it used to stick. The 0 case is the one
+        // that has to be a range test rather than a `< 30`: 0 means "this caller has no session
+        // clock" - overnight, a test, an imported plan - never "the day is over".
+        assertFalse("no clock at all is not a late session", ResearchScore.tooLateToStart(0))
+        assertTrue(ResearchScore.tooLateToStart(1))
+        assertTrue("15:31, one minute inside the cut-off", ResearchScore.tooLateToStart(29))
+        assertFalse("15:30 exactly still starts a trade", ResearchScore.tooLateToStart(30))
+        assertFalse(ResearchScore.tooLateToStart(390))
+    }
+
+    /** Shorthand - this curve is checked point by point, and the name is read a lot below. */
+    private fun f(elapsed: Double) = ResearchScore.expectedVolumeFraction(elapsed)
 }
