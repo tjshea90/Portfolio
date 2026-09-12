@@ -742,10 +742,27 @@ object Research {
      */
     const val CATALYST_EARNINGS_TODAY = "Earnings today"
 
+    /**
+     * Whole calendar days from [now] to [earningsAt], floor-rounded so a timestamp in the past
+     * reads as negative (`-1`, `-2`, ...) rather than `0`.
+     *
+     * PLAIN `/` ON A LONG TRUNCATES TOWARD ZERO, NOT FLOOR - `(earningsAt - now) / 86_400_000L`
+     * for an earnings release 17 hours in the past divides a small negative numerator and lands
+     * on `0`, not `-1`. That reads as "earnings today" for the entire ~24 hours after every
+     * after-hours release, which both wrongly keeps [CATALYST_EARNINGS_TODAY] on screen and
+     * wrongly awards [ResearchScore.dayTrading]'s catalyst-soon bonus to a stock whose catalyst
+     * already happened. `Math.floorDiv` rounds toward negative infinity instead, so the boundary
+     * lands on the correct side. Shared by [catalystFor] and the inline `catalystSoon` calc in
+     * [buildDayTrading] so the two can never disagree the way they did before this was one
+     * function.
+     */
+    private fun daysUntilEarnings(earningsAt: Long, now: Long = System.currentTimeMillis()): Long =
+        Math.floorDiv(earningsAt - now, 86_400_000L)
+
     /** The nearest dated event the screener knows about - almost always the next earnings. */
     private fun catalystFor(r: ScreenRow?): String {
         if (r == null || r.earningsAt <= 0) return ""
-        val days = (r.earningsAt - System.currentTimeMillis()) / 86_400_000L
+        val days = daysUntilEarnings(r.earningsAt)
         if (days < -2 || days > 120) return ""
         val est = if (r.earningsEstimated) " (estimated)" else ""
         return when {
