@@ -197,11 +197,20 @@ class DayTradingTest {
 
     @Test fun `an extended stock is a pullback to support, BELOW the price - never a chase`() {
         // 10 intraday ATRs above VWAP: buying here is the mistake the research names.
+        //
+        // THE PRIOR HIGH AT 115 IS LOAD-BEARING, not scenery (second code-review pass). It is
+        // the only supply overhead above the last price, and without it this fixture has no
+        // target that clears 110: no resistance above, no ADR to measure the day's remaining
+        // room, so the plan falls through to the 2:1 convention, which measures from the
+        // PULLBACK ENTRY at 105 and lands exactly on the price the stock is already trading at.
+        // "Buy at 105, sell at 110" with the stock at 110 is not a plan, and `tradePlan` now
+        // declines it - so a fixture meant to pin the ENTRY and the STOP has to give the target
+        // somewhere real to go, or it pins nothing.
         val plan = ResearchScore.tradePlan(
             110.0,
             tech(
                 atrIntraday = 1.0, vwap = 100.0,
-                orHigh = 105.0, orLow = 102.0,
+                orHigh = 105.0, orLow = 102.0, prevHigh = 115.0,
                 sessionHigh = 110.0, sessionLow = 99.0
             )
         )!!
@@ -244,12 +253,14 @@ class DayTradingTest {
 
     @Test fun `a stop is never wider than a same-session trade should carry`() {
         // A pullback to 105 whose next support below is 102 - a 3.15 structural stop, wider
-        // than a trade meant to be closed this afternoon should carry.
+        // than a trade meant to be closed this afternoon should carry. The prior high at 115 is
+        // there for the reason the pullback test above explains: it is what gives the target
+        // somewhere above the last price to sit, so this fixture produces a plan at all.
         val plan = ResearchScore.tradePlan(
             110.0,
             tech(
                 atrIntraday = 1.0, vwap = 100.0,
-                orHigh = 105.0, orLow = 102.0,
+                orHigh = 105.0, orLow = 102.0, prevHigh = 115.0,
                 sessionHigh = 110.0, sessionLow = 99.0
             )
         )!!
