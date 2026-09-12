@@ -82,6 +82,23 @@ public class LedgerPropTest {
             for (String s : sf.keySet())
                 if (Math.abs(sf.get(s) - sv.getOrDefault(s, 0.0)) > 1e-6)
                     problems.add(s + ": shares disagree");
+            // 2b. AND SO DO THE SHARES BOUGHT TODAY (Part 10 audit). Whether a held share was
+            // exposed to the overnight move is a fact about the world, not a cost-basis
+            // convention, so the two methods must answer it identically - `sharesToday` feeds
+            // `dayPnl`, and the app's "Today" headline must not move when the Settings
+            // preference does. (What they may legitimately differ on is `avgCostToday`: FIFO
+            // knows which of today's lots is still open, an average-cost book does not.)
+            // This is the invariant that would have caught the depletion-order bug.
+            Map<String,Double> tf = new HashMap<>(), tv = new HashMap<>();
+            for (Position p : f) tf.put(p.getSymbol(), p.getSharesToday());
+            for (Position p : v) tv.put(p.getSymbol(), p.getSharesToday());
+            for (String s : tf.keySet())
+                if (Math.abs(tf.get(s) - tv.getOrDefault(s, 0.0)) > 1e-6)
+                    problems.add(s + ": sharesToday disagree FIFO " + tf.get(s) + " vs AVG " + tv.getOrDefault(s, 0.0));
+            // 2c. and neither may ever claim more was bought today than is actually held
+            for (List<Position> pos : Arrays.asList(f, v)) for (Position p : pos)
+                if (p.getSharesToday() > p.getShares() + 1e-6)
+                    problems.add(p.getSymbol()+": sharesToday exceeds shares");
             // 3. no negative shares, no negative basis, a closed position keeps no basis
             for (List<Position> pos : Arrays.asList(f, v)) for (Position p : pos) {
                 if (p.getShares() < -1e-9) problems.add(p.getSymbol()+": negative shares");
