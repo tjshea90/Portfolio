@@ -629,35 +629,57 @@ object Http {
         result
     }
 
+    /**
+     * Runs the SAME cooldown/gate/rate-meter machinery [get] does, which this used to skip
+     * entirely (a Round 66 audit finding): a host already in cooldown from `get()` traffic was
+     * hit anyway, and a 429/503/403 or connection failure here armed no cooldown at all,
+     * invisible to the rate meter that Settings' diagnostics screen reads. Today's one caller
+     * (`Claude.kt`, the user's own keyed API, one request per explicit button tap) makes the
+     * gap low-volume in practice, but the protection should not silently not apply to POSTs.
+     */
     suspend fun postJson(
         url: String,
         json: String,
         headers: Map<String, String> = emptyMap(),
         timeoutMs: Int = 180000
     ): HttpResult = withContext(Dispatchers.IO) {
-        noteRequest(hostOf(url))
-        var conn: HttpURLConnection? = null
-        try {
-            conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 30000
-                readTimeout = timeoutMs
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json")
-                setRequestProperty("User-Agent", UA)
-                headers.forEach { (k, v) -> setRequestProperty(k, v) }
+        val host = hostOf(url)
+        val st = hosts[host]
+        if (st != null && System.currentTimeMillis() < st.until) {
+            return@withContext HttpResult(HttpResult.CODE_COOLDOWN, "rate limited, backing off")
+        }
+        noteRequest(host)
+        gateFor(host).withPermit {
+            var conn: HttpURLConnection? = null
+            try {
+                conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "POST"
+                    connectTimeout = 30000
+                    readTimeout = timeoutMs
+                    doOutput = true
+                    setRequestProperty("Content-Type", "application/json")
+                    setRequestProperty("User-Agent", UA)
+                    headers.forEach { (k, v) -> setRequestProperty(k, v) }
+                }
+                conn.outputStream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                val code = conn.responseCode
+                if (code == 429 || code == 503 || code == 403) {
+                    noteRateLimited(host, parseRetryAfter(conn.getHeaderField("Retry-After")))
+                    return@withContext HttpResult(code, "")
+                }
+                val stream = if (code in 200..299) conn.inputStream else conn.errorStream
+                // postJson results are never cached, so completeness is not consulted here.
+                val body = stream?.let { read(it, conn.contentEncoding, conn.contentLengthLong).text }
+                    ?: ""
+                if (code in 200..299) noteSuccess(host)
+                HttpResult(code, body)
+            } catch (e: Exception) {
+                if (coroutineContext[Job]?.isActive == false) throw e
+                noteUnreachable(host)
+                HttpResult(-1, e.message ?: "network error")
+            } finally {
+                conn?.disconnect()
             }
-            conn.outputStream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
-            val code = conn.responseCode
-            val stream = if (code in 200..299) conn.inputStream else conn.errorStream
-            // postJson results are never cached, so completeness is not consulted here.
-            val body = stream?.let { read(it, conn.contentEncoding, conn.contentLengthLong).text }
-                ?: ""
-            HttpResult(code, body)
-        } catch (e: Exception) {
-            HttpResult(-1, e.message ?: "network error")
-        } finally {
-            conn?.disconnect()
         }
     }
 
