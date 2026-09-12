@@ -34,6 +34,27 @@ java  -cp ".:../$CLS:$STDLIB:/tmp/json.jar" BridgeTest
 **Every one of these was written because a defect got past a careful read-through.** Extend
 them rather than doing a sixth read of the same 34 files.
 
+**AND RUN THEM, OR THEY ROT.** Nothing here is wired into `ship.sh`, and Part 10 found what
+that costs: `LedgerPropTest.java` had stopped COMPILING (a Kotlin default argument added to
+`Ledger.totals` is not a default from Java, so the four-argument call no longer resolved) and
+its session instant had drifted to the year 2255 against transactions dated 2025-26, so the
+entire same-day code path - and the `boughtTodayCount` invariant this table advertises - had
+been inert for an unknown number of rounds with no signal of any kind. Both are fixed, and
+the run now PRINTS how many of its histories actually exercised the same-day pool (about a
+quarter of them) so the question is answerable rather than assumed. If that count is ever 0
+again, the harness is lying about what it covers.
+
+Two things worth knowing before trusting a green run here:
+
+* `ledger_props.py` reports a few hundred reconciliation violations by DEFAULT. They are
+  real but they are the harness's own `ZEROQ` zero-quantity rows - a shape the transaction
+  editor has refused since v3.5 and both import paths reject - and the Settings data-health
+  card reports any that survive on file. Run `ZEROQ=0 python3 tests/ledger_props.py` for the
+  signal about rows the app can actually produce; that one is clean.
+* The Kotlin suite now covers the ledger directly too (`LedgerTest`, `FeesTest`,
+  `SameDayRoundTripTest`), so a regression in the arithmetic these harnesses were the only
+  guard for will now fail `ship.sh` as well.
+
 
 ---
 
