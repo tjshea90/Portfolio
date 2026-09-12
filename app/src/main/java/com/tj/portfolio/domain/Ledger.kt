@@ -328,7 +328,7 @@ object Ledger {
         data class Acc(var shares: Double = 0.0, var cost: Double = 0.0,
                        var realized: Double = 0.0, var first: Long = 0L,
                        var todayShares: Double = 0.0, var todayCost: Double = 0.0,
-                       var beforeShares: Double = 0.0)
+                       var beforeShares: Double = 0.0, var oversold: Double = 0.0)
 
         val acc = LinkedHashMap<String, Acc>()
         for (t in txns.sortedWith(compareBy({ it.date }, { it.id }))) {
