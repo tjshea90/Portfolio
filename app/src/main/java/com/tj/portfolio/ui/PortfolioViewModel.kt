@@ -3020,16 +3020,23 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun clearIncorrectBuyFees(onDone: (Int) -> Unit) {
         viewModelScope.launch {
+            // See commitImportAsync's note: an uncaught exception on this thread crashes the
+            // app (Part 9 audit finding) - runCatching, same as every other DB write here.
             val n = withContext(Dispatchers.IO) {
-                val bad = auditFees().buysWithFees
-                bad.forEach { t ->
-                    val fixed = t.copy(
-                        fees = 0.0,
-                        amount = Txn.cashEffect(t.type, t.quantity, t.price, t.amount, 0.0)
-                    )
-                    db.updateTxn(fixed)
+                runCatching {
+                    val bad = auditFees().buysWithFees
+                    bad.forEach { t ->
+                        val fixed = t.copy(
+                            fees = 0.0,
+                            amount = Txn.cashEffect(t.type, t.quantity, t.price, t.amount, 0.0)
+                        )
+                        db.updateTxn(fixed)
+                    }
+                    bad.size
+                }.getOrElse {
+                    toast("Couldn't clear those fees: ${it.message}")
+                    0
                 }
-                bad.size
             }
             if (n > 0) { recompute(); refresh() }
             onDone(n)
