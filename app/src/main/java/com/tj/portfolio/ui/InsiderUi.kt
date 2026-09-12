@@ -116,7 +116,7 @@ fun InsiderRow(
                 Spacer(Modifier.width(6.dp))
                 // The single most useful badge on the screen: it is the difference between
                 // "the CFO decided to sell" and "a schedule set last March fired again".
-                InsiderTag("10b5-1 PLAN", Amber)
+                InsiderTag("10b5-1 PLAN", amberText)
             }
             if (f.amended) {
                 Spacer(Modifier.width(6.dp))
