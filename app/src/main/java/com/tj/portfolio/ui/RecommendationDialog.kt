@@ -94,7 +94,7 @@ fun RecommendationBadge(recommendation: Recommendation?, onClick: () -> Unit) {
             recommendation?.let { verdictWord(it.verdict) } ?: "...",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = tint ?: MaterialTheme.colorScheme.primary
+            color = recommendation?.let { verdictTextColor(it.verdict) } ?: MaterialTheme.colorScheme.primary
         )
     }
 }
