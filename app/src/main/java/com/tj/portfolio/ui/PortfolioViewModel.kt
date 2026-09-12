@@ -629,7 +629,16 @@ internal fun dropUnusableClaudeLevels(
  */
 internal fun mergeDayTradingTech(
     row: com.tj.portfolio.data.ResearchRow,
-    tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
+    tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals,
+    /**
+     * THE CLOCK ARRIVES AS AN ARGUMENT, NOT A READ (Round 73). [com.tj.portfolio.net.ResearchScore]
+     * owns no clock by design, and neither does this function - both are pure so a test can
+     * drive any moment of the session without waiting for one. The live sweep supplies the real
+     * values; the defaults describe "no session information", which is how every existing caller
+     * and test behaved before the time rules existed.
+     */
+    minutesLeft: Int = 0,
+    middayLull: Boolean = false
 ): com.tj.portfolio.data.ResearchRow {
     val effective = effectiveTechnicals(row, tech)
     // A PLAN CLAUDE SET IS NOT RECOMPUTED OVER. The live sweep ticks every 30 seconds, so
