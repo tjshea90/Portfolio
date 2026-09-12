@@ -730,6 +730,7 @@ object Research {
      */
     const val CATALYST_EARNINGS_TODAY = "Earnings today"
 
+    /** The nearest dated event the screener knows about - almost always the next earnings. */
     private fun catalystFor(r: ScreenRow?): String {
         if (r == null || r.earningsAt <= 0) return ""
         val days = (r.earningsAt - System.currentTimeMillis()) / 86_400_000L
