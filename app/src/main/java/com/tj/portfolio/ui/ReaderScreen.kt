@@ -113,7 +113,7 @@ fun ReaderScreen(
             Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BigIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", size = 46, iconSize = 24) {
+            BigIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", iconSize = 24) {
                 val w = web
                 if (w != null && w.canGoBack()) w.goBack() else onBack()
             }
