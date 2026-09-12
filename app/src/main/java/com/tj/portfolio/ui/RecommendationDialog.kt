@@ -143,7 +143,7 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                             Text(
                                 verdictWord(r.verdict).uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = verdictTint(r.verdict),
+                                color = verdictTextColor(r.verdict),
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(Modifier.height(4.dp))
