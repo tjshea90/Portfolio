@@ -512,21 +512,21 @@ object FundamentalsFeed {
      * needs to be. It gives a consensus target and the buy/hold/sell split, plus a short
      * summary block - not the per-analyst detail, so it never replaces Yahoo.
      */
-    private suspend fun nasdaq(symbol: String): Fundamentals = kotlinx.coroutines.coroutineScope {
+    private suspend fun nasdaq(symbol: String): Fundamentals = coroutineScope {
         val v = LinkedHashMap<String, Double>()
         val texts = LinkedHashMap<String, String>()
         var consensus: Consensus? = null
 
         // Independent requests, fetched at the same time rather than one after the other -
         // same fix as Social.trending's pJob/sJob split.
-        val sJob = kotlinx.coroutines.async {
+        val sJob = async {
             Http.get(
                 "https://api.nasdaq.com/api/quote/" + MarketData.enc(symbol) +
                     "/summary?assetclass=stocks",
                 mapOf("Accept" to "application/json"), conditionalKey = true
             )
         }
-        val tJob = kotlinx.coroutines.async {
+        val tJob = async {
             Http.get(
                 "https://api.nasdaq.com/api/analyst/" + MarketData.enc(symbol) + "/targetprice",
                 mapOf("Accept" to "application/json"), conditionalKey = true
