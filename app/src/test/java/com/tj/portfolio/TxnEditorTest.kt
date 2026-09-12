@@ -161,6 +161,28 @@ class TxnEditorTest {
         }
     }
 
+    /**
+     * A SPLIT row carries its RATIO in `quantity` and must carry nothing else - see
+     * [com.tj.portfolio.data.TxnType.SPLIT]. Resolved clean even when the price, total and
+     * fee boxes still hold whatever was typed before the type was switched, since those
+     * fields are not on screen for a split and a stray figure on the row would be invisible.
+     */
+    @Test fun `a split resolves to a bare ratio and moves no cash`() {
+        val clean = TxnFields.resolve(TxnType.SPLIT, "10", "", "", "")
+        assertEquals(10.0, clean.quantity, 1e-9)
+        assertEquals(0.0, clean.price, 1e-9)
+        assertEquals(0.0, clean.amount, 1e-9)
+        assertEquals(0.0, clean.fees, 1e-9)
+        assertEquals(0.0, TxnFields.cashOf(TxnType.SPLIT, clean), 1e-12)
+
+        val stale = TxnFields.resolve(TxnType.SPLIT, "0.1", "55", "999", "3")
+        assertEquals("the ratio survives", 0.1, stale.quantity, 1e-9)
+        assertEquals("a leftover price must not", 0.0, stale.price, 1e-9)
+        assertEquals("nor a leftover total", 0.0, stale.amount, 1e-9)
+        assertEquals("nor a leftover fee", 0.0, stale.fees, 1e-9)
+        assertEquals(0.0, TxnFields.cashOf(TxnType.SPLIT, stale), 1e-12)
+    }
+
     @Test fun `a NaN quantity cannot resolve into a savable transaction`() {
         val r = TxnFields.resolve(TxnType.BUY, "NaN", "10", "", "0")
         // qty collapses to 0.0, which every "isTrade && qNum <= 0" guard in the dialog rejects -
