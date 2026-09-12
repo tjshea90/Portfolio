@@ -612,7 +612,15 @@ object Research {
         r.price >= MIN_PRICE_DAY_TRADING &&
             (r.marketCap <= 0.0 || r.marketCap >= MIN_MARKET_CAP) &&
             r.avgVolume3M >= MIN_AVG_VOLUME_DAY_TRADING &&
-            ResearchScore.pacedVolumeRatio(r.volumeRatio, sessionFraction) >= MIN_RVOL_DAY_TRADING
+            // BEFORE THE BELL THE QUESTION IS UNANSWERABLE, WHICH IS NOT THE SAME AS A NO.
+            // `pacedVolumeRatio` returns 0.0 both for "measured, and it is quiet" and for
+            // "nothing has traded yet, so there is no rate to measure" - and a gate that cannot
+            // tell those apart excludes the entire universe pre-market, taking the overnight
+            // planning path with it. The clock disambiguates: at a session fraction of zero
+            // there is no participation to judge, so this gate stands aside and the liquidity
+            // floor above carries the filtering on its own.
+            (sessionFraction <= 0.0 ||
+                ResearchScore.pacedVolumeRatio(r.volumeRatio, sessionFraction) >= MIN_RVOL_DAY_TRADING)
 
     /**
      * See [ResearchScore.dayTrading]'s header for what this section is and, at length, is not.
