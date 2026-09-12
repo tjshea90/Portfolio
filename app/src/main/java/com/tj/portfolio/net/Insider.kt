@@ -226,21 +226,6 @@ object Insider {
         )
     }
 
-    /**
-     * The filings alone, for callers that do not need to know whether EDGAR answered.
-     *
-     * DELEGATES - it does not repeat the body. It briefly did, and two copies of a
-     * twenty-line coroutine that differ only in their return type are two copies that will
-     * drift.
-     */
-    suspend fun forSymbol(
-        symbol: String,
-        cached: Map<String, InsiderFiling>,
-        gate: Semaphore,
-        since: String,
-        skip: MutableSet<String> = HashSet()
-    ): List<InsiderFiling> = forSymbolResult(symbol, cached, gate, since, skip).filings
-
     // ---------------------------------------------------------------- listing
 
     /**
