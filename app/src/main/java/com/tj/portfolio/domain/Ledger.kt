@@ -440,7 +440,8 @@ object Ledger {
     private fun applyOverride(
         sym: String, sharesIn: Double, costIn: Double,
         realized: Double, first: Long, overrides: Map<String, Override>,
-        sharesToday: Double = 0.0, costToday: Double = 0.0
+        sharesToday: Double = 0.0, costToday: Double = 0.0,
+        oversold: Double = 0.0
     ): Position {
         val ov = overrides[sym]
         var shares = sharesIn
