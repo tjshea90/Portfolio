@@ -108,7 +108,7 @@ fun InsiderRow(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (showSymbol) {
-                InsiderTag(f.symbol, if (owned) Green else Accent)
+                InsiderTag(f.symbol, if (owned) greenText else accentText)
                 Spacer(Modifier.width(6.dp))
             }
             InsiderTag(actionLabel(f), colour)
