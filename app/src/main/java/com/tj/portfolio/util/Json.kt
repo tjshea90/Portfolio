@@ -53,6 +53,16 @@ fun JSONArray.text(index: Int): String {
  * holding's weight. Was duplicated verbatim in `FundamentalsFeed` and `HoldingsFeed`; both now
  * delegate here.
  */
+/**
+ * `optDouble` with a 0.0 default, but a screener response occasionally sends `NaN`/`Infinity`
+ * literals for a field with no real value - a raw NaN/Infinite would otherwise flow straight
+ * into scoring arithmetic. Was duplicated verbatim in `Screener` and `EtfScreener`.
+ */
+fun JSONObject.finiteDouble(key: String, default: Double = 0.0): Double {
+    val v = optDouble(key, default)
+    return if (v.isNaN() || v.isInfinite()) default else v
+}
+
 fun JSONObject?.yahooNum(key: String): Double? {
     if (this == null || !has(key) || isNull(key)) return null
     return when (val v = opt(key)) {
