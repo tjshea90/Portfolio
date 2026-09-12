@@ -302,7 +302,7 @@ class DayTradingSoundnessTest {
     }
 
     @Test fun `the day's remaining range still caps a target it cannot reach`() {
-        // Same resistance at 108, but a stock whose whole normal day is $3: 108 is simply not
+        // Same resistance at 108, but a stock whose whole normal day is $5: 108 is simply not
         // happening today, and letting it stand would overstate the reward:risk the beginner
         // summary and the R-multiple are both built on.
         val plan = ResearchScore.tradePlan(
@@ -310,11 +310,29 @@ class DayTradingSoundnessTest {
             tech(
                 atrIntraday = 1.0, vwap = 99.0,
                 orHigh = 100.5, prevHigh = 108.0,
-                adr = 3.0, sessionHigh = 100.5, sessionLow = 99.0
+                adr = 5.0, sessionHigh = 100.5, sessionLow = 99.0
             )
         )!!
-        assertEquals("session low 99 + a 3.00 average day", 102.0, plan.target, 0.001)
-        assertTrue(plan.target < 108.0)
+        assertEquals("session low 99 + a 5.00 average day", 104.0, plan.target, 0.001)
+        assertTrue("capped well below the real level at 108", plan.target < 108.0)
+        assertTrue("and still worth taking, which is why it is drawn at all", plan.rMultiple > 2.0)
+    }
+
+    @Test fun `when the capped target would not even cover the risk there is no plan at all`() {
+        // The other side of the rule above. A $3 average day leaves room for 102.00 against an
+        // entry of 100.65 and 1.50 of risk - 0.9R. [tradePlan]'s contract is that a blank is
+        // honest and a fabricated level is not, and "sell at 102.00 for a profit" on a plan
+        // whose own stop is 1.50 away is, after costs, a fabricated one.
+        assertNull(
+            ResearchScore.tradePlan(
+                100.0,
+                tech(
+                    atrIntraday = 1.0, vwap = 99.0,
+                    orHigh = 100.5, prevHigh = 108.0,
+                    adr = 3.0, sessionHigh = 100.5, sessionLow = 99.0
+                )
+            )
+        )
     }
 
     @Test fun `with clear air the target comes from the measured day, not a flat 2R`() {
