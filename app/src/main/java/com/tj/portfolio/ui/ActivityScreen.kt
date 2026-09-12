@@ -285,20 +285,7 @@ private fun TxnRow(t: Txn, onEdit: () -> Unit, onDelete: () -> Unit) {
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                buildString {
-                    append(Fmt.day(t.date))
-                    // A SPLIT's `quantity` is a RATIO, not a share count - see [TxnType.SPLIT].
-                    // Rendered by the ordinary rule it read "10 @ $0.00", which is not what the
-                    // row says at all.
-                    if (t.type == TxnType.SPLIT) {
-                        append("  -  ").append(splitLabel(t.quantity))
-                    } else {
-                        if (t.quantity > 0) append("  -  ").append(Fmt.shares(t.quantity))
-                            .append(" @ ").append(Fmt.price(t.price))
-                        if (t.fees > 0) append("  -  fees ").append(Fmt.usd(t.fees))
-                    }
-                    if (!t.note.isNullOrBlank()) append("  -  ").append(t.note)
-                },
+                txnSubtitle(t),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
