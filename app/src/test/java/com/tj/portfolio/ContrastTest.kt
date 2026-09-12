@@ -221,7 +221,12 @@ class ContrastTest {
                     val code = line.substringBefore("//")
                     val paintsFill = Regex("""color\s*=\s*(Red|Green)\s*[,)]?\s*$""")
                         .containsMatchIn(code.trimEnd()) ||
-                        Regex("""Text\([^)]*color\s*=\s*(Red|Green)\s*[,)]""").containsMatchIn(code)
+                        Regex("""Text\([^)]*color\s*=\s*(Red|Green)\s*[,)]""").containsMatchIn(code) ||
+                        // A `when` BRANCH RETURNING THE RAW FILL (Part 9 audit): this exact
+                        // shape is what slipped past the two patterns above in DetailTabs'
+                        // consensus-rating color and AdviceScreen's action-word chip color -
+                        // neither has `color =` or `Text(` on the same line as the branch.
+                        Regex("""->\s*(Red|Green)\s*$""").containsMatchIn(code.trimEnd())
                     if (paintsFill) "${f.name}:${i + 1}  ${line.trim()}" else null
                 }
             }
