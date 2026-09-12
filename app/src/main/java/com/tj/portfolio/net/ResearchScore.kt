@@ -443,7 +443,33 @@ object ResearchScore {
         val target: Double,
         val setup: String,
         val trigger: String,
-        val note: String = ""
+        val note: String = "",
+        /**
+         * HOW THE TRADE ENDS - the half [target] on its own was never able to say (Round 73).
+         *
+         * A single take-profit price implies the trade is over when it prints, and that is not
+         * what the evidence behind this feature actually supports. Zarattini, Barbon & Aziz's
+         * profitable variants use NO fixed profit target at all: a tight volatility stop, and
+         * otherwise hold to the closing bell, accepting a win rate in the 20s in exchange for
+         * the minority of trades that run several times the risk. Their follow-up SPY paper
+         * found that replacing a static exit with a VWAP-anchored TRAIL improved risk-adjusted
+         * return substantially (and turned the return distribution's skew positive) even though
+         * the hit rate FELL - the winners got bigger, which is the whole mechanism.
+         *
+         * SO WHY IS THERE STILL A [target]? Because Tj asked for one, in his own words and
+         * twice - *"include a target buy price and target sell price for each of the stocks"* -
+         * and because the plain-English summary a beginner reads is built on it. Removing it
+         * would answer a question he did not ask. This field is the honest other half: the
+         * target is the first objective, and this says what the research says about what to do
+         * when price gets there, plus the one rule that is not optional in any of it - a day
+         * trade is flat before the close.
+         */
+        val exit: String = "",
+        /**
+         * Not enough of the session is left to START this trade - see [tradePlan]'s time rules.
+         * The levels are still real and still shown; what has run out is the clock.
+         */
+        val tooLateToStart: Boolean = false
     ) {
         val risk: Double get() = entry - stop
         val reward: Double get() = target - entry
