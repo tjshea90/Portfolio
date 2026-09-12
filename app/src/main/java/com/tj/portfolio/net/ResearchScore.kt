@@ -1013,7 +1013,8 @@ object ResearchScore {
 
         // The other side of relaxing the old 3R cap: a target that needs a very large move is a
         // real reading of the levels AND a warning. See [MAX_REWARD_RISK_RATIO].
-        val bigR = rewardRisk(entry, risk, target)
+        val rr = rewardRisk(entry, risk, target)
+        val bigR = rr
         if (bigR > MAX_REWARD_RISK_RATIO) parts.add(
             (if (targetFromRoom)
                 "A normal day's remaining range puts the target ${Fmt.oneDp(bigR)}x the risk away"
