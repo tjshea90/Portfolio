@@ -237,6 +237,8 @@ object Ledger {
         val lots = LinkedHashMap<String, ArrayDeque<Lot>>()
         val realized = LinkedHashMap<String, Double>()
         val first = LinkedHashMap<String, Long>()
+        /** Shares sold with nothing on the books to cover them - see [Position.oversold]. */
+        val oversold = LinkedHashMap<String, Double>()
 
         for (t in txns.sortedWith(compareBy({ it.date }, { it.id }))) {
             val sym = t.symbol?.uppercase() ?: continue
