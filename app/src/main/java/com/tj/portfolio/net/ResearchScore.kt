@@ -1410,12 +1410,23 @@ object ResearchScore {
      * people are saying, not what the tape is doing" - counting it here would let loud, unproven
      * talk buy confidence the tape has not earned.
      */
-    fun dayTradingConfidence(r: ScreenRow, tech: DayTradingTechnicals.DayTechnicals? = null): Int {
+    fun dayTradingConfidence(
+        r: ScreenRow,
+        tech: DayTradingTechnicals.DayTechnicals? = null,
+        /** See [dayTrading]'s parameter of the same name, and [pacedVolumeRatio]. */
+        sessionFraction: Double = 1.0
+    ): Int {
         var confirmed = 0
-        if (r.volumeRatio >= 2.0) confirmed++
+        // PACED, LIKE THE SCORE ITSELF. Testing a half-day volume figure against a whole-day
+        // "2x normal" threshold meant this check could not confirm before the early afternoon
+        // however busy the stock was - so the confidence half of the score, and through it the
+        // blended score on screen, was systematically depressed all morning for reasons that had
+        // nothing to do with the stock.
+        val rvol = pacedVolumeRatio(r.volumeRatio, sessionFraction)
+        if (rvol >= 2.0) confirmed++
         if (r.changePct.isFinite() && r.changePct >= 3.0) confirmed++
         val squeeze = Screener.Lists.MOST_SHORTED in r.lists &&
-            r.volumeRatio >= 2.0 && r.changePct >= 3.0
+            rvol >= 2.0 && r.changePct >= 3.0
         val nearHigh = r.rangePos in 0.0..1.0 && r.rangePos > 0.85
         if (squeeze || nearHigh) confirmed++
         return confirmed * 100 / CONFIRMATION_CHECKS + technicalConfirmationBonus(r.price, tech)
