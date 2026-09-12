@@ -339,8 +339,8 @@ fun Chip(text: String, color: Color) {
 
 @Composable
 fun bucketColor(bucket: String): Color = when (bucket) {
-    com.tj.portfolio.data.AnalystRating.BUY -> Green
-    com.tj.portfolio.data.AnalystRating.SELL -> Red
+    com.tj.portfolio.data.AnalystRating.BUY -> greenText
+    com.tj.portfolio.data.AnalystRating.SELL -> redText
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
