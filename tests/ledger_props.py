@@ -99,7 +99,8 @@ def check(txns, session=None):
         rhs = realized(pos) + (equity(pos) - basis(pos)) + L.dividends(txns) - fee_rows
         if abs(lhs - rhs) > 1e-6:
             problems.append(f"{name}: reconciliation off by {lhs - rhs:.9f}")
-    return problems
+    saw_today = any(p["sharesToday"] > 1e-9 for p in f.values())
+    return problems, saw_today
 
 
 def main():
