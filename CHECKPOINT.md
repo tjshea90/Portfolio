@@ -1,13 +1,13 @@
-# CHECKPOINT 682 — read me first, then TASKS.md
+# CHECKPOINT 683 — read me first, then TASKS.md
 
-**Written:** 2026-09-12T06:11:52Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `6a836a1` (this checkpoint is the commit after it)
+**Written:** 2026-09-12T20:36:31Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `3516147` (this checkpoint is the commit after it)
 
 ## Just done
-Part 9 sweep batch 5 (final): fixed ReaderScreen's 3 sub-48dp touch targets, deduped MainActivity's twice-repeated back-stack pop logic into one popDetail(), fixed Db.kt's isSecret backup-exclusion check (substring match -> explicit allowlist), added the missing index on quotes.updated, looped purgeHttpCache so its byte-budget purge is actually guaranteed to converge, added purgeImports (the one cache/log table with no retention policy since v2), and turned a provably-unreachable dead branch in Ledger.unitPrice into a loud assertion instead of a silent wrong-number fallback. Full Gradle suite green: 1028 tests, 0 failures, 0 errors. TASKS.md Part 9 checklist fully updated with what was fixed per area and the two items flagged for Tj (not fixed on Sonnet): the ledger AVERAGE-cost same-day P&L depletion-order bug (+ short-position and stock-split gaps found alongside it), and API-key plaintext storage. The thorough app-wide audit and fix pass is complete.
+Part 10 (Opus, money-accuracy): fixed the AVERAGE cost method's same-day pool depletion ORDER in Ledger.averageCost. A same-day sell took shares out of today's pool FIRST (minOf(covered, todayShares)) where FIFO - and the broker, and physical reality - consume the OLDEST shares first, so the two methods reported different sharesToday for identical trades: buy 100@10 a month ago, buy 50@12 today, sell 30@13 today gave FIFO 50 shares-bought-today and AVERAGE 20. sharesToday feeds Position.dayPnl, so the app's Today headline silently changed when the cost-basis preference in Settings changed - a number that has nothing to do with cost basis. A sale now only reaches today's pool once it has exhausted everything held from before today. 3 new tests: the two hand-built mixed-pool cases plus a 400-run randomised cross-method property (both methods must always agree on how many HELD shares were bought today - a fact about exposure, not an accounting convention - while deliberately NOT asserting avgCostToday agreement, which legitimately differs). Verified by reverting the one-line fix and confirming all 3 fail against the old code while the 6 pre-existing same-day tests pass either way, which is exactly why the bug survived CRX-1
 
 ## Do this next
-Report the full findings/fixes summary to Tj, including the two flagged items awaiting his decision (switch to Opus for the ledger bug, or say proceed on Sonnet; say whether he wants API-key storage hardened). Ask before shipping (v7.20) per his standing UI-preview-before-ship preference, unless he says ship straight through.
+Part 10 continues: close the ledger test-harness blind spots that let this survive (tools/ledger_port.py's average() has no today-tracking at all and its fifo() carries the pre-CRX-1 buggy side-map that nothing returns; tests/LedgerPropTest.java pins sessionInstant in year 2255 so no generated txn ever lands inside  and boughtTodayCount is always 0). Then make overselling visible (Position.oversold + UI) rather than inventing short-position accounting, then add the SPLIT transaction type.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Report the full findings/fixes summary to Tj, including the two flagged items aw
 
 ## Last ten checkpoints
 ```
+  23b816d ckpt 682: Part 9 sweep batch 5 (final): fixed ReaderScreen's 3 sub-48dp touch targets, d
   02b6065 ckpt 681: Part 9 sweep batch 4 (ViewModel): commitImportAsync and clearIncorrectBuyFees 
   5dd6b42 ckpt 680: Part 9 sweep batch 3 (accessibility): fixed the raw-fill-painted-as-text WCAG 
   d30e68e ckpt 679: Part 9 sweep batch 2 (network layer): Http.postJson now runs the same cooldown
@@ -25,8 +26,7 @@ Report the full findings/fixes summary to Tj, including the two flagged items aw
   7e1d46e ckpt 675: gated v7.19 (code 76) and pushed it: checkinit, the full unit suite and the ve
   bbf6e26 ckpt 674: Second code-review pass over Part 8b's own fixes is complete and the suite is 
   cf83572 ckpt 673: Recorded where Part 8b actually stands in TASKS.md after the last session was 
-  30de4b9 ckpt 672: Fixed all 6 code-review findings on Part 8b: the RVOL gate now scales by elaps
 ```
 
-(16 automatic checkpoint(s) since the last deliberate one — the
+(6 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
