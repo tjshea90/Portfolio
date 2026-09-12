@@ -333,7 +333,7 @@ internal fun SummaryHeader(
         Text(
             if (showDetails) "Hide the detailed numbers" else "Show the detailed numbers",
             style = MaterialTheme.typography.bodyMedium,
-            color = Accent,
+            color = accentText,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier
                 // hand-rolled tappable: Compose sizes it to the text unless told otherwise,
@@ -558,7 +558,7 @@ private fun FoundBackupCard(
                 "There is a portfolio backup on this phone",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
-                color = Accent
+                color = accentText
             )
             Spacer(Modifier.height(6.dp))
             Text(

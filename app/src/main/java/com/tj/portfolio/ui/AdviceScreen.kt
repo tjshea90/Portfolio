@@ -166,7 +166,7 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
                                     Text(
                                         "${i + 1}.",
                                         fontWeight = FontWeight.Bold,
-                                        color = Accent,
+                                        color = accentText,
                                         // widthIn(min), NOT width. Compose's default overflow
                                         // is Clip, so a FIXED 22dp column silently cut the
                                         // number off from "10." upward - and sooner than that

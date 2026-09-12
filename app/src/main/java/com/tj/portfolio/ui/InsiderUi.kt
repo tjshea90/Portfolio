@@ -239,7 +239,7 @@ fun ScopeChips(
                     s.label,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (on) Accent else MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (on) accentText else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

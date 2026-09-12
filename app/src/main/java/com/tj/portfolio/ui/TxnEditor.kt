@@ -227,7 +227,7 @@ fun TxnEditorDialog(
                     Text(
                         expected.explain(),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (expected.isZero) Accent
+                        color = if (expected.isZero) accentText
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (!expected.isZero) {
@@ -263,7 +263,7 @@ fun TxnEditorDialog(
                                 " - worked out from the price per share, not the total you typed"
                             else ""),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Accent,
+                        color = accentText,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }

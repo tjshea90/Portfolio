@@ -151,7 +151,7 @@ fun FeedScreen(
                     label = { Text(f) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Accent.copy(alpha = 0.18f),
-                        selectedLabelColor = Accent
+                        selectedLabelColor = accentText
                     )
                 )
             }
@@ -401,7 +401,7 @@ private fun TrendingRow(t: Trending, owned: Boolean, onClick: () -> Unit) {
                 Text(t.symbol, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 if (owned) {
                     Spacer(Modifier.width(6.dp))
-                    Tag("HELD", Green)
+                    Tag("HELD", greenText)
                 }
             }
             val activityText = buildString {

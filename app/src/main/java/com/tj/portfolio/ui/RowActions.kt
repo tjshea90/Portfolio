@@ -186,7 +186,7 @@ private fun EditPositionDialog(
                     Text(
                         "An override is currently active for $symbol.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Accent,
+                        color = accentText,
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }

@@ -244,7 +244,7 @@ internal fun DayTradingPlanContent(
                     Text(
                         "CLAUDE",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Accent,
+                        color = accentText,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(3.dp))

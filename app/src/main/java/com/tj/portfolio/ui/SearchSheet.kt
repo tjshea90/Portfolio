@@ -158,7 +158,7 @@ fun SearchSheet(
 
                             watched -> TextButton(onClick = { vm.removeWatch(hit.symbol); version++ }) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Filled.Check, null, Modifier.size(16.dp), tint = Green)
+                                    Icon(Icons.Filled.Check, null, Modifier.size(16.dp), tint = greenText)
                                     Spacer(Modifier.width(4.dp))
                                     Text("Remove", color = redText, fontSize = 13.sp)
                                 }

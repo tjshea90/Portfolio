@@ -221,7 +221,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         Text(
             refreshStatus,
             style = MaterialTheme.typography.bodySmall,
-            color = Accent,
+            color = accentText,
             modifier = Modifier.padding(top = 6.dp)
         )
         Text(
@@ -465,7 +465,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             Text(
                 com.tj.portfolio.domain.Fees.SOURCE_NOTE,
                 style = MaterialTheme.typography.bodySmall,
-                color = Accent
+                color = accentText
             )
         }
         Text(
@@ -509,7 +509,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             Text(
                 "Every buy on file matches Ally's schedule.",
                 style = MaterialTheme.typography.bodySmall,
-                color = Accent,
+                color = accentText,
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
@@ -552,7 +552,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                     "Open each one on the Activity tab and either fill in the share count or " +
                         "delete it. Nothing is changed automatically.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Accent
+                    color = accentText
                 )
             }
         }
@@ -588,7 +588,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             "Either way your total lifetime gain is identical - the method only shifts how much " +
                 "of it counts as already realized.",
             style = MaterialTheme.typography.bodySmall,
-            color = Accent,
+            color = accentText,
             modifier = Modifier.padding(top = 6.dp)
         )
 
@@ -710,7 +710,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                 "The one thing that DOES erase data is uninstalling the app first, or a " +
                     "factory reset. Never uninstall to update - just open the new APK.",
                 style = MaterialTheme.typography.bodySmall,
-                color = Accent
+                color = accentText
             )
         }
 
@@ -758,7 +758,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             "Snapshots are erased if the app is uninstalled, so keep an occasional manual " +
                 "backup for a copy that outlives the app.",
             style = MaterialTheme.typography.bodySmall,
-            color = Accent,
+            color = accentText,
             modifier = Modifier.padding(top = 6.dp)
         )
 

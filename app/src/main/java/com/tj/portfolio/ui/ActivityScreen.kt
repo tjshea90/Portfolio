@@ -131,7 +131,7 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
                                     "You have transactions through ${Fmt.day(latest)} - " +
                                         "upload screenshots from that date forward.",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Accent,
+                                    color = accentText,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -270,7 +270,7 @@ private fun TxnRow(t: Txn, onEdit: () -> Unit, onDelete: () -> Unit) {
             fontWeight = FontWeight.SemiBold
         )
         IconButton(onClick = onDelete) {
-            Icon(Icons.Filled.Delete, "Delete", tint = Red, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.Delete, "Delete", tint = redText, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -324,7 +324,7 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
                             "$dupCount already in your records - unchecked so nothing is " +
                                 "counted twice.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Accent
+                            color = accentText
                         )
                     }
                     if (r.notes.isNotBlank()) {
@@ -379,7 +379,7 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
                                                 Text(
                                                     "ALREADY HAVE",
                                                     style = MaterialTheme.typography.labelSmall,
-                                                    color = Accent
+                                                    color = accentText
                                                 )
                                             }
                                         }

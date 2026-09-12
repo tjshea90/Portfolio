@@ -924,7 +924,7 @@ internal fun ResearchCard(
                 Text(
                     r.catalyst,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Accent,
+                    color = accentText,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -941,7 +941,7 @@ internal fun ResearchCard(
                     Text(
                         "CLAUDE",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Accent,
+                        color = accentText,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(3.dp))

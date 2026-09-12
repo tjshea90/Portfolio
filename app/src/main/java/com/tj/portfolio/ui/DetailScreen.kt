@@ -1236,7 +1236,7 @@ private fun OverviewTab(
                                     "rather than from the previous close - which is why it " +
                                     "differs from the stock's own day change above.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Accent
+                                color = accentText
                             )
                         }
                         val eq = row.quote
@@ -1279,7 +1279,7 @@ private fun OverviewTab(
                             Text(
                                 "Manual override in effect",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Accent
+                                color = accentText
                             )
                         }
                     }
@@ -1432,7 +1432,7 @@ private fun OverviewTab(
                 // deleted on a single tap - a 20dp icon inside a row whose whole width
                 // opens the editor, so the near-miss went the destructive way.
                 IconButton(onClick = { onDeleteTxn(t.id) }) {
-                    Icon(Icons.Filled.Delete, "Delete", tint = Red, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Delete, "Delete", tint = redText, modifier = Modifier.size(20.dp))
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outline)

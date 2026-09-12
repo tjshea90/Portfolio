@@ -110,7 +110,7 @@ fun InfoDot(label: String, onClick: () -> Unit) {
                 "i",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Accent
+                color = accentText
             )
         }
     }
@@ -283,7 +283,7 @@ private fun Para(heading: String, text: String) {
     Text(
         heading.uppercase(),
         style = MaterialTheme.typography.labelSmall,
-        color = Accent,
+        color = accentText,
         fontWeight = FontWeight.Bold,
         modifier = Modifier.padding(top = 10.dp, bottom = 3.dp)
     )
