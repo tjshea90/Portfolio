@@ -801,7 +801,14 @@ object ResearchScore {
         // target. Caught by the "neither structure nor a measured range" test below, which
         // reported a reward:risk of 1.2e308.
         val ceilingKnown = roomCeiling < Double.MAX_VALUE
-        val ceilingUsable = ceilingKnown && roomCeiling > entry + risk * MIN_CEILING_REWARD_RATIO
+        // MEASURED FROM `above`, NOT FROM `entry` (second code-review pass). Measuring the
+        // ceiling's usefulness from the entry alone repeated - on the ceiling path - the exact
+        // bug `above` was introduced to fix on the resistance path: on a pullback the entry sits
+        // below the last price, so a ceiling comfortably above the ENTRY can still sit below the
+        // PRICE, and the grid then reads "Buy at 105, target 108" with the stock trading at 110
+        // while the beginner card underneath says "too late for this one today". A target under
+        // the current price is not a target on either path.
+        val ceilingUsable = ceilingKnown && roomCeiling > above + risk * MIN_CEILING_REWARD_RATIO
 
         val target: Double
         val targetFromRoom: Boolean
