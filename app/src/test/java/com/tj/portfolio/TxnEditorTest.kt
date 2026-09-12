@@ -145,4 +145,26 @@ class TxnEditorTest {
         assertEquals(1.5595, r.price, 1e-9)
         assertEquals(-1559.50, TxnFields.cashOf(TxnType.BUY, r), 1e-6)
     }
+
+    /**
+     * THE NaN/Infinity BUG. `toDoubleOrNull()` parses the literal text "NaN" or "Infinity" into
+     * a real, non-finite Double, and every "<= 0 means invalid" guard in the dialog (qNum, pNum,
+     * aNum) is an IEEE-754 comparison that evaluates false against a non-finite value - so typing
+     * that text used to sail straight past validation and into the ledger. `toNum()` must
+     * collapse any non-finite parse to 0.0, which every existing guard already rejects.
+     */
+    @Test fun `NaN and Infinity text never parse to a non-finite number`() {
+        for (bad in listOf("NaN", "-NaN", "Infinity", "-Infinity", "+Infinity")) {
+            val n = bad.toNum()
+            assertTrue("\"$bad\".toNum() = $n, which is not finite", n.isFinite())
+            assertEquals("\"$bad\".toNum() should collapse to 0.0", 0.0, n, 0.0)
+        }
+    }
+
+    @Test fun `a NaN quantity cannot resolve into a savable transaction`() {
+        val r = TxnFields.resolve(TxnType.BUY, "NaN", "10", "", "0")
+        // qty collapses to 0.0, which every "isTrade && qNum <= 0" guard in the dialog rejects -
+        // it must not silently become a real (if wrong) share count.
+        assertEquals(0.0, r.quantity, 0.0)
+    }
 }
