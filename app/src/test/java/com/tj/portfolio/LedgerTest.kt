@@ -20,7 +20,16 @@ import org.robolectric.annotation.Config
  * `tests/LedgerPropTest.java` and `tests/ledger_props.py`: harnesses that have to be
  * compiled or invoked BY HAND and that `ship.sh` never runs. The most consequential
  * arithmetic in the app was therefore gated by almost nothing.
+ *
+ * RUN UNDER ROBOLECTRIC even though the ledger itself is pure, because one test here drives
+ * `ClaudeBridge.parse`, and `org.json` is an ANDROID class: in a plain JVM unit test it is
+ * the stubbed `android.jar` version, where every `JSONObject(...)` throws and any parse
+ * quietly comes back empty. A test asserting "the import path dropped this row" would then
+ * pass for entirely the wrong reason - it drops every row, including the ones it should
+ * keep - which is precisely how a guard gets pinned by a test that proves nothing.
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class LedgerTest {
 
     private val day = 86_400_000L
