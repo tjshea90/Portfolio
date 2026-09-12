@@ -341,7 +341,7 @@ private fun FeedRow(f: FeedItem, onClick: () -> Unit) {
             }
             if (isInsider) {
                 Spacer(Modifier.width(6.dp))
-                Tag("INSIDER", Amber)
+                Tag("INSIDER", amberText)
             }
             if (f.owned) {
                 Spacer(Modifier.width(6.dp))
