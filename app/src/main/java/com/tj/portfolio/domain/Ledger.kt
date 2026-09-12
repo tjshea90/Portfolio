@@ -16,7 +16,31 @@ data class Position(
     val overridden: Boolean = false,
     /** Shares bought during today's session, and what they actually cost. */
     val sharesToday: Double = 0.0,
-    val costToday: Double = 0.0
+    val costToday: Double = 0.0,
+    /**
+     * Shares sold that the transaction history never accounted for - the running total of
+     * every sale that exceeded the shares on the books at the moment it was replayed.
+     *
+     * WHY THIS IS REPORTED RATHER THAN RESOLVED. Both replays already handle the arithmetic
+     * the only way they honestly can: the proceeds are booked in full (the money really did
+     * arrive) and cost comes off only for shares that were actually recorded. What neither
+     * can do is decide WHY the sale was bigger than the position, and the two possible
+     * answers need opposite treatments:
+     *
+     *   * a BUY IS MISSING from the records - an import that skipped a row, or a screenshot
+     *     that brought the sell in first. This is overwhelmingly the likelier one in a
+     *     ledger fed by screenshot imports, and here a later buy genuinely does open a new
+     *     long position, which is what the app already does.
+     *   * the position was SHORTED. Then the same later buy is a cover and should close to
+     *     zero, not open a long.
+     *
+     * Guessing either way silently produces confident, wrong numbers in the other case, and
+     * short selling is nowhere in this app's scope - no short transaction type, no margin
+     * accounting, nothing in the brief. So the app reports the discrepancy where the
+     * position is shown and leaves the correction - almost always "add the missing buy" -
+     * to the one person who knows which happened.
+     */
+    val oversold: Double = 0.0
 ) {
     val avgCost: Double get() = if (shares > 1e-9) costBasis / shares else 0.0
     fun marketValue(price: Double) = shares * price
