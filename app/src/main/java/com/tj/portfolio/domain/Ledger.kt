@@ -288,7 +288,10 @@ object Ledger {
                         if (lot.shares < 1e-9) q.removeFirst()
                     }
                     // Selling more than the app knows about (a missing buy) still books the
-                    // proceeds rather than silently dropping them.
+                    // proceeds rather than silently dropping them. `remaining` is whatever
+                    // the deque could not cover, which is precisely the discrepancy worth
+                    // telling the user about - see [Position.oversold].
+                    if (remaining > 1e-9) oversold[sym] = (oversold[sym] ?: 0.0) + remaining
                     realized[sym] = realized[sym]!! + (qty * px - t.fees) - costOut
                 }
             }
