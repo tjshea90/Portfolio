@@ -184,7 +184,12 @@ object Ledger {
             // account charge can, and a silent arithmetic error is not worth leaving in for
             // the sake of a case that "should not happen".
             TxnType.SELL -> (t.amount + t.fees).coerceAtLeast(0.0)
-            else -> abs(t.amount)
+            // UNREACHABLE TODAY (Part 9 audit finding) - both call sites already filter to
+            // BUY/SELL before reaching here. `t.type` is a String, not an enum, so Kotlin
+            // still requires an `else` to make the `when` exhaustive; a silent `abs(t.amount)`
+            // fallback would produce a plausible-looking wrong price if a future caller ever
+            // did pass something else, instead of surfacing the misuse.
+            else -> throw IllegalArgumentException("unitPrice called with a non-BUY/SELL txn: ${t.type}")
         }
         return gross / qty
     }
