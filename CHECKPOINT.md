@@ -1,13 +1,13 @@
-# CHECKPOINT 669 — read me first, then TASKS.md
+# CHECKPOINT 670 — read me first, then TASKS.md
 
-**Written:** 2026-09-12T02:32:13Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/optimize-code-ui-day-trading-60dfuy` · **builds on:** `591263d` (this checkpoint is the commit after it)
+**Written:** 2026-09-12T02:51:51Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/optimize-code-ui-day-trading-60dfuy` · **builds on:** `59d3254` (this checkpoint is the commit after it)
 
 ## Just done
-Recorded v7.18 in BUILDLOG (release was green but unrecorded after a session cut-off). Confirmed Opus is live and recorded Tj's Part 8b request in TASKS.md
+Part 8b logic layer: tradability gates (1M avg shares + RVOL>=1.0), MarketClock.minutesLeftInSession/inMiddayLull, the 5-minute opening range and opening-bar direction rule, target's hardcoded 3R cap replaced with an ADR-grounded room ceiling, TradePlan.exit/tooLateToStart, and the new chasing/earnings/midday/big-R warnings. Compiles clean
 
 ## Do this next
-Part 8b: deep day-trading research is running; then design and implement the soundness improvements to ResearchScore.tradePlan/dayTrading
+Add position sizing from totalEquity, strengthen disclaimers, surface the new fields in the UI, then write tests for all of it
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Part 8b: deep day-trading research is running; then design and implement the sou
 
 ## Last ten checkpoints
 ```
+  bf14753 ckpt 669: Recorded v7.18 in BUILDLOG (release was green but unrecorded after a session c
   8b46405 ckpt 668: gated v7.18 (code 75) and pushed it: checkinit, the full unit suite and the ve
   ab3b6fa ckpt 667: Part 8a: code/UI optimization pass complete - 11 findings from a full audit fi
   2fdf0b2 ckpt 666: Recorded Tj's Part 8 request (code/UI optimization pass + day-trading logic ov
@@ -27,5 +28,5 @@ Part 8b: deep day-trading research is running; then design and implement the sou
   b2f2dbb ckpt 660: Added ResearchScore.beginnerSummary(): a pure, testable function that restates
 ```
 
-(1 automatic checkpoint(s) since the last deliberate one — the
+(24 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
