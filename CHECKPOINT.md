@@ -1,13 +1,13 @@
-# CHECKPOINT 681 — read me first, then TASKS.md
+# CHECKPOINT 682 — read me first, then TASKS.md
 
-**Written:** 2026-09-12T06:03:38Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `180f24e` (this checkpoint is the commit after it)
+**Written:** 2026-09-12T06:11:52Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `6a836a1` (this checkpoint is the commit after it)
 
 ## Just done
-Part 9 sweep batch 4 (ViewModel): commitImportAsync and clearIncorrectBuyFees now wrap their SQLite writes in runCatching (matching every other DB write in this file) - an exception during a screenshot-parsed import (the least-trusted input in the app) used to crash the whole app mid-import with the review dialog stuck open; now it toasts and reports 0 rather than propagating. Fixed enrichDayTradingVisible's loadChart call to fetch its Job on Dispatchers.Main instead of the enclosing IO context, closing a real (if narrow) duplicate-fetch window - loadChart's in-flight guard is check-then-launch and relies on Main.immediate running the launch inline, which only happens when called from Main
+Part 9 sweep batch 5 (final): fixed ReaderScreen's 3 sub-48dp touch targets, deduped MainActivity's twice-repeated back-stack pop logic into one popDetail(), fixed Db.kt's isSecret backup-exclusion check (substring match -> explicit allowlist), added the missing index on quotes.updated, looped purgeHttpCache so its byte-budget purge is actually guaranteed to converge, added purgeImports (the one cache/log table with no retention policy since v2), and turned a provably-unreachable dead branch in Ledger.unitPrice into a loud assertion instead of a silent wrong-number fallback. Full Gradle suite green: 1028 tests, 0 failures, 0 errors. TASKS.md Part 9 checklist fully updated with what was fixed per area and the two items flagged for Tj (not fixed on Sonnet): the ledger AVERAGE-cost same-day P&L depletion-order bug (+ short-position and stock-split gaps found alongside it), and API-key plaintext storage. The thorough app-wide audit and fix pass is complete.
 
 ## Do this next
-Continue Part 9 fixes: remaining screens (ReaderScreen 46dp touch targets under the 48dp minimum, MainActivity's duplicated popDetail back-stack logic, Db.kt's isSecret substring-match backup exclusion), then the safe ledger/persistence fixes (quotes.updated missing index, http cache purge not guaranteed single-pass, imports table never purged, 2 confirmed-dead code paths). After that: full Gradle suite, then report status - several lower-priority findings (ViewModel retry-block/prompt-file dedup, recompute() async variant, News.kt/Day-Trading-idle-contract test gaps) are being left as noted remaining work rather than fixed, given diminishing returns for the risk. Two items stay flagged for Tj: the ledger AVERAGE-cost same-day P&L bug and the API-key-storage security question.
+Report the full findings/fixes summary to Tj, including the two flagged items awaiting his decision (switch to Opus for the ledger bug, or say proceed on Sonnet; say whether he wants API-key storage hardened). Ask before shipping (v7.20) per his standing UI-preview-before-ship preference, unless he says ship straight through.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Continue Part 9 fixes: remaining screens (ReaderScreen 46dp touch targets under 
 
 ## Last ten checkpoints
 ```
+  02b6065 ckpt 681: Part 9 sweep batch 4 (ViewModel): commitImportAsync and clearIncorrectBuyFees 
   5dd6b42 ckpt 680: Part 9 sweep batch 3 (accessibility): fixed the raw-fill-painted-as-text WCAG 
   d30e68e ckpt 679: Part 9 sweep batch 2 (network layer): Http.postJson now runs the same cooldown
   4c9fe0d ckpt 678: Part 9 sweep batch 1: fixed Long-division truncation in Research.kt's earnings
@@ -27,5 +28,5 @@ Continue Part 9 fixes: remaining screens (ReaderScreen 46dp touch targets under 
   30de4b9 ckpt 672: Fixed all 6 code-review findings on Part 8b: the RVOL gate now scales by elaps
 ```
 
-(3 automatic checkpoint(s) since the last deliberate one — the
+(16 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
