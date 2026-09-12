@@ -3020,12 +3020,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 kotlin.math.abs(it.quantity) < 1e-9 &&
                 kotlin.math.abs(it.amount) > 0.005
         }
+        // EVERY position, not the open ones - a symbol that was oversold into a closed
+        // position is exactly the case with nowhere else to surface. See FeeAudit.oversold.
+        val short = Ledger.positions(txns, db.overrides(), costMethod())
+            .filter { it.oversold > 1e-9 }
+            .map { it.symbol to it.oversold }
         return FeeAudit(
             totalRecorded = txns.sumOf { it.fees },
             buysWithFees = bad,
             buyFeeTotal = bad.sumOf { it.fees },
             quantityless = ghosts,
-            quantitylessCash = ghosts.sumOf { it.amount }
+            quantitylessCash = ghosts.sumOf { it.amount },
+            oversold = short
         )
     }
 
