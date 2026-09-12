@@ -148,6 +148,39 @@ class RestoreMergeTest {
         assertEquals(before, after)
     }
 
+    /**
+     * A SPLIT ROW ROUND-TRIPS LIKE ANY OTHER (Part 10 audit test-gap). `TxnType.ALL` -
+     * deliberately not [TxnType.IMPORTABLE] - is what `restoreJson` checks against, because
+     * this app's OWN backup must keep accepting a type its two Claude-fed import paths must
+     * never see. Confirms the ratio (which lives in `quantity` and can be < 1, e.g. a
+     * reverse split) survives export and merge exactly, and its ordinary zero price/amount/
+     * fees do not make it look like a ghost row to anything downstream.
+     */
+    @Test fun `a split survives a merge restore with its ratio intact`() {
+        db.insertTxn(buy("NVDA", 10.0, 1200.0, -12_000.0))
+        db.insertTxn(split("NVDA", 10.0))
+        db.insertTxn(split("NVDA", 0.1))   // a different ratio, same symbol and day
+        exportWipeAndMerge()
+
+        val splits = db.allTxns().filter { it.type == TxnType.SPLIT && it.symbol == "NVDA" }
+        assertEquals("both splits should survive - they are different ratios", 2, splits.size)
+        assertEquals(setOf(10.0, 0.1), splits.map { it.quantity }.toSet())
+        assertTrue("a split moves no money", splits.all { it.amount == 0.0 && it.price == 0.0 })
+    }
+
+    /** Two IDENTICAL splits (the same ratio, same day) are a real duplicate and must dedupe. */
+    @Test fun `two identical splits do not double the ratio on a merge onto the same ledger`() {
+        db.insertTxn(split("NVDA", 10.0))
+        val json = db.exportJson()
+
+        db.restoreJson(json, replace = false)
+
+        assertEquals(
+            "merging a backup holding the same split onto itself duplicated it",
+            1, db.allTxns().count { it.type == TxnType.SPLIT }
+        )
+    }
+
     /** `replace = true` was never affected, and must stay exact. */
     @Test fun `a replace restore is exact`() {
         db.insertTxn(deposit(500.0))
