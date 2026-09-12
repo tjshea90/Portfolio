@@ -83,6 +83,8 @@ def average(txns, today=range(0,0)):
             a["shares"] += qty; a["cost"] += qty*px + t["fees"]
             if t["date"] in today:
                 a["tshares"] += qty; a["tcost"] += qty*px + t["fees"]
+            elif today and t["date"] < today.start:
+                a["bshares"] += qty
         else:
             avg = a["cost"]/a["shares"] if a["shares"] > 1e-9 else 0.0
             shares_before = max(a["shares"], 0.0)
