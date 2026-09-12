@@ -126,6 +126,20 @@ object DayTradingTechnicals {
         /** True once the 09:30-10:00 ET window has fully printed - false pre-market or mid-range. */
         val openingRangeComplete: Boolean = false,
         /**
+         * High/low of the FIVE-minute opening range (09:30-09:35 ET) - the variant the
+         * strongest published test of this setup found best, against the 30-minute one above
+         * which it found worst. 0.0 before the first bar prints. See [openingBar].
+         */
+        val or5High: Double = 0.0,
+        val or5Low: Double = 0.0,
+        /**
+         * The opening five-minute bar closed ABOVE its open - the direction filter Zarattini,
+         * Barbon & Aziz apply before taking any long (a flat or down opening bar is no trade).
+         * False both when the bar was not bullish AND when it has not printed yet; callers that
+         * need to tell those apart read [or5High] being 0.0.
+         */
+        val openingBarBullish: Boolean = false,
+        /**
          * Wilder's ATR(14) on the 5-MINUTE bars - the volatility scale a same-session stop is
          * actually sized from. See this file's header for why the daily one was the wrong
          * ruler for that job. 0.0 before enough intraday bars have printed.
