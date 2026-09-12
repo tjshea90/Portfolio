@@ -373,10 +373,21 @@ object Ledger {
                     // Settings silently changed the "Today" headline - a number that has
                     // nothing to do with cost basis and must not depend on the method.
                     //
-                    // A sale consumes the oldest shares first, so it only reaches today's pool
-                    // once it has exhausted everything held from before today.
-                    val heldFromBefore = (sharesBefore - a.todayShares).coerceAtLeast(0.0)
-                    val fromToday = (covered - heldFromBefore).coerceIn(0.0, a.todayShares)
+                    // OLDEST FIRST MEANS THREE BUCKETS, NOT TWO. The first draft of this fix
+                    // consumed "everything that is not today's" before today's, which is only
+                    // the same thing when no transaction is dated AFTER the session window.
+                    // One can be: the window is the session the QUOTES describe, and that lags
+                    // the calendar every evening, every night and all weekend (see [dayBounds]).
+                    // Found by the randomised cross-method property this round added - sell
+                    // before the window, buy inside it, buy after it, then sell again, and
+                    // FIFO correctly consumed the in-window lot first while this consumed the
+                    // later one. A sale takes the pre-window shares, then the in-window ones,
+                    // then whatever was bought after; only the middle bucket carries a cost.
+                    var rest = covered
+                    val fromBefore = minOf(rest, a.beforeShares)
+                    a.beforeShares -= fromBefore
+                    rest -= fromBefore
+                    val fromToday = minOf(rest, a.todayShares)
                     if (fromToday > 1e-9 && a.todayShares > 1e-9) {
                         a.todayCost -= fromToday * (a.todayCost / a.todayShares)
                         a.todayShares -= fromToday
