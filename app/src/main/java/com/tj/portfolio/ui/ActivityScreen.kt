@@ -58,6 +58,17 @@ import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.util.Fmt
 import com.tj.portfolio.util.Storage
 
+/**
+ * A split ratio as a person says it: "10-for-1", "1-for-10". The ratio is stored in
+ * `Txn.quantity` - see [TxnType.SPLIT] - so it needs its own phrasing wherever a row is
+ * drawn, or it reads as a share count.
+ */
+internal fun splitLabel(ratio: Double): String {
+    if (!ratio.isFinite() || ratio <= 0.0) return "split (no ratio set)"
+    return if (ratio >= 1.0) "${Fmt.shares(ratio)}-for-1 split"
+    else "1-for-${Fmt.shares(1.0 / ratio)} split"
+}
+
 @Composable
 fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
     val ctx = LocalContext.current
