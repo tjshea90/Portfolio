@@ -1104,7 +1104,18 @@ object ResearchScore {
         price: Double,
         entry: Double,
         stop: Double,
-        target: Double
+        target: Double,
+        /**
+         * [TradePlan.tooLateToStart] - and it MUST reach this function (Round 73).
+         *
+         * The grid above this summary now prints "TOO LATE TO START TODAY" when the session has
+         * too little left. Without this parameter the plain-English card underneath it would go
+         * on saying "Buy if it climbs to $12.40, then sell at $13.10" in the same breath - the
+         * exact contradiction this function's own header calls "a worse bug than not having the
+         * summary at all", and the beginner reading the simple sentence is precisely the reader
+         * least equipped to notice the technical line above disagreeing with it.
+         */
+        tooLateToStart: Boolean = false
     ): BeginnerSummary? {
         if (price <= 0.0 || entry <= 0.0 || stop <= 0.0 || target <= 0.0) return null
         val risk = entry - stop
@@ -1115,6 +1126,17 @@ object ResearchScore {
         else ""
 
         return when {
+            // THE CLOCK BEATS EVERY OTHER BRANCH, because it is the only one that can be true
+            // while all the prices still look perfectly reasonable. A day trade has to be
+            // closed before the market shuts, so with minutes left there is no version of this
+            // that is worth starting - whatever the levels say.
+            tooLateToStart -> BeginnerSummary(
+                headline = "Not today - there isn't enough time left.",
+                explanation = "This kind of trade has to be finished before the market closes, " +
+                    "and there isn't enough of today left for it to work out. The prices here " +
+                    "are still worth a look tomorrow, but don't start it now.",
+                skip = true
+            )
             // The price already reached the profit target - most of the likely gain is gone.
             price >= target -> BeginnerSummary(
                 headline = "Too late for this one today - don't buy now.",
