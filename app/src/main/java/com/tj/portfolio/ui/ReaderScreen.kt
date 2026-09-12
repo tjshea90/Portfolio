@@ -132,7 +132,7 @@ fun ReaderScreen(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            BigIconButton(Icons.Filled.Refresh, "Reload", size = 46, iconSize = 22) {
+            BigIconButton(Icons.Filled.Refresh, "Reload", iconSize = 22) {
                 readerMode = false
                 web?.reload()
             }
