@@ -510,25 +510,32 @@ object FundamentalsFeed {
      * needs to be. It gives a consensus target and the buy/hold/sell split, plus a short
      * summary block - not the per-analyst detail, so it never replaces Yahoo.
      */
-    private suspend fun nasdaq(symbol: String): Fundamentals {
+    private suspend fun nasdaq(symbol: String): Fundamentals = kotlinx.coroutines.coroutineScope {
         val v = LinkedHashMap<String, Double>()
         val texts = LinkedHashMap<String, String>()
         var consensus: Consensus? = null
 
-        val s = Http.get(
-            "https://api.nasdaq.com/api/quote/" + MarketData.enc(symbol) +
-                "/summary?assetclass=stocks",
-            mapOf("Accept" to "application/json"), conditionalKey = true
-        )
+        // Independent requests, fetched at the same time rather than one after the other -
+        // same fix as Social.trending's pJob/sJob split.
+        val sJob = kotlinx.coroutines.async {
+            Http.get(
+                "https://api.nasdaq.com/api/quote/" + MarketData.enc(symbol) +
+                    "/summary?assetclass=stocks",
+                mapOf("Accept" to "application/json"), conditionalKey = true
+            )
+        }
+        val tJob = kotlinx.coroutines.async {
+            Http.get(
+                "https://api.nasdaq.com/api/analyst/" + MarketData.enc(symbol) + "/targetprice",
+                mapOf("Accept" to "application/json"), conditionalKey = true
+            )
+        }
+        val s = sJob.await()
+        val t = tJob.await()
         if (s.ok) runCatching { parseNasdaqSummary(s.body, v, texts) }
-
-        val t = Http.get(
-            "https://api.nasdaq.com/api/analyst/" + MarketData.enc(symbol) + "/targetprice",
-            mapOf("Accept" to "application/json"), conditionalKey = true
-        )
         if (t.ok) consensus = runCatching { parseNasdaqTarget(t.body) }.getOrNull()
 
-        if (v.isEmpty() && texts.isEmpty() && consensus == null) return empty(symbol)
+        if (v.isEmpty() && texts.isEmpty() && consensus == null) return@coroutineScope empty(symbol)
         return Fundamentals(
             symbol = symbol,
             values = v,
