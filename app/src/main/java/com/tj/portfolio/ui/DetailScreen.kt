@@ -1282,6 +1282,25 @@ private fun OverviewTab(
                                 color = accentText
                             )
                         }
+                        // THE RECORDS DISAGREE WITH THEMSELVES - see [Position.oversold].
+                        // More shares have been sold for this symbol than were ever bought,
+                        // which the ledger cannot resolve on its own: it books the proceeds
+                        // in full and takes cost off only for shares it actually had, and
+                        // the realized figure is overstated by whatever the missing buy cost.
+                        // Said plainly here, next to the numbers it affects, because the fix
+                        // is a transaction only TJ can supply.
+                        val short = row.position?.oversold ?: 0.0
+                        if (short > 1e-9) {
+                            Text(
+                                "${Fmt.shares(short)} more shares have been sold than bought. " +
+                                    "A buy is probably missing from your records - until it is " +
+                                    "added, the realized gain here is overstated by whatever " +
+                                    "those shares cost.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = redText,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                        }
                     }
 
                     Row {
