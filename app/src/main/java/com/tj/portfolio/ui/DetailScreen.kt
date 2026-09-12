@@ -59,6 +59,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tj.portfolio.data.Txn
+import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.util.Fmt
 
 /**
