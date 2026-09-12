@@ -146,8 +146,11 @@ class LedgerTest {
             assertEquals("$method: so the cost per share is divided by the ratio",
                 120.0, p.avgCost, 1e-9)
             assertEquals("$method: nothing is realized by a split", 0.0, p.realized, 1e-9)
-            assertEquals("$method: and no cash moves", 0.0, Ledger.cash(txns), 1e-9)
         }
+        // And the split row itself moves no cash: the balance is the buy's, unchanged by it.
+        assertEquals(-12_000.0, Ledger.cash(txns), 1e-9)
+        assertEquals("adding the split must not touch cash",
+            Ledger.cash(txns.filter { it.type != TxnType.SPLIT }), Ledger.cash(txns), 1e-9)
     }
 
     /** And the same arithmetic backwards, for a reverse split. */
