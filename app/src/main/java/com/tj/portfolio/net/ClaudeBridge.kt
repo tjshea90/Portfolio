@@ -347,7 +347,8 @@ Then save that reply as a `.txt` or `.md` file and import it in the app's Activi
         for (i in 0 until ta.length()) {
             val o = ta.optJSONObject(i) ?: continue
             val type = o.optString("type").uppercase()
-            if (type !in TxnType.ALL) continue
+            // IMPORTABLE, not ALL - an imported reply may never carry a SPLIT. See its note.
+            if (type !in TxnType.IMPORTABLE) continue
             val sym = o.optString("symbol").takeIf { it.isNotBlank() && it != "null" }?.uppercase()
             val qty = o.optDouble("quantity", 0.0).nz()
             var px = o.optDouble("price", 0.0).nz()
