@@ -334,7 +334,15 @@ object ResearchScore {
          * fixed the price line on the card and left these two REASON lines still saying
          * "today" over a closed market - the same sentence, a centimetre lower.
          */
-        sessionWord: String = "today"
+        sessionWord: String = "today",
+        /**
+         * How much of the session `r.volume` has had to accumulate in
+         * ([MarketClock.sessionElapsedFraction]). 1.0 - the default - is a complete session,
+         * which is what the figure describes outside market hours and what every caller before
+         * Round 73 meant. See [pacedVolumeRatio] for why the raw ratio cannot be compared to
+         * these thresholds mid-session.
+         */
+        sessionFraction: Double = 1.0
     ): Scored {
         val why = ArrayList<String>()
         var s = 0.0
@@ -344,13 +352,18 @@ object ResearchScore {
         // --- relative volume (0-30): the single best "is this actually in play today" proxy
         // the published day-trading literature points to - see the class header.
         want++
-        val rvol = r.volumeRatio
+        val rvol = pacedVolumeRatio(r.volumeRatio, sessionFraction)
+        val partial = sessionFraction < 1.0
         if (rvol > 0) {
             have++
             s += ramp(rvol, 1.0, 5.0, 30.0)
             if (rvol >= 2.0) why.add(
-                "Trading at ${Fmt.priceBare(rvol)}x its normal volume $sessionWord" +
-                    if (rvol >= 5.0) " - heavily in play" else ""
+                if (partial)
+                    "Running at ${Fmt.priceBare(rvol)}x its normal volume pace" +
+                        if (rvol >= 5.0) " - heavily in play" else ""
+                else
+                    "Trading at ${Fmt.priceBare(rvol)}x its normal volume $sessionWord" +
+                        if (rvol >= 5.0) " - heavily in play" else ""
             )
         }
 
