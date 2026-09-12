@@ -132,8 +132,8 @@ fun AnalystsTab(
                                 fontSize = 24.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = when {
-                                    consensus.mean in 0.01..2.5 -> Green
-                                    consensus.mean > 3.5 -> Red
+                                    consensus.mean in 0.01..2.5 -> greenText
+                                    consensus.mean > 3.5 -> redText
                                     else -> MaterialTheme.colorScheme.onSurface
                                 }
                             )
