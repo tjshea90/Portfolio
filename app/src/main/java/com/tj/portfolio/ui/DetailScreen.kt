@@ -1339,6 +1339,14 @@ private fun OverviewTab(
                     // The one screen that names the number was the one screen that hid it.
                     val closedGain =
                         state.positions.firstOrNull { it.symbol == symbol }?.realized ?: 0.0
+                    // THE SAME DET-2 FIX, FOR OVERSOLD (Part 10 audit). The first version of
+                    // this warning only ever rendered in the "still holds shares" branch
+                    // above via `row.position` - which is null exactly when a position has
+                    // been sold down to zero, the single most common shape of an uncovered
+                    // sale and the case this warning most needs to catch. `state.positions`
+                    // is the unfiltered list this file already reads `closedGain` from, one
+                    // line up, for precisely the same reason.
+                    OversoldWarning(state.positions.firstOrNull { it.symbol == symbol }?.oversold ?: 0.0)
                     if (kotlin.math.abs(closedGain) > 0.005) {
                         Spacer(Modifier.height(8.dp))
                         StatCard {
