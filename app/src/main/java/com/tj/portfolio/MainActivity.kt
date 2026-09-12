@@ -245,6 +245,15 @@ fun App() {
         lastBackAt = 0L
     }
 
+    // Pop one detail screen at a time - shared by the system BackHandler and DetailScreen's
+    // own onBack, which used to restate this identically in two places (Part 9 audit finding).
+    // A fix to one path but not the other is exactly the class of back-stack bug this file's
+    // own comments say has already been fixed more than once (Round 58/63).
+    fun popDetail() {
+        detailToNews = false
+        detail = if (detailStack.isEmpty()) null else detailStack.removeAt(detailStack.lastIndex)
+    }
+
     BackHandler {
         // Any back press that actually navigates cancels a pending "press again to exit" -
         // otherwise a press at the root, a detour into another tab and a press back could
