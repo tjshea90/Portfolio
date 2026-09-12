@@ -364,7 +364,8 @@ object Ledger {
                     //
                     // A sale consumes the oldest shares first, so it only reaches today's pool
                     // once it has exhausted everything held from before today.
-                    val fromToday = minOf(covered, a.todayShares)
+                    val heldFromBefore = (sharesBefore - a.todayShares).coerceAtLeast(0.0)
+                    val fromToday = (covered - heldFromBefore).coerceIn(0.0, a.todayShares)
                     if (fromToday > 1e-9 && a.todayShares > 1e-9) {
                         a.todayCost -= fromToday * (a.todayCost / a.todayShares)
                         a.todayShares -= fromToday
