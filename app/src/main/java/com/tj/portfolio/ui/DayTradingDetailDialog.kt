@@ -343,6 +343,18 @@ private fun PositionSizeLine(r: ResearchRow, equity: Double) {
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+    if (size.shares > 0) {
+        Spacer(Modifier.height(3.dp))
+        Text(
+            // SIZED FROM TOTAL EQUITY, WHICH IS NOT BUYING POWER - see `positionSize`'s header.
+            // The app is a tracker and cannot know what is settled or marginable, so the share
+            // count answers "how much risk is this" and not "can this order actually be placed".
+            "Sized against the whole portfolio, not against available cash - the app can't see " +
+                "what's settled or what your broker will allow.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
     Spacer(Modifier.height(8.dp))
 }
 
