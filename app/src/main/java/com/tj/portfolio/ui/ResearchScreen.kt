@@ -1080,7 +1080,7 @@ internal fun BeginnerSummaryCard(r: ResearchRow) {
             s.headline,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold,
-            color = if (s.skip) MaterialTheme.colorScheme.error
+            color = if (s.skip) redText
             else MaterialTheme.colorScheme.onSurface
         )
         Spacer(Modifier.height(3.dp))
