@@ -106,15 +106,25 @@ def check(txns, session=None):
 def main():
     runs = int(sys.argv[1]) if len(sys.argv) > 1 else 5000
     bad = 0
+    same_day = 0
     for i in range(runs):
         rng = random.Random(i)
         random.seed(i)
-        problems = check(gen(rng, rng.randrange(1, 40)))
+        problems, saw_today = check(gen(rng, rng.randrange(1, 40)))
+        if saw_today:
+            same_day += 1
         if problems:
             bad += 1
             if bad <= 3:
                 print(f"  seed {i}: " + "; ".join(problems[:3]))
     print(f"{runs} randomised histories: {runs - bad} clean, {bad} with a violation")
+    # Reported so "is the same-day path even being exercised?" is answerable from the output
+    # rather than assumed - it was silently zero for the life of this harness.
+    print(f"  histories holding shares bought in-session: {same_day}")
+    if same_day == 0:
+        print("  !! the same-day pool was never exercised - the session window and the "
+              "generated dates have drifted apart")
+        bad += 1
     return 1 if bad else 0
 
 
