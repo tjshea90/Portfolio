@@ -1139,6 +1139,21 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        // ---- THE CLOCK CAN INVALIDATE EVERYTHING UNDER IT, so it goes above it (Round 73).
+        //
+        // A day trade is closed the same session. With too little of the session left, the
+        // levels below are still correct and the instruction built on them is not: there is no
+        // longer time for the move the target assumes. Shown on the CARD as well as in the
+        // detail view, because the card is where the number is read at a glance.
+        if (r.tooLateToStart) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "TOO LATE TO START TODAY - not enough of the session left",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth()) {
             FactCell("Buy at", if (r.entryPrice > 0) Fmt.price(r.entryPrice) else DASH, weight = 1f)
