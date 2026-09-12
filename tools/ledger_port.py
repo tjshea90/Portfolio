@@ -66,22 +66,36 @@ def average(txns, today=range(0,0)):
         sym = (t["symbol"] or "").upper()
         if not sym: continue
         if t["type"] not in (BUY, SELL):
-            if t["type"] == DIVIDEND: acc.setdefault(sym, dict(shares=0.0,cost=0.0,realized=0.0))
+            if t["type"] == DIVIDEND: acc.setdefault(sym, _acc())
             continue
-        a = acc.setdefault(sym, dict(shares=0.0,cost=0.0,realized=0.0))
+        a = acc.setdefault(sym, _acc())
         qty = abs(t["quantity"])
         if qty < 1e-9: continue          # the v5.4 guard
         px = unit_price(t, qty)
         if t["type"] == BUY:
             a["shares"] += qty; a["cost"] += qty*px + t["fees"]
+            if t["date"] in today:
+                a["tshares"] += qty; a["tcost"] += qty*px + t["fees"]
         else:
             avg = a["cost"]/a["shares"] if a["shares"] > 1e-9 else 0.0
-            covered = min(qty, max(a["shares"], 0.0))
+            shares_before = max(a["shares"], 0.0)
+            covered = min(qty, shares_before)
             a["realized"] += (qty*px - t["fees"]) - covered*avg
             a["cost"] -= covered*avg; a["shares"] -= covered
             if a["shares"] < 1e-9: a["shares"]=0.0; a["cost"]=0.0
+            # OLDEST SHARES FIRST, matching fifo() above and Ledger.averageCost. A sale only
+            # reaches today's pool once it has exhausted everything held from before today;
+            # taking today's shares first is the Part 10 bug this port could not see, because
+            # average() had no same-day tracking at all.
+            held_before = max(shares_before - a["tshares"], 0.0)
+            from_today = min(max(covered - held_before, 0.0), a["tshares"])
+            if from_today > 1e-9 and a["tshares"] > 1e-9:
+                a["tcost"] -= from_today * (a["tcost"]/a["tshares"])
+                a["tshares"] -= from_today
+                if a["tshares"] < 1e-9: a["tshares"]=0.0; a["tcost"]=0.0
     return {s: dict(symbol=s, shares=v["shares"], costBasis=v["cost"],
-                    realized=v["realized"]) for s,v in acc.items()}
+                    realized=v["realized"], sharesToday=v["tshares"],
+                    costToday=v["tcost"]) for s,v in acc.items()}
 
 def cash(txns): return sum(t["amount"] for t in txns)
 def net_deposits(txns):
