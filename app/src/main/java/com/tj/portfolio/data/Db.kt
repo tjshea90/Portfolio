@@ -1578,7 +1578,14 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         return out
     }
 
-    private fun isSecret(k: String) = k.contains("key", true)
+    /**
+     * An explicit allowlist, not a substring match on the constant's NAME (Part 9 audit
+     * finding). It used to be `k.contains("key", true)`, which only ever worked because these
+     * two happened to be the only setting keys containing "key" - a future setting whose name
+     * coincidentally matched (e.g. a hypothetical `sort_key`) would have been silently and
+     * permanently dropped from every backup and JSON export, with nothing to flag it.
+     */
+    private fun isSecret(k: String) = k == Keys.CLAUDE_KEY || k == Keys.FINNHUB_KEY
 
     /**
      * Market data the app can rebuild from the network, and "when did THIS phone last do X"
