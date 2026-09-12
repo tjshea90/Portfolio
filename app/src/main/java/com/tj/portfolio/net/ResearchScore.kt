@@ -1058,6 +1058,64 @@ object ResearchScore {
     internal fun rewardRisk(entry: Double, risk: Double, target: Double): Double =
         if (risk > 1e-9) (target - entry) / risk else 0.0
 
+    // ================================================ RELATIVE VOLUME, BY THE CLOCK (Round 73)
+
+    /**
+     * The exponent that turns "how much of the session has elapsed" into "how much of a normal
+     * day's volume should have traded by now". See [expectedVolumeFraction].
+     */
+    private const val VOLUME_CURVE_EXPONENT = 0.7
+
+    /**
+     * WHAT SHARE OF A NORMAL DAY'S VOLUME HAS USUALLY TRADED BY THIS POINT IN THE SESSION.
+     *
+     * ---- WHY THIS IS NOT JUST THE CLOCK
+     *
+     * `ScreenRow.volumeRatio` divides volume SO FAR TODAY by a full three-month DAILY average,
+     * so every threshold written against it - the 30-point ramp in [dayTrading], the "2x normal
+     * volume" confirmation in [dayTradingConfidence], the screen's own admission gate - is
+     * comparing a part-day number to a whole-day one and is wrong by however much of the day
+     * is left. Dividing by the elapsed CLOCK fraction would fix the units and introduce a
+     * different error, because intraday volume is not spread evenly: the open and the close
+     * carry far more than their share of the day, which is one of the oldest documented facts
+     * in market microstructure (Wood, McInish & Ord 1985; Harris 1986, and every volume profile
+     * since). By 10:00 ET roughly a sixth of a typical day has already traded, against a twelfth
+     * of the clock - so pacing by the clock alone would report every stock as running at twice
+     * its normal rate at 10:00, and the morning list would be nothing but that artefact.
+     *
+     * `elapsed^0.7` is a deliberately simple stand-in for that curve. It is exact at both ends
+     * (nothing at the bell, everything at the close), and between them it tracks the published
+     * shape closely enough for this purpose: about 16% by 10:00, half by around noon, 90% by
+     * 15:00. Where it is wrong it is wrong in the safe direction - it sits slightly ABOVE the
+     * usual measured curve through the middle of the day, so the volume a stock needs to look
+     * busy is if anything overstated, and the error flatters nothing.
+     *
+     * NOT FITTED TO ANYTHING, and should not be read as though it were. A real implementation
+     * would build each symbol's own volume profile from its own history; that needs 14 days of
+     * intraday bars per symbol, which is a materially heavier fetch than this section makes
+     * today (noted in TASKS.md). This is the honest approximation available for free.
+     */
+    internal fun expectedVolumeFraction(elapsed: Double): Double {
+        val f = elapsed.coerceIn(0.0, 1.0)
+        if (f <= 0.0) return 0.0
+        return Math.pow(f, VOLUME_CURVE_EXPONENT)
+    }
+
+    /**
+     * Relative volume PROJECTED TO A FULL SESSION - "at this rate it finishes the day at N times
+     * its normal volume" - which is the question every threshold in this file was already
+     * written as though it were asking. See [expectedVolumeFraction].
+     *
+     * 0.0 before the opening bell, because nothing of today has traded and there is no rate to
+     * measure. That is "not confirmed", the same as any other signal this app has not got yet -
+     * never a false zero standing in for a real reading.
+     */
+    internal fun pacedVolumeRatio(volumeRatio: Double, sessionFraction: Double): Double {
+        if (volumeRatio <= 0.0) return 0.0
+        val expected = expectedVolumeFraction(sessionFraction)
+        return if (expected <= 0.0) 0.0 else volumeRatio / expected
+    }
+
     // ========================================================= POSITION SIZING (Round 73)
 
     /** Fraction of total equity risked on one day trade - the standard fixed-fractional rule. */
