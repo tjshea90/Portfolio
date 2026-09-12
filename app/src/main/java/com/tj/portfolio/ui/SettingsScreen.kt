@@ -347,6 +347,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             rate.forEach { (host, n) ->
                 KeyValue(host, n.toString())
             }
+            KeyValue("Total", com.tj.portfolio.net.Http.totalLastHour().toString())
             Text(
                 "Counted since the app started, per provider, over a rolling hour. Pull " +
                     "down on this screen to update the figures.",
