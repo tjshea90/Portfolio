@@ -825,7 +825,7 @@ internal fun ResearchCard(
                         Text(r.symbol, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                         if (followed) {
                             Spacer(Modifier.width(6.dp))
-                            Chip("FOLLOWING", Accent)
+                            Chip("FOLLOWING", accentText)
                         }
                     }
                     if (r.name.isNotBlank()) Text(
