@@ -582,5 +582,23 @@ Tj's request, 2026-09-11 (his own words):
       - Full Gradle suite green: 973 tests (2 new), 0 failures. High-effort
         `/code-review` pass found the AdviceScreen dedup gap above; fixed and
         re-verified green.
-- [ ] Part 8b (day-trading research/logic overhaul): blocked on Opus per
-      SCREENER.md - not started. Flagged in chat 2026-09-11/12.
+- [x] Part 8a shipped as v7.18 (code 75), GitHub Actions run #18 built,
+      signed, verified its own certificate and published the Release;
+      recorded in BUILDLOG.md (the recording was interrupted by a session
+      cut-off and completed on the next start, exactly the gap
+      `tools/resume.sh` is built to detect).
+
+## Part 8b: Day Trading — deeper research, "make the logic very sound"
+
+**Screened 2026-09-11: money-accuracy (buy/sell/target scoring logic,
+`ResearchScore.kt` named directly in SCREENER.md) + Tj's own words. Flagged,
+Tj switched to Opus and said "go". `get_session` confirmed
+`claude-opus-5` before any code. Running on Opus.**
+
+Tj's request, 2026-09-11 (his own words):
+
+> run checks for optimization of code and ui for this app. also do more
+> research on the day trading section for the best advice possible. make
+> the day trading logic very sound
+
+(The first sentence is Part 8a above, already shipped. This is the rest.)
