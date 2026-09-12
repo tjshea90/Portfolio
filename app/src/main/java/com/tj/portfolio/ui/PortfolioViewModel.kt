@@ -4524,6 +4524,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // Research lists or a headline leaves a row behind, with an intraday spark series
             // in it, and `cachedQuotes()` parses every one of them on the launch path.
             runCatching { db.purgeQuotes() }
+            // Part 9 audit: the import-history log never had a purge either. See [Db.purgeImports].
+            runCatching { db.purgeImports() }
         }
     }
 
