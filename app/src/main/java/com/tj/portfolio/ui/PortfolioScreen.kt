@@ -155,13 +155,22 @@ fun PortfolioScreen(
             }
 
             items(rows, key = { it.symbol }) { row ->
+                // PER-ROW DERIVED READ, NOT A DIRECT MAP INDEX. Reading `recommendations[symbol]`
+                // straight from the captured map made every visible row recompose whenever ANY
+                // symbol's recommendation resolved, because the map itself is a new instance on
+                // every update. `derivedStateOf` still re-runs on every map change, but only
+                // actually invalidates a row whose OWN entry compares unequal (Recommendation is
+                // a data class) - so one symbol resolving no longer recomposes the whole list.
+                val recommendation by remember(row.symbol) {
+                    derivedStateOf { recommendations[row.symbol] }
+                }
                 StockRowItem(
                     row,
                     onClick = { onOpen(row.symbol) },
                     onNews = { onOpenNews(row.symbol) },
                     onAction = { a -> pending = PendingAction(row.symbol, a) },
                     plMode = state.plMode,
-                    recommendation = recommendations[row.symbol]
+                    recommendation = recommendation
                 )
                 RowSeparator()
             }
