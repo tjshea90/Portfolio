@@ -5,10 +5,10 @@ import org.junit.Test
 
 class ScratchProbe {
     @Test fun probe() {
-        val rows = """{"type":"BUY","symbol":"NVDA","quantity":5,"price":120.50,"amount":-602.50,"fees":0,"date":"2026-06-11"}"""
-        val wrapped = """{"portfolioAppResponse":true,"transactions":[$rows]}"""
-        println("WRAPPED -> " + ClaudeBridge.parse(wrapped).let { "txns=${it.transactions.size} err=${it.error}" })
-        val notesOnly = """{"notes":"ok","transactions":[$rows]}"""
-        println("NOTES   -> " + ClaudeBridge.parse(notesOnly).let { "txns=${it.transactions.size} err=${it.error}" })
+        val wrapped = """{"portfolioAppResponse":1,"transactions":[{"type":"BUY","symbol":"NVDA","quantity":5,"price":120.50,"amount":-602.50,"fees":0,"date":"2026-06-11"}]}"""
+        println("FOUND -> " + ClaudeBridge.findObject(wrapped))
+        println("ISPROMPTFILE -> " + ClaudeBridge.isPromptFile(wrapped))
+        val r = ClaudeBridge.parse(wrapped)
+        println("PARSE -> txns=${r.transactions.size} err=${r.error} notes=${r.notes}")
     }
 }
