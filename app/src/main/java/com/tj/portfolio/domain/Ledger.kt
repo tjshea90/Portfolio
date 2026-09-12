@@ -454,7 +454,9 @@ object Ledger {
         val calcAvg = if (sharesIn > 1e-9) costIn / sharesIn else 0.0
         if (ov?.shares != null) { shares = ov.shares; cost = shares * calcAvg; over = true }
         if (ov?.avgCost != null) { cost = shares * ov.avgCost; over = true }
-        return Position(sym, shares, cost, realized, first, over, sharesToday, costToday)
+        // `oversold` is a fact about the transaction history, so an override - which corrects
+        // the POSITION - does not clear it. The records still disagree with themselves.
+        return Position(sym, shares, cost, realized, first, over, sharesToday, costToday, oversold)
     }
 
     /** Cash / buying power derived from every transaction's signed cash effect. */
