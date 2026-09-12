@@ -311,6 +311,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // ROUND 66: and the txns indexes, which until now existed only on databases that were
         // freshly created rather than upgraded. See [createTxnIndexes].
         runCatching { createTxnIndexes(db) }
+        // Part 9 audit: quotes(updated) never had an index at all. See [createQuoteIndexes].
+        runCatching { createQuoteIndexes(db) }
     }
 
     // ---------- HTTP response cache (Round 56) ----------
