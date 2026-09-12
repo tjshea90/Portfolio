@@ -67,6 +67,61 @@ object Research {
     /** TJ: "include only stocks that are at least 2 dollars a share when searched." */
     private const val MIN_PRICE_DAY_TRADING = 2.0
 
+    /**
+     * A DAY TRADE HAS TO BE GETTABLE OUT OF, NOT JUST INTO (Round 73).
+     *
+     * Until now the only day-trading filters were [MIN_PRICE_DAY_TRADING] and
+     * [MIN_MARKET_CAP], and neither says anything about whether a position can actually be
+     * closed. A $2.10 stock that trades 80,000 shares a day satisfied both and could sit at
+     * the top of the list; in practice its spread is a large fraction of the whole planned
+     * risk, so the plan's arithmetic - a stop $0.30 below entry, a target above - is fiction
+     * before the first fill.
+     *
+     * 1,000,000 SHARES IS NOT AN INVENTED NUMBER. It is the liquidity screen used by
+     * Zarattini, Barbon & Aziz, "A Profitable Day Trading Strategy For The U.S. Equity
+     * Market" (SSRN 2024) - the peer-reviewed study [DayTradingTechnicals]'s own header
+     * already cites as the evidence this whole section is shaped around, and whose filters
+     * (price, average volume, ATR) every profitable variant in the paper runs behind. The app
+     * cited that study's findings while applying none of its screen, which is the gap this
+     * closes.
+     *
+     * ---- WHAT IS DELIBERATELY NOT COPIED FROM IT
+     *
+     * The study's own price floor is $5 and its volatility floor is a 14-day ATR of $0.50.
+     * Neither is used here, for two different reasons:
+     *
+     *  - **$5 is overruled by TJ**, explicitly and in his own words - "include only stocks
+     *    that are at least 2 dollars a share." [MIN_PRICE_DAY_TRADING] stays at 2.
+     *  - **$0.50 of ATR does not transfer to a $2 universe.** On a $60 stock that is a
+     *    perfectly ordinary 0.8% daily range; on a $2.50 stock it is a 20% one, so applying
+     *    it as an absolute would not filter for tradable volatility, it would filter for
+     *    stocks in crisis. An absolute dollar floor calibrated against a >$5 universe is not
+     *    a floor that means the same thing here, and pretending otherwise would be worse than
+     *    leaving it out. The share-volume floor below carries no such price dependence.
+     */
+    private const val MIN_AVG_VOLUME_DAY_TRADING = 1e6
+
+    /**
+     * RELATIVE VOLUME BELOW ITS OWN NORMAL IS A MEASURED NEGATIVE, NOT MERELY A ZERO.
+     *
+     * [ResearchScore.dayTrading] already ramps relative volume from 1.0 upward, so a quiet
+     * stock scored nothing for it - but it could still reach the list on attention, a squeeze
+     * shape or a breakout alone. The same study measures the strategy's average outcome at
+     * BELOW-average opening volume as slightly negative (about -0.02R per trade) and at
+     * above-average as positive (about +0.08R), with the edge climbing steeply from there -
+     * the single largest effect they report. A name trading under its own normal volume is
+     * not in play by the only definition this section uses, so it is now excluded rather than
+     * merely unrewarded.
+     *
+     * MEASURED DAY-TO-DATE, WHICH IS THE WEAKER FORM OF THIS TEST. The study measures relative
+     * volume inside the OPENING RANGE specifically, against the same window on prior days.
+     * `ScreenRow.volumeRatio` is the whole session so far over a 3-month average, which is the
+     * same idea on a coarser ruler and is what the screener feed already supplies for free.
+     * The finer version needs 14 days of 5-minute history per symbol - a materially heavier
+     * fetch - and is noted in TASKS.md rather than built here.
+     */
+    private const val MIN_RVOL_DAY_TRADING = 1.0
+
     /** How many candidates the day-trading section keeps, deepest of the three sections. */
     private const val DAY_TRADING_BUFFER = 40
 
