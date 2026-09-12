@@ -730,7 +730,7 @@ internal fun ResearchCard(
     sessionSuffix: String = "",
     /**
      * Today's 5-minute series for this row, Day Trading only - see [ResearchScreen]'s
-     * `chartMap` lookup. Null everywhere else, and null here too until the live loop's
+     * `chartMapState` lookup. Null everywhere else, and null here too until the live loop's
      * [PortfolioViewModel.enrichDayTradingVisible] has actually fetched it.
      */
     dayChart: com.tj.portfolio.data.ChartSeries? = null,
