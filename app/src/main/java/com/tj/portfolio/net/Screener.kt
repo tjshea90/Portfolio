@@ -1,6 +1,7 @@
 package com.tj.portfolio.net
 
 import com.tj.portfolio.data.ScreenRow
+import com.tj.portfolio.util.finiteDouble
 import com.tj.portfolio.util.text
 import org.json.JSONObject
 
