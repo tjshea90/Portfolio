@@ -112,6 +112,9 @@ data class Txn(
                 TxnType.SELL -> (if (gross > 0) gross else kotlin.math.abs(amount)) - fees
                 TxnType.DEPOSIT, TxnType.DIVIDEND, TxnType.INTEREST -> kotlin.math.abs(amount)
                 TxnType.WITHDRAWAL, TxnType.FEE -> -kotlin.math.abs(amount)
+                // A split moves no money. Stated explicitly rather than left to fall through
+                // to `amount`, so a stray figure on the row can never reach the cash balance.
+                TxnType.SPLIT -> 0.0
                 else -> amount
             }
         }
