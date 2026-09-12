@@ -717,7 +717,6 @@ object Research {
         )
     }
 
-    /** The nearest dated event the screener knows about - almost always the next earnings. */
     /**
      * The exact opening of the "earnings are today" catalyst string.
      *
