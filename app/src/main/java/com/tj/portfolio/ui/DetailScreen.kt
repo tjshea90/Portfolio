@@ -1429,24 +1429,22 @@ private fun OverviewTab(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(t.type, fontWeight = FontWeight.SemiBold)
+                    // Shared with the Activity tab's row - see [txnSubtitle] for why.
                     Text(
-                        buildString {
-                            append(Fmt.day(t.date))
-                            if (t.quantity > 0) append("  -  ")
-                                .append(Fmt.shares(t.quantity))
-                                .append(" @ ").append(Fmt.price(t.price))
-                            if (t.fees > 0) append("  -  fees ").append(Fmt.usd(t.fees))
-                            if (!t.note.isNullOrBlank()) append("  -  ").append(t.note)
-                        },
+                        txnSubtitle(t),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Text(
-                    Fmt.usdSigned(t.amount),
-                    color = signColor(t.amount),
-                    fontWeight = FontWeight.SemiBold
-                )
+                // A split moves no cash, so it gets no cash column - same rule as the
+                // Activity tab's row.
+                if (t.type != TxnType.SPLIT) {
+                    Text(
+                        Fmt.usdSigned(t.amount),
+                        color = signColor(t.amount),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
                 // Confirmed, like the identical control on the Activity tab. This one
                 // deleted on a single tap - a 20dp icon inside a row whose whole width
                 // opens the editor, so the near-miss went the destructive way.
