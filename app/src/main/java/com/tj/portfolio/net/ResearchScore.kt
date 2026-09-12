@@ -958,9 +958,12 @@ object ResearchScore {
         // real reading of the levels AND a warning. See [MAX_REWARD_RISK_RATIO].
         val bigR = rewardRisk(entry, risk, target)
         if (bigR > MAX_REWARD_RISK_RATIO) parts.add(
-            "The next real resistance is ${Fmt.oneDp(bigR)}x the risk away - a big ask for one " +
-                "session, so treat the target as where the move would run out, not where it is " +
-                "expected to get"
+            (if (targetFromRoom)
+                "A normal day's remaining range puts the target ${Fmt.oneDp(bigR)}x the risk away"
+            else
+                "The next real resistance is ${Fmt.oneDp(bigR)}x the risk away") +
+                " - a big ask for one session, so treat the target as where the move would run " +
+                "out, not where it is expected to get"
         )
 
         if (tech.sessionLive && tech.or5High > 0.0 && !tech.openingBarBullish) parts.add(
