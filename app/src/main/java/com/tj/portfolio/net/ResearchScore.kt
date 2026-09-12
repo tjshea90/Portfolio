@@ -684,6 +684,8 @@ object ResearchScore {
         val below = if (live) levelsOf(
             tech.vwap to "VWAP",
             tech.openingRangeHigh to "the opening-range high, now support",
+            tech.or5High to "the first 5-minute bar's high, now support",
+            tech.or5Low to "the first 5-minute bar's low",
             tech.openingRangeLow to "the opening-range low",
             tech.prevHigh to "the prior session's high, now support",
             tech.prevClose to "the prior close",
