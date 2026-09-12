@@ -683,7 +683,9 @@ internal fun mergeDayTradingTech(
         targetPrice = plan?.target ?: row.targetPrice,
         setup = plan?.setup ?: row.setup,
         trigger = plan?.trigger ?: row.trigger,
-        planNote = plan?.note ?: row.planNote
+        planNote = plan?.note ?: row.planNote,
+        planExit = plan?.exit ?: row.planExit,
+        tooLateToStart = plan?.tooLateToStart ?: row.tooLateToStart
     )
 }
 
