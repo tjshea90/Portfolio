@@ -47,6 +47,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             )"""
         )
         db.execSQL("CREATE TABLE watchlist(symbol TEXT PRIMARY KEY, added INTEGER)")
+        createQuoteIndexes(db)
         createImports(db)
         createNews(db)
         createFundamentals(db)
