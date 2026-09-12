@@ -174,9 +174,6 @@ val redText: Color
 @Composable
 fun signColor(v: Double): Color = if (v >= 0) greenText else redText
 
-/** The same decision for a drawn shape, where the brand colours are correct as they stand. */
-fun signFill(v: Double): Color = if (v >= 0) Green else Red
-
 /**
  * THE LINE BETWEEN ONE STOCK AND THE NEXT, AS A COLOUR (Round 66 audit, PUI-4).
  *
