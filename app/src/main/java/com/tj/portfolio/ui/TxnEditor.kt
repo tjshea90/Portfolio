@@ -97,6 +97,18 @@ object TxnFields {
         // price or a total cannot leave a stray figure on a row where those fields have no
         // meaning and are not even on screen.
         if (type == TxnType.SPLIT) return Resolved(qty.toNum(), 0.0, 0.0, 0.0)
+        // SHARES AND A PER-SHARE PRICE MEAN NOTHING OUTSIDE A TRADE (Part 9 audit finding).
+        // The dialog only shows the Shares/Price boxes when `isTrade`, but this function
+        // used to parse `qty`/`price` regardless of `type` - so switching a half-typed BUY
+        // (Shares "100") to DIVIDEND and saving with just an Amount silently carried the
+        // "100" into the saved row's `quantity`, and the generic p<=0&&q>0&&a>0 branch
+        // below then DERIVED a price from it (e.g. a $50 dividend became "100 @ $0.50").
+        // The ledger itself ignores quantity/price on a non-trade type, so this never
+        // touched a total - but it permanently corrupted what the row's own subtitle shows.
+        // Zeroed at the source, the same way SPLIT already is just above.
+        if (type != TxnType.BUY && type != TxnType.SELL) {
+            return Resolved(0.0, 0.0, amount.toNum(), fees.toNum())
+        }
         val q = qty.toNum()
         val f = fees.toNum()
         var p = price.toNum()
