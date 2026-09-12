@@ -5836,11 +5836,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // RES-7): a suspended fetch must not let whatever changed underneath it (an import, a
         // rebuild) be silently overwritten on write-back.
         val current = _research.value.section(name)
+        // READ ONCE FOR THE WHOLE SWEEP, not per row - the same rule `buildDayTrading` follows
+        // for `sessionWord`. Rows enriched in one pass must all describe the same moment, or two
+        // cards a centimetre apart could disagree about how much of the session is left.
+        val minutesLeft = com.tj.portfolio.net.MarketClock.minutesLeftInSession()
+        val middayLull = com.tj.portfolio.net.MarketClock.inMiddayLull()
         val updated = current.map { row ->
             val tech = fetched[row.symbol] ?: return@map row
             if (tech.isEmpty) return@map row
             changed = true
-            val withLevels = mergeDayTradingTech(row, tech)
+            val withLevels = mergeDayTradingTech(row, tech, minutesLeft, middayLull)
             // A ROW WITH NO APP-COMPUTED LIKELIHOOD HAS NOTHING FOR THIS TO BUILD ON (Round 72
             // fix, and a correction to this guard's own first draft - caught by code review
             // before shipping). A pick Claude added from scratch never runs through
