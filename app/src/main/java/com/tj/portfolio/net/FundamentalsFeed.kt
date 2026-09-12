@@ -536,7 +536,7 @@ object FundamentalsFeed {
         if (t.ok) consensus = runCatching { parseNasdaqTarget(t.body) }.getOrNull()
 
         if (v.isEmpty() && texts.isEmpty() && consensus == null) return@coroutineScope empty(symbol)
-        return Fundamentals(
+        return@coroutineScope Fundamentals(
             symbol = symbol,
             values = v,
             texts = texts,
