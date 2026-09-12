@@ -809,6 +809,80 @@ it is, at his direction.
   zero-quantity rows, a shape the editor refuses, both import paths reject, and the Settings
   data-health card reports if any are on file. `ZEROQ=0` is clean.
 
+## Part 11: regression sweep after Part 10, then ship
+
+Tj's request, 2026-09-12 (his own words):
+
+> I don't know if it matters but all my transactions are 2026. You said
+> 2025-2026. I had no stocks in 2025. See if this matters.
+> Run another full sweep of the app for bugs and improvements, and make sure
+> what you just fixed didn't break anything else and that it works well.
+> When you are confident that everything works well, ship and make the APK
+
+Screened: a regression check on money-accuracy code just changed (Ledger.kt,
+TxnEditor.kt, DetailScreen.kt) plus a general improvement sweep - no new
+design decision, matches Part 9's precedent exactly ("well-specified...
+checks... stays on Sonnet"). `get_session` not re-checked mid-task since
+Tj had already switched back to Sonnet via `/model` immediately before
+sending this.
+
+- [x] **The 2025/2026 question, answered:** doesn't matter. The bug and its
+      fix are about the RELATIVE order of transactions around a session
+      boundary (before/inside/after "today"), never about which calendar
+      years are involved - reproducible entirely within one calendar year.
+      The test fixtures' 2025 dates are arbitrary synthetic anchors,
+      independent of any real transaction history.
+- [x] Dispatched two parallel background agents: one auditing the whole
+      codebase for anything else touching `Position`/`Txn`/`TxnType`/
+      `Ledger.positions(` that Part 10 might have broken (**no live bugs
+      found** - the diff was well-contained), one specifically tracing UI
+      edge cases in `TxnEditor.kt`/`ActivityScreen.kt`/`DetailScreen.kt`/
+      `SettingsScreen.kt`. In parallel, traced the type-dropdown state
+      handling by hand myself and found the same root-cause bug the second
+      agent later confirmed independently.
+- [x] **Found and fixed: switching the transaction-type dropdown to SPLIT
+      reused the Shares field's leftover value as the split ratio with no
+      clearing** - a "100 shares" BUY switched to SPLIT pre-filled the ratio
+      box with "100", and validation passed with no user input into the
+      ratio at all. Fixed at the dropdown: `qty` clears whenever the switch
+      crosses into or out of SPLIT specifically (BUY<->SELL still carries
+      the share count over on purpose - same field, same meaning there).
+- [x] **Found and fixed: the same leak, generalized.** `TxnFields.resolve()`
+      parsed `qty`/`price` regardless of type, so switching a half-typed BUY
+      to DIVIDEND and saving just an Amount silently baked a leftover share
+      count and a DERIVED price into the saved row (a $50 dividend recorded
+      as "100 @ $0.50"). Never touched a total - the ledger ignores
+      quantity/price on non-trade types - but permanently corrupted the
+      row's own subtitle. Fixed at the source: `resolve()` now zeroes both
+      for any type that isn't BUY/SELL/SPLIT, matching how it already
+      handled SPLIT.
+- [x] **Found and fixed: the oversold warning was invisible on a stock's own
+      page in exactly the case it matters most.** It read `row.position`,
+      which is null the moment a position is sold down to zero - the single
+      most common shape of an uncovered sale, and the exact case
+      `Position.oversold`'s own header names as the reason it exists. This
+      is the identical bug class `DetailScreen.kt` already fixed once for
+      `realized` (Round 66, "DET-2") by reading the unfiltered
+      `state.positions` list instead of the filtered `row`. Same fix
+      applied here, factored into one shared `OversoldWarning` composable
+      called from both the "still holds shares" and "no shares held"
+      branches, so the two can't drift the way `txnSubtitle` once did.
+- [x] Closed 2 of 3 test-coverage gaps the first agent found: `SPLIT` now
+      has its own `RestoreMergeTest.kt` cases (ratio survives a merge
+      round-trip; two identical-ratio same-day splits correctly dedupe as
+      one). Left open: `Claude.kt`'s copy of the `TxnType.IMPORTABLE` guard
+      (the screenshot API path) has no dedicated test, unlike
+      `ClaudeBridge`'s copy - both are one-line, added together, already
+      verified correct by direct reading; testing it would mean either
+      mocking a live HTTP call or restructuring production code to extract
+      a pure function, disproportionate for a low-severity gap right before
+      shipping.
+- [x] Confirmed no Android emulator/device is available in this container
+      (checked directly) - verification is by test suite and code trace,
+      not a live run. Said so plainly rather than claiming otherwise.
+- [x] Full Gradle suite green: 1063 tests, 0 failures, 0 errors.
+- [ ] Ship v7.20 (code 77).
+
 ## The original flag (2026-09-12) — kept for the record
 
 1. **Ledger bug: AVERAGE cost method depletes today's-shares pool in the
