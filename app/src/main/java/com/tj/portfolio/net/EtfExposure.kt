@@ -35,6 +35,8 @@ package com.tj.portfolio.net
  */
 object EtfExposure {
 
+    private val WHITESPACE = Regex("\\s+")
+
     /**
      * One exposure group, or null when the name does not clearly say.
      *
