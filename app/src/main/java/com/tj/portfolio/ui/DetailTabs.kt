@@ -153,9 +153,9 @@ fun AnalystsTab(
                             )
                             Spacer(Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Chip("BUY ${consensus.strongBuy + consensus.buy}", Green)
+                                Chip("BUY ${consensus.strongBuy + consensus.buy}", greenText)
                                 Chip("HOLD ${consensus.hold}", MaterialTheme.colorScheme.onSurfaceVariant)
-                                Chip("SELL ${consensus.sell + consensus.strongSell}", Red)
+                                Chip("SELL ${consensus.sell + consensus.strongSell}", redText)
                             }
                             if (consensus.strongBuy > 0 || consensus.strongSell > 0) {
                                 Spacer(Modifier.height(6.dp))
