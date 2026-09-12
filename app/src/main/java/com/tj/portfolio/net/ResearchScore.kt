@@ -963,6 +963,101 @@ object ResearchScore {
     internal fun rewardRisk(entry: Double, risk: Double, target: Double): Double =
         if (risk > 1e-9) (target - entry) / risk else 0.0
 
+    // ========================================================= POSITION SIZING (Round 73)
+
+    /** Fraction of total equity risked on one day trade - the standard fixed-fractional rule. */
+    private const val RISK_FRACTION = 0.01
+
+    /**
+     * And the share of equity ONE position may be worth, whatever that risk maths says.
+     * See [positionSize] for why this cap is the load-bearing half rather than a formality.
+     */
+    private const val MAX_POSITION_FRACTION = 0.25
+
+    data class PositionSize(
+        /** Whole shares. 0 when even one share risks more than the budget allows. */
+        val shares: Int,
+        /** What is actually at risk if the stop fills - never more than the budget. */
+        val riskDollars: Double,
+        /** What the position costs at the trigger price. */
+        val notional: Double,
+        /** Why the number is what it is, when it is not simply the risk maths. Often blank. */
+        val note: String
+    )
+
+    /**
+     * HOW MANY SHARES - the question every plan above implies and none of them answered.
+     *
+     * Until now a plan said "risk is $0.42 a share" and stopped, which is only half an
+     * instruction: the same $0.42 is a rounding error on one account and a serious loss on
+     * another. Fixed-fractional sizing is the rule both cited papers use and the one piece of
+     * this whole feature that is arithmetic rather than judgment:
+     *
+     *     shares = (equity x [RISK_FRACTION]) / (entry - stop)
+     *
+     * ---- THE NOTIONAL CAP IS THE PART THAT MATTERS, NOT THE 1%
+     *
+     * This is the trap the formula sets for exactly this strategy. A day-trade stop is TIGHT -
+     * [MIN_RISK_ATRS] to [MAX_RISK_ATRS] of a FIVE-MINUTE ATR, often well under 1% of the share
+     * price - so dividing a 1% risk budget by it produces a share count whose COST can be a
+     * large multiple of the account. "Risk 1%" silently becomes "put the entire portfolio into
+     * one intraday position", and the 1% only holds if the stop fills at the stop price, which
+     * is the one thing a stop cannot promise: it becomes a market order when touched, and gaps,
+     * halts and fast tapes are when it is touched. So the position is also capped at
+     * [MAX_POSITION_FRACTION] of equity, and when that cap binds the note says so - the trade is
+     * then risking LESS than the budget, which is the safe direction to be wrong in.
+     *
+     * NO LEVERAGE, DELIBERATELY, AND THIS IS A DEPARTURE FROM THE SOURCE. Zarattini/Barbon/Aziz
+     * size to a 4x broker constraint, and their headline figures assume it. That is a levered
+     * institutional-style backtest of a 20-name long/short book; this is one person's actual
+     * savings in a phone app, where a 4x intraday position is not a parameter but a different
+     * financial decision, and not one this app should make on his behalf or quietly assume in a
+     * share count it prints. Sizing here never exceeds the cash value of the account.
+     *
+     * Null when [equity] is not known (no portfolio loaded yet) or the levels are not a trade -
+     * the same "a blank is honest, a fabricated number is not" rule [tradePlan] follows.
+     */
+    fun positionSize(
+        equity: Double,
+        entry: Double,
+        stop: Double,
+        riskFraction: Double = RISK_FRACTION
+    ): PositionSize? {
+        if (equity <= 0.0 || entry <= 0.0 || stop <= 0.0 || stop >= entry) return null
+        val riskPerShare = entry - stop
+        val budget = equity * riskFraction
+        val byRisk = floor(budget / riskPerShare).toInt()
+        if (byRisk < 1) return PositionSize(
+            shares = 0,
+            riskDollars = 0.0,
+            notional = 0.0,
+            note = "One share risks ${Fmt.price(riskPerShare)}, which is more than the " +
+                "${Fmt.pct(riskFraction * 100)} of the portfolio this sizing allows for a single " +
+                "day trade. Skip it rather than size up - the stop is what makes the plan a plan."
+        )
+        val byCost = floor(equity * MAX_POSITION_FRACTION / entry).toInt()
+        val shares = minOf(byRisk, byCost)
+        if (shares < 1) return PositionSize(
+            shares = 0,
+            riskDollars = 0.0,
+            notional = 0.0,
+            note = "One share costs ${Fmt.price(entry)} - more than the " +
+                "${Fmt.pct(MAX_POSITION_FRACTION * 100)} of the portfolio one position is capped at."
+        )
+        val capped = byCost < byRisk
+        return PositionSize(
+            shares = shares,
+            riskDollars = shares * riskPerShare,
+            notional = shares * entry,
+            note = if (capped)
+                "Capped at ${Fmt.pct(MAX_POSITION_FRACTION * 100)} of the portfolio for one " +
+                    "position. The stop on this one is tight enough that a full " +
+                    "${Fmt.pct(riskFraction * 100)} risk would have meant buying " +
+                    "${Fmt.usd(byRisk * entry)} of it - risking less than the budget here, not more."
+            else ""
+        )
+    }
+
     // ======================================================= THE BEGINNER SUMMARY (Round 71)
 
     /**
