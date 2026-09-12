@@ -88,6 +88,31 @@ class ResearchTest {
     }
 
     @Test
+    fun `earnings reported 17 hours ago reads as reported, not as today`() {
+        // Floor-division regression: plain Long `/` truncates toward zero, so a small negative
+        // numerator (an after-hours release ~17h in the past) used to land on 0 days, not -1 -
+        // "Earnings today" for a stock that already reported.
+        val now = 1_700_000_000_000L
+        val seventeenHoursAgo = now - 17 * 3_600_000L
+        assertEquals(-1L, Research.daysUntilEarnings(seventeenHoursAgo, now))
+
+        val r = ScreenRow(symbol = "OLD", price = 10.0, earningsAt = seventeenHoursAgo)
+        val catalyst = Research.catalystFor(r)
+        assertTrue("expected a 'reported' catalyst, got: $catalyst", catalyst.startsWith("Reported earnings"))
+        assertFalse("must not read as today's earnings: $catalyst", catalyst.contains(Research.CATALYST_EARNINGS_TODAY))
+    }
+
+    @Test
+    fun `earnings due in 3 hours still reads as today, not tomorrow`() {
+        val now = 1_700_000_000_000L
+        val inThreeHours = now + 3 * 3_600_000L
+        assertEquals(0L, Research.daysUntilEarnings(inThreeHours, now))
+
+        val r = ScreenRow(symbol = "SOON", price = 10.0, earningsAt = inThreeHours)
+        assertEquals(Research.CATALYST_EARNINGS_TODAY, Research.catalystFor(r))
+    }
+
+    @Test
     fun `trending list drops indices and crypto pairs`() {
         val syms = Screener.parseTrending(res("yahoo_trending_us.json"))
         assertTrue("NFLX" in syms)
