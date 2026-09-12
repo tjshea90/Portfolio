@@ -797,9 +797,59 @@ object ResearchScore {
                     "Buy the break above ${Fmt.price(entry)} ($entryLevel) - a buy-stop, " +
                         "so nothing is bought unless the move proves itself."
             },
-            note = planNote(price, entry, risk, target, tech, rawRisk, maxRisk)
+            note = planNote(
+                price, entry, risk, target, tech, rawRisk, maxRisk,
+                minutesLeft, middayLull, earningsToday, vol, tooLate
+            )
         )
         return plan
+    }
+
+    /** Flatten by 15:50 ET rather than 16:00 - see [exitPlan]. */
+    private const val FLATTEN_BEFORE_CLOSE_MINUTES = 10
+
+    /**
+     * WHAT TO DO ONCE THE TRADE IS ON - the half a single target price cannot express.
+     *
+     * Two things, in the order they matter:
+     *
+     *  1. **Flat before the close, win or lose.** This is not advice, it is the definition of
+     *     the trade: every profitable variant in the literature this feature is built on exits
+     *     at the bell, and a position carried overnight is a different trade with a different
+     *     risk (an overnight gap can open straight through the stop, which is an intraday order
+     *     that does not exist while the market is shut). 15:50 rather than 16:00 because the
+     *     exchange volatility bands that pause trading (LULD) DOUBLE from 15:35, and because
+     *     the closing auction - now something like a tenth of the day's whole volume - is not
+     *     where a retail market order wants to be discovering its price.
+     *  2. **The target is the first objective, not necessarily the end.** See [TradePlan.exit]
+     *     and [MAX_REWARD_RISK_RATIO] for the evidence that fixed targets truncate exactly the
+     *     tail this kind of trade earns from. The honest instruction is therefore conditional:
+     *     take it at the target if a fixed exit is what you want, or trail the stop up behind
+     *     the move and let the close end it.
+     *
+     * DELIBERATELY NOT OFFERED: "take half at 1R and move the stop to breakeven". It is the
+     * most commonly repeated intraday management rule there is and the evidence for it is
+     * vendor blog backtests, not research - while the arithmetic cuts the other way. On a
+     * system whose expectancy lives in a minority of large winners, halving those winners to
+     * raise the win rate produces a smoother equity curve and a LOWER expected return. Adding
+     * it because it is popular would be adding a number this app cannot defend.
+     */
+    internal fun exitPlan(target: Double, minutesLeft: Int, live: Boolean): String {
+        val flat = "Day trade: be flat by 15:50 ET at the latest, win or lose - never carry it " +
+            "overnight, where a gap can open straight through the stop."
+        val runner = "Take profit at ${Fmt.price(target)} if you want a fixed exit. The research " +
+            "behind this section says the alternative pays better on average: trail the stop up " +
+            "under the move instead and let the closing bell end it, because a few trades " +
+            "running far past the target are what cover the many small losers."
+        val clock = when {
+            !live -> ""
+            minutesLeft in 1 until MIN_MINUTES_FOR_NEW_ENTRY ->
+                " Only $minutesLeft minutes of the session are left - too little to start this one today."
+            minutesLeft in MIN_MINUTES_FOR_NEW_ENTRY..(MIN_MINUTES_FOR_NEW_ENTRY * 2) ->
+                " Only $minutesLeft minutes left - enough to start, but not for much to develop."
+            else -> ""
+        }
+        return "$runner $flat$clock"
     }
 
     const val SETUP_BREAKOUT = "Breakout"
