@@ -61,6 +61,10 @@ class RestoreMergeTest {
         Txn(type = TxnType.BUY, symbol = sym, quantity = qty, price = price,
             amount = amount, date = day)
 
+    /** A split's `quantity` is the ratio - see [TxnType.SPLIT]. Price/amount/fees stay 0. */
+    private fun split(sym: String, ratio: Double) =
+        Txn(type = TxnType.SPLIT, symbol = sym, quantity = ratio, date = day)
+
     /** Export what is in the db, wipe it, and merge the export back in. */
     private fun exportWipeAndMerge(): String {
         val json = db.exportJson()
