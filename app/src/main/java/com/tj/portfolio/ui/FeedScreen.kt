@@ -333,7 +333,7 @@ private fun FeedRow(f: FeedItem, onClick: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Market headlines carry no ticker unless one of the holdings was named in the
             // title, so they get a MARKET badge rather than an empty one.
-            if (f.symbol.isNotBlank()) Tag(f.symbol, if (f.owned) Green else Accent)
+            if (f.symbol.isNotBlank()) Tag(f.symbol, if (f.owned) greenText else accentText)
             else Tag("MARKET", MaterialTheme.colorScheme.onSurfaceVariant)
             if (f.kind == FeedItem.MARKET && f.symbol.isNotBlank()) {
                 Spacer(Modifier.width(6.dp))
