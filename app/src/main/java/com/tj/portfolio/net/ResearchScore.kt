@@ -624,7 +624,25 @@ object ResearchScore {
      * daily ATR. The caller then shows no plan at all, which is the honest output: the levels
      * ARE the feature, and a fabricated one is worse than a blank.
      */
-    fun tradePlan(price: Double, tech: DayTradingTechnicals.DayTechnicals): TradePlan? {
+    fun tradePlan(
+        price: Double,
+        tech: DayTradingTechnicals.DayTechnicals,
+        /**
+         * Minutes of REGULAR session left ([MarketClock.minutesLeftInSession]), 0 when it is
+         * not open. Passed in rather than read, because this file owns no clock by design -
+         * the same reason `sessionWord` is a parameter of [dayTrading]. Defaulted so the
+         * overnight/no-clock case behaves exactly as it did before this round.
+         */
+        minutesLeft: Int = 0,
+        /** In the 11:30-13:30 ET lull ([MarketClock.inMiddayLull]) - a caution, never a block. */
+        middayLull: Boolean = false,
+        /**
+         * This name reports earnings today, so a release may land after the close. Matters to a
+         * day trade for one specific reason - see [planNote]'s earnings branch - and it is NOT
+         * a disqualifier: an earnings day is the canonical reason a stock is in play at all.
+         */
+        earningsToday: Boolean = false
+    ): TradePlan? {
         if (price <= 0.0) return null
         val vol = when {
             tech.atrIntraday > 0.0 -> tech.atrIntraday
