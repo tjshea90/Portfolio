@@ -230,6 +230,8 @@ object Form4 {
     }
 
     private val CLASS_PREFIX = Regex("^class\\s+([A-Za-z0-9]+)\\b", RegexOption.IGNORE_CASE)
+    private val WHITESPACE = Regex("\\s+")
+    private val NON_ALPHANUMERIC = Regex("[^a-z0-9]+")
 
     private val PLAIN_STOCK = setOf(
         "", "common", "stock", "shares", "common stock", "capital stock", "common shares",
