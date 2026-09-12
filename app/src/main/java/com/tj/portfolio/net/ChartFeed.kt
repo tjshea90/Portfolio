@@ -51,12 +51,6 @@ object ChartFeed {
         return null
     }
 
-    /** True when every Yahoo host is currently in a local cooldown. Used only for messaging. */
-    fun allHostsCooling(symbol: String): Boolean =
-        listOf("query1", "query2").all {
-            Http.cooldownRemaining("https://$it.finance.yahoo.com/v8/finance/chart/$symbol") > 0L
-        }
-
     // ------------------------------------------------------------------ parse
 
     /**
