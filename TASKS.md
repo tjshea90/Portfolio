@@ -657,5 +657,15 @@ Tj's request, 2026-09-11 (his own words):
       clock verdict refreshing while its levels are left alone, and the
       three target-above-the-price paths.
 - [x] Full Gradle unit suite green — 1022 tests, 0 failures.
-- [ ] Ship v7.19 (`versionCode` 76) once the above is done — still at
-      `versionCode 75` / `7.18`.
+- [x] Shipped as v7.19 (`versionCode` 76). GitHub Actions run #19 built,
+      signed, verified its own certificate and published the Release;
+      recorded in `BUILDLOG.md` after the run was green.
+- [x] While shipping: `ship.sh` was writing "send Tj the APK from the Release"
+      into `CHECKPOINT.md` as the next session's instruction — the one thing
+      CLAUDE.md's rule of 2026-09-11 says Claude must not do, and which this
+      container cannot do anyway (a private repo's release asset bytes are out
+      of reach, and the workaround was correctly blocked once as credential
+      exploration). A session resuming in that gap would have been told by its
+      own handoff file to go and try it. The text now says to confirm the
+      Release with `get_release_by_tag` and says plainly not to attempt the
+      download.
