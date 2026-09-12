@@ -60,11 +60,17 @@ enum class InsiderScope(val label: String, val blurb: String) {
     }
 }
 
-/** Green for a purchase, red for a sale, neutral for the machinery. */
+/**
+ * Green for a purchase, red for a sale, neutral for the machinery.
+ *
+ * THEME-BRANCHED, NOT THE RAW FILL (Part 9 audit) - painted directly as [InsiderTag]'s text,
+ * the same fill-as-text bug the rest of this sweep found and fixed elsewhere. Missed by the
+ * source-scan lint until it was widened to catch a `when` branch, not just a `color = ` line.
+ */
 @Composable
 fun insiderColor(action: String): Color = when (action) {
-    Form4.BUY -> Green
-    Form4.SELL -> Red
+    Form4.BUY -> greenText
+    Form4.SELL -> redText
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
