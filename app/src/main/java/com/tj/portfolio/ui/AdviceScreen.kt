@@ -194,18 +194,27 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
     }
 }
 
+/**
+ * [StockRating.rating]'s 4-tier colour, as TEXT (optimization pass). Same fill-vs-text split as
+ * Theme.kt's greenText/redText/scoreColor: the two middle tiers were literally scoreColor's
+ * dark-only values used unconditionally, which read fine in dark mode but failed contrast as
+ * light-mode text - now theme-branched the same way. `internal`, not private, so [ContrastTest]
+ * can measure it directly, the same reasoning this file's own sibling composables document.
+ */
 @Composable
-private fun RatingCard(s: StockRating) {
-    // Same fill-vs-text split as Theme.kt's greenText/redText/scoreColor: the two middle tiers
-    // were literally scoreColor's dark-only values used unconditionally, which read fine in
-    // dark mode but fail contrast as light-mode text - now theme-branched the same way.
+internal fun ratingColor(rating: Int): Color {
     val dark = LocalDarkTheme.current
-    val c = when {
-        s.rating >= 8 -> greenText
-        s.rating >= 6 -> if (dark) Color(0xFF3D9A5B) else Color(0xFF2F7A46)
-        s.rating >= 4 -> if (dark) Color(0xFFD79A2B) else Color(0xFF8A6410)
+    return when {
+        rating >= 8 -> greenText
+        rating >= 6 -> if (dark) Color(0xFF3D9A5B) else Color(0xFF2F7A46)
+        rating >= 4 -> if (dark) Color(0xFFD79A2B) else Color(0xFF8A6410)
         else -> redText
     }
+}
+
+@Composable
+private fun RatingCard(s: StockRating) {
+    val c = ratingColor(s.rating)
     Box(Modifier.padding(horizontal = 16.dp, vertical = 5.dp)) {
         StatCard {
             Row(verticalAlignment = Alignment.CenterVertically) {
