@@ -1173,7 +1173,7 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
             Text(
                 r.planNote,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
+                color = redText
             )
         }
     }
