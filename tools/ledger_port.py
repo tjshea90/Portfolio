@@ -60,6 +60,9 @@ def fifo(txns, today=range(0,0)):
                         costToday=sum(l[0]*l[1] for l in fresh))
     return out
 
+def _acc():
+    return dict(shares=0.0, cost=0.0, realized=0.0, tshares=0.0, tcost=0.0)
+
 def average(txns, today=range(0,0)):
     acc = {}
     for t in sorted(txns, key=_key):
