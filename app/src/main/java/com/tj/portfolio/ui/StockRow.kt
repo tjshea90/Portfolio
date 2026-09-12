@@ -291,7 +291,7 @@ fun StockRowItem(
                             recommendation?.let { verdictWord(it.verdict) } ?: "...",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
-                            color = tint ?: accentText
+                            color = recommendation?.let { verdictTextColor(it.verdict) } ?: accentText
                         )
                     }
                     Spacer(Modifier.width(8.dp))
