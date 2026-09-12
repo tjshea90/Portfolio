@@ -43,6 +43,10 @@ public class LedgerPropTest {
     public static void main(String[] a) {
         TimeZone.setDefault(TimeZone.getTimeZone("America/New_York"));
         int runs = 20000, bad = 0;
+        // How many runs actually held shares bought inside the session window. Reported so
+        // that "is this path even being exercised?" is answerable from the output rather
+        // than assumed - the question nobody asked while it sat at zero for 20,000 runs.
+        int sawToday = 0;
         String firstFailure = null;
         for (int seed = 0; seed < runs; seed++) {
             Random r = new Random(seed);
