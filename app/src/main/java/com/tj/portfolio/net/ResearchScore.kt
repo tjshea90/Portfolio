@@ -869,7 +869,15 @@ object ResearchScore {
                 targetFromRoom = false
             }
         }
-        if (target <= entry) return null
+        // AND THE SAME FLOOR ON THE LAST-RESORT PATH (second code-review pass). The two paths
+        // above now measure from `above`, but the 2:1 convention below them is computed from the
+        // entry alone, and on a pullback the entry sits below the last price - so with no
+        // overhead level and no measured range (a failed daily-bar half leaves `adr`, the prior
+        // session and the pivots all at zero, which is routine), a $110 stock pulling back to a
+        // $100 VWAP was handed "buy at 100, sell at 104" while trading at 110. Rejecting it
+        // against `entry` alone could not see that: 104 is comfortably above 100. A target the
+        // price has already passed is not a target on ANY of the three paths.
+        if (target <= above) return null
 
         val tooLate = live && tooLateToStart(minutesLeft)
         val plan = TradePlan(
