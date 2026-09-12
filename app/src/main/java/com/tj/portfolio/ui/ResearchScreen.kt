@@ -491,6 +491,16 @@ fun ResearchScreen(
                         key = { "${section.key}_${it.symbol}" }
                     ) { r ->
                         val chartKey = vm.chartKey(r.symbol, com.tj.portfolio.data.ChartRange.D1)
+                        // Per-row derived reads (optimization pass): each keeps its own cached
+                        // value and only recomposes this ONE card when its own chart/loading
+                        // entry actually changes, instead of every card re-reading the whole map
+                        // straight out of the outer scope's closure.
+                        val dayChart by remember(chartKey) {
+                            derivedStateOf { chartMapState?.value?.get(chartKey) }
+                        }
+                        val dayChartLoading by remember(chartKey) {
+                            derivedStateOf { chartLoadingState?.value?.contains(chartKey) == true }
+                        }
                         ResearchCard(
                             r, r.symbol in watched,
                             onOpen = onOpen,
@@ -500,9 +510,8 @@ fun ResearchScreen(
                             // everywhere else so no other card changes shape. `enrichDayTradingVisible`
                             // is what actually fetches this while the tab is open; the card only draws
                             // whatever has already arrived.
-                            dayChart = if (section == Section.DAY_TRADING) chartMap[chartKey] else null,
-                            dayChartLoading = section == Section.DAY_TRADING &&
-                                chartLoadingSet.contains(chartKey)
+                            dayChart = dayChart,
+                            dayChartLoading = dayChartLoading
                         )
                     }
                     item(key = "more") {
