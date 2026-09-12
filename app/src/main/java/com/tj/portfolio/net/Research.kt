@@ -597,9 +597,11 @@ object Research {
         r: ScreenRow,
         /**
          * How much of the session `r.volume` has had to accumulate in
-         * ([MarketClock.sessionElapsedFraction]). The relative-volume gate is scaled by it,
-         * because the two sides of that ratio are otherwise different units - see that
-         * function's header for the morning-long empty-list bug this prevents.
+         * ([MarketClock.sessionElapsedFraction]). The relative-volume gate is measured against
+         * the volume a normal day would have produced BY NOW rather than by the close - see
+         * [ResearchScore.pacedVolumeRatio] and [MarketClock.sessionElapsedFraction] for the
+         * morning-long empty-list bug that comparing part-day volume to a whole-day average
+         * otherwise causes.
          *
          * DEFAULTS TO A WHOLE SESSION, which is the honest default for this app: outside
          * market hours - most of the time it is open - the volume figure really does describe
