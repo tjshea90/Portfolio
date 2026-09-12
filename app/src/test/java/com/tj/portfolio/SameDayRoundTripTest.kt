@@ -5,6 +5,7 @@ import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.domain.Ledger
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
