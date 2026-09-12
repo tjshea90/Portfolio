@@ -1,13 +1,13 @@
-# CHECKPOINT 680 — read me first, then TASKS.md
+# CHECKPOINT 681 — read me first, then TASKS.md
 
-**Written:** 2026-09-12T05:59:46Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `78d821a` (this checkpoint is the commit after it)
+**Written:** 2026-09-12T06:03:38Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `180f24e` (this checkpoint is the commit after it)
 
 ## Just done
-Part 9 sweep batch 3 (accessibility): fixed the raw-fill-painted-as-text WCAG contrast bug at every remaining call site app-wide - MetricUi.verdictColor/bucketColor, DetailTabs consensus rating + 2 Chip rows, AdviceScreen's action-word chip, RecommendationDialog's placeholder fallback, ResearchScreen's 3 colorScheme.error text usages, plus a strengthened ContrastTest lint (a bare 'when'-branch return, not just 'color = ') that itself caught two previously-unflagged instances (InsiderUi.insiderColor, both Insider/Feed tags) and a new amberText accessor for a third color family (Amber) with the same bug; also swapped ~20 more color=Accent-as-text call sites across ActivityScreen/AdviceScreen/DayTradingDetailDialog/DetailScreen/FeedScreen/InsiderUi/MetricUi/PortfolioScreen/ResearchScreen/RowActions/SettingsScreen/TxnEditor for accentText (identical in light theme, fixes dark-theme's 3.39:1 failure) - all verified with a targeted test run, no regressions
+Part 9 sweep batch 4 (ViewModel): commitImportAsync and clearIncorrectBuyFees now wrap their SQLite writes in runCatching (matching every other DB write in this file) - an exception during a screenshot-parsed import (the least-trusted input in the app) used to crash the whole app mid-import with the review dialog stuck open; now it toasts and reports 0 rather than propagating. Fixed enrichDayTradingVisible's loadChart call to fetch its Job on Dispatchers.Main instead of the enclosing IO context, closing a real (if narrow) duplicate-fetch window - loadChart's in-flight guard is check-then-launch and relies on Main.immediate running the launch inline, which only happens when called from Main
 
 ## Do this next
-Continue Part 9 fixes: ViewModel findings (commitImportAsync/clearIncorrectBuyFees missing runCatching, loadChart Main-thread dispatch gap for enrichDayTradingVisible), then chart test-gaps (pinch/zoom continuous-gesture test, OVERNIGHT+compare+gesture test) and DetailScreen's duplicated range-chip callback, then remaining-screens fixes (ReaderScreen 46dp touch targets, MainActivity popDetail dedup, Db.kt isSecret explicit allowlist), then the safe ledger/persistence fixes (quotes.updated index, http cache purge loop, imports table purge, 2 dead-code removals). Two items stay flagged for Tj: the ledger AVERAGE-cost same-day P&L bug and the API-key-storage (EncryptedSharedPreferences) question - both money-accuracy/security-sensitive per SCREENER.md, not fixed on Sonnet.
+Continue Part 9 fixes: remaining screens (ReaderScreen 46dp touch targets under the 48dp minimum, MainActivity's duplicated popDetail back-stack logic, Db.kt's isSecret substring-match backup exclusion), then the safe ledger/persistence fixes (quotes.updated missing index, http cache purge not guaranteed single-pass, imports table never purged, 2 confirmed-dead code paths). After that: full Gradle suite, then report status - several lower-priority findings (ViewModel retry-block/prompt-file dedup, recompute() async variant, News.kt/Day-Trading-idle-contract test gaps) are being left as noted remaining work rather than fixed, given diminishing returns for the risk. Two items stay flagged for Tj: the ledger AVERAGE-cost same-day P&L bug and the API-key-storage security question.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Continue Part 9 fixes: ViewModel findings (commitImportAsync/clearIncorrectBuyFe
 
 ## Last ten checkpoints
 ```
+  5dd6b42 ckpt 680: Part 9 sweep batch 3 (accessibility): fixed the raw-fill-painted-as-text WCAG 
   d30e68e ckpt 679: Part 9 sweep batch 2 (network layer): Http.postJson now runs the same cooldown
   4c9fe0d ckpt 678: Part 9 sweep batch 1: fixed Long-division truncation in Research.kt's earnings
   24d5bad ckpt 677: Wrote Tj's app-wide audit request (bugs, UI, code, internet efficiency) into T
@@ -26,5 +27,5 @@ Continue Part 9 fixes: ViewModel findings (commitImportAsync/clearIncorrectBuyFe
   30de4b9 ckpt 672: Fixed all 6 code-review findings on Part 8b: the RVOL gate now scales by elaps
 ```
 
-(19 automatic checkpoint(s) since the last deliberate one — the
+(3 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
