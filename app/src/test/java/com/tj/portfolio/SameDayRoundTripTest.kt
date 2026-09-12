@@ -234,11 +234,16 @@ class SameDayRoundTripTest {
             var held = 0.0
             var id = 0L
             repeat(rng.nextInt(1, 12)) {
-                // Dates land both before today and inside the session, which is the whole
-                // point - a generator that never crosses the boundary cannot see this bug.
-                val at = when (rng.nextInt(3)) {
-                    0 -> session - (1L + rng.nextInt(60)) * 86_400_000L   // days ago
-                    else -> session - rng.nextInt(8) * 3_600_000L         // inside today
+                // Dates land before the session window, inside it, AND AFTER it - a
+                // generator that never crosses those boundaries cannot see either of the
+                // two bugs this test exists for. The after-the-window case is not exotic:
+                // the window is the session the quotes describe, which lags the calendar
+                // every evening, night and weekend (see Ledger.dayBounds), so a transaction
+                // dated later than it is ordinary.
+                val at = when (rng.nextInt(4)) {
+                    0 -> session - (1L + rng.nextInt(60)) * 86_400_000L   // days before
+                    1 -> session + (1L + rng.nextInt(5)) * 86_400_000L    // days after
+                    else -> session - rng.nextInt(8) * 3_600_000L         // inside the window
                 }
                 val px = 1.0 + rng.nextInt(5000) / 100.0
                 if (held < 1e-9 || rng.nextInt(3) != 0) {
