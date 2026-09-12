@@ -144,6 +144,12 @@ public class LedgerPropTest {
         System.out.println(runs + " randomised histories against the shipped Ledger");
         System.out.println("  clean      : " + (runs - bad));
         System.out.println("  violations : " + bad);
+        System.out.println("  with same-day holdings (exercises the today pool): " + sawToday);
+        if (sawToday == 0) {
+            System.out.println("  !! the same-day path was never exercised - the session instant "
+                + "and the generated dates have drifted apart again");
+            bad++;
+        }
         if (firstFailure != null) System.out.println("  first: " + firstFailure);
 
         // Fee schedule regression - the v5.1 cases, unchanged by this round
