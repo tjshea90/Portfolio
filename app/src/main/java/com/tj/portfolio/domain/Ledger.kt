@@ -347,6 +347,17 @@ object Ledger {
             val sym = t.symbol?.uppercase() ?: continue
             if (t.type !in setOf(TxnType.BUY, TxnType.SELL)) {
                 if (t.type == TxnType.DIVIDEND) acc.getOrPut(sym) { Acc() }
+                // The same split, on a pooled book: every share count scales, and the costs
+                // do not move at all - which is exactly what leaves the average price
+                // divided by the ratio. See [TxnType.SPLIT] and fifo()'s own branch.
+                if (t.type == TxnType.SPLIT) {
+                    val ratio = TxnType.splitRatio(t)
+                    if (ratio > 0.0) acc[sym]?.let { a ->
+                        a.shares *= ratio
+                        a.todayShares *= ratio
+                        a.beforeShares *= ratio
+                    }
+                }
                 continue
             }
             val a = acc.getOrPut(sym) { Acc() }
