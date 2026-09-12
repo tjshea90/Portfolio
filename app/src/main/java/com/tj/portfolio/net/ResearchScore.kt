@@ -620,12 +620,17 @@ object ResearchScore {
      *  3. **Stop.** Under the structure that would invalidate the setup - the level below
      *     entry, buffered - then clamped into [MIN_RISK_ATRS]..[MAX_RISK_ATRS] intraday ATRs so
      *     it stays a same-session stop.
-     *  4. **Target.** The nearest real resistance above entry, because that is where the move
-     *     runs into supply. Floored at [TARGET_REWARD_RISK_RATIO]R when there is clear air
-     *     above, capped at [MAX_REWARD_RISK_RATIO]R, and capped again by how much of the day's
-     *     average range is left. When the nearest resistance is closer than 2R the target is
-     *     placed AT IT and the thin reward is reported rather than a 2R target being drawn
-     *     straight through a wall.
+     *  4. **Target** (reworked in Round 73). The nearest real resistance ABOVE BOTH the entry
+     *     and the last price, because that is where the move runs into supply - a level price
+     *     has already traded through is not resistance. It is capped only by how much of a
+     *     normal day's range is left, never by a fixed multiple of the risk any more: see
+     *     [MAX_REWARD_RISK_RATIO] for the evidence that a hard cap truncates exactly the tail
+     *     this kind of trade earns from. When the nearest resistance is closer than 2R the
+     *     target is placed AT IT and the thin reward is reported rather than a 2R target being
+     *     drawn straight through a wall; when the day's measured remaining range will not cover
+     *     even 1R ([MIN_CEILING_REWARD_RATIO]), there is no plan at all rather than a
+     *     few-cents-of-upside one. With neither structure nor a measured range,
+     *     [TARGET_REWARD_RISK_RATIO] is the last-resort convention.
      *
      * Null when there is nothing real to build from - no price, or neither an intraday nor a
      * daily ATR. The caller then shows no plan at all, which is the honest output: the levels
