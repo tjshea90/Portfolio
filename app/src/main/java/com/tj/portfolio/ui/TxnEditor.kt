@@ -217,7 +217,21 @@ fun TxnEditorDialog(
                     }
                     DropdownMenu(expanded = typeMenu, onDismissRequest = { typeMenu = false }) {
                         TxnType.ALL.forEach {
-                            DropdownMenuItem(text = { Text(it) }, onClick = { type = it; typeMenu = false })
+                            DropdownMenuItem(text = { Text(it) }, onClick = {
+                                // THE SHARES BOX AND THE SPLIT-RATIO BOX ARE THE SAME `qty`
+                                // STATE. Every type already shares its text fields this way
+                                // (an "amount" meant for a deposit is still just cash), but a
+                                // share count and a ratio are different enough in scale and
+                                // meaning that carrying one over as the other invites a real
+                                // mistake: switch a "100 shares" BUY to SPLIT and the ratio
+                                // box pre-fills with "100" - a proposed hundredfold split.
+                                // The live preview text warns before Save either way, but
+                                // clearing it here removes the mistake rather than relying on
+                                // the user to notice it.
+                                if ((type == TxnType.SPLIT) != (it == TxnType.SPLIT)) qty = ""
+                                type = it
+                                typeMenu = false
+                            })
                         }
                     }
                 }
