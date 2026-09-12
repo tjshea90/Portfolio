@@ -1032,7 +1032,6 @@ object ResearchScore {
         // hides: when real resistance sits closer than 2R, the target is placed AT it and the
         // trade is reported as the thin one it is, instead of drawing an obedient 2:1 target
         // straight through the level that is going to stop the move.
-        val rr = rewardRisk(entry, risk, target)
         if (rr in 0.0..THIN_REWARD_RATIO) parts.add(
             "Only ${Fmt.oneDp(rr)} to 1 - " +
                 (if (targetFromRoom)
