@@ -251,5 +251,91 @@ internal fun DayTradingPlanContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    // ---- THE MEASURED BASE RATES, NOT A SOFTENED VERSION OF THEM (Round 73).
+                    //
+                    // The disclaimer above is honest about what the SCORE is. It says nothing
+                    // about how this activity goes for the people who do it, and the published
+                    // numbers on that are not ambiguous or contested - they are some of the
+                    // most replicated findings in retail finance, across three countries and
+                    // two decades. A section that computes entry triggers to the cent while
+                    // leaving the reader to assume the average outcome is positive is
+                    // technically accurate and substantively misleading.
+                    DAY_TRADING_BASE_RATES,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
     }
+}
+
+/**
+ * WHAT ACTUALLY HAPPENS TO PEOPLE WHO DO THIS, measured rather than asserted.
+ *
+ * Barber, Lee, Liu & Odean's work on the complete Taiwanese market and Chague, De-Losso &
+ * Giovannetti's on Brazilian equity-futures day traders are the two best-identified studies of
+ * the question, and both used whole-population account data rather than surveys or a broker's
+ * marketing sample. The Brazilian paper's headline - of nearly twenty thousand people who day
+ * traded for at least 300 sessions, 97% lost money and 0.4% earned more than a bank teller,
+ * with no evidence of improvement through experience - is the single most relevant number
+ * available for the reader of this exact screen.
+ */
+internal const val DAY_TRADING_BASE_RATES =
+    "The base rates, measured: of people who day traded for 300+ sessions in one whole-market " +
+        "study, 97% lost money and 0.4% made more than a bank teller - with no sign of getting " +
+        "better with experience. A separate study of an entire national market found over 80% " +
+        "of day traders losing money after costs, and about 1% persistently profitable. This " +
+        "section is a way to plan a trade carefully; it is not evidence that the activity pays."
+
+/**
+ * HOW MANY SHARES, FROM THE PORTFOLIO THAT ACTUALLY EXISTS (Round 73).
+ *
+ * Draws nothing at all when there is no equity to size against or no usable plan - see
+ * [com.tj.portfolio.net.ResearchScore.positionSize], which returns null rather than a number
+ * built from a zero balance. A Claude-authored plan is sized exactly the same way: the
+ * arithmetic is the app's either way, and it is the only part of this screen that is not a
+ * judgment call.
+ */
+@Composable
+private fun PositionSizeLine(r: ResearchRow, equity: Double) {
+    val size = com.tj.portfolio.net.ResearchScore.positionSize(
+        equity, r.entryPrice, r.stopPrice
+    ) ?: return
+    if (size.shares > 0) {
+        Text(
+            "Size: ${Fmt.shares(size.shares.toDouble())} shares " +
+                "(${Fmt.usd(size.notional)}), risking ${Fmt.usd(size.riskDollars)} if the stop fills.",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+    } else {
+        Text(
+            "Size: too wide to take at this account size.",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+    if (size.note.isNotBlank()) {
+        Spacer(Modifier.height(3.dp))
+        Text(
+            size.note,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    Spacer(Modifier.height(8.dp))
+}
+
+/** The exit half of the plan - see [com.tj.portfolio.net.ResearchScore.TradePlan.exit]. */
+@Composable
+private fun ExitPlanLine(r: ResearchRow) {
+    if (r.planExit.isBlank()) return
+    Text(
+        "Getting out",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(Modifier.height(3.dp))
+    Text(r.planExit, style = MaterialTheme.typography.bodyMedium)
+    Spacer(Modifier.height(8.dp))
 }
