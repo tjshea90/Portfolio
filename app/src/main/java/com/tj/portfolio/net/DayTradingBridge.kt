@@ -457,12 +457,13 @@ $SHAPE
                 planExit = if (takeLevels)
                     ResearchScore.exitPlan(c.targetPrice, minutesLeft = 0, live = false)
                 else app.planExit,
-                // AND THE APP'S CLOCK VERDICT IS NOT CLAUDE'S. `mergeDayTradingTech` deliberately
-                // never recomputes a plan for a `planByClaude` row, so a `tooLateToStart` left
-                // set here would stick to Claude's plan for the rest of the session with nothing
-                // able to clear it - stamping "TOO LATE TO START TODAY" over levels imported
-                // minutes ago.
-                tooLateToStart = if (takeLevels) false else app.tooLateToStart,
+                // `tooLateToStart` IS NOT SET HERE AT ALL, in either direction. It is a fact
+                // about the clock rather than about whose plan this is, and pinning it to an
+                // imported plan was itself a bug (a second code-review pass caught that
+                // `mergeDayTradingTech` never re-plans a `planByClaude` row, so anything pinned
+                // here would never clear). `mergeDayTradingTech` now recomputes it from the
+                // session clock on every tick for every row, Claude's included, so an import at
+                // 15:45 correctly carries the late-session badge the app would give its own.
                 planByClaude = takeLevels
             )
         }
