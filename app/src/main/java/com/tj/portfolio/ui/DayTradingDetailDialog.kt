@@ -151,6 +151,26 @@ internal fun DayTradingPlanContent(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        // ---- THE APP'S OWN SCORE, CRITICISED BY THE APP (Round 73).
+                        //
+                        // This score is a weighted sum with a dozen hand-chosen thresholds,
+                        // none of which was ever tested against out-of-sample data - which is
+                        // the textbook shape of an overfitted rule. The score is still the best
+                        // ranking available here and is worth showing; what is not defensible
+                        // is showing it without saying that nobody has demonstrated it works.
+                        // Naming that is the same discipline as labelling Claude's prices as
+                        // Claude's, applied to the app's own arithmetic.
+                        "Worth knowing how this number was arrived at: its weights and cut-offs " +
+                            "were chosen by reasoning from published research, not fitted to " +
+                            "data and never tested against a period held back to check them. " +
+                            "That is exactly the recipe that produces scores which look " +
+                            "convincing and predict nothing. Treat it as an ordering of what " +
+                            "is busy today, not as a measured edge.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
 
                 if (r.atr > 0 || r.vwap > 0 || r.prevHigh > 0) {
