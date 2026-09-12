@@ -6,6 +6,7 @@ import com.tj.portfolio.data.ScreenRow
 import com.tj.portfolio.data.TradeVerdict
 import com.tj.portfolio.util.Fmt
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
