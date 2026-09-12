@@ -200,6 +200,17 @@ fun insiderSummary(shown: List<InsiderFiling>): String {
 /** Used by the feed's badges and here. Kept in one place so the amber matches. */
 val Amber = Color(0xFFE0A030)
 
+/**
+ * Amber as TEXT, on the same rule as [greenText]/[redText] (Part 9 audit). `Amber` painted
+ * directly as the "10b5-1 PLAN"/"INSIDER" tag text measures 2.27:1 on a light background -
+ * both tags use it as text, not just as a fill, the same bug those two accessors exist to fix.
+ * `0x8A6410` is the light-theme value already measured (Theme.kt's `scoreColor` low tier) to
+ * clear 4.5:1 against a light surface; the dark theme keeps the brand amber, which already
+ * measures 8.45:1 there.
+ */
+val amberText: Color
+    @Composable get() = if (LocalDarkTheme.current) Amber else Color(0xFF8A6410)
+
 /** Small row of evenly spaced chips, so the three scopes fit one line on a phone. */
 @Composable
 fun ScopeChips(
