@@ -69,6 +69,27 @@ internal fun splitLabel(ratio: Double): String {
     else "1-for-${Fmt.shares(1.0 / ratio)} split"
 }
 
+/**
+ * The line under a transaction row: when, what it was, fees, note.
+ *
+ * SHARED, because there are two of these rows - this tab's and the per-symbol list on
+ * DetailScreen - and they were separate copies of the same `buildString`. The split support
+ * added in Part 10 went into one of them and not the other, so a split read as
+ * "10 @ $0.00" on the stock's own page: exactly the drift a second copy invites.
+ */
+internal fun txnSubtitle(t: Txn): String = buildString {
+    append(Fmt.day(t.date))
+    // A SPLIT's `quantity` is a RATIO, not a share count - see [TxnType.SPLIT].
+    if (t.type == TxnType.SPLIT) {
+        append("  -  ").append(splitLabel(t.quantity))
+    } else {
+        if (t.quantity > 0) append("  -  ").append(Fmt.shares(t.quantity))
+            .append(" @ ").append(Fmt.price(t.price))
+        if (t.fees > 0) append("  -  fees ").append(Fmt.usd(t.fees))
+    }
+    if (!t.note.isNullOrBlank()) append("  -  ").append(t.note)
+}
+
 @Composable
 fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
     val ctx = LocalContext.current
