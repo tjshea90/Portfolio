@@ -26,7 +26,7 @@ java  -cp ".:../$CLS:$STDLIB:/tmp/json.jar" BridgeTest
 | file | what it asserts |
 |---|---|
 | `ShippedTest.java` | `Fmt.parseRss` on every format the live feeds emit; `Txn.unitPriceFromTotal` fee handling; the fee-heavy-sale `unitPrice` case; `Claude.preferredModel` ordering |
-| `LedgerPropTest.java` | 20,000 randomised histories: both methods agree on lifetime P/L and share counts, no negative shares or basis, no NaN in `totals()`, full cash reconciliation, and the day-figure/`boughtTodayCount` invariant the summary card depends on. Plus the Ally fee schedule |
+| `LedgerPropTest.java` | 20,000 randomised histories: both methods agree on lifetime P/L, share counts AND `sharesToday`, no position claims more bought-today than it holds, no negative shares or basis, no NaN in `totals()`, full cash reconciliation, and the day-figure/`boughtTodayCount` invariant the summary card depends on. Plus the Ally fee schedule |
 | `BridgeTest.java` | the offline bridge: quantity-less trades refused and reported, the fee not double-charged, the v5.2 template defences intact, and `News.stripHtml` entity decoding |
 | `DayPnlTest.java` | 200,000 randomised portfolios over the same-session day-P/L split |
 | `ledger_props.py` | the Python port's own property run, kept from Round 44 |
