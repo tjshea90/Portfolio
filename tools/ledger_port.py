@@ -87,17 +87,17 @@ def average(txns, today=range(0,0)):
                 a["bshares"] += qty
         else:
             avg = a["cost"]/a["shares"] if a["shares"] > 1e-9 else 0.0
-            shares_before = max(a["shares"], 0.0)
-            covered = min(qty, shares_before)
+            covered = min(qty, max(a["shares"], 0.0))
             a["realized"] += (qty*px - t["fees"]) - covered*avg
             a["cost"] -= covered*avg; a["shares"] -= covered
             if a["shares"] < 1e-9: a["shares"]=0.0; a["cost"]=0.0
-            # OLDEST SHARES FIRST, matching fifo() above and Ledger.averageCost. A sale only
-            # reaches today's pool once it has exhausted everything held from before today;
-            # taking today's shares first is the Part 10 bug this port could not see, because
-            # average() had no same-day tracking at all.
-            held_before = max(shares_before - a["tshares"], 0.0)
-            from_today = min(max(covered - held_before, 0.0), a["tshares"])
+            # OLDEST SHARES FIRST, matching fifo() above and Ledger.averageCost: a sale takes
+            # the pre-window shares, then the in-window ones, then whatever was bought after
+            # the window. Only the middle bucket carries a cost.
+            rest = covered
+            from_before = min(rest, a["bshares"])
+            a["bshares"] -= from_before; rest -= from_before
+            from_today = min(rest, a["tshares"])
             if from_today > 1e-9 and a["tshares"] > 1e-9:
                 a["tcost"] -= from_today * (a["tcost"]/a["tshares"])
                 a["tshares"] -= from_today
