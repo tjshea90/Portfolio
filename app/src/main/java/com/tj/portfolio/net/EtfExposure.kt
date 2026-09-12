@@ -52,7 +52,7 @@ object EtfExposure {
         val n = " " + name.lowercase()
             .replace('-', ' ').replace('&', ' ').replace('/', ' ').replace('+', ' ')
             .replace(",", " ").replace(".", " ")
-            .replace(Regex("\\s+"), " ") + " "
+            .replace(WHITESPACE, " ") + " "
 
         // A TILT IS NOT THE INDEX. Growth, value, dividend, equal-weight, hedged, ESG and
         // buffered versions of an index are different products with different holdings, and
