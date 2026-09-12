@@ -635,6 +635,7 @@ object FundamentalsFeed {
     private val TAG = Regex("<[^>]+>")
     private val ROW = Regex("<tr[^>]*>(.*?)</tr>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
     private val CELL = Regex("<t[dh][^>]*>(.*?)</t[dh]>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val WHITESPACE = Regex("\\s+")
 
     internal fun parseFinviz(symbol: String, html: String): Fundamentals {
         val pairs = LinkedHashMap<String, String>()
