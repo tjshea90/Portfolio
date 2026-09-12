@@ -913,7 +913,14 @@ object ResearchScore {
         middayLull: Boolean,
         earningsToday: Boolean,
         vol: Double,
-        tooLate: Boolean
+        tooLate: Boolean,
+        /**
+         * The target came from the day's remaining RANGE, not from a price level. The two notes
+         * that describe the target have to say which, or they attribute a number derived from
+         * an average daily range to "the next real resistance" - a level that, in that case,
+         * does not exist. Caught by code review before shipping.
+         */
+        targetFromRoom: Boolean
     ): String {
         val parts = ArrayList<String>(8)
 
