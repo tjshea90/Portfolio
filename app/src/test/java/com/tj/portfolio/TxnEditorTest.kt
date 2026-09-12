@@ -162,6 +162,29 @@ class TxnEditorTest {
     }
 
     /**
+     * A LEFTOVER SHARE COUNT MUST NEVER REACH A NON-TRADE ROW (Part 11 audit finding).
+     *
+     * `qty`/`price` are the SAME dialog state whatever `type` is currently selected - the
+     * boxes are simply hidden for a type that doesn't show them. Before this, `resolve()`
+     * still parsed and used them regardless of `type`: start a BUY, type Shares "100", switch
+     * to DIVIDEND, type Amount "50", Save - and the saved row carried quantity=100 plus a
+     * price DERIVED from it (`p<=0 && q>0 && a>0` triggers `unitPriceFromTotal`, landing on
+     * 0.50), so a $50 dividend was recorded as "100 @ $0.50". The ledger itself never reads
+     * quantity/price on a non-trade type, so no total was ever wrong - but the row's own
+     * subtitle permanently misdescribed what happened, on the one screen whose job is to be
+     * the record.
+     */
+    @Test fun `a leftover share count and price cannot leak into a non-trade row`() {
+        for (type in TxnType.ALL.filter { it != TxnType.BUY && it != TxnType.SELL && it != TxnType.SPLIT }) {
+            val r = TxnFields.resolve(type, "100", "55", "50", "3")
+            assertEquals("$type: quantity must not carry over", 0.0, r.quantity, 1e-9)
+            assertEquals("$type: price must not carry over", 0.0, r.price, 1e-9)
+            assertEquals("$type: amount is still read", 50.0, r.amount, 1e-9)
+            assertEquals("$type: fees are still read", 3.0, r.fees, 1e-9)
+        }
+    }
+
+    /**
      * A SPLIT row carries its RATIO in `quantity` and must carry nothing else - see
      * [com.tj.portfolio.data.TxnType.SPLIT]. Resolved clean even when the price, total and
      * fee boxes still hold whatever was typed before the type was switched, since those
