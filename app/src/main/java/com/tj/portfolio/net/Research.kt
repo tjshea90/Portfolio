@@ -672,7 +672,9 @@ object Research {
             // breakout checks simply cannot confirm yet, which is the honest state, not a false
             // negative - and is recomputed with real readings once the live sweep enriches the
             // rows actually on screen (see `PortfolioViewModel.scoreDayTradingRow`).
-            .map { (row, sc) -> Triple(row, sc, ResearchScore.dayTradingConfidence(row)) }
+            .map { (row, sc) ->
+                Triple(row, sc, ResearchScore.dayTradingConfidence(row, null, sessionFraction))
+            }
             // SORTED BY THE BLENDED SCORE (Round 72), not the raw "in play" score - see
             // [ResearchRow.dtLikelihood]'s header for what the two halves mean.
             .sortedByDescending { (_, sc, confidence) -> ResearchScore.blendedScore(sc.score, confidence) }
