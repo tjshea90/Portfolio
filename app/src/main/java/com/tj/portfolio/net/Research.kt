@@ -635,9 +635,12 @@ object Research {
             MarketClock.Phase.CLOSED -> "in the last session"
         }
 
+        // READ ONCE FOR THE WHOLE PASS, like `sessionWord` above and for the same reason.
+        val sessionFraction = MarketClock.sessionElapsedFraction()
+
         return universe.values
             .asSequence()
-            .filter { dayTradable(it) }
+            .filter { dayTradable(it, sessionFraction) }
             .map { row ->
                 val tr = trendBy[row.symbol]
                 val t = tr?.let {
