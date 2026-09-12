@@ -669,3 +669,54 @@ Tj's request, 2026-09-11 (his own words):
       own handoff file to go and try it. The text now says to confirm the
       Release with `get_release_by_tag` and says plainly not to attempt the
       download.
+
+## Part 9: app-wide thorough audit — bugs, UI, code quality, internet efficiency
+
+Tj's request, 2026-09-12 (his own words):
+
+> do a very thorough check of this app for bugs or ui improvements or code or
+> Internet efficiency improvements. usage and time spent on this check is no
+> concern. keep testing until the app is very well optimized and all the
+> logic and code is well made.
+> make sure your resume logic is sound in case usage runs out and interrupts
+> the process
+
+Screened: general code/UI/network-efficiency audit, no new feature, no
+redefinition of any recommendation-scoring semantics — same category as
+Part 8a ("Code/UI optimization checks... Stays on Sonnet"), just wider scope
+and no time budget. `get_session` confirmed `claude-sonnet-5`. Proceeding on
+Sonnet. If the sweep surfaces something that needs an ambiguous money-
+accuracy DESIGN decision (not just a narrow bug fix), that specific item
+gets flagged separately in chat rather than blocking the whole audit.
+
+Per Tj's second sentence, checkpointing discipline for this task specifically:
+`tools/ckpt.sh` after every completed area/fix (not batched), so a usage cut
+mid-sweep loses at most the area in flight, and `CHECKPOINT.md`'s "Do this
+next" always names the next unswept area from the checklist below.
+
+- [ ] Sweep areas (check off as each is fully reviewed AND any real findings
+      from it are fixed, tested and checkpointed — not just read):
+  - [ ] Data/network layer: `net/` fetch, retry, caching, batching,
+        cancellation, polling cadence — anything doing more network work than
+        the locked architecture (BRIEF.md) intends.
+  - [ ] ViewModel (`PortfolioViewModel.kt`): coroutine scope lifetimes, state
+        collection, recomposition hot spots, duplicate work.
+  - [ ] Chart rendering (`PriceChart.kt` and related): allocations, gesture
+        handling, correctness (already burned once this project — the SPY
+        pan bug — so read carefully, test heavily, don't assume it's fine).
+  - [ ] Scoring/recommendation logic (`ResearchScore.kt`, `Research.kt`,
+        day-trading files): re-verify internal consistency and look for
+        narrow bugs — NOT a redesign of what any score means.
+  - [ ] Screens/Compose UI (`PortfolioScreen.kt`, `ResearchScreen.kt`,
+        `DetailScreen.kt`, `AdviceScreen.kt`, others): accessibility/contrast,
+        dead code, missing `key`s, unnecessary recomposition, layout bugs.
+  - [ ] Ledger/cost-basis/accounting code: correctness only, narrow fixes if
+        any found (see screening note above — a real redesign escalates).
+  - [ ] Persistence/caching (SQLite helpers, `http_cache`, `chart_cache`):
+        correctness, staleness, unbounded growth.
+  - [ ] Remaining files not covered above, and a final full-suite regression
+        run.
+- [ ] Full Gradle unit suite green after the sweep's fixes are all in.
+- [ ] Report findings/fixes to Tj; ask before shipping (Tj's UI-preview
+      review before any major-change ship, per his standing preference) unless
+      he's already said to ship straight through.
