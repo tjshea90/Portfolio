@@ -756,11 +756,12 @@ object Research {
      * [buildDayTrading] so the two can never disagree the way they did before this was one
      * function.
      */
-    private fun daysUntilEarnings(earningsAt: Long, now: Long = System.currentTimeMillis()): Long =
+    internal fun daysUntilEarnings(earningsAt: Long, now: Long = System.currentTimeMillis()): Long =
         Math.floorDiv(earningsAt - now, 86_400_000L)
 
-    /** The nearest dated event the screener knows about - almost always the next earnings. */
-    private fun catalystFor(r: ScreenRow?): String {
+    /** The nearest dated event the screener knows about - almost always the next earnings.
+     * `internal` (not `private`) so a test can pin the day-boundary math directly. */
+    internal fun catalystFor(r: ScreenRow?): String {
         if (r == null || r.earningsAt <= 0) return ""
         val days = daysUntilEarnings(r.earningsAt)
         if (days < -2 || days > 120) return ""
