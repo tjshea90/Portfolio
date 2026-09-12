@@ -796,7 +796,12 @@ object ResearchScore {
         // risk, the honest output is the one this function already has for "nothing real to
         // build from" - no plan at all. The row keeps its score and its reasons; what it loses
         // is levels that were never worth acting on.
-        val ceilingUsable = roomCeiling > entry + risk * MIN_CEILING_REWARD_RATIO
+        // `ceilingKnown` IS NOT REDUNDANT - an unmeasured ceiling is Double.MAX_VALUE, which
+        // sails past any "is it far enough above the entry" test and would then be USED as the
+        // target. Caught by the "neither structure nor a measured range" test below, which
+        // reported a reward:risk of 1.2e308.
+        val ceilingKnown = roomCeiling < Double.MAX_VALUE
+        val ceilingUsable = ceilingKnown && roomCeiling > entry + risk * MIN_CEILING_REWARD_RATIO
 
         val target: Double
         val targetFromRoom: Boolean
