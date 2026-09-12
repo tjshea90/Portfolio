@@ -82,6 +82,62 @@ object MarketClock {
         Phase.CLOSED -> "Market closed"
     }
 
+    /** 16:00 ET, as minutes since New York midnight - the close, and the day trade's deadline. */
+    private const val CLOSE_MINUTE = 16 * 60
+
+    /** 09:30 ET. */
+    private const val OPEN_MINUTE = 9 * 60 + 30
+
+    /**
+     * HOW MANY MINUTES OF THE REGULAR SESSION ARE LEFT (Round 73). 0 when it is not open.
+     *
+     * ---- WHY THE DAY-TRADING PLAN NEEDS A CLOCK AT ALL
+     *
+     * Until now [ResearchScore.tradePlan] built the identical plan at 09:35 and at 15:55. It
+     * cannot: a day trade is closed the same session, so "buy the break above $X, first
+     * objective 2R higher" is a real instruction in the morning and an impossible one nine
+     * minutes before the bell - there is no time left for the move the target assumes. Every
+     * profitable variant in the published day-trading literature this feature is built from
+     * (Zarattini, Barbon & Aziz 2024, and the SPY intraday-momentum paper that followed it)
+     * closes its positions at 16:00 ET; the exit is not optional and it is not negotiable, so
+     * the plan has to know how much room the clock leaves.
+     *
+     * EXTENDED HOURS COUNT AS ZERO, not as negative and not as the next session's minutes.
+     * Pre-market and after-hours trade thinly on wide spreads and none of the intraday
+     * structure this feature reads - VWAP, the opening range, the session high - is defined
+     * there. "No regular-session minutes remain" is the honest answer at 08:00 and at 18:00
+     * alike; what the plan does with that is [ResearchScore]'s decision, not this clock's.
+     */
+    fun minutesLeftInSession(now: Long = System.currentTimeMillis()): Int {
+        if (phase(now) != Phase.OPEN) return 0
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = now
+        return (CLOSE_MINUTE - etMinutes(c)).coerceIn(0, CLOSE_MINUTE - OPEN_MINUTE)
+    }
+
+    /**
+     * THE MIDDAY LULL - 11:30-13:30 ET, when intraday continuation setups work least well.
+     *
+     * The U-shape in intraday volume and volatility is one of the oldest documented facts in
+     * market microstructure (Wood, McInish & Ord 1985; Harris 1986), and spreads follow it
+     * (McInish & Wood 1992): heaviest and widest at the open, thinnest and quietest over
+     * lunch, active again into the close. Zarattini/Barbon/Aziz's own seasonality analysis
+     * reports the same shape in trend continuation specifically - positive 10:00-12:00,
+     * pausing over lunch, resuming into the afternoon.
+     *
+     * A CAUTION, NOT A BLOCK. The evidence for the pattern is strong; the evidence that
+     * refusing to trade through it improves a given trader's results is not, so this only ever
+     * warns - see [ResearchScore.tradePlan]. Blocking on it would be asserting more than the
+     * sources support.
+     */
+    fun inMiddayLull(now: Long = System.currentTimeMillis()): Boolean {
+        if (phase(now) != Phase.OPEN) return false
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = now
+        val m = etMinutes(c)
+        return m >= 11 * 60 + 30 && m < 13 * 60 + 30
+    }
+
     /**
      * The trading day a timestamp falls in, e.g. "20260911" - New York time, not the device's,
      * so two phones in different time zones agree on when "today" turns over.
