@@ -431,4 +431,108 @@ class DayTradingSoundnessTest {
         assertFalse(s.skip)
         assertTrue(s.headline.contains("Buy if it climbs"))
     }
+
+    // ============================================ the code-review findings, pinned down
+    //
+    // Every test below guards a defect found by the high-effort review of this round's own
+    // diff, before any of it shipped. They are the reason this file is worth reading.
+
+    @Test fun `the relative-volume gate does not empty the screen in the morning`() {
+        // THE WORST BUG OF THE ROUND. `volumeRatio` is volume SO FAR TODAY over a FULL DAY's
+        // average, so at 10:00 a stock running at three times its normal pace still reads about
+        // 0.3. An unscaled ">= 1.0" gate would have excluded it - and nearly everything else -
+        // for the whole morning, the exact window this feature is built for.
+        val busyAtTen = row(avgVolume3M = 5e6, volume = 1.5e6)   // ratio 0.3
+        assertFalse(
+            "sanity: this row genuinely fails a whole-session test",
+            Research.dayTradable(busyAtTen)
+        )
+        assertTrue(
+            "but 8% into the session it is trading at nearly four times the pace it should be",
+            Research.dayTradable(busyAtTen, sessionFraction = 0.08)
+        )
+    }
+
+    @Test fun `pre-market nothing has traded yet, so the volume gate cannot exclude anyone`() {
+        // Zero volume for the day is not evidence of being quiet - the bell has not rung. This
+        // also keeps the documented overnight planning path alive.
+        assertTrue(
+            Research.dayTradable(row(avgVolume3M = 5e6, volume = 0.0), sessionFraction = 0.0)
+        )
+    }
+
+    @Test fun `the elapsed fraction is zero pre-market, whole once the session has finished`() {
+        assertEquals(0.0, MarketClock.sessionElapsedFraction(friday(8, 0)), 0.0001)
+        assertEquals(0.0, MarketClock.sessionElapsedFraction(friday(9, 30)), 0.0001)
+        assertEquals(0.5, MarketClock.sessionElapsedFraction(friday(12, 45)), 0.0001)
+        assertEquals(1.0, MarketClock.sessionElapsedFraction(friday(17, 0)), 0.0001)
+        assertEquals(1.0, MarketClock.sessionElapsedFraction(et(2026, 9, 12, 11, 0)), 0.0001)
+    }
+
+    @Test fun `a day with no room left produces no plan, not a few cents of upside`() {
+        // The room ceiling used to apply whenever it merely sat above the entry, which on an
+        // extended stock produced targets a few cents up - a 0.3R "plan" at a price that is not
+        // a level, feeding the R-multiple, the share count and the beginner card's "sell at".
+        val plan = ResearchScore.tradePlan(
+            52.40,
+            tech(
+                atrIntraday = 0.2, vwap = 51.90,
+                adr = 2.0, sessionHigh = 52.40, sessionLow = 50.0
+            )
+        )
+        assertNull("the day's measured range cannot cover even 1R from here", plan)
+    }
+
+    @Test fun `a pullback target is never a level the price has already passed`() {
+        // Guards the contradiction: the grid saying "buy the pullback to $105" while the
+        // beginner card under it says "too late for this one today", because the target the
+        // grid computed sat BELOW the last price.
+        val plan = ResearchScore.tradePlan(
+            110.0,
+            tech(
+                atrIntraday = 1.0, vwap = 100.0,
+                or5High = 103.0, orHigh = 105.0, orLow = 102.0,
+                adr = 20.0, sessionHigh = 110.0, sessionLow = 99.0
+            )
+        )!!
+        assertEquals(ResearchScore.SETUP_PULLBACK, plan.setup)
+        assertTrue("a pullback entry is below the last price, by design", plan.entry < 110.0)
+        assertTrue(
+            "but its TARGET must still be above the last price, or it is not a target",
+            plan.target > 110.0
+        )
+        val summary = ResearchScore.beginnerSummary(
+            "TEST", 110.0, plan.entry, plan.stop, plan.target
+        )!!
+        assertFalse(
+            "and the plain-English card must not contradict the grid",
+            summary.headline.contains("Too late")
+        )
+    }
+
+    @Test fun `a target from the day's range is not described as a price level`() {
+        val plan = ResearchScore.tradePlan(
+            100.0,
+            tech(atrIntraday = 1.0, vwap = 99.0, adr = 20.0, sessionHigh = 100.0, sessionLow = 99.0)
+        )!!
+        assertTrue("sanity: this target came from the range, not from structure", plan.rMultiple > 3.0)
+        assertTrue(plan.note.contains("A normal day's remaining range"))
+        assertFalse(
+            "there is no resistance here to attribute it to",
+            plan.note.contains("The next real resistance")
+        )
+    }
+
+    @Test fun `structural targets are still described as resistance`() {
+        val plan = ResearchScore.tradePlan(
+            100.0,
+            tech(
+                atrIntraday = 1.0, vwap = 99.0,
+                orHigh = 100.5, prevHigh = 108.0,
+                adr = 10.0, sessionHigh = 100.5, sessionLow = 99.0
+            )
+        )!!
+        assertEquals(108.0, plan.target, 0.001)
+        assertTrue(plan.note.contains("The next real resistance"))
+    }
 }
