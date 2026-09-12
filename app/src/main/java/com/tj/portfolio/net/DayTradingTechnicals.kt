@@ -434,6 +434,41 @@ object DayTradingTechnicals {
         return inWindow.maxOf { it.high } to inWindow.minOf { it.low }
     }
 
+    /** End of the FIVE-minute opening range: 09:35 ET. See [openingBar]. */
+    private const val OR5_END_MIN = 9 * 60 + 35
+
+    /**
+     * THE FIRST FIVE-MINUTE BAR OF THE SESSION (Round 73) - 09:30-09:35 ET, or null.
+     *
+     * ---- WHY A SECOND, SHORTER OPENING RANGE
+     *
+     * The 09:30-10:00 range this file has used since Round 68 is the Crabel-era classic, and it
+     * is the version practitioner writing describes most often - but it is not the version the
+     * strongest published evidence supports. Zarattini, Barbon & Aziz test 5-, 15-, 30- and
+     * 60-minute opening ranges over the same 7,000+ US stocks, the same 2016-2023 window and
+     * the same filters, and report the 30-MINUTE VARIANT AS THE WEAKEST OF THE FOUR BY A LARGE
+     * MARGIN, with the 5-minute one the strongest. The app was citing that paper as its
+     * evidence base while using the one window in it that performed worst.
+     *
+     * COSTS NOTHING TO ADD. The intraday request is already `interval=5m`, so the first
+     * regular-hours bar IS the five-minute opening range - no new fetch, no new parsing, just a
+     * window this file was not looking at.
+     *
+     * BOTH ARE KEPT, because they answer different questions. The 5-minute high is an EARLY
+     * trigger: it is only still overhead in the first minutes of the session, and
+     * [ResearchScore.tradePlan] drops any level price has already passed, so it selects itself
+     * out by about 10:00 without needing a clock. The 30-minute range stays where it already
+     * was - as a support level once price is above it, and as the range whose completion the
+     * confidence checklist reads.
+     *
+     * [Bar.open] AND [Bar.close] ARE WHY THIS RETURNS THE BAR AND NOT A HIGH/LOW PAIR. The same
+     * study only takes a long when the opening bar closed ABOVE its open (a doji is no trade) -
+     * direction information that a range alone throws away. See [DayTechnicals.openingBarBullish].
+     */
+    internal fun openingBar(intraday: List<Bar>): Bar? =
+        intraday.filter { etMinutes(it.t) in OR_START_MIN until OR5_END_MIN }
+            .maxByOrNull { it.t }
+
     /**
      * True once a bar timestamped 10:00 ET or later exists - i.e. the opening range has
      * actually finished printing, not just that some bars fall inside it. A breakout is only
