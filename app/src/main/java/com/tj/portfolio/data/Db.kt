@@ -592,6 +592,22 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
 
     // ---------- import history ----------
 
+    /**
+     * Import log rows older than [olderThanMs] are dropped (Part 9 audit finding: every other
+     * cache/log table in this file had a purge from the Round 56/58/66 sweeps; this one, in
+     * since v2, never got one). Low-impact on its own - one row per screenshot/file import,
+     * infrequent - but a real gap relative to the rest of this file's stated retention policy.
+     * A year rather than the 30 days most caches use: [lastImport] and the Activity tab's
+     * "resume from" hint only ever need the newest row, but the full history is otherwise
+     * harmless to keep far longer than a market-data cache that goes stale in days.
+     */
+    fun purgeImports(olderThanMs: Long = 365L * 86_400_000L): Int = runCatching {
+        writableDatabase.delete(
+            "imports", "at < ?",
+            arrayOf((System.currentTimeMillis() - olderThanMs).toString())
+        )
+    }.getOrDefault(0)
+
     /** Records one screenshot/file import so the app can say where to resume from. */
     fun recordImport(count: Int, skipped: Int, minDate: Long, maxDate: Long, source: String) {
         val cv = ContentValues().apply {
