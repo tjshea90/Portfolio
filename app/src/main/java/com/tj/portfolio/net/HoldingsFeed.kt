@@ -3,6 +3,7 @@ package com.tj.portfolio.net
 import com.tj.portfolio.data.FundHolding
 import com.tj.portfolio.data.FundHoldings
 import com.tj.portfolio.data.SectorWeight
+import com.tj.portfolio.util.yahooNum
 import org.json.JSONObject
 
 /**
