@@ -755,7 +755,61 @@ next" always names the next unswept area from the checklist below.
       review before any major-change ship, per his standing preference) unless
       he's already said to ship straight through.
 
-## Flagged for Tj — not fixed on Sonnet (SCREENER.md money-accuracy/security)
+## Part 10: the flagged ledger work — done on Opus
+
+**Tj, 2026-09-12: "Opus is on, fix what you found except the api key plaintext. This doesn't
+matter."** `get_session` confirmed `claude-opus-5` on both `session_context.model` and
+`external_metadata.last_served_model` before any edit. API-key storage deliberately left as
+it is, at his direction.
+
+- [x] **The AVERAGE same-day depletion-order bug** (item 1 below). A same-day sell took
+      shares out of today's pool first; FIFO, the broker and physical reality consume the
+      OLDEST first. Fixed - and the randomised property test written alongside it caught a
+      second, deeper divergence the first fix missed: consuming "everything that is not
+      today's" is only correct when nothing is dated AFTER the session window, and that
+      window lags the calendar every evening, night and weekend. `averageCost` now keeps
+      three buckets (before the window, inside it, after it) and consumes them in that
+      order. Each fix was verified by reverting it and watching the right tests fail.
+- [x] **The harnesses that hid it.** `ledger_port.py`'s `average()` had no same-day tracking
+      at all and its `fifo()` carried the pre-CRX-1 side-map that nothing returned;
+      `ledger_props.py` never passed a session window; `LedgerPropTest.java` did not compile
+      against the current `Ledger` and pinned its session in the year 2255. All three now
+      exercise the path and print how many histories did, so it cannot silently rot again.
+      Ally's fee schedule also moved into the gated Kotlin suite (`FeesTest`) - it feeds cost
+      basis and the fee-looks-wrong warning and had no gated coverage at all.
+- [x] **Overselling** (item 2 below): reported, not guessed at. `Position.oversold` carries
+      the shortfall; the stock's own page and the Settings data-health card both say so. NOT
+      resolved into short-position accounting - see `Position.oversold`'s own note for why
+      guessing between "a buy is missing" and "this was shorted" produces confident wrong
+      numbers either way, and why the missing-buy reading is the right default here.
+- [x] **Stock splits** (item 3 below): new `SPLIT` transaction type, ratio in `quantity`,
+      handled in both replays - shares scale, total cost basis is untouched, no cash moves,
+      nothing is realized - with editor support, its own validation, and Activity/Detail rows
+      that read as a split. Deliberately manual: `TxnType.IMPORTABLE` keeps it out of both
+      Claude-fed import paths, because a model turning "Stock split - 90 shares" into a
+      90x ratio would be far worse than the missing feature.
+- [x] High-effort `/code-review` over the whole diff: 4 real findings, all fixed (the
+      import-path widening above, an unreachable oversold warning, a second un-updated copy
+      of the transaction row, and the Java harness not compiling). One of its consequences
+      was catching that `LedgerTest` needed Robolectric - without it `org.json` is the
+      stubbed `android.jar` version and the import-guard test would have passed vacuously.
+- [x] Full Kotlin suite green: 1060 tests, 0 failures. 20,000 Java histories clean with
+      5,159 exercising the same-day pool; 3,000 Python histories clean at `ZEROQ=0`.
+- [ ] Ship (awaiting Tj - two visible changes this round: the SPLIT type in the editor and
+      two new data-health warnings).
+
+### Still open, deliberately
+
+- **Split DETECTION is manual.** Nothing tells the user a split happened; the app can only
+  record one once they do. Yahoo's chart endpoint can return split events on a request the
+  app already makes, so a "NVDA split 10-for-1 on 10 Jun - your records still show the old
+  share count" warning is buildable, but it is a new data path and was not in scope here.
+- **`ledger_props.py` still prints a few hundred reconciliation violations by default.**
+  Pre-existing and identical at the base commit: they come entirely from its own `ZEROQ`
+  zero-quantity rows, a shape the editor refuses, both import paths reject, and the Settings
+  data-health card reports if any are on file. `ZEROQ=0` is clean.
+
+## The original flag (2026-09-12) — kept for the record
 
 1. **Ledger bug: AVERAGE cost method depletes today's-shares pool in the
    wrong order.** When a position holds shares bought before today AND
