@@ -157,4 +157,108 @@ class SameDayRoundTripTest {
             assertEquals("$method", 100 * 0.50 + 100 * 1.00, p.dayPnl(q), 1e-6)
         }
     }
+
+    // ================================ the mixed pool (Part 9 audit)
+    //
+    // EVERY TEST ABOVE HAS THE WHOLE POSITION BOUGHT TODAY, or no sell at all. That is the
+    // shape CRX-1 was reported in, and it is exactly why the bug below survived it: with no
+    // pre-today shares in the position, "take today's shares first" and "take the oldest
+    // shares first" consume the same shares, so the two methods agreed by accident.
+
+    /**
+     * THE BUG THIS PROVES FIXED. A position holding shares from before today AND shares
+     * bought today, with a same-day sell SMALLER than today's buy.
+     *
+     * A sale consumes the oldest shares first - that is what FIFO does, what Ally reports,
+     * and what physically happened. So the sale comes out of the 100 held overnight and
+     * every one of today's 50 shares is still held. `averageCost` took `minOf(covered,
+     * todayShares)` instead - today's shares FIRST - and reported 20.
+     *
+     * `sharesToday` feeds `dayPnl`, so this made the app's "Today" headline depend on the
+     * cost-basis preference in Settings: the same trades, the same prices, a different
+     * number on screen depending on a setting that is only supposed to move the split
+     * between realized and unrealized.
+     */
+    @Test fun `a same-day sell smaller than the pre-today holding leaves today's shares alone`() {
+        val txns = listOf(
+            buy(100.0, 10.00, session - 30L * 86_400_000L),   // a month ago
+            buy(50.0, 12.00, session - 4 * 3_600_000L),       // this morning
+            sell(30.0, 13.00, session - 2 * 3_600_000L)       // midday
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val p = position(txns, method)
+            assertEquals("$method: shares", 120.0, p.shares, 1e-9)
+            assertEquals(
+                "$method: the sale consumed the OLDEST shares, so all 50 bought today are held",
+                50.0, p.sharesToday, 1e-9
+            )
+            assertEquals("$method: and they still cost 12.00", 12.00, p.avgCostToday, 1e-6)
+        }
+    }
+
+    /** Once the sale exhausts everything held from before today, it reaches today's pool. */
+    @Test fun `a same-day sell bigger than the pre-today holding eats into today's shares`() {
+        val txns = listOf(
+            buy(100.0, 10.00, session - 30L * 86_400_000L),
+            buy(50.0, 12.00, session - 4 * 3_600_000L),
+            sell(120.0, 13.00, session - 2 * 3_600_000L)      // 100 old + 20 of today's
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val p = position(txns, method)
+            assertEquals("$method: shares", 30.0, p.shares, 1e-9)
+            assertEquals(
+                "$method: 30 left, and every one of them was bought today",
+                30.0, p.sharesToday, 1e-9
+            )
+            assertEquals("$method", 12.00, p.avgCostToday, 1e-6)
+        }
+    }
+
+    /**
+     * THE GENERAL PROPERTY, not one more hand-built case: over randomised histories that
+     * straddle the session boundary, the two methods must always agree on HOW MANY of the
+     * held shares were bought today.
+     *
+     * That is a fact about the world - were these shares exposed to the overnight move or
+     * not - and it cannot depend on which cost-basis convention the user picked. What the
+     * two methods may legitimately disagree about is what those shares COST
+     * (`avgCostToday`): FIFO knows which of today's lots is still open, an average-cost
+     * book genuinely does not, which is the same reason their cost bases differ at all. So
+     * this asserts share counts only, deliberately.
+     */
+    @Test fun `both methods always agree on how many held shares were bought today`() {
+        val rng = kotlin.random.Random(20260912)
+        repeat(400) { run ->
+            val txns = ArrayList<Txn>()
+            var held = 0.0
+            var id = 0L
+            repeat(rng.nextInt(1, 12)) {
+                // Dates land both before today and inside the session, which is the whole
+                // point - a generator that never crosses the boundary cannot see this bug.
+                val at = when (rng.nextInt(3)) {
+                    0 -> session - (1L + rng.nextInt(60)) * 86_400_000L   // days ago
+                    else -> session - rng.nextInt(8) * 3_600_000L         // inside today
+                }
+                val px = 1.0 + rng.nextInt(5000) / 100.0
+                if (held < 1e-9 || rng.nextInt(3) != 0) {
+                    val qty = 1.0 + rng.nextInt(100)
+                    txns.add(buy(qty, px, at).copy(id = ++id))
+                    held += qty
+                } else {
+                    // Deliberately allowed to exceed the holding sometimes - overselling is
+                    // a real shape in this ledger (a buy that was never imported).
+                    val qty = 1.0 + rng.nextInt((held * 1.2).toInt().coerceAtLeast(1))
+                    txns.add(sell(qty, px, at).copy(id = ++id))
+                    held = (held - qty).coerceAtLeast(0.0)
+                }
+            }
+            val f = position(txns, Ledger.FIFO)
+            val a = position(txns, Ledger.AVERAGE)
+            assertEquals("run $run: shares disagree\n$txns", f.shares, a.shares, 1e-6)
+            assertEquals("run $run: sharesToday disagree\n$txns", f.sharesToday, a.sharesToday, 1e-6)
+            // And neither method may ever claim more shares were bought today than are held.
+            assertTrue("run $run: FIFO sharesToday > shares", f.sharesToday <= f.shares + 1e-6)
+            assertTrue("run $run: AVG sharesToday > shares", a.sharesToday <= a.shares + 1e-6)
+        }
+    }
 }
