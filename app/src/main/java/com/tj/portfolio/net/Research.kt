@@ -702,6 +702,19 @@ object Research {
     }
 
     /** The nearest dated event the screener knows about - almost always the next earnings. */
+    /**
+     * The exact opening of the "earnings are today" catalyst string.
+     *
+     * A CONSTANT, NOT A LITERAL IN TWO FILES. `ResearchRow.catalyst` is free text built here,
+     * and [com.tj.portfolio.ui.mergeDayTradingTech] has to recognise this one case in it to
+     * warn a day trader about leaving a resting buy order into an after-hours release
+     * ([ResearchScore.tradePlan]'s `earningsToday`). The row carries no structured earnings
+     * timestamp, so the string is the only signal available - and a string matched in one file
+     * and written in another is precisely the coupling that breaks silently when someone
+     * rewords the copy. Naming it makes the dependency visible from both ends.
+     */
+    const val CATALYST_EARNINGS_TODAY = "Earnings today"
+
     private fun catalystFor(r: ScreenRow?): String {
         if (r == null || r.earningsAt <= 0) return ""
         val days = (r.earningsAt - System.currentTimeMillis()) / 86_400_000L
@@ -709,7 +722,7 @@ object Research {
         val est = if (r.earningsEstimated) " (estimated)" else ""
         return when {
             days < 0 -> "Reported earnings ${Fmt.shortDay(r.earningsAt)}"
-            days == 0L -> "Earnings today$est"
+            days == 0L -> "$CATALYST_EARNINGS_TODAY$est"
             days == 1L -> "Earnings tomorrow$est"
             else -> "Earnings in $days days - ${Fmt.shortDay(r.earningsAt)}$est"
         }
