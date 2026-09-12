@@ -101,7 +101,14 @@ class ContrastTest {
         rule = rowRule,
         outline = MaterialTheme.colorScheme.outline,
         green = greenText,
-        red = redText
+        red = redText,
+        buyText = verdictTextColor(TradeVerdict.BUY),
+        holdText = verdictTextColor(TradeVerdict.HOLD),
+        sellText = verdictTextColor(TradeVerdict.SELL),
+        rating9 = ratingColor(9),
+        rating7 = ratingColor(7),
+        rating5 = ratingColor(5),
+        rating2 = ratingColor(2)
     )
 
     @Before fun readTheTheme() {
