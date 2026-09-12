@@ -567,7 +567,26 @@ object ResearchScore {
      * the levels are real, and tomorrow they may matter - but it is marked as no longer
      * startable today rather than presented as a live instruction.
      */
-    private const val MIN_MINUTES_FOR_NEW_ENTRY = 30
+    internal const val MIN_MINUTES_FOR_NEW_ENTRY = 30
+
+    /**
+     * IS IT TOO LATE IN THE SESSION TO START A NEW DAY TRADE - a pure function of the clock.
+     *
+     * Deliberately NOT read off [TradePlan.tooLateToStart] by callers that have the clock
+     * (second code-review pass). The flag belongs to the moment, not to the plan, and bundling
+     * it with the plan made it stick in two ways that both showed on screen: a row whose plan
+     * came back null - now reachable mid-session, when the day's range is spent - kept the
+     * morning's flag for the rest of the afternoon, and a Claude-imported plan, which
+     * `mergeDayTradingTech` never recomputes at all, kept whatever the flag was at import time
+     * forever. Both meant the "TOO LATE TO START TODAY" badge and the beginner card's matching
+     * branch failed to appear on exactly the rows a reader is most likely to act on late in the
+     * day. Computed from the clock for every row instead, Claude's included.
+     *
+     * 0 means "the caller has no session clock" (see [tradePlan]'s own parameter), never "the
+     * day is over" - which is why the test is a range and not `< MIN_MINUTES_FOR_NEW_ENTRY`.
+     */
+    fun tooLateToStart(minutesLeft: Int): Boolean =
+        minutesLeft in 1 until MIN_MINUTES_FOR_NEW_ENTRY
 
     /**
      * How far above the last price a trigger can sit before it is a different trade (Round 73).
