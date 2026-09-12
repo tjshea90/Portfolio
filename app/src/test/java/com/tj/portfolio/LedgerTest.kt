@@ -7,6 +7,9 @@ import com.tj.portfolio.domain.Ledger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * THE LEDGER'S CORE BEHAVIOUR, IN THE GATED SUITE (Part 10 audit).
