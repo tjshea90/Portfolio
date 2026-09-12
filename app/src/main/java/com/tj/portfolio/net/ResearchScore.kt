@@ -748,8 +748,18 @@ object ResearchScore {
         // keeping every full-sized loser is the single modification most likely to invert it).
         // The realism constraint that remains is the measured one rather than the conventional
         // one - how much of a normal day's range is actually left.
+        // A LEVEL PRICE HAS ALREADY TRADED THROUGH IS NOT RESISTANCE (code-review fix).
+        //
+        // Filtering overhead levels against the ENTRY alone is right for a breakout, where the
+        // entry is above the last price - but a pullback entry sits BELOW it, and then a level
+        // the stock has already passed on its way up qualifies as the "next resistance" and
+        // becomes the target. The result was a target UNDER the current price: the grid saying
+        // "buy the pullback to $105, target $106" while the beginner card underneath read "too
+        // late for this one today", because by its own arithmetic the price had passed the
+        // target already. Whichever of the two is higher is the real floor for supply overhead.
+        val above = maxOf(entry, price)
         val nearestAbove = overhead
-            .filter { it.price > entry + risk * 0.3 }
+            .filter { it.price > above + risk * 0.3 }
             .minByOrNull { it.price }
 
         // "How much room is left in the day" is a live-session question - the same reason the
@@ -762,20 +772,47 @@ object ResearchScore {
             !live && tech.adr > 0.0 -> entry + tech.adr
             else -> Double.MAX_VALUE
         }
-        // A ceiling at or below the trigger says the day has no room left at all. That is worth
-        // warning about (and [planNote] does), but it is not a reason to compute a target below
-        // the entry - which would invert the trade. Ignored in that case; the notes carry it.
-        val ceiling = if (roomCeiling > entry) roomCeiling else Double.MAX_VALUE
 
-        val target = when {
+        // ---- THE CEILING MAY CAP A TARGET. IT MAY NOT MANUFACTURE A POINTLESS ONE.
+        //
+        // Caught by code review before shipping. The first draft applied the room ceiling
+        // whenever it was merely above the entry, which on an already-extended stock produces
+        // targets a few cents up: a $2 average day, a session low of $50 and a VWAP pullback
+        // entry at $51.90 gives a "target" of $52.00 against $0.34 of risk - a 0.29R plan, at a
+        // price that is not a level of any kind. That number then feeds [rMultiple], the share
+        // count and the beginner card's "sell at $52.00 for a profit", which after costs is a
+        // loss dressed as a plan. When the measured room left will not cover even one times the
+        // risk, the honest output is the one this function already has for "nothing real to
+        // build from" - no plan at all. The row keeps its score and its reasons; what it loses
+        // is levels that were never worth acting on.
+        val ceilingUsable = roomCeiling > entry + risk * MIN_CEILING_REWARD_RATIO
+
+        val target: Double
+        val targetFromRoom: Boolean
+        when {
+            // Measured, and there is no room worth trading into today.
+            roomCeiling < Double.MAX_VALUE && !ceilingUsable -> return null
             // Real supply overhead: that is the objective, never further than the day reaches.
-            nearestAbove != null -> minOf(nearestAbove.price, ceiling)
+            nearestAbove != null && roomCeiling < nearestAbove.price -> {
+                target = roomCeiling
+                targetFromRoom = true
+            }
+            nearestAbove != null -> {
+                target = nearestAbove.price
+                targetFromRoom = false
+            }
             // Clear air above, and a measured idea of how far the day goes: use it. This is the
             // case the old flat 2R rule served worst - it answered "how far can this run" with a
             // convention when an actual measurement of this stock's normal day was available.
-            ceiling < Double.MAX_VALUE -> ceiling
+            ceilingUsable -> {
+                target = roomCeiling
+                targetFromRoom = true
+            }
             // Neither structure nor range: the 2:1 convention, explicitly as a last resort.
-            else -> entry + risk * TARGET_REWARD_RISK_RATIO
+            else -> {
+                target = entry + risk * TARGET_REWARD_RISK_RATIO
+                targetFromRoom = false
+            }
         }
         if (target <= entry) return null
 
