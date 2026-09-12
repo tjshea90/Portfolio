@@ -46,7 +46,11 @@ object Social {
             val a = byApe[t.symbol]
             if (a == null) t
             else t.copy(
-                mentions = if (t.mentions > 0) t.mentions else a.mentions,
+                // Tradestie's own Trending never sets `mentions` (it only carries `comments`,
+                // above) - this always takes ApeWisdom's figure. Written as the unconditional
+                // assignment it actually is, rather than a live-looking `if` that can't go
+                // the other way; see [comments] just above for Tradestie's own count.
+                mentions = a.mentions,
                 mentions24hAgo = a.mentions24hAgo,
                 rank24hAgo = a.rank24hAgo,
                 // carry ApeWisdom's current rank alongside its 24h-ago rank, so the
