@@ -61,7 +61,11 @@ def fifo(txns, today=range(0,0)):
     return out
 
 def _acc():
-    return dict(shares=0.0, cost=0.0, realized=0.0, tshares=0.0, tcost=0.0)
+    # `bshares` is shares bought STRICTLY BEFORE the window, not merely "not today" - a
+    # transaction can also be dated AFTER it, since the window is the session the quotes
+    # describe and that lags the calendar overnight and at weekends. A sale consumes
+    # before -> inside -> after, which is the order FIFO's date-sorted lots come out in.
+    return dict(shares=0.0, cost=0.0, realized=0.0, tshares=0.0, tcost=0.0, bshares=0.0)
 
 def average(txns, today=range(0,0)):
     acc = {}
