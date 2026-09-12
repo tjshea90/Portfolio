@@ -273,11 +273,7 @@ fun App() {
             // Pop one detail screen at a time. `detailStack` is only ever non-empty when a
             // fund's holding was tapped, so for every other route this is the old behaviour
             // exactly: one back press closes the stock.
-            detail != null -> {
-                detailToNews = false
-                detail = if (detailStack.isEmpty()) null
-                else detailStack.removeAt(detailStack.lastIndex)
-            }
+            detail != null -> popDetail()
             // Research is a layer inside the Watch tab, so back undoes it before it leaves
             // the tab - the same "one step at a time" rule every other layer here follows.
             tab == TAB_WATCHLIST && watchSubTab != WATCH_LIST -> {
