@@ -122,7 +122,7 @@ object EtfScore {
             "corporate", "credit", "municipal", "muni", "income", "aggregate",
             "tips", "securities", "debt", "yield"
         )
-        val words = n.trim().split(Regex("\\s+"))
+        val words = n.trim().split(WHITESPACE)
         var sawShort = false
         var everyShortIsDuration = true
         for (i in words.indices) {
