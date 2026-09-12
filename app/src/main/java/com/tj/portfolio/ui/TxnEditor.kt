@@ -97,7 +97,7 @@ object TxnFields {
         // price or a total cannot leave a stray figure on a row where those fields have no
         // meaning and are not even on screen.
         if (type == TxnType.SPLIT) return Resolved(qty.toNum(), 0.0, 0.0, 0.0)
-        // SHARES AND A PER-SHARE PRICE MEAN NOTHING OUTSIDE A TRADE (Part 9 audit finding).
+        // SHARES AND A PER-SHARE PRICE MEAN NOTHING OUTSIDE A TRADE (Part 11 audit finding).
         // The dialog only shows the Shares/Price boxes when `isTrade`, but this function
         // used to parse `qty`/`price` regardless of `type` - so switching a half-typed BUY
         // (Shares "100") to DIVIDEND and saving with just an Amount silently carried the
