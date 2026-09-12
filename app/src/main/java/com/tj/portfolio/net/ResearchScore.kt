@@ -864,9 +864,58 @@ object ResearchScore {
         target: Double,
         tech: DayTradingTechnicals.DayTechnicals,
         rawRisk: Double,
-        maxRisk: Double
+        maxRisk: Double,
+        minutesLeft: Int,
+        middayLull: Boolean,
+        earningsToday: Boolean,
+        vol: Double,
+        tooLate: Boolean
     ): String {
-        val parts = ArrayList<String>(4)
+        val parts = ArrayList<String>(8)
+
+        // ---- THE CLOCK, FIRST, because it can invalidate everything under it.
+        if (tooLate) parts.add(
+            "Too late in the session to start this - $minutesLeft minutes left, and a day trade " +
+                "has to be closed before the bell"
+        )
+
+        // A trigger a long way above the last print is a different trade from the one the
+        // reader thinks they are being shown - see [MAX_TRIGGER_DISTANCE_ATRS].
+        if (vol > 0.0 && entry > price && (entry - price) / vol > MAX_TRIGGER_DISTANCE_ATRS) parts.add(
+            "The trigger sits ${Fmt.oneDp((entry - price) / vol)} intraday ATRs above the last " +
+                "price - a long way for it to travel before this even starts, so it may simply " +
+                "never fill today"
+        )
+
+        // NOT A DISQUALIFIER - an earnings date is the canonical reason a stock is in play at
+        // all, and the confidence checklist already refuses to treat it as bullish confirmation
+        // because it can resolve either way. What it IS, for a DAY trade specifically, is an
+        // order-management trap: a resting buy-stop that nobody cancelled can fill on the
+        // post-release move, in a session the trader is not watching and had not planned to be
+        // in at all.
+        if (earningsToday) parts.add(
+            "Earnings are due today - cancel any unfilled buy order before the close, or it can " +
+                "fill on the after-hours reaction to a report you never planned to trade"
+        )
+
+        if (middayLull) parts.add(
+            "Midday (11:30-13:30 ET) - volume, volatility and continuation are all at their " +
+                "weakest of the session, so intraday breakouts fail more often through it"
+        )
+
+        // The other side of relaxing the old 3R cap: a target that needs a very large move is a
+        // real reading of the levels AND a warning. See [MAX_REWARD_RISK_RATIO].
+        val bigR = rewardRisk(entry, risk, target)
+        if (bigR > MAX_REWARD_RISK_RATIO) parts.add(
+            "The next real resistance is ${Fmt.oneDp(bigR)}x the risk away - a big ask for one " +
+                "session, so treat the target as where the move would run out, not where it is " +
+                "expected to get"
+        )
+
+        if (tech.sessionLive && tech.or5High > 0.0 && !tech.openingBarBullish) parts.add(
+            "The opening 5-minute bar did not close up - the published version of this setup " +
+                "skips longs on that alone"
+        )
         // THE THIN-REWARD WARNING, which the target rule above deliberately creates rather than
         // hides: when real resistance sits closer than 2R, the target is placed AT it and the
         // trade is reported as the thin one it is, instead of drawing an obedient 2:1 target
