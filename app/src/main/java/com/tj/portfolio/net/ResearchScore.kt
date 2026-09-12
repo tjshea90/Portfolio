@@ -19,9 +19,10 @@ import kotlin.math.min
  * a PURE function of numbers the app fetched: no network, no clock, no model. That has three
  * consequences worth stating, because they are the whole point:
  *
- *  1. **It is testable.** `ResearchScoreTest` feeds it hand-built rows and asserts the
- *     ordering, so a change that quietly turns "cheap and growing" into "expensive and
- *     shrinking" fails a build rather than surfacing as a bad recommendation.
+ *  1. **It is testable.** `ResearchTest`, `DayTradingTest`, `DayTradingSoundnessTest` and
+ *     `RecommendationScoreTest` feed it hand-built rows and assert the ordering, so a change
+ *     that quietly turns "cheap and growing" into "expensive and shrinking" fails a build
+ *     rather than surfacing as a bad recommendation.
  *  2. **It can show its work.** Every scorer returns the reasons alongside the number, in
  *     the user's language, and the UI prints them. A score with no visible reason is a
  *     number to be suspicious of.
