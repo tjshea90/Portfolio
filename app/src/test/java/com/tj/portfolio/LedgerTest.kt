@@ -248,6 +248,36 @@ class LedgerTest {
         assertEquals(0.0, Txn.cashEffect(TxnType.SPLIT, 10.0, 55.0, 999.0, 3.0), 1e-12)
     }
 
+    /**
+     * A MODEL'S REPLY MAY NEVER CARRY A SPLIT - see [TxnType.IMPORTABLE].
+     *
+     * Adding SPLIT to [TxnType.ALL] silently widened the accept-list both Claude-fed import
+     * paths use, and on a split row `quantity` is a RATIO where every other type reads it as
+     * a share count. A reply paraphrasing "Stock split - 90 shares" as
+     * `{"type":"SPLIT","quantity":90}` would have been applied as a ninety-fold split. The
+     * share-count sanity guards do not catch it either: they are scoped to BUY and SELL.
+     */
+    @Test fun `an imported reply cannot carry a split`() {
+        assertTrue("SPLIT must not be importable", TxnType.SPLIT !in TxnType.IMPORTABLE)
+        // Everything else still is - this must not have narrowed anything by accident.
+        for (t in TxnType.ALL.filter { it != TxnType.SPLIT }) {
+            assertTrue("$t should still be importable", t in TxnType.IMPORTABLE)
+        }
+        // And the file-import path really does drop the row rather than merely ignoring it.
+        val reply = """
+            {"transactions":[
+              {"type":"SPLIT","symbol":"NVDA","quantity":90,"price":0,"amount":0,"fees":0,
+               "date":"2026-06-10"},
+              {"type":"BUY","symbol":"NVDA","quantity":5,"price":120.50,"amount":-602.50,
+               "fees":0,"date":"2026-06-11"}
+            ]}
+        """.trimIndent()
+        val parsed = com.tj.portfolio.net.ClaudeBridge.parse(reply)
+        assertTrue("the split row must be dropped",
+            parsed.transactions.none { it.type == TxnType.SPLIT })
+        assertEquals("the ordinary buy still imports", 1, parsed.transactions.size)
+    }
+
     /** The lifetime identity has to survive a split under both methods, too. */
     @Test fun `both methods still agree across a split`() {
         val txns = listOf(
