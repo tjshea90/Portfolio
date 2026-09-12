@@ -119,20 +119,6 @@ object HoldingsFeed {
     internal fun prettySector(key: String): String =
         key.replace('_', ' ').replaceFirstChar { it.uppercase() }
 
-    /**
-     * Yahoo wraps most numbers as `{"raw": 0.0721, "fmt": "7.21%"}`, hands back a bare number
-     * for some, and an EMPTY OBJECT for "not reported". Same three shapes, same rule, as
-     * `FundamentalsFeed.num`: a value, or nothing. An empty object read as 0.0 would draw a
-     * holding at 0% of the fund as though that were a fact.
-     */
-    internal fun num(o: JSONObject?, key: String): Double? {
-        if (o == null || !o.has(key) || o.isNull(key)) return null
-        return when (val v = o.opt(key)) {
-            is Number -> v.toDouble().takeIf { it.isFinite() }
-            is JSONObject -> if (v.has("raw") && !v.isNull("raw"))
-                v.optDouble("raw", Double.NaN).takeIf { it.isFinite() } else null
-            is String -> v.toDoubleOrNull()
-            else -> null
-        }
-    }
+    /** See [com.tj.portfolio.util.yahooNum] - the shared Yahoo raw/bare/empty-object unwrap. */
+    internal fun num(o: JSONObject?, key: String): Double? = o.yahooNum(key)
 }
