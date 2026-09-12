@@ -676,18 +676,41 @@ internal fun mergeDayTradingTech(
         sessionDay = effective.sessionDay,
         // THE PLAN MOVES AS A UNIT, or not at all. Entry, stop, target, setup, trigger and note
         // are six views of ONE decision: a stop from this tick's structure under an entry from
-        // the last tick's would describe a trade nobody planned. A tick that produces no plan
-        // leaves the previous one whole.
-        entryPrice = plan?.entry ?: row.entryPrice,
-        stopPrice = plan?.stop ?: row.stopPrice,
-        targetPrice = plan?.target ?: row.targetPrice,
-        setup = plan?.setup ?: row.setup,
-        trigger = plan?.trigger ?: row.trigger,
-        planNote = plan?.note ?: row.planNote,
-        planExit = plan?.exit ?: row.planExit,
-        tooLateToStart = plan?.tooLateToStart ?: row.tooLateToStart
+        // the last tick's would describe a trade nobody planned.
+        //
+        // ---- BUT "NO PLAN" NOW HAS TWO MEANINGS, AND THEY NEED OPPOSITE HANDLING (Round 73,
+        // second code-review pass).
+        //
+        // Keeping the previous plan is right when this tick simply could not SEE anything - a
+        // failed fetch, no volatility reading yet. It is wrong when the engine looked at good
+        // inputs and DECIDED there is no trade, which Round 73 made reachable mid-session: once
+        // a stock has spent its average daily range, `tradePlan` returns null on every tick
+        // afterwards, and the morning's entry, stop and target would then sit frozen on screen
+        // all afternoon, describing a trade the app no longer thinks exists.
+        //
+        // `tradePlan`'s own contract separates the two cleanly: it returns null early ONLY for a
+        // missing price or a missing ATR, so with both of those present any null is a judgment,
+        // not a gap - and a judgment of "no trade here" is published as a blank, which is what
+        // this file's own rule ("a fabricated level is worse than a blank") already requires.
+        entryPrice = plan?.entry ?: keepOrClear(row.entryPrice, declined),
+        stopPrice = plan?.stop ?: keepOrClear(row.stopPrice, declined),
+        targetPrice = plan?.target ?: keepOrClear(row.targetPrice, declined),
+        setup = plan?.setup ?: keepOrClear(row.setup, declined),
+        trigger = plan?.trigger ?: keepOrClear(row.trigger, declined),
+        planNote = plan?.note ?: keepOrClear(row.planNote, declined),
+        planExit = plan?.exit ?: keepOrClear(row.planExit, declined),
+        // CLOCK-DERIVED, NOT PLAN-DERIVED - and so it keeps updating even on a tick that
+        // produced no plan at all, and on a Claude-authored row this function never re-plans.
+        // See `ResearchScore.tooLateToStart` for the two ways the old plan-bundled version
+        // silently stuck.
+        tooLateToStart = com.tj.portfolio.net.ResearchScore.tooLateToStart(minutesLeft)
     )
 }
+
+/** @see mergeDayTradingTech - a level the engine declined is cleared, one it could not see is kept. */
+private fun keepOrClear(previous: Double, declined: Boolean): Double = if (declined) 0.0 else previous
+
+private fun keepOrClear(previous: String, declined: Boolean): String = if (declined) "" else previous
 
 /**
  * The likelihood/confidence half of a Day Trading row's live enrichment (Round 72) - split out
