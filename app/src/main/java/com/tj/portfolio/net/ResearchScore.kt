@@ -501,9 +501,85 @@ object ResearchScore {
     private const val MIN_RISK_ATRS = 1.5
     private const val MAX_RISK_ATRS = 2.5
 
-    /** The standard "at least 2:1" reward:risk floor, and the ceiling on projecting one day. */
+    /**
+     * The "at least 2:1" convention - now a FALLBACK ONLY, not a rule (Round 73).
+     *
+     * It is used in exactly one case: no real resistance overhead AND no average daily range to
+     * say how far a normal day reaches. With nothing structural and nothing measured to work
+     * from, a conventional 2R objective is the least-bad answer. Everywhere else the target now
+     * comes from structure and from how much room the day actually has left - see [tradePlan]
+     * step 4 and [MAX_REWARD_RISK_RATIO] for what this replaced.
+     */
     private const val TARGET_REWARD_RISK_RATIO = 2.0
+
+    /**
+     * NO LONGER A CAP ON THE TARGET - a threshold for WARNING about one (Round 73).
+     *
+     * ---- WHAT THIS CONSTANT USED TO DO, AND WHY THAT WAS WRONG
+     *
+     * Until now every target was `min(nearest resistance, entry + 3R, room left in the day)`,
+     * so no plan this app produced could ever aim higher than three times its risk. That looks
+     * prudent and is, for this strategy family, the opposite: the published evidence for
+     * profitable intraday momentum is explicit that the edge lives in a THIN RIGHT TAIL - a
+     * minority of trades running many times the initial risk, paying for a majority of small
+     * losers. Zarattini/Barbon/Aziz report per-stock win rates in the 17-27% band on their
+     * best names, with cumulative results only possible because individual trades ran to 10R
+     * and beyond; their sensitivity work, and Wu et al. (2020) on Taiwanese futures, both point
+     * the same way - stops help, fixed profit targets hurt. Truncating every winner at 3R while
+     * keeping every full-sized loser is the one modification most likely to turn a positive
+     * expectancy negative.
+     *
+     * ---- WHAT REPLACED IT
+     *
+     * The realism constraint that stayed is the one grounded in measurement rather than
+     * convention: how much of a normal day's range is actually left ([DayTechnicals.adr]). A
+     * target beyond that is not conservative or aggressive, it is simply unlikely to print
+     * before the close - and since the same number feeds [rMultiple] and the beginner
+     * summary's "sell at $X", letting it overstate the reward would be a money-accuracy fault,
+     * not just an optimistic one.
+     *
+     * ---- A CORRECTION TO THE RESEARCH THAT PROMPTED THIS
+     *
+     * The brief behind this round argued the 3R cap gives negative expectancy by arithmetic:
+     * `0.22 x 3 - 0.78 x 1 = -0.12R`. That specific sum does not hold - it multiplies the win
+     * rate of a HOLD-TO-CLOSE system by the payoff of a CAPPED-TARGET one, and capping at 3R
+     * mechanically converts some would-be losers into winners, so the two numbers belong to
+     * different systems. The conclusion survives the correction (a hard cap does truncate the
+     * tail the edge depends on), but the arithmetic does not, and the cap is therefore relaxed
+     * on the strength of the direct evidence above rather than that calculation.
+     *
+     * What it now does: a plan needing more than this much of a move is flagged in [planNote],
+     * because a 6R objective is a real reading of the levels and also a warning that most days
+     * will not deliver it.
+     */
     private const val MAX_REWARD_RISK_RATIO = 3.0
+
+    /**
+     * A trade needs this many minutes of session left to be worth STARTING (Round 73).
+     *
+     * A day trade is closed the same session - that is what makes it one - so an entry trigger
+     * is only meaningful while there is still time for the move it waits for. Thirty minutes is
+     * a judgment call, not a measured constant, and is documented as such: it is roughly the
+     * shortest window in which a trigger can fill and a target can plausibly print, and it sits
+     * just outside the 15:35-16:00 window in which exchange volatility bands (LULD) double and
+     * closing-auction imbalances start to dominate the tape. Below it the plan is still shown -
+     * the levels are real, and tomorrow they may matter - but it is marked as no longer
+     * startable today rather than presented as a live instruction.
+     */
+    private const val MIN_MINUTES_FOR_NEW_ENTRY = 30
+
+    /**
+     * How far above the last price a trigger can sit before it is a different trade (Round 73).
+     *
+     * A breakout trigger is the nearest overhead level, and "nearest" can still be a long way
+     * off on a quiet name - at which point the plan is no longer "buy this if it goes", it is
+     * "buy something several percent higher than anything happening now", with a stop and a
+     * target measured from a price the stock may never see. Capped in intraday ATRs, the same
+     * ruler everything else in this engine is measured in, and warned about rather than
+     * rejected: the level itself is still the right level, it is the distance that deserves
+     * saying out loud.
+     */
+    private const val MAX_TRIGGER_DISTANCE_ATRS = 2.0
 
     /**
      * A 5-minute ATR as a fraction of the daily one, for the overnight case where no intraday
