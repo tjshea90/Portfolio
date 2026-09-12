@@ -317,6 +317,10 @@ object Ledger {
                 }
                 TxnType.SELL -> {
                     val avg = if (a.shares > 1e-9) a.cost / a.shares else 0.0
+                    // Captured before the arithmetic below decrements it - the same-day rule
+                    // at the bottom of this branch needs the position AS IT STOOD when the
+                    // sell arrived, not what is left after it.
+                    val sharesBefore = a.shares.coerceAtLeast(0.0)
                     // A sell can be bigger than the position the ledger knows about - a buy
                     // that has not been imported yet, or a screenshot that brought the sell
                     // in first. `fifo()` has always handled that by booking the proceeds for
