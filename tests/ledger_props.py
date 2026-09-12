@@ -71,6 +71,24 @@ def check(txns, session=None):
             if p["costBasis"] < -1e-6: problems.append(f"{name} {s}: negative basis {p['costBasis']}")
             if p["shares"] < 1e-9 and abs(p["costBasis"]) > 1e-6:
                 problems.append(f"{name} {s}: closed but basis {p['costBasis']}")
+    # 3b. the two methods must agree on HOW MANY held shares were bought today, and neither
+    # may claim more were bought today than are held at all. Whether a share was exposed to
+    # the overnight move is a fact about the world, not a cost-basis convention, and
+    # `sharesToday` drives the app's "Today" figure. (`costToday` is deliberately NOT
+    # compared: FIFO knows which of today's lots is still open and an average-cost book
+    # genuinely does not, the same reason their cost bases differ at all.)
+    for s in set(f) | set(a):
+        tf = f.get(s, {}).get("sharesToday", 0.0); ta = a.get(s, {}).get("sharesToday", 0.0)
+        if abs(tf - ta) > 1e-6:
+            problems.append(f"{s}: sharesToday FIFO {tf} vs AVG {ta}")
+    for name, pos in (("FIFO", f), ("AVG", a)):
+        for s, p in pos.items():
+            if p["sharesToday"] > p["shares"] + 1e-6:
+                problems.append(f"{name} {s}: sharesToday {p['sharesToday']} > shares {p['shares']}")
+            if p["sharesToday"] < -1e-9 or p["costToday"] < -1e-6:
+                problems.append(f"{name} {s}: negative same-day pool")
+            if p["sharesToday"] < 1e-9 and abs(p["costToday"]) > 1e-6:
+                problems.append(f"{name} {s}: empty same-day pool keeps cost {p['costToday']}")
     # 4. equity - net deposits == realized + unrealized + dividends - fees
     for name, pos in (("FIFO", f), ("AVG", a)):
         lhs = (equity(pos) + L.cash(txns)) - L.net_deposits(txns)
