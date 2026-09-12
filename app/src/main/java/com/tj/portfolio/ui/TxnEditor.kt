@@ -92,6 +92,11 @@ object TxnFields {
     )
 
     fun resolve(type: String, qty: String, price: String, amount: String, fees: String): Resolved {
+        // A SPLIT carries its RATIO in `quantity` and nothing else - see [TxnType.SPLIT].
+        // Returned clean rather than derived, so that switching the type after typing a
+        // price or a total cannot leave a stray figure on a row where those fields have no
+        // meaning and are not even on screen.
+        if (type == TxnType.SPLIT) return Resolved(qty.toNum(), 0.0, 0.0, 0.0)
         val q = qty.toNum()
         val f = fees.toNum()
         var p = price.toNum()
