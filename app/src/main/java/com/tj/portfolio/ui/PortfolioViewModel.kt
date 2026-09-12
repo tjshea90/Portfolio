@@ -5031,8 +5031,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             buildString {
                 append(Fmt.iso(t.date)).append("  ").append(t.type)
                 if (!t.symbol.isNullOrBlank()) append(" ").append(t.symbol)
-                if (t.quantity > 0) append("  qty ").append(Fmt.shares(t.quantity))
-                append("  $").append(Fmt.priceBare(kotlin.math.abs(t.amount)))
+                // A SPLIT's `quantity` is a RATIO, not a share count - see [TxnType.SPLIT].
+                // Printed by the ordinary rule this read "SPLIT NVDA  qty 10  $0.00", which
+                // Claude cannot mistake for a duplicate (screenshots never produce a SPLIT
+                // row - TxnType.IMPORTABLE excludes it) but reads as a strange zero-dollar
+                // trade rather than the split it actually is.
+                if (t.type == TxnType.SPLIT) append("  ").append(splitLabel(t.quantity))
+                else {
+                    if (t.quantity > 0) append("  qty ").append(Fmt.shares(t.quantity))
+                    append("  $").append(Fmt.priceBare(kotlin.math.abs(t.amount)))
+                }
             }
         }
     }
