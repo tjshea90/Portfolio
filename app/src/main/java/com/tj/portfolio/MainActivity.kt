@@ -425,7 +425,7 @@ fun App() {
 
                 open != null -> DetailScreen(
                     vm, state, open, detailToNews,
-                    onBack = ::popDetail,
+                    onBack = { popDetail() },
                     onOpenUrl = { url, title -> openArticle(url, title) },
                     onOpenSymbol = { sym ->
                         // Guarded against opening the screen that is already showing - a
