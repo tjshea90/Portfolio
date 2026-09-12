@@ -223,7 +223,7 @@ object Ledger {
      * @param today whether the BUY that opened this lot was dated in the current session -
      *   carried ON THE LOT so that a sell removes it with the shares (Round 66 audit, CRX-1).
      */
-    private data class Lot(var shares: Double, val unitCost: Double, val today: Boolean = false)
+    private data class Lot(var shares: Double, var unitCost: Double, val today: Boolean = false)
 
     /**
      * FIFO replay - matches what a broker statement shows. Sells consume the oldest lots
