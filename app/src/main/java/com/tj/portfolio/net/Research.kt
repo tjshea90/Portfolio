@@ -593,11 +593,24 @@ object Research {
      * `avgVolume3M` the row also scores zero on its single largest component, so it was never
      * going to place. The exclusion is about the tail case where everything else scored.
      */
-    internal fun dayTradable(r: ScreenRow): Boolean =
+    internal fun dayTradable(
+        r: ScreenRow,
+        /**
+         * How much of the session `r.volume` has had to accumulate in
+         * ([MarketClock.sessionElapsedFraction]). The relative-volume gate is scaled by it,
+         * because the two sides of that ratio are otherwise different units - see that
+         * function's header for the morning-long empty-list bug this prevents.
+         *
+         * DEFAULTS TO A WHOLE SESSION, which is the honest default for this app: outside
+         * market hours - most of the time it is open - the volume figure really does describe
+         * one complete session, and a test that says nothing about the clock means the same.
+         */
+        sessionFraction: Double = 1.0
+    ): Boolean =
         r.price >= MIN_PRICE_DAY_TRADING &&
             (r.marketCap <= 0.0 || r.marketCap >= MIN_MARKET_CAP) &&
             r.avgVolume3M >= MIN_AVG_VOLUME_DAY_TRADING &&
-            r.volumeRatio >= MIN_RVOL_DAY_TRADING
+            r.volumeRatio >= MIN_RVOL_DAY_TRADING * sessionFraction.coerceIn(0.0, 1.0)
 
     /**
      * See [ResearchScore.dayTrading]'s header for what this section is and, at length, is not.
