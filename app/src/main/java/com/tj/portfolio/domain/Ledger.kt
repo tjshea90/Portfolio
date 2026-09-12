@@ -243,6 +243,18 @@ object Ledger {
         for (t in txns.sortedWith(compareBy({ it.date }, { it.id }))) {
             val sym = t.symbol?.uppercase() ?: continue
             if (t.type == TxnType.DIVIDEND) { lots.getOrPut(sym) { ArrayDeque() }; continue }
+            // A SPLIT rewrites every open lot in place: more shares, proportionally cheaper,
+            // same total cost. See [TxnType.SPLIT]. Deliberately does NOT create a position
+            // for a symbol that has none - a split on something never held is a no-op, not a
+            // reason to invent an empty holding.
+            if (t.type == TxnType.SPLIT) {
+                val ratio = TxnType.splitRatio(t)
+                if (ratio > 0.0) lots[sym]?.forEach {
+                    it.shares *= ratio
+                    it.unitCost /= ratio
+                }
+                continue
+            }
             if (t.type != TxnType.BUY && t.type != TxnType.SELL) continue
 
             val q = lots.getOrPut(sym) { ArrayDeque() }
