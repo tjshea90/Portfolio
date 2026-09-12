@@ -50,8 +50,20 @@ public class LedgerPropTest {
             Map<String, Double> prices = new HashMap<>();
             for (String s : SYMS) prices.put(s, Math.round(r.nextDouble()*500*100)/100.0);
 
-            List<Position> f = Ledger.INSTANCE.positions(txns, new HashMap<>(), Ledger.FIFO, 9_000_000_000_000L);
-            List<Position> v = Ledger.INSTANCE.positions(txns, new HashMap<>(), Ledger.AVERAGE, 9_000_000_000_000L);
+            // THE SESSION INSTANT MUST LAND INSIDE THE GENERATED DATES (Part 10 audit).
+            //
+            // This was pinned at 9_000_000_000_000L - the year 2255 - while `gen` dates every
+            // transaction around 1_750_000_000_000L (2025-26). No generated transaction could
+            // ever fall inside `today`, so across all 20,000 runs `sharesToday` was always 0,
+            // the entire same-day pool path of both replays was never executed, and invariant
+            // 6 below ("day figures differ with boughtTodayCount 0") could not fire in either
+            // direction. Drawing the session from the SAME distribution as the transactions
+            // means roughly a tenth of runs now hold shares bought "today", which is what
+            // actually exercises it.
+            long session = 1_750_000_000_000L + r.nextInt(400)*DAY;
+            List<Position> f = Ledger.INSTANCE.positions(txns, new HashMap<>(), Ledger.FIFO, session);
+            List<Position> v = Ledger.INSTANCE.positions(txns, new HashMap<>(), Ledger.AVERAGE, session);
+            for (Position p : f) if (p.getSharesToday() > 1e-9) { sawToday++; break; }
 
             double mvF=0, mvV=0;
             for (Position p : f) mvF += p.getShares()*prices.get(p.getSymbol());
