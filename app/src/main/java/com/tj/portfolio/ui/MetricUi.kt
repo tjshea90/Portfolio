@@ -65,12 +65,21 @@ fun formatMetric(unit: MetricUnit, v: Double): String = when (unit) {
     MetricUnit.TEXT -> v.toString()
 }
 
-/** Green for good, red for bad, amber for "it depends", plain text otherwise. */
+/**
+ * Green for good, red for bad, amber for "it depends", plain text otherwise.
+ *
+ * THEME-BRANCHED, NOT THE RAW FILL COLOURS - same class of bug [Theme.kt]'s [greenText]/
+ * [redText]/[accentText] exist to fix (a fill measured as text fails WCAG AA, worst in light
+ * theme). This paints the value text on nearly every fundamental metric across Stats,
+ * Analysts and Earnings (via [MetricRow]), so it is one of the highest-traffic text colours
+ * in the app - found by the Part 9 audit because [ContrastTest]'s regression lint only
+ * catches a literal `color = Red`/`Green` token, not one returned from a function.
+ */
 @Composable
 fun verdictColor(v: Verdict): Color = when (v) {
-    Verdict.GOOD -> Green
-    Verdict.BAD -> Red
-    Verdict.MIXED -> Accent
+    Verdict.GOOD -> greenText
+    Verdict.BAD -> redText
+    Verdict.MIXED -> accentText
     else -> MaterialTheme.colorScheme.onSurface
 }
 
