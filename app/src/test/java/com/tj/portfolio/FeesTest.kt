@@ -53,8 +53,11 @@ class FeesTest {
         // 4.95 + 100c = 5.95 raw, but 5% of the $100 trade is 5.00, so the cap binds.
         assertEquals(5.00, total(TxnType.BUY, 100.0, 1.00), 0.005)
         assertEquals(5.00, Fees.lowPricedCommission(100.0, 1.00), 0.005)
-        // Well above the cap's reach: 4.95 + 10c = 5.05 against 5% of $1,800 = $90.
-        assertEquals(5.05, Fees.lowPricedCommission(10.0, 180.0 / 1.0 * 0.0 + 1.80), 0.005)
+        // And where it does NOT bind, the raw schedule stands: 1,000 shares at $1.99 is
+        // 4.95 + $10.00 = $14.95, against a 5% cap of $99.50 on the $1,990 trade.
+        assertEquals(14.95, Fees.lowPricedCommission(1000.0, 1.99), 0.005)
+        // A small trade is nearly all cap: 10 shares at $1.80 caps at 5% of $18.
+        assertEquals(0.90, Fees.lowPricedCommission(10.0, 1.80), 0.005)
         assertEquals(0.00, Fees.lowPricedCommission(100.0, 2.00), 0.005)
     }
 
