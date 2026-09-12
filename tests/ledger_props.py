@@ -30,8 +30,22 @@ def gen(rng, n):
     return txns
 
 
-def check(txns):
-    f = L.fifo(txns); a = L.average(txns)
+def today_window(session):
+    """The calendar day containing `session`, as Ledger.dayBounds computes it (UTC here)."""
+    start = session - (session % DAY)
+    return range(start, start + DAY)
+
+
+def check(txns, session=None):
+    # A REAL SESSION WINDOW, NOT THE EMPTY DEFAULT (Part 10 audit). `check` called both
+    # replays with no `today` argument at all, so every transaction fell outside the window,
+    # `sharesToday` was always zero and the whole same-day path of both methods went
+    # unexercised across every one of the thousands of histories this harness generates -
+    # which is why the depletion-order bug in averageCost lived here undetected.
+    if session is None:
+        session = 1_750_000_000_000 + 200 * DAY
+    today = today_window(session)
+    f = L.fifo(txns, today); a = L.average(txns, today)
     problems = []
     # 1. total lifetime P/L is identical under both methods
     prices = {s: round(random.uniform(1, 500), 2) for s in SYMS}
