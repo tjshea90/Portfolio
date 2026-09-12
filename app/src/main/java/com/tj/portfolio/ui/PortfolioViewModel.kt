@@ -650,7 +650,18 @@ internal fun mergeDayTradingTech(
     // VWAP and session structure beside Claude's plan; the plan itself stands until the next
     // full screener rebuild, which clears the whole section anyway.
     val plan = if (row.planByClaude) null
-    else com.tj.portfolio.net.ResearchScore.tradePlan(row.price, effective)
+    else com.tj.portfolio.net.ResearchScore.tradePlan(
+        row.price,
+        effective,
+        minutesLeft = minutesLeft,
+        middayLull = middayLull,
+        // The row carries no structured earnings timestamp - `catalyst` is the free text built
+        // by `Research.catalystFor`, and the constant is shared with it precisely so this match
+        // cannot drift out of step with the copy it is matching. See its own header.
+        earningsToday = row.catalyst.startsWith(
+            com.tj.portfolio.net.Research.CATALYST_EARNINGS_TODAY
+        )
+    )
     return row.copy(
         atr = effective.atr14,
         vwap = effective.vwap,
