@@ -532,6 +532,55 @@ Tj's request, 2026-09-11 (his own words):
    this is right" trigger too. **Flagged in chat 2026-09-11, not started.**
    `get_session` confirmed this session is on `claude-sonnet-5`, not Opus.
 
-- [ ] Part 8a (optimization checks): pending.
+- [x] Part 8a (optimization checks): background audit (Explore agent) read
+      the ViewModel, chart rendering and every screen end-to-end; network/
+      polling/caching architecture and accessibility were already in good
+      shape. 11 real findings, split safe-mechanical vs. design-judgment -
+      all 11 addressed:
+      - `verdictTextColor()` (new, `RecommendationDialog.kt`): BUY/HOLD/SELL
+        badge and chip text was painted with `verdictTint`'s raw fill colours
+        directly - BUY/SELL passed light but not dark, HOLD the exact
+        opposite (8.28:1 dark, 1.81:1 light on `surfaceVariant`). Fills
+        (borders) are untouched, same fill-vs-text split as `Theme.kt`'s
+        `greenText`/`redText`/`scoreColor`.
+      - `ratingColor()` (new, `AdviceScreen.kt`, `internal` for testability):
+        the Advice tab's 4-tier rating colour had its two middle tiers
+        hardcoded to `scoreColor`'s DARK-only values, painted unconditionally
+        - fine in dark mode, unmeasured and wrong in light. Same split
+        applied, tiers unchanged.
+      - Both new functions get real `ContrastTest` coverage (2 new tests,
+        all tiers/verdicts x both themes x background/surface/surfaceVariant)
+        - contrast ratios independently verified in Python before writing the
+          tests, not just asserted (tightest real margin: 4.65:1).
+      - `PortfolioScreen.kt`/`ResearchScreen.kt`: per-symbol `Map` lookups
+        inside `LazyColumn` item lambdas (`recommendations[symbol]`,
+        `chartMap[chartKey]`) recomposed every visible row whenever ANY one
+        symbol's entry changed. Replaced with per-row `derivedStateOf` (a
+        pattern not previously used anywhere in the app) so only the row
+        whose own value actually changed recomposes. ResearchScreen's fix
+        keeps the underlying `State` object (not pre-unwrapped `.value`)
+        available per-row so the subscription-teardown-when-tab-closed
+        behavior from Part 6.1 is unaffected - verified by a code-review pass.
+      - Missing `key` on `AdviceScreen`'s `LazyColumn` items - added, PLUS a
+        `.distinctBy { it.symbol }` guard the first pass missed (caught by
+        `/code-review`: Claude's free-text `advice()` JSON reply has no
+        dedup/blank-symbol guard, unlike the file-import path, so a repeated
+        or blank ticker would have crashed the tab outright - the same risk
+        `ResearchScreen.kt`'s own comment already documents for its list).
+      - 4 inline `Regex(...)` literals recompiled on every call, hoisted to
+        top-level `private val`s: `Form4.kt` (x2, insider-filing parsing),
+        `EtfScore.kt`, `EtfExposure.kt`, `FundamentalsFeed.kt` - the same
+        "COMPILED ONCE" pattern `News.kt`/`Relevance.kt` already established.
+      - Dead code removed: `Theme.kt`'s `signFill()`, `Widgets.kt`'s
+        `PricePill()` - zero call sites for either, confirmed by grep.
+      - NOT changed (flagged, not applied): `PriceChart.kt`'s per-frame
+        `Path()` allocations during gesture scrubbing - real but minor GC
+        pressure, and this exact file has already caused one real regression
+        this session (the SPY overlay bug) from a chart-code change that
+        looked simple; left alone rather than risking another one for a
+        low-priority win.
+      - Full Gradle suite green: 973 tests (2 new), 0 failures. High-effort
+        `/code-review` pass found the AdviceScreen dedup gap above; fixed and
+        re-verified green.
 - [ ] Part 8b (day-trading research/logic overhaul): blocked on Opus per
-      SCREENER.md - not started.
+      SCREENER.md - not started. Flagged in chat 2026-09-11/12.
