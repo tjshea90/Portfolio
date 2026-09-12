@@ -323,6 +323,30 @@ class DayTradingTest {
         )
     }
 
+    @Test fun `the 2 to 1 convention may not put the target where the price already is`() {
+        // THE THIRD PATH, which the second pass's first draft left behind. The two paths that
+        // read structure and measured room were both corrected to measure from the last price
+        // rather than from the entry - but the last-resort 2:1 convention underneath them still
+        // measured from the entry alone, and on a pullback the entry sits BELOW the price.
+        //
+        // This is the fixture two tests above used to share: no supply overhead above 110, and
+        // no ADR to say how far the day reaches (a failed daily-bar half zeroes the ADR, the
+        // prior session and the pivots together, which is an ordinary tick, not a rare one). The
+        // convention then priced a 2R target off a 105 entry and produced 110.00 - the price on
+        // the screen at that moment. A target the stock has already reached is not a target on
+        // any of the three paths.
+        assertNull(
+            ResearchScore.tradePlan(
+                110.0,
+                tech(
+                    atrIntraday = 1.0, vwap = 100.0,
+                    orHigh = 105.0, orLow = 102.0,
+                    sessionHigh = 110.0, sessionLow = 99.0
+                )
+            )
+        )
+    }
+
     @Test fun `outside market hours the plan is built from prior-session structure only`() {
         // The same inputs as the reclaim case, but with the session closed. A dead session's
         // VWAP must not produce a "reclaim VWAP" plan for tomorrow, and a completed session's
