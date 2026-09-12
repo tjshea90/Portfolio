@@ -663,6 +663,13 @@ object ResearchScore {
         val live = tech.sessionLive
         val overhead = if (live) levelsOf(
             tech.premarketHigh to "the premarket high",
+            // THE FIVE-MINUTE OPENING RANGE COMES FIRST (Round 73) - it is the lowest of the
+            // opening levels and therefore the earliest trigger, and it is the variant the
+            // strongest published test of this setup found best while finding the 30-minute one
+            // below it worst (see [DayTradingTechnicals.openingBar]). It needs no clock of its
+            // own to stay honest: price passes it within minutes on any stock actually in play,
+            // and the `>= price` filter below then drops it automatically.
+            tech.or5High to "the first 5-minute bar's high",
             tech.openingRangeHigh to "the opening-range high",
             tech.prevHigh to "the prior session's high",
             tech.sessionHigh to "the high of day",
