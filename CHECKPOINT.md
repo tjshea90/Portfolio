@@ -1,13 +1,13 @@
-# CHECKPOINT 683 — read me first, then TASKS.md
+# CHECKPOINT 684 — read me first, then TASKS.md
 
-**Written:** 2026-09-12T20:36:31Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `3516147` (this checkpoint is the commit after it)
+**Written:** 2026-09-12T20:45:06Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/app-audit-optimization-2k79df` · **builds on:** `1ab42a1` (this checkpoint is the commit after it)
 
 ## Just done
-Part 10 (Opus, money-accuracy): fixed the AVERAGE cost method's same-day pool depletion ORDER in Ledger.averageCost. A same-day sell took shares out of today's pool FIRST (minOf(covered, todayShares)) where FIFO - and the broker, and physical reality - consume the OLDEST shares first, so the two methods reported different sharesToday for identical trades: buy 100@10 a month ago, buy 50@12 today, sell 30@13 today gave FIFO 50 shares-bought-today and AVERAGE 20. sharesToday feeds Position.dayPnl, so the app's Today headline silently changed when the cost-basis preference in Settings changed - a number that has nothing to do with cost basis. A sale now only reaches today's pool once it has exhausted everything held from before today. 3 new tests: the two hand-built mixed-pool cases plus a 400-run randomised cross-method property (both methods must always agree on how many HELD shares were bought today - a fact about exposure, not an accounting convention - while deliberately NOT asserting avgCostToday agreement, which legitimately differs). Verified by reverting the one-line fix and confirming all 3 fail against the old code while the 6 pre-existing same-day tests pass either way, which is exactly why the bug survived CRX-1
+Part 10 continued: the randomised cross-method property added with the first fix immediately caught a SECOND, deeper divergence in the same code - and the first fix was itself incomplete. Consuming 'everything that is not today' before today's shares is only correct when no transaction is dated AFTER the session window, and one routinely can be: the window is the session the QUOTES describe, which lags the calendar every evening, night and weekend (the exact scenario Ledger.dayBounds exists for). Seed 2444 of the python harness: sell before the window, buy inside it, buy after it, sell again - FIFO correctly consumed the in-window lot first, average consumed the later one and reported 3.66 shares bought today against FIFO's 0. averageCost now keeps three buckets (before the window, inside it, after it) and a sale consumes them in that order, which is exactly the order FIFO's date-sorted lots come out in. Also closed the harness blind spots that hid all of this: ledger_port.py's average() had no same-day tracking at all and its fifo() carried the pre-CRX-1 side-map that nothing returned, ledger_props.py never passed a session window so every transaction fell outside it, and LedgerPropTest.java pinned the session instant in the year 2255 against transactions dated 2025-26 so the whole path plus its own invariant 6 were inert across 20,000 runs. All three now exercise it and report how many histories actually did, so the question is answerable instead of assumed. Verified by reverting each fix in turn: the original bug fails the two hand-built cases, the two-bucket draft passes those and fails only the randomised property. 8000 python histories clean, 100 exercising the same-day path
 
 ## Do this next
-Part 10 continues: close the ledger test-harness blind spots that let this survive (tools/ledger_port.py's average() has no today-tracking at all and its fifo() carries the pre-CRX-1 buggy side-map that nothing returns; tests/LedgerPropTest.java pins sessionInstant in year 2255 so no generated txn ever lands inside  and boughtTodayCount is always 0). Then make overselling visible (Position.oversold + UI) rather than inventing short-position accounting, then add the SPLIT transaction type.
+Part 10 remaining: port the Ally fee-schedule case table from tests/LedgerPropTest.java into a Kotlin FeesTest so it actually gates in ship.sh (it feeds cost basis and the fee-looks-wrong warning but has zero gated coverage today). Then make overselling visible (Position.oversold plus a UI line) rather than inventing short-position accounting, then add the SPLIT transaction type handled in both replays. Note for the report: the 560 reconciliation violations the python harness prints by default are PRE-EXISTING and are a harness artifact, not a ledger bug - they come entirely from its ZEROQ zero-quantity rows, a shape the transaction editor now refuses; with ZEROQ=0 it is 8000 clean.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Part 10 continues: close the ledger test-harness blind spots that let this survi
 
 ## Last ten checkpoints
 ```
+  7a43154 ckpt 683: Part 10 (Opus, money-accuracy): fixed the AVERAGE cost method's same-day pool 
   23b816d ckpt 682: Part 9 sweep batch 5 (final): fixed ReaderScreen's 3 sub-48dp touch targets, d
   02b6065 ckpt 681: Part 9 sweep batch 4 (ViewModel): commitImportAsync and clearIncorrectBuyFees 
   5dd6b42 ckpt 680: Part 9 sweep batch 3 (accessibility): fixed the raw-fill-painted-as-text WCAG 
@@ -25,8 +26,7 @@ Part 10 continues: close the ledger test-harness blind spots that let this survi
   80c96c2 ckpt 676: Shipped v7.19 (code 76) end to end: GitHub Actions run #19 built, signed, veri
   7e1d46e ckpt 675: gated v7.19 (code 76) and pushed it: checkinit, the full unit suite and the ve
   bbf6e26 ckpt 674: Second code-review pass over Part 8b's own fixes is complete and the suite is 
-  cf83572 ckpt 673: Recorded where Part 8b actually stands in TASKS.md after the last session was 
 ```
 
-(6 automatic checkpoint(s) since the last deliberate one — the
+(21 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
