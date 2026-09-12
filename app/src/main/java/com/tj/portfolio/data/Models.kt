@@ -42,6 +42,27 @@ object TxnType {
     val CASH_ONLY = setOf(DEPOSIT, WITHDRAWAL, INTEREST, FEE)
 
     /**
+     * WHAT A MODEL'S REPLY IS ALLOWED TO CONTAIN - deliberately NOT [ALL].
+     *
+     * [ALL] is the accept-list in three places, and they do not all want the same answer:
+     * the transaction editor (offer every type), this app's own backup restore (accept
+     * every type, including rows it wrote itself), and the two Claude-fed import paths -
+     * which must not accept a [SPLIT] at all.
+     *
+     * Adding SPLIT to [ALL] silently opened that door, and it is a bad one to leave open:
+     * on a split row the ratio lives in `quantity`, and every other type reads that field
+     * as a SHARE COUNT. A model paraphrasing "Stock split - 90 shares" into
+     * `{"type":"SPLIT","quantity":90}` would be applied as a NINETY-fold split, multiplying
+     * the position by 90 and dividing its cost per share by the same - a far worse outcome
+     * than the missing feature this round added. The existing guards do not catch it either:
+     * the share-count sanity checks are scoped to BUY and SELL.
+     *
+     * So splits stay manual, as [SPLIT]'s own note says they are. A corporate action is
+     * rare, deliberate, and exactly the kind of thing worth typing yourself.
+     */
+    val IMPORTABLE = ALL.filter { it != SPLIT }
+
+    /**
      * The split ratio on a [SPLIT] row, or 0.0 when it is unusable.
      *
      * One place decides what a valid ratio is, so the editor's validation and the ledger's
