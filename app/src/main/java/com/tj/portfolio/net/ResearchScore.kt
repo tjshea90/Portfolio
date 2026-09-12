@@ -976,8 +976,13 @@ object ResearchScore {
         // straight through the level that is going to stop the move.
         val rr = rewardRisk(entry, risk, target)
         if (rr in 0.0..THIN_REWARD_RATIO) parts.add(
-            "Only ${Fmt.oneDp(rr)} to 1 - the next resistance sits closer than a 2:1 target " +
-                "would, so this is a thin trade for the risk"
+            "Only ${Fmt.oneDp(rr)} to 1 - " +
+                (if (targetFromRoom)
+                    "a normal day's range does not reach far enough above this entry for a 2:1 " +
+                        "target"
+                else
+                    "the next resistance sits closer than a 2:1 target would") +
+                ", so this is a thin trade for the risk"
         )
         if (tech.sessionLive && tech.rangeUsed >= EXTENDED_RANGE_USED) parts.add(
             "Already travelled ${(tech.rangeUsed * 100).toInt()}% of its average daily range - " +
