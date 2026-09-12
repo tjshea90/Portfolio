@@ -799,7 +799,7 @@ object FundamentalsFeed {
             .replace("&#39;", "'")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
-            .replace(Regex("\\s+"), " ")
+            .replace(WHITESPACE, " ")
             .trim()
 
     /**
