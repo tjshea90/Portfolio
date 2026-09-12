@@ -192,11 +192,17 @@ fun TxnEditorDialog(
 
     val problem: String? = when {
         parsedDate == null -> "Enter the date as yyyy-MM-dd (e.g. ${Fmt.iso(Fmt.todayMs())})"
-        (isTrade || type == TxnType.DIVIDEND) && symbol.isBlank() -> "Enter a ticker symbol"
+        (isTrade || type == TxnType.DIVIDEND || isSplit) && symbol.isBlank() ->
+            "Enter a ticker symbol"
+        isSplit && qNum <= 0 ->
+            "Enter the split ratio - 10 for a 10-for-1 split, 0.1 for a 1-for-10 reverse split"
+        isSplit && kotlin.math.abs(qNum - 1.0) < 1e-9 -> "A ratio of 1 would change nothing"
         isTrade && qNum <= 0 -> "Enter how many shares"
         isTrade && pNum <= 0 && aNum <= 0 -> "Enter a price per share, or the total amount"
-        !isTrade && aNum <= 0 -> "Enter an amount"
-        feeNum < 0 -> "Fees can't be negative"
+        // A split moves no money, so it must not be asked for an amount - and its fee box
+        // is not on screen, so a stale value behind it must not block saving either.
+        !isTrade && !isSplit && aNum <= 0 -> "Enter an amount"
+        !isSplit && feeNum < 0 -> "Fees can't be negative"
         else -> null
     }
 
