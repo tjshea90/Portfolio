@@ -54,6 +54,8 @@ import kotlin.math.max
  */
 object EtfScore {
 
+    private val WHITESPACE = Regex("\\s+")
+
     /** Linear ramp: 0 at [lo], [maxPoints] at [hi], clamped both ends. */
     internal fun ramp(v: Double, lo: Double, hi: Double, maxPoints: Double): Double {
         if (v.isNaN() || !v.isFinite() || hi == lo) return 0.0
