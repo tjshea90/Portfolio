@@ -286,9 +286,19 @@ object Ledger {
         overrides: Map<String, Override>,
         today: LongRange
     ): List<Position> {
+        /**
+         * [beforeShares] is shares still held that were bought STRICTLY BEFORE the session
+         * window - not merely "not today". The distinction is the whole reason it exists: a
+         * transaction can also be dated AFTER the window, because the window is the session
+         * the QUOTES describe and that lags the calendar every evening, every night and all
+         * weekend (see [dayBounds]). Lumping those in with the genuinely older shares makes a
+         * sale consume them ahead of today's, where FIFO - replaying in true date order -
+         * correctly reaches today's shares first. See the consumption order in the SELL branch.
+         */
         data class Acc(var shares: Double = 0.0, var cost: Double = 0.0,
                        var realized: Double = 0.0, var first: Long = 0L,
-                       var todayShares: Double = 0.0, var todayCost: Double = 0.0)
+                       var todayShares: Double = 0.0, var todayCost: Double = 0.0,
+                       var beforeShares: Double = 0.0)
 
         val acc = LinkedHashMap<String, Acc>()
         for (t in txns.sortedWith(compareBy({ it.date }, { it.id }))) {
