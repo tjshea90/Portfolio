@@ -526,7 +526,7 @@ fun EarningsTab(
                     }
                     Chip(
                         if (h.beat) "BEAT" else "MISS",
-                        if (h.beat) Green else Red
+                        if (h.beat) greenText else redText
                     )
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline)
