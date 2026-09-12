@@ -102,13 +102,17 @@ class BackgroundTest {
      */
     @Test fun aRepeatedSearchTermIsNotAskedForTwice() = runBlocking {
         SymbolSearch.clearMemo()
-        // No network in a unit test, so the memo is exercised through its own contract: an
-        // empty result is deliberately NOT remembered, because "the request failed" and "this
-        // term has no matches" look identical from here and caching the first would make a
-        // transient failure permanent for the session.
+        // No network in a unit test, so an empty-result memo hit and an empty-result memo
+        // MISS (the network path failing in the sandbox) look identical - asserting the two
+        // calls are equal here would pass whether or not the memo does anything at all. Seed
+        // a KNOWN, non-empty result instead: if the memo is skipped, the second call falls
+        // through to the (failing) network path and comes back empty, not equal to the seed.
+        val seeded = listOf(com.tj.portfolio.net.SearchHit("NVDA", "NVIDIA Corporation"))
+        SymbolSearch.seedMemoForTest("NVDA", seeded)
         val first = SymbolSearch.query("NVDA")
-        val second = SymbolSearch.query("NVDA")
-        assertEquals(first, second)
+        val second = SymbolSearch.query("nvda") // case-insensitive key, same entry
+        assertEquals(seeded, first)
+        assertEquals(seeded, second)
         SymbolSearch.clearMemo()
     }
 
