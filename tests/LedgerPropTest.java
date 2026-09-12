@@ -126,7 +126,11 @@ public class LedgerPropTest {
             Map<String, Quote> qs = new HashMap<>();
             for (String s : SYMS) qs.put(s, new Quote(s, s, prices.get(s), prices.get(s)*0.98,
                 0,0,null,null,"OPEN", Collections.emptyList(), "USD", 0L, 0L, false));
-            PortfolioTotals tot = Ledger.INSTANCE.totals(txns, f, qs, null);
+            // BOTH optional arguments spelled out. Kotlin default arguments are not defaults
+            // from Java, so the four-argument form stopped compiling the moment `sums` was
+            // added - and because nothing runs this file automatically, it simply sat
+            // uncompilable, taking every invariant in it out of service with no signal.
+            PortfolioTotals tot = Ledger.INSTANCE.totals(txns, f, qs, null, null);
             for (double d : new double[]{tot.getMarketValue(), tot.getCash(), tot.getTotalGain(),
                     tot.getTotalGainPct(), tot.getDayGain(), tot.getDayGainPct(),
                     tot.getBrokerDayGain(), tot.getBrokerDayGainPct(), tot.getUnrealizedPct()})
