@@ -8,8 +8,52 @@ object TxnType {
     const val DIVIDEND = "DIVIDEND"
     const val INTEREST = "INTEREST"
     const val FEE = "FEE"
-    val ALL = listOf(BUY, SELL, DEPOSIT, WITHDRAWAL, DIVIDEND, INTEREST, FEE)
+
+    /**
+     * A STOCK SPLIT, WITH THE RATIO IN [Txn.quantity] (Part 10 audit).
+     *
+     * ---- WHY THIS EXISTS
+     *
+     * The app had no split handling of any kind. A 10-for-1 split left the ledger holding
+     * the old share count at the old per-share cost forever, so a position worth $12,000
+     * kept reporting $1,200 - the market value, the cost basis, the gain and every total
+     * built on them, all wrong by the ratio, silently and permanently. Nothing detected it
+     * and nothing could correct it: the manual override carries the CALCULATED average
+     * across when only the share count is changed, so overriding 10 shares up to 100 also
+     * multiplied the basis tenfold and kept the position exactly as wrong as before. The
+     * only escape was to override both fields by hand, computed by the user.
+     *
+     * ---- WHAT IT MEANS
+     *
+     * [Txn.quantity] is the RATIO, not a share count: `10` for a 10-for-1 split, `0.1` for
+     * a 1-for-10 reverse split. Every open lot's share count is multiplied by it and its
+     * per-share cost divided by it, so the TOTAL cost basis is untouched - which is what a
+     * split actually does, and what the IRS says it does. No cash moves, nothing is
+     * realized, and the position's first-buy date is unchanged.
+     *
+     * It is entered by hand, like every other corporate action this app records. The
+     * screenshot importer is not taught to emit it: a model guessing "split" at a row it
+     * half-recognised would corrupt a position far more thoroughly than the missing feature
+     * ever did.
+     */
+    const val SPLIT = "SPLIT"
+
+    val ALL = listOf(BUY, SELL, DEPOSIT, WITHDRAWAL, DIVIDEND, INTEREST, FEE, SPLIT)
     val CASH_ONLY = setOf(DEPOSIT, WITHDRAWAL, INTEREST, FEE)
+
+    /**
+     * The split ratio on a [SPLIT] row, or 0.0 when it is unusable.
+     *
+     * One place decides what a valid ratio is, so the editor's validation and the ledger's
+     * replay can never disagree about which rows count. A non-finite or non-positive ratio
+     * is ignored rather than applied - multiplying a position by it would destroy the
+     * holding outright, which is the one outcome worse than not supporting splits at all.
+     */
+    fun splitRatio(t: Txn): Double {
+        if (t.type != SPLIT) return 0.0
+        val r = t.quantity
+        return if (r.isFinite() && r > 0.0) r else 0.0
+    }
 }
 
 /**
