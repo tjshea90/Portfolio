@@ -384,18 +384,25 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         var removed = db.delete(
             "http_cache", "fetched < ?", arrayOf((now - HTTP_CACHE_RETENTION_MS).toString())
         )
-        val total = db.rawQuery("SELECT COALESCE(SUM(bytes),0) FROM http_cache", null)
-            .use { c -> if (c.moveToNext()) c.getLong(0) else 0L }
-        if (total > HTTP_CACHE_MAX_CHARS) {
-            // Oldest-first until the total is back under budget. One statement rather than a
-            // loop: SQLite can do the running total itself, and the alternative is a cursor
-            // walk over a table that may hold thousands of rows.
-            removed += db.delete(
+        // LOOPED, NOT ONE PASS (Part 9 audit finding). Deleting the oldest 25% BY ROW COUNT
+        // once does not guarantee the byte budget is met - a few outsized rows dominating the
+        // total might not be among that 25%, and this only runs once per launch, so a table
+        // that does not catch up in one pass might never catch up. Bounded at 8 iterations
+        // (each pass removes at least a quarter of what's left, so this converges quickly
+        // even from a badly overgrown table) so a pathological state can never loop the
+        // purge indefinitely on the calling thread.
+        for (pass in 0 until 8) {
+            val total = db.rawQuery("SELECT COALESCE(SUM(bytes),0) FROM http_cache", null)
+                .use { c -> if (c.moveToNext()) c.getLong(0) else 0L }
+            if (total <= HTTP_CACHE_MAX_CHARS) break
+            val deletedThisPass = db.delete(
                 "http_cache",
                 "url IN (SELECT url FROM http_cache ORDER BY fetched ASC LIMIT " +
                     "MAX(1, (SELECT COUNT(*) FROM http_cache) / 4))",
                 null
             )
+            removed += deletedThisPass
+            if (deletedThisPass == 0) break // nothing left to delete
         }
         removed
     }.getOrDefault(0)
