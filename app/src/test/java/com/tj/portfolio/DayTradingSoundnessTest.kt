@@ -342,11 +342,15 @@ class DayTradingSoundnessTest {
     // ==================================================================== the warnings
 
     @Test fun `a trigger a long way above the last price is called out as possibly unreachable`() {
+        // A stock that ran to 103 and has drifted back to 100: the nearest thing overhead is
+        // still the high of day, three ATRs away. The level is right and the plan is honest -
+        // what deserves saying out loud is that price has to travel a long way before this
+        // trade even begins, so it may simply never fill today.
         val plan = ResearchScore.tradePlan(
             100.0,
             tech(
                 atrIntraday = 1.0, vwap = 99.0,
-                prevHigh = 103.0, adr = 8.0, sessionHigh = 100.0, sessionLow = 99.0
+                adr = 8.0, sessionHigh = 103.0, sessionLow = 99.0
             )
         )!!
         assertTrue("entry is 3+ ATRs above the last price", plan.entry - 100.0 > 2.0)
