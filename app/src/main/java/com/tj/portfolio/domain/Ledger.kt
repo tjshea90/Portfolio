@@ -339,20 +339,33 @@ object Ledger {
                     a.cost -= covered * avg
                     a.shares -= covered
                     if (a.shares < 1e-9) { a.shares = 0.0; a.cost = 0.0 }
-                    // ---- AND THE SAME-DAY POOL SHRINKS WITH IT (Round 66 audit, CRX-1).
+                    // ---- AND THE SAME-DAY POOL SHRINKS WITH IT (Round 66 audit, CRX-1),
+                    //      OLDEST SHARES FIRST (Part 9 audit - the bug fixed below).
                     //
                     // The FIFO replay carries "bought today" on the lot, which a sell removes
-                    // for free. Average cost has no lots, so it has to do the arithmetic: the
-                    // shares sold come out of today's pool at today's own blended price, in
-                    // the same proportion. Without this a same-day round trip left shares in
-                    // the pool that were no longer held, and the "Today" figure for the
-                    // position was computed against a cost nobody paid.
+                    // for free. Average cost has no lots, so it has to do the arithmetic
+                    // explicitly. Without it a same-day round trip left shares in the pool
+                    // that were no longer held, and the "Today" figure for the position was
+                    // computed against a cost nobody paid.
                     //
-                    // FIFO would take the OLDEST lots first, which for a same-session trade
-                    // and a pool this size comes to the same shares; taking them pro-rata is
-                    // the only thing an average-cost book can say, and it is consistent with
-                    // how every other figure in this branch is derived.
-                    val fromToday = minOf(covered, a.todayShares)
+                    // THE BUG THIS FIXES. It used to take `minOf(covered, todayShares)` -
+                    // today's shares FIRST - on the reasoning (written into the comment it
+                    // replaces) that "FIFO would take the oldest lots first, which for a
+                    // same-session trade and a pool this size comes to the same shares". That
+                    // is true only when the WHOLE position was bought today, which is the one
+                    // case CRX-1 was written against and the only case any test covered. As
+                    // soon as a position holds shares from before today as well, the two
+                    // methods disagree about the same trades: buy 100 at 10 yesterday, buy 50
+                    // at 12 today, sell 30 at 13 today, and FIFO correctly consumes the old
+                    // lot and still reports 50 shares bought today, while this reported 20.
+                    // `sharesToday` feeds `dayPnl`, so flipping the cost-basis preference in
+                    // Settings silently changed the "Today" headline - a number that has
+                    // nothing to do with cost basis and must not depend on the method.
+                    //
+                    // A sale consumes the oldest shares first, so it only reaches today's pool
+                    // once it has exhausted everything held from before today.
+                    val heldFromBefore = (sharesBefore - a.todayShares).coerceAtLeast(0.0)
+                    val fromToday = (covered - heldFromBefore).coerceIn(0.0, a.todayShares)
                     if (fromToday > 1e-9 && a.todayShares > 1e-9) {
                         a.todayCost -= fromToday * (a.todayCost / a.todayShares)
                         a.todayShares -= fromToday
