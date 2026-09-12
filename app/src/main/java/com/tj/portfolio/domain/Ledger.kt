@@ -432,7 +432,7 @@ object Ledger {
         return acc.map { (sym, a) ->
             applyOverride(
                 sym, a.shares, a.cost, a.realized, a.first, overrides,
-                a.todayShares, a.todayCost
+                a.todayShares, a.todayCost, a.oversold
             )
         }
     }
