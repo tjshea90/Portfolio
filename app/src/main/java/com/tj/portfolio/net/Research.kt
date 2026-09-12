@@ -610,7 +610,7 @@ object Research {
         r.price >= MIN_PRICE_DAY_TRADING &&
             (r.marketCap <= 0.0 || r.marketCap >= MIN_MARKET_CAP) &&
             r.avgVolume3M >= MIN_AVG_VOLUME_DAY_TRADING &&
-            r.volumeRatio >= MIN_RVOL_DAY_TRADING * sessionFraction.coerceIn(0.0, 1.0)
+            ResearchScore.pacedVolumeRatio(r.volumeRatio, sessionFraction) >= MIN_RVOL_DAY_TRADING
 
     /**
      * See [ResearchScore.dayTrading]'s header for what this section is and, at length, is not.
