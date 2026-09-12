@@ -143,6 +143,33 @@ class NetLogicTest {
         assertEquals(now + 300_000L, kept)
     }
 
+    /**
+     * ROUND-9-AUDIT FINDING: `postJson` used to skip the cooldown/gate machinery entirely -
+     * a host already in cooldown from `get()` traffic was hit anyway, and a connection
+     * failure here armed no cooldown at all. Same shape of proof as `get`'s own test above:
+     * a host refusing every connection must arm a cooldown, and once armed, must not even be
+     * dialled again.
+     */
+    @Test fun `postJson arms and honours the same cooldown get does`() = runBlocking {
+        val dead = "http://127.0.0.4:1/nothing"
+        repeat(3) { Http.postJson(dead, "{}", timeoutMs = 800) }
+        assertTrue("three refused connections should arm postJson's cooldown too",
+            Http.cooldownRemaining(dead) > 0L)
+
+        val skipped = Http.postJson(dead, "{}", timeoutMs = 800)
+        assertTrue("a cooled-down host was posted to anyway", skipped.throttledLocally)
+    }
+
+    @Test fun `postJson's cooldown is shared with get, not a separate one`() = runBlocking {
+        val dead = "http://127.0.0.5:1/nothing"
+        repeat(3) { Http.get(dead, timeoutMs = 800) }
+        assertTrue(Http.cooldownRemaining(dead) > 0L)
+
+        val posted = Http.postJson(dead, "{}", timeoutMs = 800)
+        assertTrue("postJson must respect a cooldown get() already armed for this host",
+            posted.throttledLocally)
+    }
+
     @Test fun `the cooldown is per host, not global`() = runBlocking {
         val a = "http://127.0.0.1:1/a"
         val b = "http://127.0.0.2:1/b"
