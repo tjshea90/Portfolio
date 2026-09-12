@@ -1059,7 +1059,7 @@ private fun OverviewTab(
                     // sizing is only ever as real as the portfolio behind it, so an empty
                     // ledger passes 0.0 and `ResearchScore.positionSize` returns null rather
                     // than sizing a trade against an account that does not exist.
-                    DayTradingPlanContent(dayTradingRow, state.totals.totalEquity)
+                    DayTradingPlanContent(dayTradingRow, state.totals?.totalEquity ?: 0.0)
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                 }
