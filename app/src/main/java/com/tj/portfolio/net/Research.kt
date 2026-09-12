@@ -596,10 +596,7 @@ object Research {
 
         return universe.values
             .asSequence()
-            .filter {
-                it.price >= MIN_PRICE_DAY_TRADING &&
-                    (it.marketCap <= 0.0 || it.marketCap >= MIN_MARKET_CAP)
-            }
+            .filter { dayTradable(it) }
             .map { row ->
                 val tr = trendBy[row.symbol]
                 val t = tr?.let {
