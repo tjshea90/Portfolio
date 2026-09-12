@@ -415,6 +415,8 @@ data class ResearchRow(
                 vwap = o.optDouble("vwap", 0.0).orZero(),
                 openingRangeHigh = o.optDouble("openingRangeHigh", 0.0).orZero(),
                 openingRangeLow = o.optDouble("openingRangeLow", 0.0).orZero(),
+                planExit = o.text("planExit"),
+                tooLateToStart = o.optBoolean("tooLateToStart", false),
                 setup = o.text("setup"),
                 trigger = o.text("trigger"),
                 planNote = o.text("planNote"),
