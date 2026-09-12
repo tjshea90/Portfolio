@@ -29,8 +29,14 @@ import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.domain.Fees
 import com.tj.portfolio.util.Fmt
 
+// `toDoubleOrNull()` happily parses the literal text "NaN" or "Infinity" into a real,
+// non-finite Double - every `<= 0` guard downstream (qNum, pNum, aNum) is an IEEE-754
+// comparison that evaluates false against NaN/+Infinity, so a non-finite value used to sail
+// straight past validation and into the ledger, corrupting every total derived from it. Collapse
+// non-finite results to 0.0 here, at the one place text becomes a number, so every caller's
+// existing "<= 0 means invalid" checks reject it for free.
 fun String.toNum(): Double =
-    trim().replace(",", "").replace("$", "").toDoubleOrNull() ?: 0.0
+    (trim().replace(",", "").replace("$", "").toDoubleOrNull() ?: 0.0).let { if (it.isFinite()) it else 0.0 }
 
 /**
  * WHAT THE EDITOR PUTS IN ITS BOXES, AND WHAT SAVE MAKES OF THEM (Round 66).
