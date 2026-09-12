@@ -153,6 +153,8 @@ fun TxnEditorDialog(
     var note by remember { mutableStateOf(existing?.note ?: "") }
 
     val isTrade = type == TxnType.BUY || type == TxnType.SELL
+    /** A split has a symbol and a ratio, and nothing else - see [TxnType.SPLIT]. */
+    val isSplit = type == TxnType.SPLIT
 
     // What Ally would actually charge for this trade, recomputed as the fields change.
     val expected = remember(type, qty, price) {
