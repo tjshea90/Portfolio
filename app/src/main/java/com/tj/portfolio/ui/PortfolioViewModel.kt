@@ -3196,35 +3196,48 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         onDone: (Int) -> Unit
     ) {
         viewModelScope.launch {
+            // RUNCATCHING, LIKE EVERY OTHER DB WRITE IN THIS FILE (Part 9 audit finding).
+            // This one committed data parsed by an LLM from a screenshot - the least-trusted
+            // input in the app - inside a plain `launch {}` with no handler, so any exception
+            // (disk full, a malformed row) crashed the whole app mid-import, `onDone` never
+            // called, the review dialog stuck open. The transaction itself already rolls back
+            // correctly on an exception (`endTransaction()` without a prior
+            // `setTransactionSuccessful()` is a rollback) - what was missing is catching the
+            // exception so the coroutine, and the app, survive to report it.
             val res = withContext(Dispatchers.IO) {
-                var n = 0
-                var skipped = 0
-                var minD = Long.MAX_VALUE
-                var maxD = 0L
-                val seen = HashSet<String>()
-                val database = db.writableDatabase
-                database.beginTransaction()
-                try {
-                    for (t in list) {
-                        val fingerprint = listOf(
-                            t.type, (t.symbol ?: ""), Fmt.iso(t.date),
-                            Math.round(kotlin.math.abs(t.quantity) * 10000),
-                            Math.round(kotlin.math.abs(t.amount) * 100)
-                        ).joinToString("|")
-                        if (!seen.add(fingerprint)) { skipped++; continue }
-                        if (!force && duplicateOf(t) != null) { skipped++; continue }
-                        db.insertTxn(t); n++
-                        if (t.date in 1 until minD) minD = t.date
-                        if (t.date > maxD) maxD = t.date
+                runCatching {
+                    var n = 0
+                    var skipped = 0
+                    var minD = Long.MAX_VALUE
+                    var maxD = 0L
+                    val seen = HashSet<String>()
+                    val database = db.writableDatabase
+                    database.beginTransaction()
+                    try {
+                        for (t in list) {
+                            val fingerprint = listOf(
+                                t.type, (t.symbol ?: ""), Fmt.iso(t.date),
+                                Math.round(kotlin.math.abs(t.quantity) * 10000),
+                                Math.round(kotlin.math.abs(t.amount) * 100)
+                            ).joinToString("|")
+                            if (!seen.add(fingerprint)) { skipped++; continue }
+                            if (!force && duplicateOf(t) != null) { skipped++; continue }
+                            db.insertTxn(t); n++
+                            if (t.date in 1 until minD) minD = t.date
+                            if (t.date > maxD) maxD = t.date
+                        }
+                        db.recordImport(
+                            n, skipped, if (minD == Long.MAX_VALUE) 0L else minD, maxD, source
+                        )
+                        database.setTransactionSuccessful()
+                    } finally {
+                        database.endTransaction()
                     }
-                    db.recordImport(
-                        n, skipped, if (minD == Long.MAX_VALUE) 0L else minD, maxD, source
-                    )
-                    database.setTransactionSuccessful()
-                } finally {
-                    database.endTransaction()
+                    n
+                }.getOrElse {
+                    toast("Import failed: ${it.message}")
+                    0
                 }
-                n
             }
             if (res > 0) autoBackupIfDue(force = true)
             _lastImport.value = withContext(Dispatchers.IO) { db.lastImport() }
