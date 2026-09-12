@@ -189,6 +189,7 @@ fun TxnEditorDialog(
         isTrade && qNum <= 0 -> "Enter how many shares"
         isTrade && pNum <= 0 && aNum <= 0 -> "Enter a price per share, or the total amount"
         !isTrade && aNum <= 0 -> "Enter an amount"
+        feeNum < 0 -> "Fees can't be negative"
         else -> null
     }
 
