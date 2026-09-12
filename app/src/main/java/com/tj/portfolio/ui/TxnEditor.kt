@@ -221,21 +221,37 @@ fun TxnEditorDialog(
                         }
                     }
                 }
-                if (isTrade || type == TxnType.DIVIDEND) {
+                if (isTrade || type == TxnType.DIVIDEND || isSplit) {
                     EditField("Symbol", symbol) { symbol = it.uppercase() }
                 }
-                if (isTrade) {
-                    EditField("Shares", qty, numeric = true) { qty = it }
-                    EditField("Price per share", price, numeric = true) { price = it }
+                if (isSplit) {
+                    // The ratio lives in `quantity` - see [TxnType.SPLIT]. No price, no
+                    // amount and no fee: a split moves no money and costs nothing.
+                    EditField("Split ratio", qty, numeric = true) { qty = it }
+                    Text(
+                        if (qNum > 0 && kotlin.math.abs(qNum - 1.0) > 1e-9)
+                            "Every 1 share you held becomes ${Fmt.shares(qNum)}. Your total " +
+                                "cost basis does not change, so the cost per share is divided " +
+                                "by the same ratio."
+                        else
+                            "10 for a 10-for-1 split, 0.1 for a 1-for-10 reverse split.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    if (isTrade) {
+                        EditField("Shares", qty, numeric = true) { qty = it }
+                        EditField("Price per share", price, numeric = true) { price = it }
+                    }
+                    EditField(
+                        // Named for what it is: the net figure off a confirmation, fee included.
+                        // "Total amount" left it ambiguous whether the fee was in or out, and the
+                        // two readings give different cost bases.
+                        if (isTrade) "Total cash moved, fees included (optional)" else "Amount",
+                        amount, numeric = true
+                    ) { amount = it }
+                    EditField("Fees", fees, numeric = true) { fees = it; feesTouched = true }
                 }
-                EditField(
-                    // Named for what it is: the net figure off a confirmation, fee included.
-                    // "Total amount" left it ambiguous whether the fee was in or out, and the
-                    // two readings give different cost bases.
-                    if (isTrade) "Total cash moved, fees included (optional)" else "Amount",
-                    amount, numeric = true
-                ) { amount = it }
-                EditField("Fees", fees, numeric = true) { fees = it; feesTouched = true }
                 if (isTrade) {
                     Text(
                         expected.explain(),
