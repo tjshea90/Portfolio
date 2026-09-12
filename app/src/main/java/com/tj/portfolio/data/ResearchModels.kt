@@ -317,6 +317,8 @@ data class ResearchRow(
         if (setup.isNotBlank()) put("setup", setup)
         if (trigger.isNotBlank()) put("trigger", trigger)
         if (planNote.isNotBlank()) put("planNote", planNote)
+        if (planExit.isNotBlank()) put("planExit", planExit)
+        if (tooLateToStart) put("tooLateToStart", true)
         if (planByClaude) put("planByClaude", true)
         if (atrIntraday > 0) put("atrIntraday", atrIntraday)
         if (adr > 0) put("adr", adr)
