@@ -189,7 +189,7 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
             }
         }
 
-        items(advice?.stocks.orEmpty()) { s -> RatingCard(s) }
+        items(advice?.stocks.orEmpty(), key = { it.symbol }) { s -> RatingCard(s) }
     }
     }
 }
