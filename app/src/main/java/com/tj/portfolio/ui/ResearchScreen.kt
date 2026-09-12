@@ -1151,7 +1151,7 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
                 "TOO LATE TO START TODAY - not enough of the session left",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.error
+                color = redText
             )
         }
         Spacer(Modifier.height(6.dp))
