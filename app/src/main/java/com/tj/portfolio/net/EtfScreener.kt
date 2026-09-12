@@ -290,8 +290,6 @@ object EtfScreener {
         return out
     }
 
-    private fun d(o: JSONObject, key: String): Double {
-        val v = o.optDouble(key, 0.0)
-        return if (v.isNaN() || v.isInfinite()) 0.0 else v
-    }
+    /** See [com.tj.portfolio.util.finiteDouble] - the shared NaN/Infinite-guarded optDouble. */
+    private fun d(o: JSONObject, key: String): Double = o.finiteDouble(key)
 }
