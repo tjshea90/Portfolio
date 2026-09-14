@@ -245,6 +245,16 @@ data class ResearchRow(
      */
     val planDeclineStreak: Int = 0,
     /**
+     * WHY THE ENGINE DECLINED A PLAN FOR THIS ROW (Round 75) - blank whenever [entryPrice] > 0,
+     * set only once a decline is CONFIRMED (the same 2-tick hysteresis [planDeclineStreak]
+     * already provides, so this never flashes in and out with the levels it explains). Tj: "for
+     * all the ones that are not good candidates, give a short explanation." Bookkeeping/UI text,
+     * not sent to Claude and not in [toJson] - same treatment as [planDeclineStreak] itself,
+     * since a model reasoning about a stock from scratch has no use for the app's own reason it
+     * declined to plan one.
+     */
+    val planReason: String = "",
+    /**
      * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
      * volume-weighted average price, and the 09:30-10:00 ET opening range. See
      * `net/DayTradingTechnicals.kt`'s header for the research these come from. All zero until
