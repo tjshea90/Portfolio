@@ -135,7 +135,7 @@ conviction scores, is a more useful answer than a padded one.
 
 ## IMPORTANT - how to answer
 
-End your reply with a single fenced ```json code block matching the schema below.
+${ClaudeBridge.FILE_DELIVERY_INSTRUCTIONS}
 
 **The block is a SCHEMA, not an example answer.** Every `<...>` is a description of what
 belongs there - replace each with your own real value. Your JSON must be valid: no `<`, no
@@ -146,8 +146,8 @@ through.
 $SHAPE
 ```
 
-Then save that reply as a `.txt` or `.md` file and import it in the app: Watch tab -> Research
--> Day Trading -> Import Claude's answer.
+Import the file (or your saved reply) in the app: Watch tab -> Research -> Day Trading ->
+Import Claude's answer.
 
 ---
 
