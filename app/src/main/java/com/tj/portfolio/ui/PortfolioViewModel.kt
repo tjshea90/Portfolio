@@ -6031,12 +6031,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // as the header above still requires - this fires once per rebuild, not every 30 seconds.
         val finalRows = if (sweeping) {
             dayTradingSweepDone = true
-            updated.sortedWith(
-                compareByDescending<com.tj.portfolio.data.ResearchRow> { it.entryPrice > 0.0 }
-                    .thenByDescending {
-                        com.tj.portfolio.net.ResearchScore.blendedScore(it.dtLikelihood, it.dtConfidence)
-                    }
-            )
+            sortDayTradingForActionability(updated)
         } else updated
         if (changed || sweeping) {
             _research.value = _research.value.withSection(name, finalRows)
