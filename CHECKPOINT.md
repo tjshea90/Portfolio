@@ -1,13 +1,13 @@
-# CHECKPOINT 696 — read me first, then TASKS.md
+# CHECKPOINT 697 — read me first, then TASKS.md
 
-**Written:** 2026-09-14T20:52:21Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/stock-advice-review-6son4z` · **builds on:** `8de9083` (this checkpoint is the commit after it)
+**Written:** 2026-09-14T21:01:33Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/stock-advice-review-6son4z` · **builds on:** `8e968f7` (this checkpoint is the commit after it)
 
 ## Just done
-Shipped v7.22 (code 79): ship.sh gate passed (checkinit, full unit suite, versionCode check), commit pushed, GitHub Actions run #22 (id 34895478607) triggered on main with full_build=true and is queued/running.
+v7.22 (code 79) shipped end to end: GitHub Actions run #22 built, signed, verified its own certificate, created the v7.22 tag and published the Release; recorded in BUILDLOG.md. Part 13 complete: closed the gap in the Day Trading tab where most stocks showed neither red text nor buy/sell targets, added visible explanations for declined stocks, sorted the section once per rebuild so actionable stocks (with clear buy/sell targets) sit at the top, and traced through the UI for flicker/missing-item bugs.
 
 ## Do this next
-Wait for run #22 to go green, confirm the v7.22 Release is published (get_release_by_tag), then bash tools/record-release.sh v7.22 with the same release note ship.sh already printed. Then tell Tj it's shipped.
+Nothing queued - Part 13 is done and shipped. Wait for Tj's next request.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Wait for run #22 to go green, confirm the v7.22 Release is published (get_releas
 
 ## Last ten checkpoints
 ```
+  f2c635d ckpt 696: Shipped v7.22 (code 79): ship.sh gate passed (checkinit, full unit suite, vers
   8de9083 ckpt 695: gated v7.22 (code 79) and pushed it: checkinit, the full unit suite and the ve
   33e3b91 ckpt 694: Finished Part 13's implementation: tradePlan now exposes a decline reason (pla
   f8402fb ckpt 693: Recorded Part 13 in TASKS.md: Tj wants actionable Day Trading stocks surfaced 
@@ -25,5 +26,7 @@ Wait for run #22 to go green, confirm the v7.22 Release is published (get_releas
   948287b ckpt 689: gated v7.20 (code 77) and pushed it: checkinit, the full unit suite and the ve
   0b9d76f ckpt 688: Part 11 regression sweep: 2 parallel agents plus my own direct trace found and
   2eef663 ckpt 687: Recorded Part 10 in TASKS.md: what was fixed, how each fix was verified, why o
-  c9b335e ckpt 686: Part 10 code review (high effort) over the whole money-accuracy diff found 4 r
 ```
+
+(1 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
