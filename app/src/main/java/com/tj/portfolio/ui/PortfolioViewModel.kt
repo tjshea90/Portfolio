@@ -751,6 +751,28 @@ internal fun mergeDayTradingTech(
  *  [mergeDayTradingTech] actually withdraws a level - see its own note on why. */
 private const val DAY_TRADING_DECLINE_CONFIRM_TICKS = 2
 
+/**
+ * The one-time reorder a completed Day Trading full sweep applies (Round 75) - see
+ * [PortfolioViewModel.enrichDayTradingVisible]'s own header for when this runs and why it is
+ * NOT the ordinary 30-second refresh. Tj: "try to find and show the actual stocks that I can
+ * act on currently at the top of the list."
+ *
+ * ACTIONABLE ROWS FIRST (a real, current [ResearchRow.entryPrice] - the app's own plan or
+ * Claude's), RANKED BY [ResearchScore.blendedScore] WITHIN EACH GROUP. `sortedWith` is a STABLE
+ * sort, so two rows that tie on both keys keep whatever relative order they already had - the
+ * screener's own build-time ranking, never an arbitrary reshuffle. PURE, so this can be tested
+ * without a ViewModel or a network call, the same reason [mergeDayTradingTech] is its own
+ * top-level function.
+ */
+internal fun sortDayTradingForActionability(
+    rows: List<com.tj.portfolio.data.ResearchRow>
+): List<com.tj.portfolio.data.ResearchRow> = rows.sortedWith(
+    compareByDescending<com.tj.portfolio.data.ResearchRow> { it.entryPrice > 0.0 }
+        .thenByDescending {
+            com.tj.portfolio.net.ResearchScore.blendedScore(it.dtLikelihood, it.dtConfidence)
+        }
+)
+
 /** @see mergeDayTradingTech - a level the engine declined (twice running) is cleared, one it
  *  could not see is kept. */
 private fun keepOrClear(previous: Double, confirmedDecline: Boolean): Double =
