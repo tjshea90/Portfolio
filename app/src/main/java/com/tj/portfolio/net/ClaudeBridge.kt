@@ -192,7 +192,7 @@ $alreadyHave
 
 ## IMPORTANT - how to answer
 
-End your reply with a single fenced ```json code block in exactly this shape.
+$FILE_DELIVERY_INSTRUCTIONS The shape is exactly this.
 
 **The two rows below are placeholders showing the field layout - they are NOT data.** The
 ticker `$EXAMPLE_SYMBOL` and the date `$EXAMPLE_DATE` exist only to mark them as fake, and my app
