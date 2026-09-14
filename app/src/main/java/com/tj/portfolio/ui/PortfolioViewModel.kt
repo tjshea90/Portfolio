@@ -649,8 +649,11 @@ internal fun mergeDayTradingTech(
     // all the stocks"). The row's LEVELS still refresh underneath it, so the dialog shows live
     // VWAP and session structure beside Claude's plan; the plan itself stands until the next
     // full screener rebuild, which clears the whole section anyway.
-    val plan = if (row.planByClaude) null
-    else com.tj.portfolio.net.ResearchScore.tradePlan(
+    // PLAN AND REASON, FROM ONE CALL (Round 75) - `planInternal` is what `tradePlan` and
+    // `tradePlanDeclineReason` each individually wrap; calling it directly here computes the
+    // decision exactly once per tick instead of twice.
+    val (plan, declineReason) = if (row.planByClaude) null to ""
+    else com.tj.portfolio.net.ResearchScore.planInternal(
         row.price,
         effective,
         minutesLeft = minutesLeft,
