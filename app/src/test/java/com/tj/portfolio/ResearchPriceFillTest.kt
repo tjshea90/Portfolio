@@ -512,4 +512,46 @@ class ResearchPriceFillTest {
         val early = mergeDayTradingTech(extended(planByClaude = true), spentDay(), minutesLeft = 300)
         assertFalse("and it clears again on a row imported earlier", early.tooLateToStart)
     }
+
+    // ==================================== sortDayTradingForActionability (Round 75)
+    //
+    // Tj: "try to find and show the actual stocks that I can act on currently at the top of
+    // the list, with buy and sell target prices clearly listed."
+
+    private fun row(symbol: String, entry: Double, likelihood: Int, confidence: Int) = ResearchRow(
+        symbol = symbol, price = 100.0, entryPrice = entry,
+        dtLikelihood = likelihood, dtConfidence = confidence
+    )
+
+    @Test fun `actionable rows sort above declined rows regardless of score`() {
+        val weakButActionable = row("WEAK", entry = 10.0, likelihood = 20, confidence = 20)
+        val strongButDeclined = row("STRONG", entry = 0.0, likelihood = 90, confidence = 90)
+        val out = sortDayTradingForActionability(listOf(strongButDeclined, weakButActionable))
+        assertEquals(listOf("WEAK", "STRONG"), out.map { it.symbol })
+    }
+
+    @Test fun `within each group, higher blended score sorts first`() {
+        val low = row("LOW", entry = 10.0, likelihood = 40, confidence = 40)
+        val high = row("HIGH", entry = 10.0, likelihood = 90, confidence = 90)
+        val out = sortDayTradingForActionability(listOf(low, high))
+        assertEquals(listOf("HIGH", "LOW"), out.map { it.symbol })
+    }
+
+    @Test fun `a tie on both keys keeps the original relative order - a stable sort, not a coin flip`() {
+        val a = row("A", entry = 0.0, likelihood = 50, confidence = 50)
+        val b = row("B", entry = 0.0, likelihood = 50, confidence = 50)
+        val out = sortDayTradingForActionability(listOf(a, b))
+        assertEquals(listOf("A", "B"), out.map { it.symbol })
+    }
+
+    @Test fun `a Claude-authored actionable row has no likelihood to rank by, but still sorts above every decline`() {
+        // planByClaude rows carry dtLikelihood/dtConfidence = 0 (ResearchRow.dtLikelihood's own
+        // header) - so a real Claude plan must still out-rank every row the app declined, even
+        // though its blended score is the lowest possible.
+        val claudePlan = row("CLAUDE", entry = 25.0, likelihood = 0, confidence = 0)
+            .copy(planByClaude = true)
+        val appDeclined = row("DECLINED", entry = 0.0, likelihood = 99, confidence = 99)
+        val out = sortDayTradingForActionability(listOf(appDeclined, claudePlan))
+        assertEquals(listOf("CLAUDE", "DECLINED"), out.map { it.symbol })
+    }
 }
