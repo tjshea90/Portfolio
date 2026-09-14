@@ -172,6 +172,66 @@ class DayTradingTest {
         assertNull(ResearchScore.tradePlan(100.0, tech()))
     }
 
+    // ==================================== the decline reason (Round 75)
+    //
+    // Tj, reviewing v7.21 live: "for all the ones that are not good candidates, give a short
+    // explanation." Every null `tradePlan` returns has a reason behind it; these pin what that
+    // reason actually says for the two ways the app's own screener most often produces one -
+    // an already-extended stock with no room left, and the 2:1 fallback landing on the price.
+
+    @Test fun `the decline reason names missing data, not a verdict, when there is nothing to judge`() {
+        assertEquals(
+            "no live price is not a decision the engine made",
+            "No live price yet.",
+            ResearchScore.tradePlanDeclineReason(0.0, tech(atrIntraday = 1.0))
+        )
+        assertTrue(
+            "no volatility reading is the same 'could not look' case",
+            ResearchScore.tradePlanDeclineReason(100.0, tech())
+                .contains("No volatility reading yet")
+        )
+    }
+
+    @Test fun `the decline reason for a spent day names the room, not a made-up excuse`() {
+        // The exact fixture from "a day whose remaining room sits below the last price produces
+        // no plan at all", just above - `tradePlan` returns null for it; this pins WHY.
+        val reason = ResearchScore.tradePlanDeclineReason(
+            110.0,
+            tech(
+                atrIntraday = 1.0, vwap = 100.0, adr = 10.0,
+                orHigh = 105.0, orLow = 102.0,
+                sessionHigh = 110.0, sessionLow = 99.0
+            )
+        )
+        assertTrue(reason.contains("Already moved most of today's likely range"))
+        // And a real plan's reason is blank - callers only show this alongside a null plan.
+        assertEquals(
+            "",
+            ResearchScore.tradePlanDeclineReason(
+                100.0,
+                tech(
+                    atrIntraday = 1.0, vwap = 99.0,
+                    orHigh = 100.5, orLow = 99.5,
+                    sessionHigh = 100.5, sessionLow = 99.0
+                )
+            )
+        )
+    }
+
+    @Test fun `the decline reason for the exhausted 2 to 1 convention names the missing resistance`() {
+        // The exact fixture from "the 2 to 1 convention may not put the target where the price
+        // already is", just below.
+        val reason = ResearchScore.tradePlanDeclineReason(
+            110.0,
+            tech(
+                atrIntraday = 1.0, vwap = 100.0,
+                orHigh = 105.0, orLow = 102.0,
+                sessionHigh = 110.0, sessionLow = 99.0
+            )
+        )
+        assertTrue(reason.contains("No resistance level far enough above"))
+    }
+
     @Test fun `a breakout entry sits ABOVE the current price, at the level plus a break buffer`() {
         // Price 100, holding above VWAP, with the opening-range high at 100.50 overhead.
         val plan = ResearchScore.tradePlan(
