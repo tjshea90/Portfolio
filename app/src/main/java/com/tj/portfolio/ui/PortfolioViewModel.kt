@@ -730,6 +730,15 @@ internal fun mergeDayTradingTech(
         planNote = plan?.note ?: keepOrClear(row.planNote, confirmedDecline),
         planExit = plan?.exit ?: keepOrClear(row.planExit, confirmedDecline),
         planDeclineStreak = declineStreak,
+        // SAME RULE AS THE LEVELS ABOVE, one tick later than `declined` alone. A real plan
+        // clears it immediately; an UNCONFIRMED decline keeps whatever was already there
+        // (blank, on a row that has never shown a reason yet) so the reason cannot flash in
+        // before the levels it explains have actually gone.
+        planReason = when {
+            plan != null -> ""
+            confirmedDecline -> declineReason
+            else -> row.planReason
+        },
         // CLOCK-DERIVED, NOT PLAN-DERIVED - and so it keeps updating even on a tick that
         // produced no plan at all, and on a Claude-authored row this function never re-plans.
         // See `ResearchScore.tooLateToStart` for the two ways the old plan-bundled version
