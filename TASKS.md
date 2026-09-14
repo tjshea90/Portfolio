@@ -1041,6 +1041,9 @@ gate is green.
       (1065 baseline + 10 net new) — confirmed on three separate runs; one run hit an
       unrelated Robolectric network flake in `BackgroundTest` (untouched by this diff) that
       passed clean both in isolation and on a full-suite retry.
-- [ ] Ship once confident: `ship.sh`, then trigger `android.yml` via the GitHub API, confirm
-      the run goes green, `tools/record-release.sh`.
+- [x] Shipped: v7.22 (code 79). `ship.sh` gate passed here (checkinit, full unit suite,
+      versionCode check), GitHub Actions run #22 built, signed, verified its own certificate,
+      created the `v7.22` tag and published the Release; recorded in `BUILDLOG.md`. Tj grabs
+      it himself from https://github.com/tjshea90/Portfolio/releases/tag/v7.22 (Claude does
+      not relay release-asset bytes, per the standing rule in CLAUDE.md).
 - [ ] Ship (awaiting Tj).
