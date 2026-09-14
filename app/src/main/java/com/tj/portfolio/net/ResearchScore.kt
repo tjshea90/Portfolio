@@ -668,8 +668,15 @@ object ResearchScore {
      * Null when there is nothing real to build from - no price, or neither an intraday nor a
      * daily ATR. The caller then shows no plan at all, which is the honest output: the levels
      * ARE the feature, and a fabricated one is worse than a blank.
+     *
+     * RETURNS THE REASON ALONGSIDE THE NULL (Round 75). A null used to be the whole answer - the
+     * caller could show nothing else, because there was nothing else to show. Tj: "for all the
+     * ones that are not good candidates, give a short explanation" - so every bail-out point
+     * below now also states, in one line, what it saw. `tradePlan`/`tradePlanDeclineReason`
+     * below are thin wrappers so none of this function's existing callers change shape; the pair
+     * is what actually decides.
      */
-    fun tradePlan(
+    internal fun planInternal(
         price: Double,
         tech: DayTradingTechnicals.DayTechnicals,
         /**
