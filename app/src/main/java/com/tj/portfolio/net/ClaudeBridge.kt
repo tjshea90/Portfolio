@@ -210,7 +210,7 @@ you send must come from something you can actually see in a screenshot.
 }
 ```
 
-Then save that reply as a `.txt` or `.md` file and import it in the app's Activity tab.
+Import the file (or your saved reply) in the app's Activity tab.
 """.trimIndent()
 
     // -------------------------------------------------- template detection
