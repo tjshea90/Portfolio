@@ -5918,14 +5918,27 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * would compound both forever. The risk plan ([ResearchScore.tradePlan]) has no
      * such problem - they are computed fresh from the current price and ATR every time, never
      * from their own last output - so those DO refresh on every tick.
+     *
+     * THE FIRST CALL AFTER A REBUILD SWEEPS THE WHOLE SECTION, NOT JUST THE VISIBLE WINDOW
+     * (Round 75). Tj: "make this section try to find and show the actual stocks that I can act
+     * on currently at the top of the list... it can use as much mobile Internet data as needed
+     * ... but only when I have that tab open" (his own words, Part 4, already covering exactly
+     * this cost). [dayTradingSweepDone] gates it to once per rebuild - every call after the
+     * first goes back to the paged `shown` window, unchanged from before this round. The sort
+     * that follows a completed sweep is the ONLY place this section's order ever changes after
+     * build time; it does not reopen the "never re-sorted" rule the header above states for the
+     * ordinary tick-to-tick refresh - see the sort call at the end of this function for why.
      */
     private suspend fun enrichDayTradingVisible() {
         val name = com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING
         val rows = _research.value.section(name)
         if (rows.isEmpty()) return
-        val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
-            .coerceAtMost(rows.size)
-        val head = rows.take(shown)
+        val sweeping = !dayTradingSweepDone
+        val head = if (sweeping) rows else {
+            val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
+                .coerceAtMost(rows.size)
+            rows.take(shown)
+        }
         // CONCURRENT, GATED - the same `Semaphore(MAX_PARALLEL_REQUESTS)` + `async`/`awaitAll`
         // shape this file already uses for every other visible-window fetch (sparkline
         // refresh, insider refresh, fundamentals prefetch). Fetching this sequentially - a
