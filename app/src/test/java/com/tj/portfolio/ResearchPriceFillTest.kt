@@ -390,20 +390,52 @@ class ResearchPriceFillTest {
         sessionDay = TODAY, planByClaude = planByClaude
     )
 
-    @Test fun `levels the engine has DECLINED to stand behind are cleared, not frozen on screen`() {
-        // THE BUG. Round 73 made "no plan" reachable mid-session for the first time: once a
-        // stock has spent its average daily range, every subsequent tick declines. The old rule
-        // - keep the previous plan whenever this tick produced none - then pinned the MORNING's
-        // entry, stop and target to the card for the rest of the afternoon, describing a trade
-        // the app itself no longer believed in, directly above a beginner card reading "too late
-        // for this one today".
+    @Test fun `a single declined tick is noise, not a verdict - the plan survives it`() {
+        // THE ROUND 74 BUG. Several of `tradePlan`'s "no trade" verdicts are decided against a
+        // boundary the LIVE PRICE sits right next to for exactly the stocks this section
+        // screens for - already moving hard - so a price wobbling a few cents either side of it
+        // flipped the verdict every 30-second tick. Clearing the whole grid on the FIRST decline
+        // meant a plan the reader was just looking at - and the red planNote/beginner-summary
+        // text drawn from it - would vanish and reappear on a clock nobody could see, describing
+        // a trade whose real state had not changed. One declined tick must not withdraw a level.
         val out = mergeDayTradingTech(extended(), spentDay(), minutesLeft = 120)
-        assertEquals("a level the engine withdrew is a blank", 0.0, out.entryPrice, 0.0)
+        assertEquals("one declined tick must not clear a level already on screen", 105.1, out.entryPrice, 0.001)
+        assertEquals(103.6, out.stopPrice, 0.001)
+        assertEquals(109.0, out.targetPrice, 0.001)
+        assertEquals("Pullback", out.setup)
+        assertEquals("a decline is counted even though it is not yet acted on", 1, out.planDeclineStreak)
+    }
+
+    @Test fun `levels the engine has DECLINED to stand behind on two ticks running are cleared, not frozen on screen`() {
+        // THE ORIGINAL ROUND 73 BUG, STILL FIXED. Round 73 made "no plan" reachable mid-session
+        // for the first time: once a stock has spent its average daily range, every subsequent
+        // tick declines. The old rule - keep the previous plan whenever a tick produced none -
+        // then pinned the MORNING's entry, stop and target to the card for the rest of the
+        // afternoon, describing a trade the app itself no longer believed in, directly above a
+        // beginner card reading "too late for this one today". A SECOND straight decline still
+        // clears it - the Round 74 hysteresis above only buys one extra tick, not indefinitely.
+        val once = mergeDayTradingTech(extended(), spentDay(), minutesLeft = 120)
+        val out = mergeDayTradingTech(once, spentDay(), minutesLeft = 120)
+        assertEquals("a level the engine withdrew twice running is a blank", 0.0, out.entryPrice, 0.0)
         assertEquals(0.0, out.stopPrice, 0.0)
         assertEquals(0.0, out.targetPrice, 0.0)
         assertEquals("", out.setup)
         assertEquals("", out.trigger)
         assertEquals("", out.planNote)
+        assertEquals(2, out.planDeclineStreak)
+    }
+
+    @Test fun `a real plan returning resets the decline streak to zero`() {
+        val declinedOnce = mergeDayTradingTech(extended(), spentDay(), minutesLeft = 120)
+        assertEquals(1, declinedOnce.planDeclineStreak)
+        val recovered = mergeDayTradingTech(
+            declinedOnce, tech(atr = 1.0, prevHigh = 23.0, prevLow = 22.0, prevClose = 22.4)
+        )
+        assertEquals(
+            "a real plan is not a verdict this function debounces - it takes effect immediately",
+            0, recovered.planDeclineStreak
+        )
+        assertTrue(recovered.entryPrice > 0.0)
     }
 
     @Test fun `but levels the engine could not even LOOK at survive, exactly as before`() {
