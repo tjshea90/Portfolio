@@ -854,7 +854,9 @@ object ResearchScore {
         val targetFromRoom: Boolean
         when {
             // Measured, and there is no room worth trading into today.
-            ceilingKnown && !ceilingUsable -> return null
+            ceilingKnown && !ceilingUsable -> return null to
+                "Already moved most of today's likely range - not enough room left to " +
+                    "target a worthwhile reward."
             // Real supply overhead: that is the objective, never further than the day reaches.
             nearestAbove != null && roomCeiling < nearestAbove.price -> {
                 target = roomCeiling
