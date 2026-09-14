@@ -1601,8 +1601,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Every symbol already given its one-time technicals score bonus this rebuild - see
      *  [enrichDayTradingVisible] for why this must be "once", not "every refresh". */
     private val dayTradingTechScored = HashSet<String>()
-    /** True once [sweepAllDayTrading]'s one-time full-section pass has run for the current
-     *  rebuild - see its own header. Reset alongside [dayTradingTechScored]. */
+    /** True once [enrichDayTradingVisible]'s one-time full-section sweep has run for the
+     *  current rebuild - see its own header. Reset alongside [dayTradingTechScored]. */
     private var dayTradingSweepDone = false
 
     // ================================================================ PRICE CHARTS
