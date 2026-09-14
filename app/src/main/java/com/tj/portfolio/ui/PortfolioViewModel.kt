@@ -719,13 +719,14 @@ internal fun mergeDayTradingTech(
         // missing price or a missing ATR, so with both of those present any null is a judgment,
         // not a gap - and a judgment of "no trade here" is published as a blank, which is what
         // this file's own rule ("a fabricated level is worse than a blank") already requires.
-        entryPrice = plan?.entry ?: keepOrClear(row.entryPrice, declined),
-        stopPrice = plan?.stop ?: keepOrClear(row.stopPrice, declined),
-        targetPrice = plan?.target ?: keepOrClear(row.targetPrice, declined),
-        setup = plan?.setup ?: keepOrClear(row.setup, declined),
-        trigger = plan?.trigger ?: keepOrClear(row.trigger, declined),
-        planNote = plan?.note ?: keepOrClear(row.planNote, declined),
-        planExit = plan?.exit ?: keepOrClear(row.planExit, declined),
+        entryPrice = plan?.entry ?: keepOrClear(row.entryPrice, confirmedDecline),
+        stopPrice = plan?.stop ?: keepOrClear(row.stopPrice, confirmedDecline),
+        targetPrice = plan?.target ?: keepOrClear(row.targetPrice, confirmedDecline),
+        setup = plan?.setup ?: keepOrClear(row.setup, confirmedDecline),
+        trigger = plan?.trigger ?: keepOrClear(row.trigger, confirmedDecline),
+        planNote = plan?.note ?: keepOrClear(row.planNote, confirmedDecline),
+        planExit = plan?.exit ?: keepOrClear(row.planExit, confirmedDecline),
+        planDeclineStreak = declineStreak,
         // CLOCK-DERIVED, NOT PLAN-DERIVED - and so it keeps updating even on a tick that
         // produced no plan at all, and on a Claude-authored row this function never re-plans.
         // See `ResearchScore.tooLateToStart` for the two ways the old plan-bundled version
@@ -734,10 +735,17 @@ internal fun mergeDayTradingTech(
     )
 }
 
-/** @see mergeDayTradingTech - a level the engine declined is cleared, one it could not see is kept. */
-private fun keepOrClear(previous: Double, declined: Boolean): Double = if (declined) 0.0 else previous
+/** How many consecutive live ticks [ResearchScore.tradePlan] must decline before
+ *  [mergeDayTradingTech] actually withdraws a level - see its own note on why. */
+private const val DAY_TRADING_DECLINE_CONFIRM_TICKS = 2
 
-private fun keepOrClear(previous: String, declined: Boolean): String = if (declined) "" else previous
+/** @see mergeDayTradingTech - a level the engine declined (twice running) is cleared, one it
+ *  could not see is kept. */
+private fun keepOrClear(previous: Double, confirmedDecline: Boolean): Double =
+    if (confirmedDecline) 0.0 else previous
+
+private fun keepOrClear(previous: String, confirmedDecline: Boolean): String =
+    if (confirmedDecline) "" else previous
 
 /**
  * The likelihood/confidence half of a Day Trading row's live enrichment (Round 72) - split out
