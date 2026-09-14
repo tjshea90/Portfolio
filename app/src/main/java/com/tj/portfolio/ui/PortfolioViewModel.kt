@@ -6021,8 +6021,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             dayTradingTechScored.add(row.symbol)
             scoreDayTradingRow(withLevels, effectiveTechnicals(row, tech))
         }
-        if (changed) {
-            _research.value = _research.value.withSection(name, updated)
+        // THE ONE-TIME SORT (Round 75). A completed sweep knows, for the first time, which rows
+        // actually have a plan - so this is the one moment "put the actionable ones at the top"
+        // can be answered honestly rather than guessed at build time (before any technicals
+        // exist). ACTIONABLE FIRST (a real, current entry/stop/target - the app's own or
+        // Claude's), RANKED BY SCORE WITHIN EACH GROUP - `sortedWith` is stable, so two rows
+        // that tie on both keys keep the screener's own relative order. Every ordinary tick
+        // after this one goes back to updating levels IN PLACE with no re-sort at all, exactly
+        // as the header above still requires - this fires once per rebuild, not every 30 seconds.
+        val finalRows = if (sweeping) {
+            dayTradingSweepDone = true
+            updated.sortedWith(
+                compareByDescending<com.tj.portfolio.data.ResearchRow> { it.entryPrice > 0.0 }
+                    .thenByDescending {
+                        com.tj.portfolio.net.ResearchScore.blendedScore(it.dtLikelihood, it.dtConfidence)
+                    }
+            )
+        } else updated
+        if (changed || sweeping) {
+            _research.value = _research.value.withSection(name, finalRows)
             cacheResearch(_research.value)
         }
     }
