@@ -914,8 +914,32 @@ object ResearchScore {
                 minutesLeft, middayLull, earningsToday, vol, tooLate, targetFromRoom
             )
         )
-        return plan
+        return plan to ""
     }
+
+    /** The plan half of [planInternal] - unchanged shape, so every existing caller/test of
+     *  `tradePlan` is untouched by Round 75's addition of a decline reason. */
+    fun tradePlan(
+        price: Double,
+        tech: DayTradingTechnicals.DayTechnicals,
+        minutesLeft: Int = 0,
+        middayLull: Boolean = false,
+        earningsToday: Boolean = false
+    ): TradePlan? = planInternal(price, tech, minutesLeft, middayLull, earningsToday).first
+
+    /**
+     * The reason half of [planInternal] - meaningful only when [tradePlan] with the same
+     * arguments returns null; blank when it returns a plan. Kept as a separate public function
+     * (rather than changing what `tradePlan` returns) so this Round 75 addition cannot disturb
+     * any of the 30+ existing call sites that already assert `TradePlan?`.
+     */
+    fun tradePlanDeclineReason(
+        price: Double,
+        tech: DayTradingTechnicals.DayTechnicals,
+        minutesLeft: Int = 0,
+        middayLull: Boolean = false,
+        earningsToday: Boolean = false
+    ): String = planInternal(price, tech, minutesLeft, middayLull, earningsToday).second
 
     /** Flatten by 15:50 ET rather than 16:00 - see [exitPlan]. */
     private const val FLATTEN_BEFORE_CLOSE_MINUTES = 10
