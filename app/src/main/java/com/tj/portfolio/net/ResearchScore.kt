@@ -694,14 +694,14 @@ object ResearchScore {
          * a disqualifier: an earnings day is the canonical reason a stock is in play at all.
          */
         earningsToday: Boolean = false
-    ): TradePlan? {
-        if (price <= 0.0) return null
+    ): Pair<TradePlan?, String> {
+        if (price <= 0.0) return null to "No live price yet."
         val vol = when {
             tech.atrIntraday > 0.0 -> tech.atrIntraday
             tech.atr14 > 0.0 -> tech.atr14 * INTRADAY_ATR_FROM_DAILY
-            else -> return null
+            else -> return null to "No volatility reading yet - not enough data to size a plan."
         }
-        if (vol <= 0.0) return null
+        if (vol <= 0.0) return null to "No volatility reading yet - not enough data to size a plan."
         val buffer = maxOf(0.01, vol * BREAK_BUFFER_ATRS)
 
         // ONLY THE LIVE SESSION'S LEVELS COUNT AS THE LIVE SESSION'S - a correction caught
