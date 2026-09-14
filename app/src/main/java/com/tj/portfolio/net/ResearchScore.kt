@@ -780,7 +780,7 @@ object ResearchScore {
                 entryLevel = next?.name ?: "the current session high"
             }
         }
-        if (entry <= 0.0) return null
+        if (entry <= 0.0) return null to "No valid entry level found."
 
         // ---- 3: the stop, under the structure that would say the setup failed.
         val structural = below.filter { it.price < entry }.maxByOrNull { it.price }
@@ -789,7 +789,7 @@ object ResearchScore {
         val maxRisk = maxOf(vol * MAX_RISK_ATRS, minRisk)
         val risk = rawRisk.coerceIn(minRisk, maxRisk)
         val stop = entry - risk
-        if (stop <= 0.0) return null
+        if (stop <= 0.0) return null to "The computed stop would be at or below zero."
 
         // ---- 4: the target - the nearest real supply, capped by the room the day has left.
         //
