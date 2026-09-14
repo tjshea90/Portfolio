@@ -667,6 +667,28 @@ internal fun mergeDayTradingTech(
     // price or a missing volatility reading, so with both present a null is a decision.
     val declined = plan == null && !row.planByClaude && row.price > 0.0 &&
         (effective.atrIntraday > 0.0 || effective.atr14 > 0.0)
+    // ---- A DECLINE HAS TO REPEAT BEFORE IT CLEARS THE SCREEN (Round 74).
+    //
+    // THE BUG. Several of `tradePlan`'s "no trade" verdicts - no room left in the day, the
+    // target already passed - are decided against a boundary the LIVE PRICE sits right next
+    // to for exactly the kind of stock this section screens for: one already moving hard. A
+    // price wobbling a few cents either side of that line flipped the verdict every 30-second
+    // tick, and clearing the whole plan on the FIRST decline meant the grid - and the red
+    // `planNote`/beginner-summary text drawn from it - would load, vanish and reappear on a
+    // clock the reader could never see, describing a trade whose real state had not changed.
+    //
+    // [ResearchRow.planDeclineStreak] counts consecutive declined ticks; a level is only
+    // actually withdrawn once the streak reaches [DAY_TRADING_DECLINE_CONFIRM_TICKS]. A real
+    // plan returning resets the streak to zero immediately - there is no debounce on GOOD
+    // news, only on clearing what is already on screen. This does not reintroduce the stale-
+    // plan bug Round 73 fixed: a genuinely dead plan still clears within one extra tick, not
+    // for the rest of the afternoon.
+    val declineStreak = when {
+        plan != null -> 0
+        declined -> row.planDeclineStreak + 1
+        else -> row.planDeclineStreak
+    }
+    val confirmedDecline = declined && declineStreak >= DAY_TRADING_DECLINE_CONFIRM_TICKS
     return row.copy(
         atr = effective.atr14,
         vwap = effective.vwap,
