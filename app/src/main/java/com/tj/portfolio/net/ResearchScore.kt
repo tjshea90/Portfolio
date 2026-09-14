@@ -887,7 +887,8 @@ object ResearchScore {
         // $100 VWAP was handed "buy at 100, sell at 104" while trading at 110. Rejecting it
         // against `entry` alone could not see that: 104 is comfortably above 100. A target the
         // price has already passed is not a target on ANY of the three paths.
-        if (target <= above) return null
+        if (target <= above) return null to
+            "No resistance level far enough above the current price for a worthwhile target."
 
         val tooLate = live && tooLateToStart(minutesLeft)
         val plan = TradePlan(
