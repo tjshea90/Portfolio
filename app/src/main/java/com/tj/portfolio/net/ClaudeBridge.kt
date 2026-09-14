@@ -36,6 +36,24 @@ object ClaudeBridge {
      */
     const val PROMPT_MARK = "portfolio-app-prompt-file"
 
+    /**
+     * THE INSTRUCTION THAT ASKS CLAUDE FOR AN ACTUAL FILE, NOT JUST A CHAT MESSAGE (Round 74).
+     * Shared by every prompt this app writes, so the fix cannot land in one and be missed in
+     * the other three.
+     *
+     * THE BUG THIS FIXES. Every prompt used to say only *"save that reply as a .txt or .md
+     * file"* - putting the file-creation step entirely on the user, after the fact, by hand.
+     * On a phone that means copying Claude's whole chat reply out and pasting it into some
+     * other app that can save plain text, which is not obvious and easy to get wrong - and is
+     * exactly what one report of "it gave me an answer in the chat and a copy-and-paste JSON
+     * code, but the app is looking for a file" described. Claude's own apps can write a file
+     * directly into the chat as a download; asking for that FIRST - with the old manual
+     * copy-paste kept only as a fallback for a client that genuinely cannot make one - gets a
+     * real file with nothing more than tapping the same "Import answer" button that was
+     * already there.
+     */
+    const val FILE_DELIVERY_INSTRUCTIONS = """**Create your answer as a downloadable file, not only a chat message.** Use your file or code tool to write a single `.md` file containing your full answer, ending with the fenced ```json code block described below - then I can download that file straight from this chat and import it, with nothing to copy or retype. If your interface genuinely cannot create a file, put the same fenced block at the end of your chat reply instead; I will save the whole reply as a `.txt` or `.md` file myself before importing it."""
+
     private const val PROMPT_HEADER =
         "<!-- $PROMPT_MARK: this file is the QUESTION for Claude, not the ANSWER. " +
             "Attach it to a chat in the Claude app - do NOT import this file back. -->"
