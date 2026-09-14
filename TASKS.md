@@ -1000,34 +1000,47 @@ procedure (ship.sh gate → trigger workflow → confirm green → record releas
 judgment call, so it does not get a fresh flag of its own; it still only fires if the full
 gate is green.
 
-- [ ] Give `tradePlan`'s decline a REASON, not just a null — refactor its body into an
-      internal `planInternal` returning both the plan and why-not, with `tradePlan()` kept
-      as a thin wrapper so none of the 33 existing direct callers/tests change shape.
-- [ ] New `ResearchRow.planReason` (bookkeeping/UI text, same treatment as
+- [x] Give `tradePlan`'s decline a REASON, not just a null — refactored into internal
+      `planInternal` returning `Pair<TradePlan?, String>`, with `tradePlan()` and a new
+      `tradePlanDeclineReason()` as thin wrappers so none of the 33 existing direct
+      callers/tests changed shape. Verified: `compileDebugKotlin`/`compileDebugUnitTestKotlin`
+      clean, every pre-existing `tradePlan`-based test still passes unmodified.
+- [x] New `ResearchRow.planReason` (bookkeeping/UI text, same treatment as
       `planDeclineStreak` — not sent to Claude, not in `toJson`), set by
       `mergeDayTradingTech` only once a decline is CONFIRMED (same 2-tick hysteresis
-      `entryPrice` already uses), cleared the instant a real plan returns.
-- [ ] UI: when `entryPrice <= 0` and `planReason` is non-blank, show it — short, plain,
-      not alarming red (it's an honest "not this one" call, not a warning about a plan the
-      user might act on). Both the list card and the tabbed detail view.
-- [ ] A one-time FULL sweep (all rows in the section, not just the paged/visible window)
-      the moment the Day Trading tab opens, fetching real technicals for everything and
-      computing each row's plan-or-reason before the list is first shown — Tj's own
-      standing instruction from Part 4 ("it can use as much mobile Internet data as needed
-      ... but only when I have that tab open") covers the cost. Once that sweep lands, sort
-      the section ONCE: rows with a real, current plan first (ranked by score), declined
-      rows after (ranked by score), so the actionable ones are actually at the top when the
-      tab opens.
-- [ ] The existing 30-second live loop keeps refreshing only the visible window after that,
-      UNCHANGED and NOT re-sorting again — preserves the "never re-sorted" anti-flicker
-      property `enrichDayTradingVisible`'s own header already documents; the one-time sweep
-      is what answers "show me the actionable ones at the top," not a permanent reshuffle
-      every 30 seconds.
-- [ ] UI-bug sweep: re-check the flicker fix already shipped (v7.21) is actually sufficient
-      under the new one-time-sweep-then-sort behavior (a resort must not race the live loop
-      or reintroduce a flash), LazyColumn key stability under reordering, and anything else
-      found along the way.
-- [ ] Tests for all of the above, then the full Gradle suite green.
+      `entryPrice` already uses), cleared the instant a real plan returns. 3 new tests
+      (`ResearchPriceFillTest`): blank on a single declined tick, set on a confirmed one, and
+      cleared the instant a real plan comes back.
+- [x] UI: when `entryPrice <= 0` and `planReason` is non-blank, show it — muted
+      `onSurfaceVariant`, not red. Both `ResearchCard` (the list) and `DayTradingPlanContent`
+      (the tabbed detail view, replacing the previous silent no-`else` gap).
+- [x] A one-time FULL sweep on Day Trading tab open: `enrichDayTradingVisible`'s first call
+      after a rebuild (`dayTradingSweepDone` gate) now fetches the WHOLE section instead of
+      just the paged window, then calls the new pure `sortDayTradingForActionability`:
+      actionable rows (real entry/stop/target, app's or Claude's) first, ranked by
+      `blendedScore` within each group, stable so ties keep the screener's own order. 4 new
+      tests pin this directly (actionable-over-declined regardless of score, ranking within a
+      group, stability on a tie, a Claude-authored plan with no likelihood/confidence still
+      outranking every decline).
+- [x] The ordinary 30-second tick after the sweep goes back to the paged `shown` window and
+      never re-sorts, exactly as before this round — confirmed by code path (`sweeping` is
+      only true once per rebuild) and by the doc header rewritten to say so precisely rather
+      than flatly (a stale claim caught in self-review, since the function now genuinely does
+      sort on the one call that matters).
+- [x] UI-bug sweep: `LazyColumn` is keyed by `"${section.key}_${it.symbol}"`, not index, so
+      the one-time resort cannot desync per-row Compose state (chart, loading) or crash on
+      reorder. The v7.21 hysteresis fix is untouched and still the only thing that clears
+      levels on an ordinary tick. Traced the "Load more" path: since the sweep now covers all
+      40 rows up front, paging in more rows no longer reveals never-enriched blank cards
+      waiting on the next 30s tick — a real secondary improvement, not just parity. Found and
+      fixed one self-introduced doc bug (a dead `[sweepAllDayTrading]` reference — that
+      function was never created; the sweep lives inside `enrichDayTradingVisible` itself)
+      and one stale doc claim (see above) before they could mislead a future session.
+- [x] Tests: 10 new (3 decline-reason in `DayTradingTest`, 3 `planReason` threading + 4
+      sort in `ResearchPriceFillTest`). Full Gradle suite green: 1075 tests, 0 failures
+      (1065 baseline + 10 net new) — confirmed on three separate runs; one run hit an
+      unrelated Robolectric network flake in `BackgroundTest` (untouched by this diff) that
+      passed clean both in isolation and on a full-suite retry.
 - [ ] Ship once confident: `ship.sh`, then trigger `android.yml` via the GitHub API, confirm
       the run goes green, `tools/record-release.sh`.
 - [ ] Ship (awaiting Tj).
