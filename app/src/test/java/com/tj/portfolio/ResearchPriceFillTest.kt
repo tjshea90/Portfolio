@@ -428,9 +428,14 @@ class ResearchPriceFillTest {
     @Test fun `a real plan returning resets the decline streak to zero`() {
         val declinedOnce = mergeDayTradingTech(extended(), spentDay(), minutesLeft = 120)
         assertEquals(1, declinedOnce.planDeclineStreak)
-        val recovered = mergeDayTradingTech(
-            declinedOnce, tech(atr = 1.0, prevHigh = 23.0, prevLow = 22.0, prevClose = 22.4)
+        // Fresh room above the same $110 price - `spentDay()`'s stock has broken out again and
+        // there is somewhere real for it to go, so `tradePlan` finds a plan rather than
+        // declining a second time.
+        val roomAgain = DayTradingTechnicals.DayTechnicals(
+            atr14 = 1.0, atrIntraday = 1.0, sessionHigh = 118.0,
+            sessionLive = true, sessionDay = TODAY
         )
+        val recovered = mergeDayTradingTech(declinedOnce, roomAgain, minutesLeft = 120)
         assertEquals(
             "a real plan is not a verdict this function debounces - it takes effect immediately",
             0, recovered.planDeclineStreak
