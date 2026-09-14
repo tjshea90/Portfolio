@@ -902,6 +902,24 @@ internal fun ResearchCard(
             // outside the day-trading section, so this never draws elsewhere.
             if (r.entryPrice > 0) TradeLevelsGrid(r)
 
+            // --- WHY NOT (Round 75) - day-trading rows only, drawn INSTEAD of the two blocks
+            // above when the engine looked at this stock and declined to plan one. Tj: "for all
+            // the ones that are not good candidates, give a short explanation" - the gap this
+            // closes is the one found reviewing v7.21: most cards showed neither red text nor a
+            // buy/sell grid, with nothing on screen saying why. Muted, not red - this is an
+            // honest "not this one right now" verdict, not a warning about a plan the reader
+            // might act on. Blank (so nothing draws) until a decline is actually CONFIRMED -
+            // see [ResearchRow.planReason]'s own header - so this cannot flash in ahead of the
+            // grid it explains disappearing.
+            if (r.entryPrice <= 0 && r.planReason.isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Not a candidate right now: ${r.planReason}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
             // --- THE FUND NUMBERS, as a grid rather than as prose (Round 63).
             //
             // Choosing between two funds is a COMPARISON, and a comparison wants the same
