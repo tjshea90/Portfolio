@@ -911,3 +911,65 @@ sending this.
    priority for a sideloaded personal app, but it's credential handling,
    which SCREENER.md flags regardless of priority — say the word if you
    want this changed.
+
+## Part 12: Day Trading glitches — explanation text flickering, no visible buy/sell targets, Claude file round-trip broken
+
+Tj's request, 2026-09-14 (his own words):
+
+> The day trading section of this app is a little glitchy. It shows text in red
+> explaining each stock sometimes, but sometimes it loads then disappears. I also
+> don't see the target buy and sell prices anywhere, and that is one of the most
+> important features of this section. I used the ask Claude prompt, but it did not
+> make a file for me to import back into the portfolio app, instead it gave me an
+> answer in the chat and a copy and paste json code, but the portfolio app is
+> looking for a file to import.
+
+**"Continue with sonnet, ignore the opus screener"** — explicit override of the
+SCREENER flag (this touches `ResearchScore.kt`/`PortfolioViewModel.kt`'s day-trading
+plan logic, normally money-accuracy-flagged). Proceeding without re-asking.
+
+- [x] **Root-caused the flicker AND the missing targets as the SAME bug.**
+      `mergeDayTradingTech` (the live 30-second technicals loop) recomputes
+      `ResearchScore.tradePlan` fresh every tick and, per its own Round 73 design,
+      clears `entryPrice`/`stopPrice`/`targetPrice`/etc to blank the FIRST time a
+      tick "declines" (a real judgment that there is no trade — room already spent,
+      target already passed). Several of those judgments are decided against a
+      boundary the LIVE PRICE sits right next to for exactly the volatile,
+      already-moving stocks this section screens for, so a price wobbling a few
+      cents either side of it flipped the verdict every tick — the whole
+      `TradeLevelsGrid`/`BeginnerSummaryCard` block (which only draws when
+      `entryPrice > 0`) loaded, vanished and reappeared on a clock nobody could
+      see, and for a pick that happened to sit near that boundary most of the
+      time, the grid read as simply absent.
+- [x] **Fixed with hysteresis, not a design reversal.** Added
+      `ResearchRow.planDeclineStreak` (bookkeeping only, not shown in the UI) and a
+      `DAY_TRADING_DECLINE_CONFIRM_TICKS = 2` threshold in
+      `mergeDayTradingTech`/`PortfolioViewModel.kt`: a decline only actually clears
+      the on-screen levels once it repeats on a second straight tick (~30s later);
+      one bad tick is absorbed silently and the streak resets to 0 the instant a
+      real plan returns. This keeps the Round 73 fix intact (a genuinely dead plan
+      still clears quickly, not frozen all afternoon) while removing the
+      tick-to-tick noise that caused the flicker.
+- [x] **Fixed the "ask Claude" file round-trip.** Every prompt file this app
+      writes (Research, Day Trading, Advice, the screenshot importer) used to tell
+      Claude only "save that reply as a .txt or .md file" — i.e. the user had to
+      manually copy the chat reply into another app and save it as plain text
+      themselves, which is exactly what Tj hit. Added
+      `ClaudeBridge.FILE_DELIVERY_INSTRUCTIONS`, wired into all four prompts: it
+      asks Claude to use its own file/code tool to hand back a downloadable file
+      first, falling back to the old copy-the-chat-reply path only if the client
+      genuinely can't create one. No parser change needed — `findObject`'s
+      balanced-brace scan already accepts the JSON wherever it lands in the text.
+- [x] Also fixed, found while in this code: `ResearchScreen.kt`'s Day Trading
+      "How does this work?" card still said "Claude... never sets entry/stop/target,"
+      which stopped being true at the Round 69 reversal (Claude can now rewrite the
+      whole section, including levels). Corrected, and updated to describe the new
+      download-a-file-first flow.
+- [x] Tests: 2 new regression tests in `ResearchPriceFillTest.kt` proving a single
+      declined tick is absorbed (`planDeclineStreak` becomes 1, levels untouched)
+      and a second straight decline clears them; 1 new test proving a real plan
+      resets the streak to 0 immediately (no debounce on good news). Full Gradle
+      suite green: 1065 tests, 0 failures (1063 baseline + 2 net new — the old
+      single-tick-clears test was rewritten in place to describe the fixed
+      behaviour instead of the bug).
+- [ ] Ship (awaiting Tj).
