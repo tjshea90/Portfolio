@@ -5925,14 +5925,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * One sweep over the visible Day Trading window: fetches real technicals for each symbol
-     * and upgrades its risk plan and score IN PLACE, without re-sorting the list.
+     * One sweep over the Day Trading section: fetches real technicals for each symbol and
+     * upgrades its risk plan and score IN PLACE. The ORDINARY tick - every call after the
+     * first one following a rebuild - never re-sorts; see below for the one call that does.
      *
-     * NEVER RE-SORTED, ON PURPOSE. Best's analyst enrichment re-ranks its window because that
-     * list is read once and left; a live view refreshing every 30 seconds that also reshuffled
-     * every 30 seconds would be worse to watch than a ranking that occasionally under-ranks a
-     * stock that just broke out - the screener's own ordering holds until the next full
-     * rebuild.
+     * NEVER RE-SORTED ON AN ORDINARY TICK, ON PURPOSE. Best's analyst enrichment re-ranks its
+     * window because that list is read once and left; a live view refreshing every 30 seconds
+     * that also reshuffled every 30 seconds would be worse to watch than a ranking that
+     * occasionally under-ranks a stock that just broke out - the screener's own ordering holds
+     * until the next full rebuild, or the one-time sweep-completion sort described below.
      *
      * THE SCORE BONUS APPLIES EXACTLY ONCE PER SYMBOL PER REBUILD, via [dayTradingTechScored].
      * [ResearchScore.withTechnicals] ADDS to whatever score it is handed; calling it again on
