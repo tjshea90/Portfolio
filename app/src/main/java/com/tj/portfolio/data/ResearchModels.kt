@@ -229,6 +229,22 @@ data class ResearchRow(
      */
     val planByClaude: Boolean = false,
     /**
+     * HOW MANY LIVE TICKS IN A ROW [com.tj.portfolio.net.ResearchScore.tradePlan] HAS DECLINED
+     * TO PLAN THIS ROW (Round 74) - bookkeeping for [com.tj.portfolio.ui.mergeDayTradingTech]'s
+     * hysteresis, not shown anywhere in the UI.
+     *
+     * THE BUG THIS EXISTS TO FIX. `tradePlan` is recomputed from the live price every 30
+     * seconds, and several of its "no trade" verdicts (no room left today, the target already
+     * passed) are decided against a boundary the live price sits right next to for exactly the
+     * volatile, already-moving stocks this section screens for - so a price wobbling a few
+     * cents either side of that boundary flipped the verdict, and with it, every tick, between
+     * a real plan and none. The old rule cleared [entryPrice]/[stopPrice]/[targetPrice] the
+     * FIRST time a tick declined, so the grid - and the red planNote / beginner-summary text
+     * that goes with it - would load, vanish, and reappear on a clock the reader could not see,
+     * over a plan that had not actually changed. Reset to 0 the moment a real plan returns.
+     */
+    val planDeclineStreak: Int = 0,
+    /**
      * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
      * volume-weighted average price, and the 09:30-10:00 ET opening range. See
      * `net/DayTradingTechnicals.kt`'s header for the research these come from. All zero until
