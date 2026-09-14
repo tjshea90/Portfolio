@@ -121,14 +121,14 @@ internal fun DayTradingPlanContent(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
         } else if (r.planReason.isNotBlank()) {
-            // --- WHY NOT (Round 75) - same rule and same text as the list card's own version
-            // of this note; see its header in ResearchScreen.kt.
-            Text(
-                "Not a candidate right now: ${r.planReason}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+                    // --- WHY NOT (Round 75) - same rule and same text as the list card's own
+                    // version of this note; see its header in ResearchScreen.kt.
+                    Text(
+                        "Not a candidate right now: ${r.planReason}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
 
                 // --- HOW THE SCORE IS BUILT (Round 72). Tj: "make the scores reflect a blend
                 // of how likely the stock is to rise... and how confident this prediction is."
