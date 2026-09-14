@@ -623,25 +623,35 @@ fun ResearchScreen(
                                             "needs no explanation from you. Attach " +
                                             "Downloads/Portfolio/" +
                                             com.tj.portfolio.net.DayTradingBridge.PROMPT_FILE +
-                                            " to a chat in the Claude app, save the reply as a " +
-                                            ".txt or .md file, then tap \"Import answer\" and " +
-                                            "pick THAT file - not the prompt file. Claude " +
-                                            "explains WHY each name is in play and names the " +
-                                            "risk; it never sets entry/stop/target, and its " +
-                                            "own conviction never overwrites the app's score. " +
-                                            "A stock Claude adds is priced and given its own " +
-                                            "risk levels the moment it is imported."
+                                            " to a chat in the Claude app. Claude is asked to " +
+                                            "hand back its answer as a file you can download " +
+                                            "straight from that chat - tap \"Import answer\" " +
+                                            "and pick it. If it only replies in the chat " +
+                                            "instead, save the whole reply yourself as a .txt " +
+                                            "or .md file, then import that - not the prompt " +
+                                            "file. Claude can rebuild the whole list: drop " +
+                                            "names it would not trade, add ones it would, and " +
+                                            "set its own entry, stop and target for every " +
+                                            "name, using real-time information the app cannot " +
+                                            "see. It never touches the app's own score, and the " +
+                                            "card always labels whose plan is on screen - " +
+                                            "\"CLAUDE'S PLAN\" or \"RISK PLAN - computed, not a " +
+                                            "forecast.\""
                                     else
                                         "The prompt file carries every row on this screen - the " +
                                             "prices, the scores and the reasons - so Claude needs " +
                                             "no explanation from you. Attach " +
                                             "Downloads/Portfolio/" +
                                             com.tj.portfolio.net.ResearchBridge.PROMPT_FILE +
-                                            " to a chat in the Claude app, save the reply as a " +
-                                            ".txt or .md file, then tap \"Import answer\" and pick " +
-                                            "THAT file - not the prompt file. The explanations " +
-                                            "fill in and no API key is used. Anything Claude adds " +
-                                            "that the app missed is added to the list.\n\n" +
+                                            " to a chat in the Claude app. Claude is asked to " +
+                                            "hand back its answer as a file you can download " +
+                                            "straight from that chat - tap \"Import answer\" " +
+                                            "and pick it. If it only replies in the chat " +
+                                            "instead, save the whole reply yourself as a .txt " +
+                                            "or .md file, then import that - not the prompt " +
+                                            "file. The explanations fill in and no API key is " +
+                                            "used. Anything Claude adds that the app missed is " +
+                                            "added to the list.\n\n" +
                                             "The ETF list is the one that asks Claude to go and " +
                                             "research rather than just explain: the prompt names " +
                                             "the funds Yahoo's screens leave out and asks for the " +
