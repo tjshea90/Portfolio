@@ -113,8 +113,7 @@ Please:
 
 ## IMPORTANT - how to answer
 
-End your reply with a single fenced ```json code block matching the schema below, so my app
-can read it back in. Include one entry in "stocks" for every holding.
+$FILE_DELIVERY_INSTRUCTIONS Include one entry in "stocks" for every holding.
 
 **The block below is a SCHEMA, not an example answer.** Every `<...>` is a description of
 what belongs there - replace each one with your own real value. Your JSON must be valid:
@@ -125,7 +124,7 @@ placeholder wording copied through.
 $ADVICE_SHAPE
 ```
 
-Then save that reply as a `.txt` or `.md` file and import it in the app's Advice tab.
+Import the file (or your saved reply) in the app's Advice tab.
 
 ---
 
