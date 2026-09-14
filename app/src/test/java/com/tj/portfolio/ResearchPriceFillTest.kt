@@ -426,21 +426,28 @@ class ResearchPriceFillTest {
     }
 
     @Test fun `a real plan returning resets the decline streak to zero`() {
-        val declinedOnce = mergeDayTradingTech(extended(), spentDay(), minutesLeft = 120)
-        assertEquals(1, declinedOnce.planDeclineStreak)
-        // Fresh room above the same $110 price - `spentDay()`'s stock has broken out again and
-        // there is somewhere real for it to go, so `tradePlan` finds a plan rather than
-        // declining a second time.
-        val roomAgain = DayTradingTechnicals.DayTechnicals(
-            atr14 = 1.0, atrIntraday = 1.0, sessionHigh = 118.0,
-            sessionLive = true, sessionDay = TODAY
+        // A row that has already declined once (the streak is pre-set directly, rather than
+        // chained through `spentDay()`'s reading, so this test is not also fighting
+        // `effectiveTechnicals`'s carry-forward of `adr`/`sessionLow`/etc - that mechanism has
+        // its own tests above; this one isolates only the streak-reset behaviour).
+        val hadOneDecline = extended().copy(planDeclineStreak = 1)
+        // The same prior-session structure the already-proven "recomputed... left whole"
+        // test above uses, scaled to this row's $110 price - a real breakout plan.
+        val recovered = mergeDayTradingTech(
+            hadOneDecline,
+            DayTradingTechnicals.DayTechnicals(
+                atr14 = 1.0, prevHigh = 115.0, prevLow = 105.0, prevClose = 108.0, sessionDay = TODAY
+            ),
+            minutesLeft = 120
         )
-        val recovered = mergeDayTradingTech(declinedOnce, roomAgain, minutesLeft = 120)
+        assertTrue(
+            "a real plan must have been found for this test to mean anything",
+            recovered.entryPrice > 0.0
+        )
         assertEquals(
             "a real plan is not a verdict this function debounces - it takes effect immediately",
             0, recovered.planDeclineStreak
         )
-        assertTrue(recovered.entryPrice > 0.0)
     }
 
     @Test fun `but levels the engine could not even LOOK at survive, exactly as before`() {
