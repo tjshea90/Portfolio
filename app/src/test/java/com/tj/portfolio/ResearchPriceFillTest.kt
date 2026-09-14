@@ -406,6 +406,36 @@ class ResearchPriceFillTest {
         assertEquals("a decline is counted even though it is not yet acted on", 1, out.planDeclineStreak)
     }
 
+    @Test fun `a single declined tick sets no reason yet - it has not been confirmed`() {
+        // The reason is bookkeeping-free UI text with the same debounce as the levels it
+        // explains: showing it a tick before the grid it describes has actually gone would be
+        // exactly the flash Round 74 already fixed for the levels themselves.
+        val out = mergeDayTradingTech(extended(), spentDay(), minutesLeft = 120)
+        assertEquals("", out.planReason)
+    }
+
+    @Test fun `a confirmed decline sets the real reason, matching why tradePlan actually said no`() {
+        val once = mergeDayTradingTech(extended(), spentDay(), minutesLeft = 120)
+        val out = mergeDayTradingTech(once, spentDay(), minutesLeft = 120)
+        assertTrue(
+            "reason must match tradePlanDeclineReason for the same inputs",
+            out.planReason.contains("Already moved most of today's likely range")
+        )
+    }
+
+    @Test fun `a real plan returning clears any reason that was showing`() {
+        val hadReason = extended().copy(entryPrice = 0.0, planReason = "Already moved most of today's likely range - not enough room left to target a worthwhile reward.")
+        val recovered = mergeDayTradingTech(
+            hadReason,
+            DayTradingTechnicals.DayTechnicals(
+                atr14 = 1.0, prevHigh = 115.0, prevLow = 105.0, prevClose = 108.0, sessionDay = TODAY
+            ),
+            minutesLeft = 120
+        )
+        assertTrue(recovered.entryPrice > 0.0)
+        assertEquals("", recovered.planReason)
+    }
+
     @Test fun `levels the engine has DECLINED to stand behind on two ticks running are cleared, not frozen on screen`() {
         // THE ORIGINAL ROUND 73 BUG, STILL FIXED. Round 73 made "no plan" reachable mid-session
         // for the first time: once a stock has spent its average daily range, every subsequent
