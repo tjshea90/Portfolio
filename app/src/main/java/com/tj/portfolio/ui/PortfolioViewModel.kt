@@ -2078,20 +2078,30 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             else ""
 
         val rows = ArrayList<Row>()
-        // A SET, not `watch.contains` inside the loop - `watch` is a List and the positions
-        // loop would otherwise be quadratic in the number of tracked symbols.
-        val watchSet = watch.toHashSet()
+        // A MAP, not `watch.any { }` inside the loop - `watch` is a List and the positions
+        // loop would otherwise be quadratic in the number of tracked symbols. Keyed by symbol
+        // so a held-and-watched row can also carry its %-since-added anchor below.
+        val watchBySymbol = watch.associateBy { it.symbol }
         for (p in open) {
             val q = quotes[p.symbol]
+            val w = watchBySymbol[p.symbol]
             rows.add(
-                Row(p.symbol, q?.name ?: "", p, q, false, p.symbol in watchSet, label)
+                Row(
+                    p.symbol, q?.name ?: "", p, q, false, w != null, label,
+                    watchedAt = w?.addedAt ?: 0L, watchedBasePrice = w?.addedPrice ?: 0.0
+                )
             )
         }
         for (w in watch) {
-            if (open.any { it.symbol == w }) continue
-            val q = quotes[w]
+            if (open.any { it.symbol == w.symbol }) continue
+            val q = quotes[w.symbol]
             // `watched = true` by construction: this loop IS the watchlist.
-            rows.add(Row(w, q?.name ?: "", null, q, true, true, label))
+            rows.add(
+                Row(
+                    w.symbol, q?.name ?: "", null, q, true, true, label,
+                    watchedAt = w.addedAt, watchedBasePrice = w.addedPrice
+                )
+            )
         }
 
         // Both list screens key their rows by symbol, and a keyed list given the same key
