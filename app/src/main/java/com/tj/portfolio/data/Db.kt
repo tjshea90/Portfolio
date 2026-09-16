@@ -46,7 +46,10 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 quote_time INTEGER NOT NULL DEFAULT 0
             )"""
         )
-        db.execSQL("CREATE TABLE watchlist(symbol TEXT PRIMARY KEY, added INTEGER)")
+        db.execSQL(
+            "CREATE TABLE watchlist(symbol TEXT PRIMARY KEY, added INTEGER, " +
+                "added_price REAL NOT NULL DEFAULT 0)"
+        )
         createQuoteIndexes(db)
         createImports(db)
         createNews(db)
