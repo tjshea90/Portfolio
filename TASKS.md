@@ -1136,16 +1136,50 @@ criterion actually names. Checked in the code before deciding, not assumed:
   `{symbol, added, addedPrice}` per entry, restore accepts that shape AND the old bare-string
   shape (so an old backup file still restores exactly as before).
 
-- [ ] Insider: `Insider.marketWide()` fetch (EDGAR `getcurrent`, paginated, budgeted, cached
-      through the existing accession map), wired into the ViewModel with its own on-open
-      trigger and idle-when-closed rule.
-- [ ] Insider UI: `My stocks` / `All companies` toggle in `FeedScreen`'s Insider tab, the
+- [x] Insider: `Insider.marketWide()` fetch (EDGAR `getcurrent`, paginated, budgeted, its own
+      accumulated-result cache kept separate from the portfolio-scoped one - see the
+      code-review fix below), wired into the ViewModel with its own on-open trigger and
+      idle-when-closed rule.
+- [x] Insider UI: `My stocks` / `All companies` toggle in `FeedScreen`'s Insider tab, the
       $50,000 major-trade floor applied only in All-companies mode, "Load more" pagination.
-- [ ] Watchlist: DB v8 (`added_price` column), `Db.watchlistEntries()`, baseline resolution in
+- [x] Watchlist: DB v8 (`added_price` column), `Db.watchlistEntries()`, baseline resolution in
       the ViewModel (Yahoo chart lookup, resolved once, persisted), `Row.watchedAt`/
       `watchedBasePrice`/`sinceWatchedPct`.
-- [ ] Watchlist UI: the "+X.X% since added Mon D" line on `WatchlistScreen`'s rows, colour-coded
-      the same way every other gain/loss figure in this app is.
-- [ ] Backup/restore: new watchlist entry shape, old-format restore path kept working.
-- [ ] Tests for all of the above, then the full Gradle unit suite.
-- [ ] Checkpoint after each of the five items above, not batched.
+- [x] Watchlist UI: the "Since added Mon D: +X.X%" line on `WatchlistScreen`'s rows,
+      colour-coded the same way every other gain/loss figure in this app is; an honest
+      "tracking starts after that day's close" placeholder before the baseline resolves.
+- [x] Backup/restore: watchlist entries now carry `{symbol, added, addedPrice}` (backup v3);
+      an old bare-string backup still restores exactly as before. Closed a real bug found
+      while doing this: a plain restore used to call `addWatch(sym)`, silently resetting
+      every %-since-added anchor to the restore moment.
+- [x] High-effort `/code-review` pass over the whole diff found 3 real issues, all fixed:
+      "Load more" could get permanently stuck re-fetching the same EDGAR page forever once a
+      page's real content ran dry (`marketInsiderPageStart` only advanced inside an
+      `if (fresh.isNotEmpty())` guard); a busy 300-entry window's leftover refs past the
+      60-doc budget were silently lost forever the moment "Load more" advanced past that
+      window instead of draining it first; and the market-wide firehose was writing into the
+      SAME bounded accession cache the portfolio-scoped feed depends on, so a long
+      All-companies browsing session could trigger that cache's wholesale-clear-on-overflow
+      and force a redundant re-fetch of a held stock's own filings. Fixed by: `Insider.marketWide`
+      now returns a `MarketResult(filings, remaining)` and the caller only advances the page
+      once a window is fully drained (re-listing the same window in between, the same
+      carry-over `forSymbols` already relies on); a blank-symbol filing is now added to `skip`
+      instead of being silently re-downloaded forever; and market-wide fetches read from
+      `insiderDocs` only to cross-reference, never write into it - the market-wide store's own
+      accumulated list is its cache instead. Also fixed in the same pass: `insiderSummary`'s
+      "in the last month" suffix was hardcoded and wrong for the All-companies view, which is
+      an unbounded, count-paginated feed, not a 31-day window.
+- [x] Tests for all of the above (2 new `InsiderTest` cases against a fixture captured from
+      the live `getcurrent` feed, 9 new `DbTest` cases, a new `WatchSinceAddedTest.kt`), plus
+      `tools/insider_sim.py --market` extended and run live against the real SEC service
+      (10 genuine major discretionary trades from one page, confirming the endpoint/parser/
+      floor end to end). Full Gradle unit suite green: 1090 tests, 0 failures - verified with
+      a real blocking wait on the log this time, not a premature check (a background gradle
+      run detached with `& disown` finishes independently of the tool's own "completed"
+      notification, which only tracks the wrapper shell - `sleep 3; echo started` returns in
+      seconds regardless of how long the detached gradle process actually runs. Caught this
+      after two checks that looked green but were actually stale reports left over from an
+      earlier run; fixed by polling the log directly with a blocking `until grep ...; do sleep
+      3; done` loop instead of trusting the notification for any run using that pattern).
+- [x] Checkpoint after each completed step, not batched (ckpt 698-703+).
+- [ ] Ask Tj whether to ship this as the next release.
