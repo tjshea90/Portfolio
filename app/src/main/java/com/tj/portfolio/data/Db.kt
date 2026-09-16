@@ -361,6 +361,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         runCatching { createTxnIndexes(db) }
         // Part 9 audit: quotes(updated) never had an index at all. See [createQuoteIndexes].
         runCatching { createQuoteIndexes(db) }
+        runCatching { createDayTradingLog(db) }
     }
 
     // ---------- HTTP response cache (Round 56) ----------
