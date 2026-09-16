@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
+import com.tj.portfolio.data.DayTradingOutcome
 import com.tj.portfolio.data.Db
 import com.tj.portfolio.data.FeedItem
 import com.tj.portfolio.data.Keys
