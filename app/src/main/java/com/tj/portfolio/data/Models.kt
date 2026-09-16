@@ -200,6 +200,17 @@ data class Override(
     val shares: Double? = null
 )
 
+/**
+ * One watchlist row's own history: when it was added, and the %-since-added baseline once
+ * resolved. [addedPrice] is 0.0 until [com.tj.portfolio.data.Db.setWatchBaseline] has run once
+ * for it - see that function's own note on why it is written only once, ever.
+ */
+data class WatchEntry(
+    val symbol: String,
+    val addedAt: Long,
+    val addedPrice: Double = 0.0
+)
+
 /** One row in the live Feed tab: a headline, an insider filing, or a filing summary. */
 data class FeedItem(
     val kind: String,
