@@ -244,7 +244,10 @@ fun FeedScreen(
                         Column {
                             SourceChips(source) { source = it }
                             ScopeChips(scope) { scope = it }
-                            val count = insiderSummary(activeFilings)
+                            val count = insiderSummary(
+                                activeFilings,
+                                suffix = if (allCompanies) " shown" else " in the last month"
+                            )
                             Text(
                                 buildString {
                                     if (allCompanies) {
