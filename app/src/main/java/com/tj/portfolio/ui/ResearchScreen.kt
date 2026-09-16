@@ -164,6 +164,8 @@ fun ResearchScreen(
     val error by vm.researchError.collectAsState()
     val shown by vm.researchShown.collectAsState()
     var howTo by remember { mutableStateOf(false) }
+    val dayTradingStats by vm.dayTradingStats.collectAsState()
+    val dayTradingStatsLoading by vm.dayTradingStatsLoading.collectAsState()
 
     // Persisted rather than remembered: this screen leaves composition every time the user
     // visits another bottom-bar tab, so a plain `remember` would drop them back on Trending
