@@ -3285,16 +3285,36 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * A symbol added over a year ago resolves from the weekly/monthly series instead of daily,
      * which is a real but minor loss of precision for an old watchlist entry, not a new
      * lookup path.
+     *
+     * TWO REAL BUGS FIXED HERE AFTER SHIPPING (caught by a requested post-release review):
+     *
+     * 1. THE LOOKBACK HAS TO BE MEASURED FROM THE START OF THE ADD-DAY, NOT FROM [dateMs]
+     * ITSELF. A symbol added at 11pm has a lookback of minutes if measured from [dateMs] and
+     * "now" is a few minutes into the next calendar day - comfortably inside
+     * [ChartRange.D1]'s span - but [ChartRange.D1] only ever contains TODAY's candles (every
+     * range this provider serves "ends at now", per that class's own header), so a request for
+     * it returns nothing from YESTERDAY at all and this returned null forever, not just until
+     * enough time passed. Measuring from `dayStart` instead guarantees at least one full extra
+     * day of lookback whenever the add-day is not today, which is enough to promote the choice
+     * off [ChartRange.D1] and onto a range whose series can actually contain that day.
+     *
+     * 2. A SUB-DAILY SERIES HOLDS MANY POINTS FOR ONE DAY, AND THE LAST ONE IS THE CLOSE. A
+     * symbol added within the last week resolves from [ChartRange.D5] (30-minute candles) or
+     * [ChartRange.D1] (5-minute candles), both of which have several points inside the add-day
+     * - `minByOrNull` picked the FIRST of them, close to the opening bell, not the close this
+     * function's own name and doc comment promise. Only a series with exactly one point per
+     * day (`Y1` and coarser) made the bug invisible, which is why it survived the original
+     * tests: nothing added within the last week was exercised against real network data.
      */
     private suspend fun closeOnOrAfter(symbol: String, dateMs: Long): Double? {
-        val lookback = (System.currentTimeMillis() - dateMs).coerceAtLeast(0L)
-        val range = com.tj.portfolio.data.ChartRange.rangeForLookback(lookback)
-        val series = com.tj.portfolio.net.ChartFeed.series(symbol, range) ?: return null
         val dayStart = startOfDay(dateMs)
         val todayStart = startOfDay(System.currentTimeMillis())
+        val lookback = (System.currentTimeMillis() - dayStart).coerceAtLeast(0L)
+        val range = com.tj.portfolio.data.ChartRange.rangeForLookback(lookback)
+        val series = com.tj.portfolio.net.ChartFeed.series(symbol, range) ?: return null
         return series.points
             .filter { it.t * 1000L in dayStart until todayStart }
-            .minByOrNull { it.t }
+            .maxByOrNull { it.t }
             ?.close
     }
 
