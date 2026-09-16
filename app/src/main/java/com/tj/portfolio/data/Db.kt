@@ -15,7 +15,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     companion object {
         const val DB_NAME = "portfolio.db"
         /** Bump only alongside an additive block in onUpgrade. */
-        const val DB_VERSION = 8
+        const val DB_VERSION = 9
         const val BACKUP_FORMAT = "tj-portfolio-backup"
         const val BACKUP_VERSION = 3
     }
