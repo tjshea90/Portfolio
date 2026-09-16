@@ -337,7 +337,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // The %-since-added watchlist feature's baseline close, resolved once and cached
         // forever - see [watchlistEntries]/[setWatchBaseline].
         if (oldV < 8) addColumn(db, "watchlist", "added_price", "REAL NOT NULL DEFAULT 0")
-        // future: if (oldV < 9) { ...additive changes only... }
+        if (oldV < 9) createDayTradingLog(db)
+        // future: if (oldV < 10) { ...additive changes only... }
     }
 
     /**
