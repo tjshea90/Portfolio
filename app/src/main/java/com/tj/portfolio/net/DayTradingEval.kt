@@ -91,8 +91,8 @@ object DayTradingEval {
             if (t <= 0L) continue
             out.add(IntradayBar(t, h, l, c))
         }
-        return out.sortedBy { it.t }
-    }
+        out.sortedBy { it.t }
+    }.getOrDefault(emptyList())
 
     /** [tradingDay]'s regular session (09:30-16:00 ET), as epoch ms. Null for an unparseable
      *  key - never a guessed range, since a wrong window would silently exclude real bars. */
