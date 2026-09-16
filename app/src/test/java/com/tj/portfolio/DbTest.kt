@@ -568,6 +568,12 @@ class DbTest {
         val tsla = upgraded.watchlistEntries().single { it.symbol == "TSLA" }
         assertEquals(1L, tsla.addedAt)
         assertEquals(0.0, tsla.addedPrice, 1e-9)
+        // v9 added day_trading_log - a database that never had it must still be able to use it
+        // immediately after the upgrade, not just avoid crashing on open.
+        upgraded.logDayTradingRecommendation(
+            "NVDA", "20260916", "Breakout", 227.0, 220.0, 240.0, 225.5, "APP"
+        )
+        assertEquals(1, upgraded.dayTradingLog().size)
         // v2 added the imports table
         assertEquals(0, upgraded.importCount())
         upgraded.recordImport(1, 0, 0, 0, "TEST")
