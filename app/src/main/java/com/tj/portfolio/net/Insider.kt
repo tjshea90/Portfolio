@@ -350,4 +350,133 @@ object Insider {
         return if (end < 0) "" else entry.substring(at + 6, end)
             .replace("&amp;", "&").trim()
     }
+
+    // -------------------------------------------------------- market-wide (all companies)
+
+    /**
+     * Pages of EDGAR's `getcurrent` feed to read in one pass. Newest-first, so page 1 is
+     * always the most recent filings regardless of how busy the market has been - this bounds
+     * how far back one pass looks, not which filings it sees.
+     */
+    private const val MAX_MARKET_PAGES_PER_PASS = 3
+
+    /**
+     * Doc-download ceiling for the market-wide pass, separate from [MAX_DOCS_PER_PASS].
+     *
+     * Smaller on purpose: the per-symbol pass runs once every half hour for a portfolio's
+     * handful of symbols, this one runs continuously for as long as the "All companies" view
+     * is open. Whatever does not fit is exactly what "Load more" fetches next - see
+     * [marketWide]'s `skip` parameter.
+     */
+    private const val MAX_MARKET_DOCS_PER_PASS = 60
+
+    /**
+     * The market-wide "just filed" feed - every Form 4 filed by anyone, newest first.
+     *
+     * [pageStart] is EDGAR's own pagination offset (0, 100, 200, ...) - the caller advances it
+     * to page further back, the same "Load more" idiom the rest of this app uses rather than
+     * trying to pull a whole day in one pass.
+     *
+     * Reuses [fetch]/[Form4.parse]/the accession cache completely unchanged - a market-wide
+     * filing is cached exactly like a portfolio one, so switching between "My stocks" and
+     * "All companies" never re-downloads anything already seen.
+     */
+    suspend fun marketWide(
+        cached: Map<String, InsiderFiling>,
+        gate: Semaphore,
+        skip: MutableSet<String>,
+        pageStart: Int = 0,
+        pages: Int = MAX_MARKET_PAGES_PER_PASS,
+        docBudget: Int = MAX_MARKET_DOCS_PER_PASS
+    ): List<InsiderFiling> = coroutineScope {
+        val refs = (0 until pages).map { p ->
+            async { runCatching { currentListing(pageStart + p * 100).refs }.getOrDefault(emptyList()) }
+        }.awaitAll().flatten().distinctBy { it.accession }
+
+        val known = refs.mapNotNull { cached[it.accession] }
+        val missing = refs
+            .filter { cached[it.accession] == null && it.accession !in skip }
+            .sortedByDescending { it.filedAt }
+            .take(docBudget)
+
+        val fetched = missing.map { ref ->
+            async {
+                // The market-wide listing carries no ticker at all - unlike the per-symbol
+                // path, [fetch] recovers it from the filing's own `issuerTradingSymbol`, which
+                // is why the hint passed here is blank rather than a guess.
+                val parsed = gate.withPermit { runCatching { fetch("", ref) }.getOrNull() }
+                if (parsed is Unreadable) { synchronized(skip) { skip.add(ref.accession) }; null }
+                else parsed as? InsiderFiling
+            }
+        }.awaitAll().filterNotNull()
+
+        (known + fetched).distinctBy { it.accession }.sortedByDescending { it.filedAt }
+    }
+
+    /** One page of the market-wide feed, [Listing.answered] on the same "did EDGAR reply" rule. */
+    suspend fun currentListing(start: Int): Listing {
+        val url = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&company=" +
+            "&dateb=&owner=include&count=100&output=atom" +
+            (if (start > 0) "&start=$start" else "")
+        val r = Http.get(url, headers(), 20000, conditionalKey = true)
+        if (!r.ok) return Listing(emptyList(), answered = false)
+        return Listing(parseCurrentListing(r.body), answered = true)
+    }
+
+    /**
+     * The `getcurrent` feed's OWN shape - not [parseListing]'s. There is no
+     * `<filing-type>`/`<accession-number>`/`<filing-href>` here: the form type is
+     * `<category term="...">`, the accession lives inside `<id>`, and the page link is a plain
+     * Atom `<link href="...">`. Verified live against
+     * `https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent`.
+     *
+     * ONE ENTRY PER PARTY, NOT PER FILING - the issuer and every reporting owner each get their
+     * own `<entry>` sharing one accession number, so the dedupe below is most of what this
+     * function does, not an edge case.
+     *
+     * `type=4` IS A PREFIX MATCH HERE TOO (confirmed live: 424B2/424B3/485APOS/497 start
+     * appearing past roughly the second page), so the exact-type check is load-bearing past
+     * page 2, exactly the [parseListing] trap this file's header already documents.
+     */
+    fun parseCurrentListing(xml: String): List<Ref> {
+        val out = ArrayList<Ref>()
+        val seen = HashSet<String>()
+        var i = xml.indexOf("<entry>")
+        while (i >= 0) {
+            val end = xml.indexOf("</entry>", i).let { if (it < 0) xml.length else it }
+            val e = xml.substring(i, end)
+            i = xml.indexOf("<entry>", end)
+
+            val type = attr(e, "category", "term").trim()
+            if (type != "4" && type != "4/A") continue
+
+            val accession = accessionFromId(tag(e, "id"))
+            if (accession.isBlank() || !seen.add(accession)) continue
+
+            val page = hrefAttr(e)
+            if (page.isBlank()) continue
+
+            val stamp = Fmt.parseRss(tag(e, "updated"))
+            out.add(Ref(accession, stamp, docUrlFor(page, accession), page))
+        }
+        return out.sortedByDescending { it.filedAt }
+    }
+
+    /** `urn:tag:sec.gov,2008:accession-number=0001213900-26-100292` -> the number alone. */
+    private fun accessionFromId(id: String): String =
+        Regex("accession-number=([0-9-]+)").find(id)?.groupValues?.get(1) ?: ""
+
+    /** The value of one attribute on a self-closing or ordinary opening tag. */
+    private fun attr(entry: String, tagName: String, attrName: String): String {
+        val open = entry.indexOf("<$tagName")
+        if (open < 0) return ""
+        val close = entry.indexOf('>', open)
+        if (close < 0) return ""
+        val block = entry.substring(open, close + 1)
+        val at = block.indexOf("$attrName=\"")
+        if (at < 0) return ""
+        val start = at + attrName.length + 2
+        val valEnd = block.indexOf('"', start)
+        return if (valEnd < 0) "" else block.substring(start, valEnd)
+    }
 }
