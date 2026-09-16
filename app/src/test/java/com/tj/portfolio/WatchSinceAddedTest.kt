@@ -123,4 +123,45 @@ class WatchSinceAddedTest {
         )
         assertNull(row.sinceWatchedPct)
     }
+
+    // ---------------------------------------- lastCloseInWindow (the shipped bug, fixed)
+
+    private val dayStart = 1_000_000_000_000L
+    private val todayStart = dayStart + 86_400_000L
+
+    /**
+     * THE BUG THAT SHIPPED IN v7.23: a sub-daily series (this app's own D5/D1 ranges) holds
+     * several points for one calendar day, and the wrong one was being picked - the FIRST
+     * (near the opening bell) instead of the LAST (the actual close).
+     */
+    @Test fun `picks the LAST point of the day, not the first`() {
+        val points = listOf(
+            ChartPoint(t = (dayStart / 1000) + 100, close = 50.0),   // early in the add-day
+            ChartPoint(t = (dayStart / 1000) + 20000, close = 55.0), // mid-day
+            ChartPoint(t = (dayStart / 1000) + 23000, close = 60.0)  // latest - this is the close
+        )
+        assertEquals(60.0, lastCloseInWindow(points, dayStart, todayStart)!!, 1e-9)
+    }
+
+    @Test fun `points outside the window are excluded on both ends`() {
+        val points = listOf(
+            ChartPoint(t = (dayStart / 1000) - 100, close = 40.0),      // before the add-day
+            ChartPoint(t = (dayStart / 1000) + 100, close = 50.0),      // inside
+            ChartPoint(t = (todayStart / 1000) + 100, close = 999.0)    // today or later - excluded
+        )
+        assertEquals(50.0, lastCloseInWindow(points, dayStart, todayStart)!!, 1e-9)
+    }
+
+    @Test fun `no points in the window returns null rather than a wrong guess`() {
+        val points = listOf(ChartPoint(t = (dayStart / 1000) - 100, close = 40.0))
+        assertNull(lastCloseInWindow(points, dayStart, todayStart))
+        assertNull(lastCloseInWindow(emptyList(), dayStart, todayStart))
+    }
+
+    /** A daily-interval series has exactly one point per day - the bug was invisible here,
+     *  which is exactly why it shipped once already. */
+    @Test fun `a single point in the window is returned as-is`() {
+        val points = listOf(ChartPoint(t = (dayStart / 1000) + 100, close = 42.0))
+        assertEquals(42.0, lastCloseInWindow(points, dayStart, todayStart)!!, 1e-9)
+    }
 }
