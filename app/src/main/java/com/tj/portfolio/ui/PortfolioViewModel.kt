@@ -1056,6 +1056,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private var quotePassInterrupted = false
 
     /**
+     * The Day Trading "success rate" button's own state - null until it has been pressed at
+     * least once this session, then the last computed [com.tj.portfolio.data.DayTradingStats].
+     * Not disk-cached: the underlying log is, so re-pressing the button after a restart costs
+     * nothing but re-reading it and re-running [DayTradingEval.stats] over what disk already
+     * has - cheap, pure arithmetic, no network unless something is still unresolved.
+     */
+    private val _dayTradingStats = MutableStateFlow<com.tj.portfolio.data.DayTradingStats?>(null)
+    val dayTradingStats: StateFlow<com.tj.portfolio.data.DayTradingStats?> = _dayTradingStats.asStateFlow()
+
+    private val _dayTradingStatsLoading = MutableStateFlow(false)
+    val dayTradingStatsLoading: StateFlow<Boolean> = _dayTradingStatsLoading.asStateFlow()
+
+    /**
      * Form 4 filings for ONE stock, for its own detail screen.
      *
      * Now holds parsed [InsiderFiling]s rather than the generic feed row it used to. The old
