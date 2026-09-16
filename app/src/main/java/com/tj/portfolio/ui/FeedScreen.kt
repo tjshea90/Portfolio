@@ -237,16 +237,24 @@ fun FeedScreen(
                         }
                     }
                 } else if (filter == F_INSIDER) {
+                    val allCompanies = source == InsiderSource.ALL_COMPANIES
+                    val activeFilings = if (allCompanies) shownMarketFilings else shownFilings
                     item {
                         Column {
+                            SourceChips(source) { source = it }
                             ScopeChips(scope) { scope = it }
-                            val count = insiderSummary(shownFilings)
+                            val count = insiderSummary(activeFilings)
                             Text(
                                 buildString {
-                                    append("SEC Form 4 filings on everything you hold or ")
-                                    append("watch, last ")
-                                    append(com.tj.portfolio.net.Insider.WINDOW_DAYS)
-                                    append(" days, newest first. ")
+                                    if (allCompanies) {
+                                        append("SEC Form 4 filings for every public company, ")
+                                        append("newest first, $50,000 and up. ")
+                                    } else {
+                                        append("SEC Form 4 filings on everything you hold or ")
+                                        append("watch, last ")
+                                        append(com.tj.portfolio.net.Insider.WINDOW_DAYS)
+                                        append(" days, newest first. ")
+                                    }
                                     append(scope.blurb)
                                     if (count.isNotBlank()) append("\n\n").append(count).append(".")
                                 },
@@ -257,17 +265,22 @@ fun FeedScreen(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                         }
                     }
-                    items(shownFilings, key = { it.accession }) { f ->
+                    items(activeFilings, key = { it.accession }) { f ->
                         InsiderRow(f, owned = owned.contains(f.symbol)) {
                             if (f.url.isNotBlank()) onOpenUrl(f.url, f.headline())
                             else onOpen(f.symbol)
                         }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     }
-                    if (shownFilings.isEmpty()) {
+                    if (activeFilings.isEmpty()) {
                         item {
                             Empty(
                                 when {
+                                    allCompanies && marketFilingsLoading -> "Reading SEC filings..."
+                                    allCompanies ->
+                                        "Nothing to show yet. Either the SEC feed could not be " +
+                                            "reached, or nothing at \$50,000 or up has filed " +
+                                            "recently - pull down to try again."
                                     filingsLoading -> "Reading SEC filings..."
                                     // Deliberately ambiguous, because the app genuinely
                                     // cannot tell these apart: an unreachable EDGAR and a
@@ -296,6 +309,20 @@ fun FeedScreen(
                                             "Tap Everything to see grants and option exercises."
                                 }
                             )
+                        }
+                    }
+                    // "All companies" is a firehose paginated a page at a time - there is no
+                    // "empty means done" signal the way the portfolio-scoped month window has,
+                    // so paging further back is a tap, not automatic.
+                    if (allCompanies && activeFilings.isNotEmpty()) {
+                        item {
+                            TextButton(
+                                onClick = { vm.loadMoreMarketInsiders() },
+                                enabled = !marketFilingsLoading,
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                            ) {
+                                Text(if (marketFilingsLoading) "Loading..." else "Load more")
+                            }
                         }
                     }
                 } else {
