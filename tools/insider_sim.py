@@ -438,4 +438,8 @@ def main(symbols):
 
 
 if __name__ == "__main__":
-    main([s.upper() for s in sys.argv[1:]] or ["NVDA", "AAPL", "INTC", "F"])
+    args = sys.argv[1:]
+    if args and args[0] == "--market":
+        main_market(int(args[1]) if len(args) > 1 else MAX_MARKET_PAGES_PER_PASS)
+    else:
+        main([s.upper() for s in args] or ["NVDA", "AAPL", "INTC", "F"])
