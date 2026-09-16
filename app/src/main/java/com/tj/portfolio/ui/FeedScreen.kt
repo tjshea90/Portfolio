@@ -66,8 +66,11 @@ fun FeedScreen(
     val at by vm.feedAt.collectAsState()
     val filings by vm.insiderFilings.collectAsState()
     val filingsLoading by vm.insiderLoading.collectAsState()
+    val marketFilings by vm.marketInsiders.collectAsState()
+    val marketFilingsLoading by vm.marketInsiderLoading.collectAsState()
     var filter by remember { mutableStateOf(F_ALL) }
     var scope by remember { mutableStateOf(InsiderScope.OPEN_MARKET) }
+    var source by remember { mutableStateOf(InsiderSource.ALL_COMPANIES) }
 
     // Populate on first visit, and again whenever the tab is re-opened with nothing in it -
     // FeedScreen leaves composition on a tab switch, so this re-runs on the way back in.
