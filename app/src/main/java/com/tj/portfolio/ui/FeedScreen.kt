@@ -125,6 +125,13 @@ fun FeedScreen(
     val shownFilings = remember(filings, scope) {
         filings.filter { scope.accepts(it) }.sortedByDescending { it.filedAt }
     }
+    // The $50,000 "major" floor applies ONLY here - see [MIN_MARKET_TRADE_VALUE]'s own note
+    // on why "My stocks" is left as-is.
+    val shownMarketFilings = remember(marketFilings, scope) {
+        marketFilings
+            .filter { scope.accepts(it) && it.value >= MIN_MARKET_TRADE_VALUE }
+            .sortedByDescending { it.filedAt }
+    }
 
     Column(Modifier.fillMaxSize()) {
         Row(
