@@ -54,6 +54,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         createImports(db)
         createNews(db)
         createFundamentals(db)
+        createDayTradingLog(db)
     }
 
     /**
