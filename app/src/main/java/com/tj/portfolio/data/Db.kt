@@ -1315,11 +1315,55 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         return out
     }
 
+    /**
+     * When each symbol was added, and the resolved %-since-added baseline close (0.0 until
+     * [setWatchBaseline] has run once for it) - see [WatchEntry].
+     */
+    fun watchlistEntries(): List<WatchEntry> {
+        val out = ArrayList<WatchEntry>()
+        readableDatabase.rawQuery(
+            "SELECT symbol, added, added_price FROM watchlist ORDER BY added ASC", null
+        ).use { c ->
+            while (c.moveToNext()) {
+                out.add(WatchEntry(c.getString(0), c.getLong(1), c.getDouble(2)))
+            }
+        }
+        return out
+    }
+
     fun addWatch(symbol: String) {
         val cv = ContentValues().apply {
             put("symbol", symbol.uppercase()); put("added", System.currentTimeMillis())
         }
         writableDatabase.insertWithOnConflict("watchlist", null, cv, SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
+    /**
+     * [addWatch], but for restoring a backup - the caller already knows when the symbol was
+     * really added and what to anchor its %-since-added tracking to, and must not have either
+     * silently reset to "now" the way a plain [addWatch] would (see [exportJson]'s note on the
+     * bug this closes). `CONFLICT_IGNORE` matches [addWatch]: a symbol already on the
+     * watchlist keeps its own anchor rather than adopting the backup's.
+     */
+    fun addWatchWithAnchor(symbol: String, addedAt: Long, addedPrice: Double) {
+        val cv = ContentValues().apply {
+            put("symbol", symbol.uppercase())
+            put("added", if (addedAt > 0) addedAt else System.currentTimeMillis())
+            put("added_price", if (addedPrice.isFinite() && addedPrice > 0) addedPrice else 0.0)
+        }
+        writableDatabase.insertWithOnConflict("watchlist", null, cv, SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
+    /**
+     * Writes the resolved %-since-added baseline close, ONCE. [PortfolioViewModel] never
+     * calls this a second time for a symbol whose `added_price` is already set - see its own
+     * resolution function - but the update is a plain overwrite rather than a conditional one
+     * so a resolution mistakenly re-run is idempotent rather than compounding.
+     */
+    fun setWatchBaseline(symbol: String, price: Double) {
+        if (!price.isFinite() || price <= 0) return
+        val cv = ContentValues().apply { put("added_price", price) }
+        writableDatabase.update("watchlist", cv, "symbol=?", arrayOf(symbol.uppercase()))
     }
 
     fun removeWatch(symbol: String) =
