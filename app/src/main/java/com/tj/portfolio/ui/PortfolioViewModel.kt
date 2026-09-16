@@ -420,6 +420,15 @@ private const val DAY_TRADING_LIVE_INTERVAL_MS = 30_000L
 private const val MAX_INSIDER_FILINGS = 500
 
 /**
+ * EDGAR's own pagination step (100 entries/page) times [Insider.MAX_MARKET_PAGES_PER_PASS]-
+ * worth of pages read per "Load more" tap on the market-wide Insider view. Kept in sync with
+ * that constant by naming rather than importing it - `Insider`'s is `private`, on purpose,
+ * since it is a fetch-budget detail the ViewModel should not need to know the number to use
+ * this correctly, only to advance past whatever it just asked for.
+ */
+private const val MARKET_INSIDER_PAGE_ADVANCE = 300
+
+/**
  * How often the intraday candle series is re-pulled. See [PortfolioViewModel.refreshSparklines].
  *
  * Matched to the candle interval itself (`MarketData.INTERVAL` is 5m): asking more often than
