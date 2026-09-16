@@ -70,3 +70,39 @@ object DayTradingOutcome {
     fun isFinal(outcome: String?): Boolean =
         outcome != null && outcome != PENDING && outcome != DATA_UNAVAILABLE
 }
+
+/**
+ * The whole point of the log, answered: is this section's advice actually profitable? See
+ * `net/DayTradingEval.stats` for how this is computed - a plain reading of every DECIDED
+ * (entry triggered, outcome final) recommendation, nothing else.
+ *
+ * [avgReturnPct] is Tj's own second question, in his own words: *"how much percent up or down
+ * my portfolio would be if I bought and sold stocks only using the app day trading system."*
+ * It is the EQUAL-WEIGHTED AVERAGE of every decided trade's own percentage return (a same-
+ * dollar-amount trade per pick, no compounding across trades or days) - the standard, honest
+ * way to answer "if I traded this system" without inventing an account size Tj never gave.
+ * That assumption is real and is spelled out on screen next to the number, not left implicit.
+ */
+data class DayTradingStats(
+    val totalRecommendations: Int = 0,
+    /** Recommendations whose entry actually triggered AND whose outcome is now final -
+     *  [targetHit] + [stopHit] + [closedProfit] + [closedLoss]. The denominator both rates
+     *  below are measured against - a recommendation nobody could have traded (entry never
+     *  triggered) is not a win or a loss, so it is excluded rather than diluting either rate. */
+    val entriesTriggered: Int = 0,
+    val targetHit: Int = 0,
+    val stopHit: Int = 0,
+    val closedProfit: Int = 0,
+    val closedLoss: Int = 0,
+    val noEntry: Int = 0,
+    val pending: Int = 0,
+    val dataUnavailable: Int = 0,
+    /** % of [entriesTriggered] where TARGET was reached before the stop - the strict reading
+     *  of "did the plan work exactly as stated." */
+    val targetHitRate: Double = 0.0,
+    /** % of [entriesTriggered] that closed profitable overall, including a trade that never
+     *  reached target but was still up when the session ended. */
+    val profitableRate: Double = 0.0,
+    val avgReturnPct: Double = 0.0,
+    val evaluatedAt: Long = 0L
+)
