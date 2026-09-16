@@ -1321,17 +1321,21 @@ internal fun DayTradingSuccessRate(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
+                    // NEITHER RATE IS COLOURED GREEN/RED AGAINST A 50% LINE ON PURPOSE. This
+                    // app's own day-trading research (ResearchScore.TradePlan's header) is
+                    // explicit that a strategy earning its edge from a thin, large-winner tail
+                    // can have a genuinely GOOD hit rate in the 20s - painting a low number red
+                    // would tell Tj the opposite of what "if you only traded this system" (the
+                    // one figure below that IS colour-coded) actually shows.
                     KeyValue(
                         "Target hit rate",
                         "${Fmt.pctSigned(stats.targetHitRate).removePrefix("+")} " +
-                            "(${stats.targetHit} of ${stats.entriesTriggered})",
-                        signColor(stats.targetHitRate - 50.0)
+                            "(${stats.targetHit} of ${stats.entriesTriggered})"
                     )
                     KeyValue(
                         "Closed profitable overall",
                         "${Fmt.pctSigned(stats.profitableRate).removePrefix("+")} " +
-                            "(${stats.targetHit + stats.closedProfit} of ${stats.entriesTriggered})",
-                        signColor(stats.profitableRate - 50.0)
+                            "(${stats.targetHit + stats.closedProfit} of ${stats.entriesTriggered})"
                     )
                     Spacer(Modifier.height(4.dp))
                     KeyValue(
