@@ -91,6 +91,15 @@ fun FeedScreen(
         if (filter == F_INSIDER) vm.refreshInsidersIfEmpty()
     }
 
+    // The market-wide store's own trigger, same "opening it is the signal" rule - keyed on
+    // `source` too, so switching INTO All-companies for the first time fires it immediately
+    // rather than waiting for some other recomposition to happen to fire this effect again.
+    LaunchedEffect(filter, source) {
+        if (filter == F_INSIDER && source == InsiderSource.ALL_COMPANIES) {
+            vm.refreshMarketInsidersIfEmpty()
+        }
+    }
+
     val owned = remember(state.rows) {
         state.rows.filter { !it.watchOnly }.map { it.symbol }.toSet()
     }
