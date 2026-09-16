@@ -160,4 +160,54 @@ object DayTradingEval {
         return (if (lastClose > entry) DayTradingOutcome.CLOSED_PROFIT else DayTradingOutcome.CLOSED_LOSS) to
             lastClose
     }
+
+    /**
+     * The "success rate" button's other half - turns a pile of resolved log rows into the two
+     * headline numbers [DayTradingStats.targetHitRate] and [DayTradingStats.avgReturnPct]. See
+     * [DayTradingStats]'s own header for what each means and why.
+     */
+    fun stats(entries: List<DayTradingLogEntry>): DayTradingStats {
+        var targetHit = 0; var stopHit = 0; var closedProfit = 0; var closedLoss = 0
+        var noEntry = 0; var pending = 0; var dataUnavailable = 0
+        val returns = ArrayList<Double>()
+
+        fun pctReturn(entry: Double, exit: Double): Double =
+            if (entry > 1e-9) (exit - entry) / entry * 100.0 else 0.0
+
+        for (e in entries) {
+            when (e.outcome) {
+                DayTradingOutcome.WIN -> {
+                    targetHit++; returns.add(pctReturn(e.entry, e.outcomeExitPrice ?: e.target))
+                }
+                DayTradingOutcome.LOSS -> {
+                    stopHit++; returns.add(pctReturn(e.entry, e.outcomeExitPrice ?: e.stop))
+                }
+                DayTradingOutcome.CLOSED_PROFIT -> {
+                    closedProfit++; returns.add(pctReturn(e.entry, e.outcomeExitPrice ?: e.entry))
+                }
+                DayTradingOutcome.CLOSED_LOSS -> {
+                    closedLoss++; returns.add(pctReturn(e.entry, e.outcomeExitPrice ?: e.entry))
+                }
+                DayTradingOutcome.NO_ENTRY -> noEntry++
+                DayTradingOutcome.DATA_UNAVAILABLE -> dataUnavailable++
+                else -> pending++ // null (never evaluated) reads the same as an explicit PENDING
+            }
+        }
+        val decided = targetHit + stopHit + closedProfit + closedLoss
+        return DayTradingStats(
+            totalRecommendations = entries.size,
+            entriesTriggered = decided,
+            targetHit = targetHit,
+            stopHit = stopHit,
+            closedProfit = closedProfit,
+            closedLoss = closedLoss,
+            noEntry = noEntry,
+            pending = pending,
+            dataUnavailable = dataUnavailable,
+            targetHitRate = if (decided > 0) targetHit.toDouble() / decided * 100.0 else 0.0,
+            profitableRate = if (decided > 0) (targetHit + closedProfit).toDouble() / decided * 100.0 else 0.0,
+            avgReturnPct = if (returns.isNotEmpty()) returns.average() else 0.0,
+            evaluatedAt = System.currentTimeMillis()
+        )
+    }
 }
