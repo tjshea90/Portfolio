@@ -1412,6 +1412,88 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     fun removeWatch(symbol: String) =
         writableDatabase.delete("watchlist", "symbol=?", arrayOf(symbol.uppercase()))
 
+    // ---------- day trading recommendation log (Part 15) ----------
+
+    /**
+     * Records one recommendation, ONCE, ever. A second call for the same (symbol, tradingDay)
+     * is silently ignored by `CONFLICT_IGNORE` against the table's own `UNIQUE(symbol,
+     * trading_day)` - whatever was recorded the FIRST time this symbol got a real plan that
+     * day is what "the recommendation" means for every later evaluation. See
+     * [createDayTradingLog].
+     */
+    fun logDayTradingRecommendation(
+        symbol: String,
+        tradingDay: String,
+        setup: String,
+        entry: Double,
+        stop: Double,
+        target: Double,
+        priceAtRecommendation: Double,
+        source: String
+    ) {
+        if (entry <= 0.0 || stop <= 0.0 || target <= 0.0 || tradingDay.isBlank()) return
+        val cv = ContentValues().apply {
+            put("symbol", symbol.uppercase())
+            put("trading_day", tradingDay)
+            put("recorded_at", System.currentTimeMillis())
+            put("setup", setup)
+            put("entry", entry); put("stop", stop); put("target", target)
+            put("price_at_recommendation", priceAtRecommendation)
+            put("source", source)
+        }
+        writableDatabase.insertWithOnConflict(
+            "day_trading_log", null, cv, SQLiteDatabase.CONFLICT_IGNORE
+        )
+    }
+
+    /** Every recommendation ever recorded, newest first. */
+    fun dayTradingLog(): List<DayTradingLogEntry> {
+        val out = ArrayList<DayTradingLogEntry>()
+        readableDatabase.rawQuery(
+            """SELECT id, symbol, trading_day, recorded_at, setup, entry, stop, target,
+                price_at_recommendation, source, outcome, outcome_exit_price, outcome_evaluated_at
+               FROM day_trading_log ORDER BY recorded_at DESC""",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                out.add(
+                    DayTradingLogEntry(
+                        id = c.getLong(0),
+                        symbol = c.getString(1),
+                        tradingDay = c.getString(2),
+                        recordedAt = c.getLong(3),
+                        setup = c.getString(4),
+                        entry = c.getDouble(5),
+                        stop = c.getDouble(6),
+                        target = c.getDouble(7),
+                        priceAtRecommendation = c.getDouble(8),
+                        source = c.getString(9),
+                        outcome = if (c.isNull(10)) null else c.getString(10),
+                        outcomeExitPrice = if (c.isNull(11)) null else c.getDouble(11),
+                        outcomeEvaluatedAt = if (c.isNull(12)) null else c.getLong(12)
+                    )
+                )
+            }
+        }
+        return out
+    }
+
+    /**
+     * Writes an outcome for one row. Safe to call more than once for the same row: the only
+     * outcomes [PortfolioViewModel.evaluateDayTradingLog] ever asks to re-resolve are
+     * [DayTradingOutcome.PENDING] and [DayTradingOutcome.DATA_UNAVAILABLE], and a plain
+     * overwrite is exactly right for both - see [DayTradingOutcome.isFinal].
+     */
+    fun setDayTradingOutcome(id: Long, outcome: String, exitPrice: Double?) {
+        val cv = ContentValues().apply {
+            put("outcome", outcome)
+            if (exitPrice != null && exitPrice.isFinite()) put("outcome_exit_price", exitPrice)
+            else putNull("outcome_exit_price")
+            put("outcome_evaluated_at", System.currentTimeMillis())
+        }
+        writableDatabase.update("day_trading_log", cv, "id=?", arrayOf(id.toString()))
+    }
+
     // ---------- backup ----------
 
     /**
