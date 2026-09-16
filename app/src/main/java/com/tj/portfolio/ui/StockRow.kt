@@ -207,6 +207,11 @@ fun StockRowItem(
             Spacer(Modifier.height(10.dp))
             PriceBlock(row)
 
+            if (row.watchOnly) {
+                Spacer(Modifier.height(6.dp))
+                WatchedSinceLine(row)
+            }
+
             if (!row.watchOnly) {
                 // ================= YOUR MONEY =================
                 //
