@@ -1,6 +1,8 @@
 package com.tj.portfolio.net
 
+import com.tj.portfolio.data.DayTradingLogEntry
 import com.tj.portfolio.data.DayTradingOutcome
+import com.tj.portfolio.data.DayTradingStats
 import org.json.JSONObject
 
 /**
