@@ -1079,6 +1079,28 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     val insiderLoading: StateFlow<Boolean> = _insiderLoading.asStateFlow()
 
     /**
+     * EVERY Form 4 filed by anyone, anywhere - the "All companies" half of the Insider tab.
+     *
+     * A separate store from [_insiderFilings] on purpose: that one is disk-cached and capped
+     * for a PORTFOLIO's handful of symbols, and merging an unbounded market-wide feed into it
+     * would compete with a held stock's own filings for the same cap. This one is memory-only
+     * and re-fetched from page 1 on every cold start - cheap, since it only ever runs while
+     * "All companies" is the selected view and the Insider tab is open, the same "asleep
+     * unless open" rule the rest of this app's live-refresh features follow.
+     */
+    private val _marketInsiders = MutableStateFlow<List<com.tj.portfolio.data.InsiderFiling>>(emptyList())
+    val marketInsiders: StateFlow<List<com.tj.portfolio.data.InsiderFiling>> =
+        _marketInsiders.asStateFlow()
+
+    private val _marketInsiderLoading = MutableStateFlow(false)
+    val marketInsiderLoading: StateFlow<Boolean> = _marketInsiderLoading.asStateFlow()
+
+    /** EDGAR's own pagination offset the next "Load more" continues from. */
+    private var marketInsiderPageStart = 0
+
+    private var marketInsiderJob: Job? = null
+
+    /**
      * Accession number -> filing already parsed this session.
      *
      * A filed Form 4 is immutable, so this cache is exact rather than a guess: once a filing
