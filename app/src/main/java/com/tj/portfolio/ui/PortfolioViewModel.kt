@@ -1212,6 +1212,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     // away from drawing an empty portfolio over perfectly good data. Do not move them.
     /** Watchlist as of the last full [recompute]. */
     private var cachedWatch: List<com.tj.portfolio.data.WatchEntry> = emptyList()
+    /** Symbols with a %-since-added baseline lookup in flight, so opening the tab twice fast
+     *  cannot fire the same chart fetch twice. */
+    private val watchBaselineInFlight = java.util.Collections.synchronizedSet(HashSet<String>())
     /** Transactions in ledger order (ascending), straight from the database. */
     private var cachedTxns: List<Txn> = emptyList()
     /** The same rows in the newest-first order the Activity tab shows, sorted once. */
