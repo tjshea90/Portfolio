@@ -3243,23 +3243,32 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val pending = cachedWatch.filter { it.addedPrice <= 0.0 }
         if (pending.isEmpty()) return
         fgScope.launch {
-            for (w in pending) {
-                if (!watchBaselineInFlight.add(w.symbol)) continue
-                try {
-                    val close = withContext(Dispatchers.IO) {
-                        runCatching { closeOnOrAfter(w.symbol, w.addedAt) }.getOrNull()
+            // BOUNDED CONCURRENCY, not one at a time - the same gate every other per-symbol
+            // fetch loop in this file already uses. A restore or a multi-add can leave several
+            // symbols pending at once, and there is no reason a slow chart fetch for the first
+            // one should hold up starting the rest.
+            val gate = Semaphore(MAX_PARALLEL_REQUESTS)
+            pending.map { w ->
+                async {
+                    gate.withPermit {
+                        if (!watchBaselineInFlight.add(w.symbol)) return@withPermit
+                        try {
+                            val close = withContext(Dispatchers.IO) {
+                                runCatching { closeOnOrAfter(w.symbol, w.addedAt) }.getOrNull()
+                            }
+                            if (close != null && close > 0) {
+                                withContext(Dispatchers.IO) { db.setWatchBaseline(w.symbol, close) }
+                                recompute()
+                            }
+                            // null means either the network failed or the add-day's session has
+                            // not closed yet (see [closeOnOrAfter]) - either way, try again the
+                            // next time this is called rather than guessing.
+                        } finally {
+                            watchBaselineInFlight.remove(w.symbol)
+                        }
                     }
-                    if (close != null && close > 0) {
-                        withContext(Dispatchers.IO) { db.setWatchBaseline(w.symbol, close) }
-                        recompute()
-                    }
-                    // null means either the network failed or the add-day's session has not
-                    // closed yet (see [closeOnOrAfter]) - either way, try again the next time
-                    // this is called rather than guessing.
-                } finally {
-                    watchBaselineInFlight.remove(w.symbol)
                 }
-            }
+            }.awaitAll()
         }
     }
 
