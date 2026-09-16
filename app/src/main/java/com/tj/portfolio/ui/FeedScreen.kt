@@ -178,7 +178,9 @@ fun FeedScreen(
 
         // The Insider tab has its own slow pass, so it gets its own progress bar - otherwise
         // it sat with no indication of anything happening while EDGAR was being read.
-        if (loading || (filter == F_INSIDER && filingsLoading)) {
+        val insiderBusy = filter == F_INSIDER &&
+            (if (source == InsiderSource.ALL_COMPANIES) marketFilingsLoading else filingsLoading)
+        if (loading || insiderBusy) {
             LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
