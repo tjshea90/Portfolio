@@ -3305,7 +3305,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * which is a real but minor loss of precision for an old watchlist entry, not a new
      * lookup path.
      *
-     * TWO REAL BUGS FIXED HERE AFTER SHIPPING (caught by a requested post-release review):
+     * TWO REAL BUGS FIXED HERE AFTER SHIPPING (caught by a requested post-release review),
+     * neither one visible in the original tests because nothing in them was added within the
+     * last week and exercised against real network data:
      *
      * 1. THE LOOKBACK HAS TO BE MEASURED FROM THE START OF THE ADD-DAY, NOT FROM [dateMs]
      * ITSELF. A symbol added at 11pm has a lookback of minutes if measured from [dateMs] and
@@ -3317,13 +3319,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * day of lookback whenever the add-day is not today, which is enough to promote the choice
      * off [ChartRange.D1] and onto a range whose series can actually contain that day.
      *
-     * 2. A SUB-DAILY SERIES HOLDS MANY POINTS FOR ONE DAY, AND THE LAST ONE IS THE CLOSE. A
-     * symbol added within the last week resolves from [ChartRange.D5] (30-minute candles) or
-     * [ChartRange.D1] (5-minute candles), both of which have several points inside the add-day
-     * - `minByOrNull` picked the FIRST of them, close to the opening bell, not the close this
-     * function's own name and doc comment promise. Only a series with exactly one point per
-     * day (`Y1` and coarser) made the bug invisible, which is why it survived the original
-     * tests: nothing added within the last week was exercised against real network data.
+     * 2. WHICH POINT COUNTS AS "THE CLOSE" - see [lastCloseInWindow]'s own note, which is
+     * where that half of the fix now actually lives.
      */
     private suspend fun closeOnOrAfter(symbol: String, dateMs: Long): Double? {
         val dayStart = startOfDay(dateMs)
