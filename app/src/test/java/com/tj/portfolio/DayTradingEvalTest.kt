@@ -251,14 +251,19 @@ class DayTradingEvalTest {
     }
 
     @Test fun exactBoundaryTouchesCountAsHits() {
-        // high exactly equal to entry/target, low exactly equal to stop - >=/<= not >/<.
-        val entryExact = listOf(bar(0L, high = 10.0, low = 9.9, close = 10.0))
-        val (e, _) = DayTradingEval.evaluate(
+        // high exactly equal to entry - proven by a WIN, since NO_ENTRY would also result if
+        // the boundary were wrongly excluded and this bar simply never triggered.
+        val entryExact = listOf(
+            bar(0L, high = 10.0, low = 9.9, close = 10.0),  // entry(10) exactly on the high
+            bar(1L, high = 12.0, low = 10.0, close = 11.9)  // target(12) reached next bar
+        )
+        val (e, exit) = DayTradingEval.evaluate(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
             recordedAt = 0L, bars = entryExact, sessionStillOpen = false
         )
         assertEquals("high==entry must count as triggered, not almost-triggered",
-            DayTradingOutcome.NO_ENTRY, e) // triggers but no more bars to decide the outcome
+            DayTradingOutcome.WIN, e)
+        assertEquals(12.0, exit!!, 1e-9)
 
         val targetExact = listOf(
             bar(0L, 10.1, 9.9, 10.0),
