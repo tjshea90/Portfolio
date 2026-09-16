@@ -786,6 +786,25 @@ internal fun mergeDayTradingTech(
 private const val DAY_TRADING_DECLINE_CONFIRM_TICKS = 2
 
 /**
+ * The LAST point in [points] whose timestamp falls in `[dayStart, todayStart)` - the
+ * %-since-added baseline's own "which point is the close" rule, pulled out of
+ * [PortfolioViewModel.closeOnOrAfter] so it can be tested without a live network fetch.
+ *
+ * `maxByOrNull`, not `minByOrNull` - a sub-daily series (this app's own [ChartRange.D5]/
+ * [ChartRange.D1]) holds several points for one calendar day, and the LAST one is the day's
+ * close; the first is close to the opening bell. Picking the wrong end of that ordering was a
+ * real bug that shipped - see [PortfolioViewModel.closeOnOrAfter]'s own note.
+ */
+internal fun lastCloseInWindow(
+    points: List<com.tj.portfolio.data.ChartPoint>,
+    dayStart: Long,
+    todayStart: Long
+): Double? = points
+    .filter { it.t * 1000L in dayStart until todayStart }
+    .maxByOrNull { it.t }
+    ?.close
+
+/**
  * The one-time reorder a completed Day Trading full sweep applies (Round 75) - see
  * [PortfolioViewModel.enrichDayTradingVisible]'s own header for when this runs and why it is
  * NOT the ordinary 30-second refresh. Tj: "try to find and show the actual stocks that I can
