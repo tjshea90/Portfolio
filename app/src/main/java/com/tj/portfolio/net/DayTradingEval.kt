@@ -59,22 +59,23 @@ object DayTradingEval {
             val r = Http.get(url, mapOf("Accept" to "application/json"))
             if (r.throttledLocally) continue
             if (!r.ok) continue
-            val parsed = runCatching { parseBars(r.body) }.getOrNull() ?: continue
-            return parsed
+            return parseBars(r.body)
         }
         return null
     }
 
-    internal fun parseBars(body: String): List<IntradayBar> {
+    /** TOTAL - malformed input is a real possibility (a proxy error page, a truncated body)
+     *  and always reads as "nothing parsed", never an exception. */
+    internal fun parseBars(body: String): List<IntradayBar> = runCatching {
         val res = JSONObject(body).optJSONObject("chart")
-            ?.optJSONArray("result")?.optJSONObject(0) ?: return emptyList()
-        val ts = res.optJSONArray("timestamp") ?: return emptyList()
+            ?.optJSONArray("result")?.optJSONObject(0) ?: return@runCatching emptyList()
+        val ts = res.optJSONArray("timestamp") ?: return@runCatching emptyList()
         val quote = res.optJSONObject("indicators")?.optJSONArray("quote")?.optJSONObject(0)
-            ?: return emptyList()
+            ?: return@runCatching emptyList()
         val highs = quote.optJSONArray("high")
         val lows = quote.optJSONArray("low")
         val closes = quote.optJSONArray("close")
-        if (highs == null || lows == null || closes == null) return emptyList()
+        if (highs == null || lows == null || closes == null) return@runCatching emptyList()
         val n = minOf(ts.length(), highs.length(), lows.length(), closes.length())
         val out = ArrayList<IntradayBar>(n)
         for (i in 0 until n) {
