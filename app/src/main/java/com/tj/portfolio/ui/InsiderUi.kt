@@ -269,3 +269,38 @@ fun ScopeChips(
         }
     }
 }
+
+/** "My stocks" / "All companies" - same look as [ScopeChips], one row up, for [InsiderSource]. */
+@Composable
+fun SourceChips(
+    selected: InsiderSource,
+    onSelect: (InsiderSource) -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        InsiderSource.entries.forEach { s ->
+            val on = s == selected
+            Box(
+                Modifier
+                    .weight(1f)
+                    .background(
+                        if (on) Accent.copy(alpha = 0.18f)
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                        RoundedCornerShape(8.dp)
+                    )
+                    .clickable { onSelect(s) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    s.label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (on) accentText else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
