@@ -102,6 +102,86 @@ class DbTest {
         fresh.close()
     }
 
+    // ------------------------------------------------------------ %-since-added watchlist
+
+    @Test fun `watchlistEntries carries the added timestamp and starts with no baseline`() {
+        db.addWatch("NVDA")
+        val e = db.watchlistEntries().single()
+        assertEquals("NVDA", e.symbol)
+        assertTrue("added should be stamped to roughly now", e.addedAt > 0)
+        assertEquals(0.0, e.addedPrice, 1e-9)
+    }
+
+    @Test fun `setWatchBaseline writes once and a second call cannot move it`() {
+        db.addWatch("NVDA")
+        db.setWatchBaseline("nvda", 227.44)
+        assertEquals(227.44, db.watchlistEntries().single().addedPrice, 1e-9)
+        // A second resolution (a re-run, a bug, a race) is a plain overwrite rather than a
+        // no-op - see setWatchBaseline's own note on why that is still safe: the caller
+        // ([PortfolioViewModel.resolveWatchBaselines]) is what guarantees this never actually
+        // happens for a symbol already resolved, not this function.
+        db.setWatchBaseline("NVDA", 300.0)
+        assertEquals(300.0, db.watchlistEntries().single().addedPrice, 1e-9)
+    }
+
+    @Test fun `setWatchBaseline ignores a non-positive or non-finite price`() {
+        db.addWatch("NVDA")
+        db.setWatchBaseline("NVDA", 0.0)
+        db.setWatchBaseline("NVDA", -5.0)
+        db.setWatchBaseline("NVDA", Double.NaN)
+        assertEquals(0.0, db.watchlistEntries().single().addedPrice, 1e-9)
+    }
+
+    @Test fun `addWatchWithAnchor keeps the given date rather than stamping now`() {
+        val old = day(2026, 2, 22)
+        db.addWatchWithAnchor("nvda", old, 227.44)
+        val e = db.watchlistEntries().single()
+        assertEquals(old, e.addedAt)
+        assertEquals(227.44, e.addedPrice, 1e-9)
+    }
+
+    @Test fun `addWatchWithAnchor never overwrites a symbol already on the watchlist`() {
+        db.addWatch("NVDA")
+        val originalAddedAt = db.watchlistEntries().single().addedAt
+        db.addWatchWithAnchor("NVDA", day(2020, 1, 1), 5.0)
+        val e = db.watchlistEntries().single()
+        assertEquals("a restore must not steal an existing watch's own anchor", originalAddedAt, e.addedAt)
+        assertEquals(0.0, e.addedPrice, 1e-9)
+    }
+
+    /**
+     * THE BUG THIS CLOSES. Backup v2 and earlier wrote the watchlist as bare symbol strings,
+     * so a restore called `addWatch(sym)` - which stamps `added` at the moment of restoring -
+     * silently resetting every %-since-added anchor on a plain backup/restore round trip.
+     */
+    @Test fun `export then restore keeps the original add date and baseline, not the restore moment`() {
+        db.addWatch("NVDA")
+        db.setWatchBaseline("NVDA", 227.44)
+        val originalAddedAt = db.watchlistEntries().single().addedAt
+
+        val json = db.exportJson()
+        val fresh = Db(ctx.also { it.deleteDatabase(Db.DB_NAME) })
+        fresh.restoreJson(json, replace = true)
+
+        val e = fresh.watchlistEntries().single()
+        assertEquals(originalAddedAt, e.addedAt)
+        assertEquals(227.44, e.addedPrice, 1e-9)
+        fresh.close()
+    }
+
+    /** A backup written by an older app version is still a bare string array - must still work. */
+    @Test fun `restore still accepts an old bare-string watchlist backup`() {
+        val json = JSONObject().apply {
+            put("transactions", JSONArray())
+            put("watchlist", JSONArray().put("AAPL").put("msft"))
+        }.toString()
+        db.restoreJson(json, replace = true)
+        assertEquals(setOf("AAPL", "MSFT"), db.watchlist().toSet())
+        // An old-format entry carries no anchor at all - resolved fresh, same as a brand new
+        // `addWatch`, not left permanently blank.
+        assertTrue(db.watchlistEntries().all { it.addedPrice == 0.0 })
+    }
+
     @Test fun `a cash row keeps its null symbol through a restore`() {
         // The v1.9 bug: org.json optString on a JSON null returns the STRING "null", which
         // turned every DEPOSIT into a phantom position called NULL.
