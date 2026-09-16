@@ -5474,17 +5474,38 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * alternative - tracking "have I already logged this one" in memory - would have to be
      * kept in step with every place a row's plan can change, and a single missed spot would
      * silently under-count the log. Letting the database's own constraint decide cannot drift.
+     *
+     * TWO GUARDS ADDED AFTER A REQUESTED PRE-SHIP REVIEW FOUND A REAL GAP:
+     *
+     * 1. ONLY WHILE THE REGULAR SESSION IS ACTUALLY OPEN. [cacheResearch] runs from paths that
+     * have nothing to do with a live Day Trading tick - restoring yesterday's cached Research
+     * from disk on a cold start, an ETF-only rebuild - and any of them can carry Day Trading
+     * rows whose entry/stop/target were computed hours or days earlier, still sitting in
+     * memory. Capturing one of those for the first time after the close (or the next morning)
+     * would stamp `recordedAt` at that LATE moment, filtering out the entire intraday move the
+     * plan was actually live for and reading a real win as [DayTradingOutcome.NO_ENTRY]. There
+     * is no reliable way to recover when a stale row's numbers were actually first shown, so
+     * the honest answer is not to guess - skip it, the same "a fabricated level is worse than
+     * a blank" rule this file already follows for the plan itself.
+     *
+     * 2. [recordedAt] IS READ HERE, NOT INSIDE [Db]. Stamping it inside the IO-dispatched write
+     * meant the timestamp was whenever the coroutine happened to run, not the moment this
+     * function actually observed the row - usually milliseconds apart, but a real gap all the
+     * same or a wrong lesson for the next thing that copies this pattern.
      */
     private fun captureDayTradingRecommendations(rows: List<com.tj.portfolio.data.ResearchRow>) {
+        if (com.tj.portfolio.net.MarketClock.phase() != com.tj.portfolio.net.MarketClock.Phase.OPEN) return
         val priced = rows.filter { it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 }
         if (priced.isEmpty()) return
         val today = com.tj.portfolio.net.MarketClock.dayKey()
+        val recordedAt = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 for (r in priced) {
                     db.logDayTradingRecommendation(
                         symbol = r.symbol,
                         tradingDay = today,
+                        recordedAt = recordedAt,
                         setup = r.setup,
                         entry = r.entryPrice,
                         stop = r.stopPrice,
