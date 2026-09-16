@@ -261,13 +261,13 @@ class DayTradingEvalTest {
             bar(0L, high = 10.0, low = 9.9, close = 10.0),  // entry(10) exactly on the high
             bar(1L, high = 12.0, low = 10.0, close = 11.9)  // target(12) reached next bar
         )
-        val (e, exit) = DayTradingEval.evaluate(
+        val (e, exitA) = DayTradingEval.evaluate(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
             recordedAt = 0L, bars = entryExact, sessionStillOpen = false
         )
         assertEquals("high==entry must count as triggered, not almost-triggered",
             DayTradingOutcome.WIN, e)
-        assertEquals(12.0, exit!!, 1e-9)
+        assertEquals(12.0, exitA!!, 1e-9)
 
         val targetExact = listOf(
             bar(0L, 10.1, 9.9, 10.0),
