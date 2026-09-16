@@ -5393,8 +5393,53 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun cacheResearch(set: com.tj.portfolio.data.ResearchSet) {
         _research.value = set
+        // EVERY PATH THAT CAN CHANGE THE DAY TRADING SECTION GOES THROUGH HERE - the live
+        // 30-second enrich loop, a Claude import, a full rebuild - so this is the one place
+        // that can capture "here is a real recommendation" without hooking each of those
+        // individually and risking a future one being missed. See
+        // [captureDayTradingRecommendations]'s own header for why this is safe to call on
+        // every publish rather than only on a change: the DB's own uniqueness constraint is
+        // what actually decides whether anything gets written.
+        captureDayTradingRecommendations(set.dayTrading)
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { db.set(Keys.RESEARCH_CACHE, set.toJson().toString()) }
+        }
+    }
+
+    /**
+     * Tj, 2026-09-16: *"record and track each and every one of its day trading
+     * recommendations... make sure it doesn't delete or modify any of the data if I refresh
+     * the day trading section and it says the plan already fell apart."*
+     *
+     * Reads whatever the Day Trading section currently shows and asks [Db] to record each
+     * priced row. Called on EVERY [cacheResearch] publish, not just when something is new -
+     * `Db.logDayTradingRecommendation`'s own `INSERT OR IGNORE` against `UNIQUE(symbol,
+     * trading_day)` is what actually makes this a no-op for a symbol already recorded today,
+     * so calling it redundantly costs nothing but a conflict-ignored statement. The
+     * alternative - tracking "have I already logged this one" in memory - would have to be
+     * kept in step with every place a row's plan can change, and a single missed spot would
+     * silently under-count the log. Letting the database's own constraint decide cannot drift.
+     */
+    private fun captureDayTradingRecommendations(rows: List<com.tj.portfolio.data.ResearchRow>) {
+        val priced = rows.filter { it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 }
+        if (priced.isEmpty()) return
+        val today = com.tj.portfolio.net.MarketClock.dayKey()
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                for (r in priced) {
+                    db.logDayTradingRecommendation(
+                        symbol = r.symbol,
+                        tradingDay = today,
+                        setup = r.setup,
+                        entry = r.entryPrice,
+                        stop = r.stopPrice,
+                        target = r.targetPrice,
+                        priceAtRecommendation = r.price,
+                        source = if (r.planByClaude) com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE
+                        else com.tj.portfolio.data.DayTradingLogEntry.SOURCE_APP
+                    )
+                }
+            }
         }
     }
 
