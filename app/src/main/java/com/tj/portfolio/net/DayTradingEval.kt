@@ -111,12 +111,27 @@ object DayTradingEval {
         }.getOrNull()
     }
 
-    /** Which way price has to move to reach [com.tj.portfolio.data.DayTradingLogEntry.entry] -
-     *  see [com.tj.portfolio.net.ResearchScore.TradePlan]'s own header: a breakout or a VWAP
-     *  reclaim sits ABOVE the price at the time it was set, a pullback sits BELOW it. Every
-     *  plan in this app is long-only (`TradePlan.risk`/`reward` are both defined assuming
-     *  `stop < entry < target`), so this is the only two-way question there is. */
-    internal fun entryRises(setup: String): Boolean = setup != ResearchScore.SETUP_PULLBACK
+    /**
+     * Which way price has to move to reach [com.tj.portfolio.data.DayTradingLogEntry.entry] -
+     * decided from [priceAtRecommendation] whenever it is usable, which is the DIRECT answer
+     * ("is entry above or below where the stock actually was") rather than an inference from
+     * [setup]'s text.
+     *
+     * THE SETUP STRING IS ONLY A FALLBACK, AND A REAL BUG SHIPPED WHEN IT WAS THE ONLY SIGNAL
+     * (caught by a requested pre-ship review). It is exact for this app's own three setups -
+     * see [com.tj.portfolio.net.ResearchScore.TradePlan]'s header: a breakout or VWAP reclaim
+     * sits ABOVE the price when it is set, a pullback sits BELOW it - but a Claude-authored
+     * plan's `setup` is free text Claude wrote (`DayTradingBridge.kt`'s merge only requires
+     * `stop < entry < target`, nothing about the setup NAME), so a real pullback-style Claude
+     * plan called anything other than the literal word "Pullback" - "Support bounce", "Buy the
+     * dip" - was read as RISING, made `entry` look already triggered on the very first bar
+     * (price starts above a falling entry, so `high >= entry` is trivially true), and could
+     * credit or blame a trade that was never actually placed.
+     */
+    internal fun entryRises(setup: String, entry: Double, priceAtRecommendation: Double): Boolean =
+        if (priceAtRecommendation > 0.0 && kotlin.math.abs(entry - priceAtRecommendation) > 1e-9)
+            entry > priceAtRecommendation
+        else setup != ResearchScore.SETUP_PULLBACK
 
     /**
      * The real outcome of one recorded recommendation, decided ONLY from [bars] at or after
@@ -134,12 +149,13 @@ object DayTradingEval {
         entry: Double,
         stop: Double,
         target: Double,
+        priceAtRecommendation: Double,
         recordedAt: Long,
         bars: List<IntradayBar>,
         sessionStillOpen: Boolean
     ): Pair<String, Double?> {
         val after = bars.filter { it.t * 1000L >= recordedAt }
-        val rises = entryRises(setup)
+        val rises = entryRises(setup, entry, priceAtRecommendation)
         val entryIndex = after.indexOfFirst { bar -> if (rises) bar.high >= entry else bar.low <= entry }
         if (entryIndex < 0) {
             return (if (sessionStillOpen) DayTradingOutcome.PENDING else DayTradingOutcome.NO_ENTRY) to null
