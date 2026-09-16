@@ -2,12 +2,14 @@ package com.tj.portfolio
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
+import com.tj.portfolio.data.ChartPoint
 import com.tj.portfolio.data.Db
 import com.tj.portfolio.data.Quote
 import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.ui.PortfolioViewModel
 import com.tj.portfolio.ui.Row
+import com.tj.portfolio.ui.lastCloseInWindow
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
