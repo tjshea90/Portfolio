@@ -1188,7 +1188,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     // which is why it did not show up in testing - but it left the app one mistimed call
     // away from drawing an empty portfolio over perfectly good data. Do not move them.
     /** Watchlist as of the last full [recompute]. */
-    private var cachedWatch: List<String> = emptyList()
+    private var cachedWatch: List<com.tj.portfolio.data.WatchEntry> = emptyList()
     /** Transactions in ledger order (ascending), straight from the database. */
     private var cachedTxns: List<Txn> = emptyList()
     /** The same rows in the newest-first order the Activity tab shows, sorted once. */
