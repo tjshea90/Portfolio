@@ -1429,13 +1429,17 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         stop: Double,
         target: Double,
         priceAtRecommendation: Double,
-        source: String
+        source: String,
+        // Defaults to "now", but the caller passes the moment IT actually observed the row -
+        // see PortfolioViewModel.captureDayTradingRecommendations's own note on why stamping
+        // it here, after a coroutine dispatch, was measuring the wrong moment.
+        recordedAt: Long = System.currentTimeMillis()
     ) {
         if (entry <= 0.0 || stop <= 0.0 || target <= 0.0 || tradingDay.isBlank()) return
         val cv = ContentValues().apply {
             put("symbol", symbol.uppercase())
             put("trading_day", tradingDay)
-            put("recorded_at", System.currentTimeMillis())
+            put("recorded_at", recordedAt)
             put("setup", setup)
             put("entry", entry); put("stop", stop); put("target", target)
             put("price_at_recommendation", priceAtRecommendation)
