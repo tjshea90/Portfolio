@@ -1603,8 +1603,26 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             var wN = 0
             val wl = root.optJSONArray("watchlist") ?: JSONArray()
             for (i in 0 until wl.length()) {
-                val sym = wl.optString(i).trim()
-                if (sym.isNotBlank()) { addWatch(sym); wN++ }
+                // Backup v3 writes objects (`{symbol, added, addedPrice}`, see [exportJson]);
+                // an older backup file is still a bare string array. `JSONArray.optString` on
+                // an object element would return its whole JSON text as if it were a ticker,
+                // so the shape is checked directly rather than assumed.
+                when (val entry = wl.opt(i)) {
+                    is JSONObject -> {
+                        val sym = entry.optString("symbol").trim()
+                        if (sym.isNotBlank()) {
+                            addWatchWithAnchor(
+                                sym, entry.optLong("added", 0L), entry.optDouble("addedPrice", 0.0)
+                            )
+                            wN++
+                        }
+                    }
+                    is String -> {
+                        val sym = entry.trim()
+                        if (sym.isNotBlank()) { addWatch(sym); wN++ }
+                    }
+                    else -> {}
+                }
             }
 
             var sN = 0
