@@ -32,6 +32,20 @@ class DayTradingEvalTest {
 
     private fun bar(t: Long, high: Double, low: Double, close: Double) = IntradayBar(t, high, low, close)
 
+    /** Thin wrapper so every call site does not have to repeat all 8 parameters - [price]
+     *  defaults to a value below [entry], the common (rising) case, and is overridden in the
+     *  falling-direction tests. */
+    private fun eval(
+        setup: String,
+        entry: Double,
+        stop: Double,
+        target: Double,
+        bars: List<IntradayBar>,
+        sessionStillOpen: Boolean,
+        price: Double = entry - 1.0,
+        recordedAt: Long = 0L
+    ) = DayTradingEval.evaluate(setup, entry, stop, target, price, recordedAt, bars, sessionStillOpen)
+
     // ------------------------------------------------------------------ parsing (live fixture)
 
     @Test fun parseBarsReadsARealCapturedYahooResponse() {
@@ -75,12 +89,64 @@ class DayTradingEvalTest {
 
     // ------------------------------------------------------------------ trigger direction
 
-    @Test fun onlyAPullbackWaitsForPriceToFall() {
-        assertTrue(DayTradingEval.entryRises(ResearchScore.SETUP_BREAKOUT))
-        assertTrue(DayTradingEval.entryRises(ResearchScore.SETUP_RECLAIM))
-        assertTrue("an unrecognised (e.g. Claude-authored) setup defaults to rising, the more " +
-            "common of the two", DayTradingEval.entryRises("Some Claude-invented setup name"))
-        assertEquals(false, DayTradingEval.entryRises(ResearchScore.SETUP_PULLBACK))
+    /**
+     * THE REAL BUG THAT SHIPPED (caught by a requested pre-ship review): direction used to be
+     * decided ONLY from the `setup` string, defaulting to "rising" for anything that was not
+     * literally the word "Pullback". A Claude-authored plan's `setup` is free text -
+     * `DayTradingBridge.merge` only requires `stop < entry < target`, nothing about the name -
+     * so a genuine pullback-style Claude plan called anything else ("Support bounce", "Buy the
+     * dip") was read as rising, and `evaluate` would see `entry` as already "triggered" on the
+     * very first bar (price starts ABOVE a falling entry, so `high >= entry` is trivially
+     * true). [priceAtRecommendation] is now the authoritative signal precisely so the setup's
+     * NAME can never matter - only where the price actually was.
+     */
+    @Test fun priceAtRecommendationDecidesDirectionRegardlessOfWhatTheSetupIsCalled() {
+        assertTrue(
+            "entry above price - rises, whatever the setup is named",
+            DayTradingEval.entryRises("Some Claude-invented setup name", entry = 10.0, priceAtRecommendation = 9.0)
+        )
+        assertEquals(
+            "entry below price - falls, EVEN THOUGH the setup is not literally 'Pullback' - " +
+                "this is the exact case that shipped broken",
+            false,
+            DayTradingEval.entryRises("Support bounce", entry = 10.0, priceAtRecommendation = 11.0)
+        )
+        assertEquals(
+            false,
+            DayTradingEval.entryRises(ResearchScore.SETUP_PULLBACK, entry = 10.0, priceAtRecommendation = 11.0)
+        )
+    }
+
+    @Test fun setupNameIsOnlyAFallbackWhenPriceAtRecommendationIsMissingOrEqualToEntry() {
+        // No usable price (0, negative, or NaN never arrives here but 0 is the real "missing"
+        // case for an old row) - falls back to the setup string, same as before this fix.
+        assertTrue(DayTradingEval.entryRises(ResearchScore.SETUP_BREAKOUT, entry = 10.0, priceAtRecommendation = 0.0))
+        assertEquals(
+            false,
+            DayTradingEval.entryRises(ResearchScore.SETUP_PULLBACK, entry = 10.0, priceAtRecommendation = 0.0)
+        )
+        // price == entry exactly is degenerate (tradePlan's own guards should never produce
+        // this) - also falls back rather than dividing by an ambiguous zero-distance case.
+        assertTrue(DayTradingEval.entryRises(ResearchScore.SETUP_BREAKOUT, entry = 10.0, priceAtRecommendation = 10.0))
+    }
+
+    /**
+     * The end-to-end proof: a Claude plan named something other than "Pullback" that actually
+     * needs a falling entry now resolves correctly through the real [DayTradingEval.evaluate]
+     * path, not just the [DayTradingEval.entryRises] helper in isolation.
+     */
+    @Test fun aClaudePlanNamedSomethingOtherThanPullbackStillWaitsForThePriceToFall() {
+        val bars = listOf(
+            bar(0L, 15.5, 15.0, 15.2),   // above entry(14) - must NOT read as already triggered
+            bar(1L, 14.5, 13.9, 14.0),   // entry(14) triggers - low <= 14
+            bar(2L, 16.1, 13.8, 16.0)    // target(16) hit
+        )
+        val (outcome, exit) = eval(
+            "Support bounce", entry = 14.0, stop = 12.0, target = 16.0,
+            bars = bars, sessionStillOpen = false, price = 15.2
+        )
+        assertEquals(DayTradingOutcome.WIN, outcome)
+        assertEquals(16.0, exit!!, 1e-9)
     }
 
     // ------------------------------------------------------------------ evaluate(): no lookahead
@@ -104,9 +170,9 @@ class DayTradingEvalTest {
             bar(3L, high = 11.2, low = 10.6, close = 11.0),
             bar(4L, high = 11.3, low = 10.7, close = 11.1)
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 15.0, stop = 9.0, target = 20.0,
-            recordedAt = recordedAt, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false, price = 10.0, recordedAt = recordedAt
         )
         assertEquals(
             "the only bars after recordedAt never reach entry(15) at all",
@@ -124,9 +190,9 @@ class DayTradingEvalTest {
             bar(2L, 10.3, 9.9, 10.2),
             bar(3L, 12.1, 10.1, 12.0)   // target(12) hit, stop(8.5) not
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false
         )
         assertEquals(DayTradingOutcome.WIN, outcome)
         assertEquals(12.0, exit!!, 1e-9)
@@ -137,9 +203,9 @@ class DayTradingEvalTest {
             bar(0L, 10.1, 9.9, 10.0),   // entry(10) triggers
             bar(1L, 10.2, 8.4, 8.5)     // stop(8.5) hit, target(12) not
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false
         )
         assertEquals(DayTradingOutcome.LOSS, outcome)
         assertEquals(8.5, exit!!, 1e-9)
@@ -153,9 +219,9 @@ class DayTradingEvalTest {
             bar(1L, 14.5, 13.9, 14.0),   // entry(14) triggers - low <= 14
             bar(2L, 16.1, 13.8, 16.0)    // target(16) hit, stop(12) not
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_PULLBACK, entry = 14.0, stop = 12.0, target = 16.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false, price = 15.2
         )
         assertEquals(DayTradingOutcome.WIN, outcome)
         assertEquals(16.0, exit!!, 1e-9)
@@ -166,9 +232,9 @@ class DayTradingEvalTest {
             bar(0L, 14.5, 13.9, 14.0),   // entry(14) triggers
             bar(1L, 13.9, 11.9, 12.0)    // stop(12) hit
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_PULLBACK, entry = 14.0, stop = 12.0, target = 16.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false, price = 15.0
         )
         assertEquals(DayTradingOutcome.LOSS, outcome)
         assertEquals(12.0, exit!!, 1e-9)
@@ -182,9 +248,9 @@ class DayTradingEvalTest {
             bar(0L, 10.1, 9.9, 10.0),    // entry(10) triggers
             bar(1L, 12.5, 8.0, 10.5)     // BOTH target(12) and stop(8.5) are inside this bar's range
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false
         )
         assertEquals(DayTradingOutcome.LOSS, outcome)
         assertEquals(8.5, exit!!, 1e-9)
@@ -192,9 +258,9 @@ class DayTradingEvalTest {
 
     @Test fun entryTargetAndStopAllInTheSameOpeningBarStillResolves() {
         val bars = listOf(bar(0L, 12.5, 8.0, 10.5)) // entry(10), target(12) and stop(8.5) all inside
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false
         )
         assertEquals(DayTradingOutcome.LOSS, outcome)
         assertEquals(8.5, exit!!, 1e-9)
@@ -204,9 +270,9 @@ class DayTradingEvalTest {
 
     @Test fun entryNotYetTriggeredWithTheSessionStillOpenIsPending() {
         val bars = listOf(bar(0L, 9.5, 9.0, 9.2))
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = true
+            bars = bars, sessionStillOpen = true
         )
         assertEquals(DayTradingOutcome.PENDING, outcome)
         assertNull(exit)
@@ -214,9 +280,9 @@ class DayTradingEvalTest {
 
     @Test fun entryNeverTriggeredByACloseSessionIsNoEntry() {
         val bars = listOf(bar(0L, 9.5, 9.0, 9.2))
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false
         )
         assertEquals(DayTradingOutcome.NO_ENTRY, outcome)
         assertNull(exit)
@@ -227,9 +293,9 @@ class DayTradingEvalTest {
             bar(0L, 10.1, 9.9, 10.0),
             bar(1L, 10.4, 10.0, 10.2)
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = true
+            bars = bars, sessionStillOpen = true
         )
         assertEquals(DayTradingOutcome.PENDING, outcome)
         assertNull(exit)
@@ -241,9 +307,9 @@ class DayTradingEvalTest {
             bar(0L, 10.1, 9.9, 10.0),
             bar(1L, 10.9, 10.0, 10.8)   // last print, above entry(10) - never reached target(12)
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false
         )
         assertEquals(DayTradingOutcome.CLOSED_PROFIT, outcome)
         assertEquals(10.8, exit!!, 1e-9)
@@ -254,9 +320,9 @@ class DayTradingEvalTest {
             bar(0L, 10.1, 9.9, 10.0),
             bar(1L, 10.05, 9.9, 9.95)   // last print, at/below entry(10)
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = bars, sessionStillOpen = false
+            bars = bars, sessionStillOpen = false
         )
         assertEquals(DayTradingOutcome.CLOSED_LOSS, outcome)
         assertEquals(9.95, exit!!, 1e-9)
@@ -269,9 +335,9 @@ class DayTradingEvalTest {
             bar(0L, high = 10.0, low = 9.9, close = 10.0),  // entry(10) exactly on the high
             bar(1L, high = 12.0, low = 10.0, close = 11.9)  // target(12) reached next bar
         )
-        val (e, exitA) = DayTradingEval.evaluate(
+        val (e, exitA) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = entryExact, sessionStillOpen = false
+            bars = entryExact, sessionStillOpen = false
         )
         assertEquals("high==entry must count as triggered, not almost-triggered",
             DayTradingOutcome.WIN, e)
@@ -281,9 +347,9 @@ class DayTradingEvalTest {
             bar(0L, 10.1, 9.9, 10.0),
             bar(1L, 12.0, 10.0, 11.9)
         )
-        val (outcome, exit) = DayTradingEval.evaluate(
+        val (outcome, exit) = eval(
             ResearchScore.SETUP_BREAKOUT, entry = 10.0, stop = 8.5, target = 12.0,
-            recordedAt = 0L, bars = targetExact, sessionStillOpen = false
+            bars = targetExact, sessionStillOpen = false
         )
         assertEquals(DayTradingOutcome.WIN, outcome)
         assertEquals(12.0, exit!!, 1e-9)
