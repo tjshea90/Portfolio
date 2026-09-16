@@ -408,7 +408,11 @@ object Insider {
                 if (parsed is Unreadable) { synchronized(skip) { skip.add(ref.accession) }; null }
                 else parsed as? InsiderFiling
             }
-        }.awaitAll().filterNotNull()
+            // A blank symbol has nowhere to route to on screen (no row, no cache key worth
+            // keeping) - real but rare: a foreign private issuer with no US ticker on file.
+            // Not remembered in `skip` because that set means "unparseable", and this document
+            // parsed fine; it is simply excluded from this pass's result every time.
+        }.awaitAll().filterNotNull().filter { it.symbol.isNotBlank() }
 
         (known + fetched).distinctBy { it.accession }.sortedByDescending { it.filedAt }
     }
