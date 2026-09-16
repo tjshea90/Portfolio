@@ -3181,6 +3181,66 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun removeWatch(symbol: String) { db.removeWatch(symbol); recompute() }
 
+    /**
+     * Resolves the %-since-added baseline for every watched symbol that does not have one
+     * yet. Call when the Watchlist tab is opened - cheap to call again later, since a symbol
+     * already resolved (or already in flight) costs nothing.
+     *
+     * WHY THIS RESOLVES AT MOST ONCE PER SYMBOL, EVER. [Db.setWatchBaseline] never overwrites
+     * a value once written, so the anchor a running percentage is measured from cannot drift
+     * between screen opens - the same "resolved once, cached forever" rule the chart and
+     * insider caches already follow.
+     */
+    fun resolveWatchBaselines() {
+        val pending = cachedWatch.filter { it.addedPrice <= 0.0 }
+        if (pending.isEmpty()) return
+        fgScope.launch {
+            for (w in pending) {
+                if (!watchBaselineInFlight.add(w.symbol)) continue
+                try {
+                    val close = withContext(Dispatchers.IO) {
+                        runCatching { closeOnOrAfter(w.symbol, w.addedAt) }.getOrNull()
+                    }
+                    if (close != null && close > 0) {
+                        withContext(Dispatchers.IO) { db.setWatchBaseline(w.symbol, close) }
+                        recompute()
+                    }
+                    // null means either the network failed or the add-day's session has not
+                    // closed yet (see [closeOnOrAfter]) - either way, try again the next time
+                    // this is called rather than guessing.
+                } finally {
+                    watchBaselineInFlight.remove(w.symbol)
+                }
+            }
+        }
+    }
+
+    /**
+     * The first REGULAR-session close on or after [dateMs] - the day-zero reference
+     * [Row.sinceWatchedPct] is measured from, and deliberately not "the newest close": TODAY'S
+     * daily candle updates live before the market closes, and accepting it would let a
+     * mid-session price masquerade as the day's final close, defeating the entire point of
+     * anchoring to a CLOSE rather than a tap-time price. Excluded by date, not by a market-
+     * hours check, so it behaves the same on a weekday afternoon and a Saturday alike.
+     *
+     * [ChartRange.rangeForLookback] already exists to answer "which cached series reaches far
+     * enough back" for the chart screen's own pinch-zoom - reused here for the same question.
+     * A symbol added over a year ago resolves from the weekly/monthly series instead of daily,
+     * which is a real but minor loss of precision for an old watchlist entry, not a new
+     * lookup path.
+     */
+    private suspend fun closeOnOrAfter(symbol: String, dateMs: Long): Double? {
+        val lookback = (System.currentTimeMillis() - dateMs).coerceAtLeast(0L)
+        val range = com.tj.portfolio.data.ChartRange.rangeForLookback(lookback)
+        val series = com.tj.portfolio.net.ChartFeed.series(symbol, range) ?: return null
+        val dayStart = startOfDay(dateMs)
+        val todayStart = startOfDay(System.currentTimeMillis())
+        return series.points
+            .filter { it.t * 1000L in dayStart until todayStart }
+            .minByOrNull { it.t }
+            ?.close
+    }
+
     fun setOverride(symbol: String, avgCost: Double?, shares: Double?) {
         if (avgCost == null && shares == null) db.clearOverride(symbol)
         else db.setOverride(Override(symbol, avgCost, shares))
