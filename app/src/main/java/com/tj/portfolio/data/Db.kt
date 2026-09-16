@@ -1381,7 +1381,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     fun exportJson(): String {
         val txns = allTxns()
         val ovs = overrides().values.toList()
-        val watch = watchlist()
+        val watch = watchlistEntries()
         val imps = allImports()
 
         val root = JSONObject()
