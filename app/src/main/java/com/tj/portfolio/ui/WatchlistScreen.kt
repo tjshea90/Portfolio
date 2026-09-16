@@ -125,6 +125,11 @@ fun WatchlistScreen(
     var pending by remember { mutableStateOf<PendingAction?>(null) }
     val rows = state.rows.filter { it.watchOnly }
 
+    // The one place %-since-added baselines get resolved - opening the tab is the signal,
+    // the same rule the Insider tab's own on-open refresh follows. Cheap to call every time
+    // this composable enters composition: a symbol already resolved costs nothing.
+    LaunchedEffect(Unit) { vm.resolveWatchBaselines() }
+
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 6.dp, top = 12.dp, bottom = 4.dp),
