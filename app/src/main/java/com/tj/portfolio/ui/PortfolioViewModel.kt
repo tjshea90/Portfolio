@@ -2732,6 +2732,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             feedJob = null
             insiderJob?.cancel()
             insiderJob = null
+            marketInsiderJob?.cancel()
+            marketInsiderJob = null
             // EVERYTHING ELSE THE SCREEN ASKED FOR, IN ONE CANCELLATION. See [fgScope] for
             // the list of what this reaches and what it deliberately does not.
             fgScope.coroutineContext[Job]?.cancel()
