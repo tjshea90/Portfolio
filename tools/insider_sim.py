@@ -24,6 +24,7 @@ UA = "TJ Portfolio Tracker (personal use) tjshea90@gmail.com"
 WINDOW_DAYS = 31
 MAX_PER_SYMBOL = 25
 MAX_DOCS_PER_PASS = 120
+MAX_MARKET_PAGES_PER_PASS = 3
 
 REQUESTS = {"listing": 0, "doc": 0, "bytes": 0}
 
