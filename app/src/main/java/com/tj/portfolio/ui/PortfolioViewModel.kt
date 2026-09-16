@@ -3312,10 +3312,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val lookback = (System.currentTimeMillis() - dayStart).coerceAtLeast(0L)
         val range = com.tj.portfolio.data.ChartRange.rangeForLookback(lookback)
         val series = com.tj.portfolio.net.ChartFeed.series(symbol, range) ?: return null
-        return series.points
-            .filter { it.t * 1000L in dayStart until todayStart }
-            .maxByOrNull { it.t }
-            ?.close
+        return lastCloseInWindow(series.points, dayStart, todayStart)
     }
 
     fun setOverride(symbol: String, avgCost: Double?, shares: Double?) {
