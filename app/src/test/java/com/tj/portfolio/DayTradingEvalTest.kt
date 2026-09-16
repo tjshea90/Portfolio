@@ -307,7 +307,7 @@ class DayTradingEvalTest {
         )
         assertEquals(3, s.totalRecommendations)
         assertEquals(0, s.entriesTriggered)
-        assertEquals(1, s.pending) // null and PENDING both count as "pending" for display
+        assertEquals(2, s.pending) // null (never evaluated) and PENDING both read as "pending"
         assertEquals(1, s.dataUnavailable)
         assertEquals(0.0, s.targetHitRate, 1e-9)
     }
