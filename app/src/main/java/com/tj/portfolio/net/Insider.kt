@@ -405,9 +405,16 @@ object Insider {
         pages: Int = MAX_MARKET_PAGES_PER_PASS,
         docBudget: Int = MAX_MARKET_DOCS_PER_PASS
     ): MarketResult = coroutineScope {
-        val refs = (0 until pages).map { p ->
-            async { runCatching { currentListing(pageStart + p * 100).refs }.getOrDefault(emptyList()) }
-        }.awaitAll().flatten().distinctBy { it.accession }
+        // `.answered`, not just `.refs` - a page EDGAR failed to answer must not read as "this
+        // page had nothing on it". Silently accepting that would let a transient failure on
+        // just one of the three pages shrink `refs` below what the window actually holds, the
+        // window would then look fully drained once what little DID come back gets resolved,
+        // and `pageStart` would advance past content that was never actually read.
+        val listings = (0 until pages).map { p ->
+            async { runCatching { currentListing(pageStart + p * 100) }.getOrDefault(Listing(emptyList(), false)) }
+        }.awaitAll()
+        val allPagesAnswered = listings.all { it.answered }
+        val refs = listings.flatMap { it.refs }.distinctBy { it.accession }
 
         val known = refs.mapNotNull { cached[it.accession] }
         val notYetFetched = refs
@@ -415,14 +422,23 @@ object Insider {
             .sortedByDescending { it.filedAt }
         val missing = notYetFetched.take(docBudget)
 
+        // Tracked separately from `fetched` because a NETWORK failure and a genuinely
+        // unreadable document must count differently here: both are absent from `fetched`
+        // below, but only the second is actually settled. A ref that failed to download is
+        // still neither `cached` nor `skip`, and has to stay counted in `remaining` so the
+        // caller re-lists this window instead of moving on and losing it for good.
+        val resolvedThisPass = java.util.Collections.synchronizedSet(HashSet<String>())
         val fetched = missing.map { ref ->
             async {
                 // The market-wide listing carries no ticker at all - unlike the per-symbol
                 // path, [fetch] recovers it from the filing's own `issuerTradingSymbol`, which
                 // is why the hint passed here is blank rather than a guess.
                 val parsed = gate.withPermit { runCatching { fetch("", ref) }.getOrNull() }
-                if (parsed is Unreadable) { synchronized(skip) { skip.add(ref.accession) }; null }
-                else parsed as? InsiderFiling
+                if (parsed is Unreadable) {
+                    synchronized(skip) { skip.add(ref.accession) }
+                    resolvedThisPass.add(ref.accession)
+                    null
+                } else (parsed as? InsiderFiling)?.also { resolvedThisPass.add(ref.accession) }
             }
         }.awaitAll().filterNotNull()
 
@@ -437,8 +453,16 @@ object Insider {
         val usable = fetched.filter { it.symbol.isNotBlank() }
 
         MarketResult(
-            filings = (known + usable).distinctBy { it.accession }.sortedByDescending { it.filedAt },
-            remaining = notYetFetched.size - missing.size
+            // NOT `known + usable` - `cached` came from the caller, so `known` is exactly what
+            // it already has. Echoing it back just to have it merged straight back in is a
+            // sort/dedupe over the whole accumulated list, every pass, for no new information.
+            filings = usable.distinctBy { it.accession }.sortedByDescending { it.filedAt },
+            // Whatever this pass could not even finish reading stays counted as remaining too -
+            // see the `allPagesAnswered` note above. `maxOf(_, 1)` rather than leaving it at
+            // whatever the arithmetic gives: a page can fail while every ref THIS pass did see
+            // gets fully resolved, which would otherwise compute a false 0.
+            remaining = (notYetFetched.size - resolvedThisPass.size)
+                .let { if (allPagesAnswered) it else maxOf(it, 1) }
         )
     }
 
