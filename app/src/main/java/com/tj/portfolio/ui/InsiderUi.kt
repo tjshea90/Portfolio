@@ -25,6 +25,30 @@ import com.tj.portfolio.net.Form4
 import com.tj.portfolio.util.Fmt
 
 /**
+ * "My stocks" (the portfolio-scoped feed this tab has always had) vs. "All companies" (every
+ * public company, via EDGAR's own market-wide feed - see `Insider.marketWide`).
+ *
+ * Defaults to ALL_COMPANIES: Tj's own request was that the tab show market-wide activity by
+ * default, not that "My stocks" be removed - it stays one tap away.
+ */
+enum class InsiderSource(val label: String) {
+    MY_STOCKS("My stocks"),
+    ALL_COMPANIES("All companies")
+}
+
+/**
+ * The "major" floor applied ONLY in [InsiderSource.ALL_COMPANIES] - a dollar amount on the
+ * headline trade's value, not a role filter, because [com.tj.portfolio.data.InsiderFiling.role]
+ * is already on every row and Tj's own example ("CEO or director") is a role, not a size.
+ *
+ * $50,000 is a plain engineering default, the same way `Insider.WINDOW_DAYS`/`MAX_PER_SYMBOL`
+ * were always set directly in this codebase rather than derived from anything - easy to change
+ * in the one place it is named. Not applied to "My stocks": a user who is specifically
+ * following a symbol is presumably fine seeing a smaller trade on it.
+ */
+const val MIN_MARKET_TRADE_VALUE = 50_000.0
+
+/**
  * How much of the insider list is on screen. Single-select, one row of chips, defaulting to
  * the narrowest - which is what TJ asked for in so many words: "make sure that they are
  * actually purchases and sales and not automatic transactions scheduled before hand".
