@@ -152,8 +152,9 @@ object DayTradingEval {
         if (sessionStillOpen) return DayTradingOutcome.PENDING to null
         // A DAY TRADE IS FLAT BEFORE THE CLOSE (TradePlan's own rule) - simulated the same way
         // here: neither level was reached, so the trade is marked closed at the session's own
-        // last print rather than left open indefinitely.
-        val lastClose = after.lastOrNull()?.close ?: return DayTradingOutcome.NO_ENTRY to null
+        // last print rather than left open indefinitely. `after` is guaranteed non-empty here -
+        // `entryIndex >= 0` only ever comes from a real match inside it.
+        val lastClose = after.last().close
         return (if (lastClose > entry) DayTradingOutcome.CLOSED_PROFIT else DayTradingOutcome.CLOSED_LOSS) to
             lastClose
     }
