@@ -108,6 +108,21 @@ data class Row(
     val totalPct: Double
         get() = if (position != null && position.costBasis > 1e-9 && price > 0)
             position.unrealizedPct(price) else 0.0
+
+    /**
+     * How much the price has moved since [watchedAt], EXCLUDING the day it was added -
+     * Tj's own requirement, and [watchedBasePrice] is what makes it true rather than a
+     * disclaimer: it is the CLOSE of the day added, not the price at the moment of the tap,
+     * so that whole day's move (before or after adding, mid-session) is already baked into
+     * the reference point and only the next session onward shows up here.
+     *
+     * Null, not 0.0, while the baseline is not resolved yet - added today, before that
+     * session's close exists, or a resolution pass has not run. 0.0 would be indistinguishable
+     * from "unchanged since added," which is a claim this has no data to support yet.
+     */
+    val sinceWatchedPct: Double?
+        get() = if (watchedBasePrice > 0.0 && price > 0.0)
+            (price - watchedBasePrice) / watchedBasePrice * 100.0 else null
 }
 
 data class UiState(
