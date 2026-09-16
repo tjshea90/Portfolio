@@ -1236,9 +1236,11 @@ repeated emphasis on correctness, and an explicit standing order not to ship unt
 it is bug-free.
 
 `get_session` confirmed `session_context.model` / `external_metadata.last_served_model` are
-both `claude-sonnet-5`, not Opus. **Flagged in chat, not started** - see the flag for what
-"started" excludes (this TASKS.md entry is not code, per the same rule every prior flag in
-this file has followed).
+both `claude-sonnet-5`, not Opus. Flagged in chat.
+
+**Tj, 2026-09-16: "Do this on the current sonnet model"** - explicit override of the flag,
+sent mid-turn while the flag itself was still being written, per SCREENER.md's protocol step
+3. Proceeding on Sonnet without re-asking.
 
 - [ ] Design the capture side: what a recorded recommendation snapshot needs to hold (symbol,
       recommended-at timestamp, setup, entry/stop/target, which produced it - the app's own
