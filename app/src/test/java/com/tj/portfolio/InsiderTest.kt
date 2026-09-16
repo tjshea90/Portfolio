@@ -90,9 +90,11 @@ class InsiderTest {
 
     @Test fun currentListingReadsTheDocUrlFromThePlainAtomLink() {
         val refs = Insider.parseCurrentListing(res("edgar_current_listing.xml"))
+        // Two entries share this accession (the issuer's own and the reporting owner's) - the
+        // FIRST one in document order wins the dedupe, same rule [parseListing] follows.
         val talon = refs.first { it.accession == "0001213900-26-100292" }
         assertEquals(
-            "https://www.sec.gov/Archives/edgar/data/2073340/000121390026100292/" +
+            "https://www.sec.gov/Archives/edgar/data/2084615/000121390026100292/" +
                 "0001213900-26-100292.txt",
             talon.docUrl
         )
