@@ -1242,19 +1242,35 @@ both `claude-sonnet-5`, not Opus. Flagged in chat.
 sent mid-turn while the flag itself was still being written, per SCREENER.md's protocol step
 3. Proceeding on Sonnet without re-asking.
 
-- [ ] Design the capture side: what a recorded recommendation snapshot needs to hold (symbol,
-      recommended-at timestamp, setup, entry/stop/target, which produced it - the app's own
-      engine or a Claude-authored plan) and the append-only storage for it, so a later
-      `mergeDayTradingTech` decline/refresh can never delete or rewrite a row already written.
-- [ ] Design the evaluation side: for each recorded day, fetch that symbol's own actual
-      intraday price series for THAT trading session, and determine - in time order, using
-      only price action AFTER the recommendation's own timestamp - whether entry ever
-      triggered, and if so whether target or stop was reached first, or neither by session
-      close.
-- [ ] Design the aggregate stats: win rate definition (of what denominator - all recommended,
-      or only ones where entry triggered), and the "if I only traded this system" simulated
-      return (position-sizing assumption, one trade per recommendation, compounding or not),
-      with both spelled out on screen rather than left implicit - the same "app shows its
-      work" rule every other score in this app already follows.
-- [ ] Implement, test, code-review, full suite green, THEN ask about shipping - per Tj's own
-      explicit standing order on this task not to ship until confident.
+- [x] Capture side: `Db.day_trading_log` (DB v8->v9), `UNIQUE(symbol, trading_day)` +
+      `INSERT OR IGNORE` makes append-only a database guarantee rather than app-side
+      bookkeeping. Hooked into `PortfolioViewModel.cacheResearch` - the single choke point
+      every Day Trading mutation path (live tick, Claude import, rebuild) already goes
+      through - rather than scattered per-call-site, so nothing can be missed. Guarded to only
+      capture while the regular session is actually open (added after a review found that
+      capturing a stale/after-hours-observed row would stamp a misleading `recordedAt`).
+- [x] Evaluation side: `net/DayTradingEval.kt` - `fetchDaySeries` (Yahoo `period1`/`period2` +
+      `interval=5m`, verified against a live request before writing the parser), `evaluate()`
+      (pure: filters to bars at/after `recordedAt` first, then walks forward checking entry
+      trigger -> target/stop in order, conservative same-bar tie-break, flat-by-the-close
+      simulation for an undecided trade). Direction (does price need to rise or fall to reach
+      entry) is decided from `priceAtRecommendation` vs `entry` - NOT from the setup name, after
+      a review found that a Claude-authored plan's free-text setup ("Support bounce") broke
+      the original setup-string-only inference.
+- [x] Aggregate stats: `DayTradingEval.stats()` - denominator is entries whose trade was
+      actually TAKEN (entry triggered) and DECIDED (a final outcome), never-triggered and
+      still-pending rows excluded rather than diluting the rate. Two headline numbers, both
+      explained on screen: target-hit-rate (the strict "did it work as stated" reading) and
+      the equal-weighted average return across every decided trade (Tj's "if I only traded
+      this system" question) - deliberately NOT colour-coded against a 50% line, since this
+      app's own day-trading research explicitly accepts a low hit rate for a strategy that
+      wins big rarely rather than often.
+- [x] Implemented, tested, code-reviewed, full suite green. Two full review passes plus an
+      independent audit agent (Tj asked twice to check for bugs before shipping) found and
+      fixed 5 real issues total: 3 in the ALREADY-SHIPPED Part 14 watchlist baseline
+      (`minByOrNull` picked the day's opening print instead of the close; the lookback could
+      pick a range with no data for the add-day at all; sequential instead of bounded-parallel
+      fetching) and 2 in this round's own new code (direction-from-setup-string instead of
+      from price; `recordedAt` stamped at DB-write time instead of capture time, both now
+      fixed). 1127 tests, 0 failures - verified with a real blocking wait on the log each time,
+      not a premature check.
