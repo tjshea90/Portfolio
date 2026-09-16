@@ -461,6 +461,29 @@ private fun TextThenChart(
     }
 }
 
+/**
+ * "Since added Feb 22: +4.20%" on a watchlist row - Tj's own request. [Row.watchedBasePrice]
+ * is the CLOSE of the day added, not the price at the moment of tapping "watch", which is
+ * what makes this correct rather than a disclaimer: the day added is already baked into the
+ * reference point, so nothing here counts that day's own move.
+ *
+ * Before the baseline resolves - added today, before that session's close exists, or a
+ * lookup still in flight - this says so honestly instead of showing 0.00% (which would read
+ * as "unchanged," a claim the app cannot back yet).
+ */
+@Composable
+private fun WatchedSinceLine(row: Row) {
+    if (row.watchedAt <= 0L) return
+    val pct = row.sinceWatchedPct
+    Text(
+        if (pct != null) "Since added ${Fmt.shortDay(row.watchedAt)}: ${Fmt.pctSigned(pct)}"
+        else "Added ${Fmt.shortDay(row.watchedAt)} - tracking starts after that day's close",
+        style = MaterialTheme.typography.bodySmall,
+        fontWeight = if (pct != null) FontWeight.SemiBold else FontWeight.Normal,
+        color = if (pct != null) signColor(pct) else MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
 /** One of the three "your money" figures: a quiet label over a bold number. */
 @Composable
 private fun MoneyCell(
