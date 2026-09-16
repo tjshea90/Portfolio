@@ -9,6 +9,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Tj's own words, twice over, are the whole point of this file: *"make sure it doesn't delete
@@ -16,7 +19,12 @@ import org.junit.Test
  * stock price movement before the advice was ever given."* [evaluate] is where both of those
  * actually get enforced, so it is tested exhaustively - a wrong verdict here is a wrong answer
  * to the one question this whole feature exists to answer.
+ *
+ * Robolectric is here only for `org.json`, which [DayTradingEval.parseBars] uses - same reason
+ * `InsiderTest` needs it.
  */
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class DayTradingEvalTest {
 
     private fun res(name: String): String =
