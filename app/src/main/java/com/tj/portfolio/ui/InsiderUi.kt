@@ -208,8 +208,15 @@ private fun InsiderTag(text: String, color: Color) {
     }
 }
 
-/** A one-line count of what the current filter is showing, for the section header. */
-fun insiderSummary(shown: List<InsiderFiling>): String {
+/**
+ * A one-line count of what the current filter is showing, for the section header.
+ *
+ * [suffix] is NOT the same claim for both sources - "My stocks" is a real 31-day window
+ * ([Insider.WINDOW_DAYS]), but "All companies" is an unbounded, newest-first feed paginated
+ * by count rather than by date, so "in the last month" would be a claim this app cannot back
+ * for it (a busy "Load more" session can reach back further than a month in one sitting).
+ */
+fun insiderSummary(shown: List<InsiderFiling>, suffix: String = " in the last month"): String {
     if (shown.isEmpty()) return ""
     val buys = shown.count { it.action == Form4.BUY }
     val sells = shown.count { it.action == Form4.SELL }
@@ -218,7 +225,7 @@ fun insiderSummary(shown: List<InsiderFiling>): String {
     if (sells > 0) parts.add(if (sells == 1) "1 sale" else "$sells sales")
     val other = shown.size - buys - sells
     if (other > 0) parts.add("$other other filing" + if (other == 1) "" else "s")
-    return parts.joinToString(", ") + " in the last month"
+    return parts.joinToString(", ") + suffix
 }
 
 /** Used by the feed's badges and here. Kept in one place so the amber matches. */
