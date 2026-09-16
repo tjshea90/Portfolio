@@ -222,6 +222,46 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_chart_fetched ON chart_cache(fetched)")
     }
 
+    /**
+     * THE DAY TRADING RECOMMENDATION LOG (db v9). Tj: *"record and track each and every one of
+     * its day trading recommendations... make sure it doesn't delete or modify any of the data
+     * if I refresh the day trading section and it says the plan already fell apart."*
+     *
+     * APPEND-ONLY BY CONSTRUCTION, NOT JUST BY CONVENTION. [logDayTradingRecommendation] only
+     * ever `INSERT OR IGNORE`s against `UNIQUE(symbol, trading_day)` - once a symbol has a row
+     * for a trading day, nothing this app does can change its `entry`/`stop`/`target`/`setup`,
+     * including the live 30-second technicals loop clearing a declined plan off the SCREEN
+     * (`mergeDayTradingTech`'s own hysteresis). The only columns ever written a second time are
+     * the `outcome_*` ones, and only once per row for a day that has actually closed - see
+     * [setDayTradingOutcome].
+     *
+     * `trading_day` is `MarketClock.dayKey` (ET `yyyyMMdd`), not an epoch - the same session-day
+     * identity the live technicals already stamp on a row (`DayTechnicals.sessionDay`), so a
+     * recommendation's day and the day its evaluator fetches intraday prices for can never
+     * silently disagree about a timezone.
+     */
+    private fun createDayTradingLog(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS day_trading_log(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT NOT NULL,
+                trading_day TEXT NOT NULL,
+                recorded_at INTEGER NOT NULL,
+                setup TEXT NOT NULL DEFAULT '',
+                entry REAL NOT NULL,
+                stop REAL NOT NULL,
+                target REAL NOT NULL,
+                price_at_recommendation REAL NOT NULL DEFAULT 0,
+                source TEXT NOT NULL DEFAULT 'APP',
+                outcome TEXT,
+                outcome_exit_price REAL,
+                outcome_evaluated_at INTEGER,
+                UNIQUE(symbol, trading_day)
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_dtlog_day ON day_trading_log(trading_day)")
+    }
+
     private fun createImports(db: SQLiteDatabase) {
         db.execSQL(
             """CREATE TABLE IF NOT EXISTS imports(
