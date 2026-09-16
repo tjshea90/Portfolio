@@ -2012,7 +2012,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         cachedTxnsDesc = txns.sortedWith(
             compareByDescending<Txn> { it.date }.thenByDescending { it.id }
         )
-        cachedWatch = db.watchlist()
+        cachedWatch = db.watchlistEntries()
         // Tracks the SESSION day, so the ledger is replayed when the session rolls over -
         // at the opening bell, not at local midnight.
         ledgerDay = startOfDay(session)
