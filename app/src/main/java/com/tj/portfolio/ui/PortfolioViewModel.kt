@@ -3946,26 +3946,33 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         marketInsiderJob = fgScope.launch {
             _marketInsiderLoading.value = true
             try {
-                val known = snapshotInsiderDocs()
-                val fresh = withContext(Dispatchers.IO) {
+                // NOT `snapshotInsiderDocs()` - that is the bounded portfolio-scoped cache,
+                // and an unbounded "All companies" browsing session must never be the thing
+                // that fills or evicts it (a real bug an earlier draft had: see
+                // [Insider.marketWide]'s own note). What is already showing on screen is its
+                // own complete "already have this" answer for the market-wide side.
+                val known = _marketInsiders.value.associateBy { it.accession }
+                val result = withContext(Dispatchers.IO) {
                     runCatching {
                         Insider.marketWide(known, secGate, insiderSkip, pageStart = startAt)
-                    }.getOrDefault(emptyList())
+                    }.getOrDefault(com.tj.portfolio.net.Insider.MarketResult(emptyList(), 0))
                 }
                 // The never-parseable set is shared with the portfolio-scoped path (Insider.kt's
                 // own note on [marketWide]) - a document that showed up in both sweeps is only
                 // ever downloaded and judged unparseable once.
                 saveInsiderSkip()
-                if (fresh.isNotEmpty()) {
-                    rememberInsiderDocs(fresh)
-                    _marketInsiders.value = (_marketInsiders.value + fresh)
+                if (result.filings.isNotEmpty()) {
+                    _marketInsiders.value = (_marketInsiders.value + result.filings)
                         .distinctBy { it.accession }
                         .sortedByDescending { it.filedAt }
-                    // Advances even on a page that turned out to hold nothing NEW (every ref
-                    // already known) - "Load more" must move forward, not spin on the same
-                    // hundred filings because none of them happened to be unseen.
-                    marketInsiderPageStart = startAt + MARKET_INSIDER_PAGE_ADVANCE
                 }
+                // Advance ONLY once this window is fully drained - a busy window can hold more
+                // distinct accessions than one pass fetches, and skipping ahead while refs
+                // remain in it would lose them for the rest of the session. Advances on a
+                // window with nothing left in it too (all known, all skip-worthy, or genuinely
+                // empty) - "Load more" must still move forward rather than spin forever on a
+                // page that will never produce anything new.
+                if (result.remaining <= 0) marketInsiderPageStart = startAt + MARKET_INSIDER_PAGE_ADVANCE
             } finally {
                 _marketInsiderLoading.value = false
             }
