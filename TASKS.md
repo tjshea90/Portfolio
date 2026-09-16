@@ -1182,4 +1182,77 @@ criterion actually names. Checked in the code before deciding, not assumed:
       earlier run; fixed by polling the log directly with a blocking `until grep ...; do sleep
       3; done` loop instead of trusting the notification for any run using that pattern).
 - [x] Checkpoint after each completed step, not batched (ckpt 698-703+).
-- [ ] Ask Tj whether to ship this as the next release.
+- [x] Shipped as v7.23 (code 80): a second code-review pass plus an independent
+      regression-sweep agent (both run because Tj asked for another bug check before
+      shipping) found and fixed 3 more real bugs in the market-wide pagination first.
+      GitHub Actions run #23 built, signed, verified its own certificate and published the
+      Release; recorded in BUILDLOG.md. Tj grabs it from
+      https://github.com/tjshea90/Portfolio/releases/tag/v7.23.
+
+## Part 15: Day Trading — record every recommendation, then measure its real success rate
+
+Tj's request, 2026-09-16 (his own words):
+
+> build a feature for the app to record and track each and every one of its day trading
+> recommendations including all buy and sell target prices for every stock in the section
+> every day, make sure it doesn't delete or modify any of the data if I refresh the day
+> trading section and it says the plan already fell apart for that stock, because the goal is
+> to capture all recommended buy and sell targets. Save this data within the app invisibly
+> from me. On a separate button that I can press, the app will show the success rate of the
+> recommended stocks based on the buy and sell targets and whether the actual stocks that day
+> actually hit those targets or not. The entire time you are building this feature keep in
+> mind the goal is to see if the app's day trading recommendations are profitable or not. So
+> the function should tell me success rate based on actual stock prices for the same day that
+> the stock was recommended. Make sure that the data shows whether the stock performed as
+> recommended AFTER the recommendation was made. It makes no sense to gauge how well the
+> advice is based on stock price movement before the advice was ever given. Figure out and
+> implement a system and logic for this feature that truly captures the actual success rate
+> of the day trading advice section of the app, displaying relevant information such as
+> percentage success rate and more importantly how much percent up or down my portfolio
+> would be if I bought and sold stocks only using the app day trading system (ignore the
+> stocks already in my portfolio, this is to gauge only the day trading section)
+
+> Only ship the new APK if you are confident that the feature works well as described, didn't
+> break anything else in the app, and is well coded without bugs
+
+### Screened (SCREENER.md): flagged, not started
+
+This is squarely the money-accuracy category SCREENER.md names directly - not a UI feature
+around the existing Day Trading scoring, but a NEW piece of recommendation-adjacent
+arithmetic: a simulated trading outcome ("how much percent up or down my portfolio would
+be") computed from whether real historical intraday prices actually crossed each
+recommendation's entry, then its target or its stop, in the right order, with no lookahead
+into information the recommendation could not have had at the time it was made. A subtle bug
+here - the wrong candle window, an off-by-one in "did target or stop come first", counting a
+day whose entry never triggered as a win or a loss instead of a non-event, silently including
+pre-recommendation price action - would not just mis-render a number, it would tell Tj
+whether to trust real day-trading advice with real money, which is exactly the failure mode
+the category exists for. It also has no existing pattern in this app to mirror: nothing here
+has ever back-tested its own recommendations before, so the whole capture-then-evaluate
+design (an append-only recommendation log, then a later pass reading each entry's own day's
+intraday history to determine hit/miss order) is being invented from scratch, not reused. And
+Tj's own words carry the direct "make sure this is right" weight the last criterion names -
+repeated emphasis on correctness, and an explicit standing order not to ship until confident
+it is bug-free.
+
+`get_session` confirmed `session_context.model` / `external_metadata.last_served_model` are
+both `claude-sonnet-5`, not Opus. **Flagged in chat, not started** - see the flag for what
+"started" excludes (this TASKS.md entry is not code, per the same rule every prior flag in
+this file has followed).
+
+- [ ] Design the capture side: what a recorded recommendation snapshot needs to hold (symbol,
+      recommended-at timestamp, setup, entry/stop/target, which produced it - the app's own
+      engine or a Claude-authored plan) and the append-only storage for it, so a later
+      `mergeDayTradingTech` decline/refresh can never delete or rewrite a row already written.
+- [ ] Design the evaluation side: for each recorded day, fetch that symbol's own actual
+      intraday price series for THAT trading session, and determine - in time order, using
+      only price action AFTER the recommendation's own timestamp - whether entry ever
+      triggered, and if so whether target or stop was reached first, or neither by session
+      close.
+- [ ] Design the aggregate stats: win rate definition (of what denominator - all recommended,
+      or only ones where entry triggered), and the "if I only traded this system" simulated
+      return (position-sizing assumption, one trade per recommendation, compounding or not),
+      with both spelled out on screen rather than left implicit - the same "app shows its
+      work" rule every other score in this app already follows.
+- [ ] Implement, test, code-review, full suite green, THEN ask about shipping - per Tj's own
+      explicit standing order on this task not to ship until confident.
