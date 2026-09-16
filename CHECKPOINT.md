@@ -1,20 +1,13 @@
-# CHECKPOINT 1481 — read me first, then TASKS.md
+# CHECKPOINT 1483 — read me first, then TASKS.md
 
-**Written:** 2026-09-16T04:57:13Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/insider-activity-watchlist-bkzu26` · **builds on:** `1724f891` (this checkpoint is the commit after it)
+**Written:** 2026-09-16T05:10:39Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/insider-activity-watchlist-bkzu26` · **builds on:** `f09263df` (this checkpoint is the commit after it)
 
 ## Just done
-gated v7.23 (code 80) and pushed it: checkinit, the full unit suite and the
-versionCode check all passed here. NOT yet built - GitHub has not been asked.
+v7.23 (code 80) shipped end to end: GitHub Actions run #23 built, signed, verified its own certificate, and published the Release; recorded in BUILDLOG.md. Second code-review pass plus an independent regression-sweep agent (both requested by Tj as a pre-ship sanity check) found and fixed 3 more real bugs in Insider.marketWide before anything shipped. Part 14 is fully complete.
 
 ## Do this next
-TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
-android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
-confirm the Release is published (get_release_by_tag is enough) and then run:
-  bash tools/record-release.sh v7.23 "Insider tab now shows major insider activity for all publicly traded companies, not just held/watched stocks, with a My stocks/All companies toggle and existing 10b5-1-plan legitimacy badges carried over; Watchlist rows show a running percent change since the date added, anchored to that day's close so the add-day's own move is excluded"
-Do NOT try to send Tj the APK - he downloads it himself from the Release page
-(CLAUDE.md, his rule of 2026-09-11), and this container cannot fetch a private
-repo's release asset bytes anyway.
+Nothing queued - wait for Tj's next request.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -23,6 +16,7 @@ repo's release asset bytes anyway.
 
 ## Last ten checkpoints
 ```
+  83cdf773 ckpt 1481: gated v7.23 (code 80) and pushed it: checkinit, the full unit suite and the 
   1724f891 ckpt 1480: Second code-review pass (requested by Tj as a pre-ship sanity check) plus an
   03d30211 ckpt 703: Code-review pass (high effort) found and fixed 3 real issues in Insider.marke
   5b7d9bf2 ckpt 702: Full Gradle unit suite green: 1090 tests, 0 failures, 0 errors (51.5s) - cove
@@ -32,5 +26,4 @@ repo's release asset bytes anyway.
   5fd0c5f4 ckpt 698: Recorded Part 14 in TASKS.md: Tj wants the Insider tab market-wide (all publi
   29d5afa5 ckpt 697: v7.22 (code 79) shipped end to end: GitHub Actions run #22 built, signed, ver
   f2c635d8 ckpt 696: Shipped v7.22 (code 79): ship.sh gate passed (checkinit, full unit suite, ver
-  8de9083e ckpt 695: gated v7.22 (code 79) and pushed it: checkinit, the full unit suite and the v
 ```
