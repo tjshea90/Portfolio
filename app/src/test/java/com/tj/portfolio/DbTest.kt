@@ -182,6 +182,122 @@ class DbTest {
         assertTrue(db.watchlistEntries().all { it.addedPrice == 0.0 })
     }
 
+    // ------------------------------------------------------------ day trading recommendation log
+
+    @Test fun `a recommendation round-trips through the log with no outcome yet`() {
+        db.logDayTradingRecommendation(
+            "nvda", "20260916", "Breakout", entry = 227.0, stop = 220.0, target = 240.0,
+            priceAtRecommendation = 225.5, source = "APP"
+        )
+        val e = db.dayTradingLog().single()
+        assertEquals("NVDA", e.symbol)
+        assertEquals("20260916", e.tradingDay)
+        assertEquals("Breakout", e.setup)
+        assertEquals(227.0, e.entry, 1e-9)
+        assertEquals(220.0, e.stop, 1e-9)
+        assertEquals(240.0, e.target, 1e-9)
+        assertEquals(225.5, e.priceAtRecommendation, 1e-9)
+        assertEquals("APP", e.source)
+        assertTrue(e.recordedAt > 0)
+        assertNull(e.outcome)
+        assertNull(e.outcomeExitPrice)
+        assertNull(e.outcomeEvaluatedAt)
+    }
+
+    /**
+     * THE WHOLE POINT OF THE FEATURE. Tj: *"make sure it doesn't delete or modify any of the
+     * data if I refresh the day trading section and it says the plan already fell apart."* A
+     * second recommendation for the same (symbol, day) - even with completely different
+     * numbers, simulating a live refresh recomputing the plan - must never touch the first.
+     */
+    @Test fun `a second recommendation the same day for the same symbol never overwrites the first`() {
+        db.logDayTradingRecommendation(
+            "NVDA", "20260916", "Breakout", entry = 227.0, stop = 220.0, target = 240.0,
+            priceAtRecommendation = 225.5, source = "APP"
+        )
+        db.logDayTradingRecommendation(
+            "NVDA", "20260916", "Pullback", entry = 100.0, stop = 90.0, target = 110.0,
+            priceAtRecommendation = 105.0, source = "APP"
+        )
+        val rows = db.dayTradingLog()
+        assertEquals(1, rows.size)
+        assertEquals("Breakout", rows.single().setup)
+        assertEquals(227.0, rows.single().entry, 1e-9)
+    }
+
+    @Test fun `the same symbol on a different day, or a different symbol the same day, both get their own row`() {
+        db.logDayTradingRecommendation(
+            "NVDA", "20260916", "Breakout", 227.0, 220.0, 240.0, 225.5, "APP"
+        )
+        db.logDayTradingRecommendation(
+            "NVDA", "20260917", "Breakout", 250.0, 240.0, 265.0, 248.0, "APP"
+        )
+        db.logDayTradingRecommendation(
+            "AAPL", "20260916", "Pullback", 200.0, 190.0, 215.0, 205.0, "APP"
+        )
+        assertEquals(3, db.dayTradingLog().size)
+    }
+
+    @Test fun `a claude-authored plan is recorded with its own source`() {
+        db.logDayTradingRecommendation(
+            "TSLA", "20260916", "Claude's own setup", 400.0, 380.0, 430.0, 395.0, "CLAUDE"
+        )
+        assertEquals("CLAUDE", db.dayTradingLog().single().source)
+    }
+
+    @Test fun `an invalid recommendation is never written at all`() {
+        db.logDayTradingRecommendation("NVDA", "20260916", "Breakout", 0.0, 220.0, 240.0, 225.5, "APP")
+        db.logDayTradingRecommendation("NVDA", "20260916", "Breakout", 227.0, 0.0, 240.0, 225.5, "APP")
+        db.logDayTradingRecommendation("NVDA", "20260916", "Breakout", 227.0, 220.0, 0.0, 225.5, "APP")
+        db.logDayTradingRecommendation("NVDA", "", "Breakout", 227.0, 220.0, 240.0, 225.5, "APP")
+        assertTrue(db.dayTradingLog().isEmpty())
+    }
+
+    @Test fun `setDayTradingOutcome writes the outcome and can be re-resolved for a pending row`() {
+        db.logDayTradingRecommendation(
+            "NVDA", "20260916", "Breakout", 227.0, 220.0, 240.0, 225.5, "APP"
+        )
+        val id = db.dayTradingLog().single().id
+        db.setDayTradingOutcome(id, DayTradingOutcome.PENDING, null)
+        var e = db.dayTradingLog().single()
+        assertEquals(DayTradingOutcome.PENDING, e.outcome)
+        assertNull(e.outcomeExitPrice)
+        assertTrue(e.outcomeEvaluatedAt!! > 0)
+
+        // The session closes; a later press resolves it for real - re-resolving PENDING must
+        // be a plain overwrite, not blocked by something already being there.
+        db.setDayTradingOutcome(id, DayTradingOutcome.WIN, 240.0)
+        e = db.dayTradingLog().single()
+        assertEquals(DayTradingOutcome.WIN, e.outcome)
+        assertEquals(240.0, e.outcomeExitPrice!!, 1e-9)
+    }
+
+    @Test fun `setDayTradingOutcome with no exit price stores a real null, not zero`() {
+        db.logDayTradingRecommendation(
+            "NVDA", "20260916", "Breakout", 227.0, 220.0, 240.0, 225.5, "APP"
+        )
+        val id = db.dayTradingLog().single().id
+        db.setDayTradingOutcome(id, DayTradingOutcome.NO_ENTRY, null)
+        val e = db.dayTradingLog().single()
+        assertEquals(DayTradingOutcome.NO_ENTRY, e.outcome)
+        assertNull("a no-entry outcome has no exit price at all", e.outcomeExitPrice)
+    }
+
+    @Test fun `the log survives export and restore untouched`() {
+        db.logDayTradingRecommendation(
+            "NVDA", "20260916", "Breakout", 227.0, 220.0, 240.0, 225.5, "APP"
+        )
+        db.setDayTradingOutcome(db.dayTradingLog().single().id, DayTradingOutcome.WIN, 240.0)
+        // The recommendation log is NOT part of the portfolio backup - it is app-local
+        // measurement data, not something a device-transfer restore should be moving. Confirm
+        // a restore of an unrelated backup leaves it alone rather than silently clearing it.
+        val json = JSONObject().apply { put("transactions", JSONArray()) }.toString()
+        db.restoreJson(json, replace = false)
+        val e = db.dayTradingLog().single()
+        assertEquals("NVDA", e.symbol)
+        assertEquals(DayTradingOutcome.WIN, e.outcome)
+    }
+
     @Test fun `a cash row keeps its null symbol through a restore`() {
         // The v1.9 bug: org.json optString on a JSON null returns the STRING "null", which
         // turned every DEPOSIT into a phantom position called NULL.
