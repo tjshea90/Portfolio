@@ -74,7 +74,15 @@ data class Row(
      * quote still reports the previous session, so a row saying "you made today" at 2am is
      * describing yesterday. Now it says so.
      */
-    val sessionLabel: String = ""
+    val sessionLabel: String = "",
+    /** When this symbol was added to the watchlist. 0 when it was never watched. */
+    val watchedAt: Long = 0L,
+    /**
+     * The %-since-added baseline: the close on the trading day [watchedAt] falls on, resolved
+     * once by [PortfolioViewModel] and never recomputed. 0.0 before it has been resolved -
+     * see [sinceWatchedPct] for what that means on screen.
+     */
+    val watchedBasePrice: Double = 0.0
 ) {
     val price: Double get() = quote?.price ?: 0.0
     val shares: Double get() = position?.shares ?: 0.0
