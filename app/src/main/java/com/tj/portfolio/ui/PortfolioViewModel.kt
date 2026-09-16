@@ -3957,7 +3957,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val result = withContext(Dispatchers.IO) {
                     runCatching {
                         Insider.marketWide(known, secGate, insiderSkip, pageStart = startAt)
-                    }.getOrDefault(com.tj.portfolio.net.Insider.MarketResult(emptyList(), 0))
+                    }.getOrDefault(Insider.MarketResult(emptyList(), 0))
                 }
                 // The never-parseable set is shared with the portfolio-scoped path (Insider.kt's
                 // own note on [marketWide]) - a document that showed up in both sweeps is only
