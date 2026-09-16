@@ -1273,3 +1273,99 @@ private fun androidx.compose.foundation.layout.RowScope.FactCell(
         )
     }
 }
+
+/**
+ * Tj's "separate button" - every recommendation this section has ever shown is already being
+ * recorded silently (`PortfolioViewModel.captureDayTradingRecommendations`); this is the ONLY
+ * place any of that is surfaced, and the only place the evaluation network calls happen at
+ * all. Pressing it re-checks whatever in the log still needs a real outcome and shows the
+ * result - a stock's own actual price action after the recommendation was made, never before.
+ */
+@Composable
+internal fun DayTradingSuccessRate(
+    stats: com.tj.portfolio.data.DayTradingStats?,
+    loading: Boolean,
+    onCheck: () -> Unit
+) {
+    Column {
+        OutlinedButton(
+            onClick = onCheck,
+            enabled = !loading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                when {
+                    loading -> "Checking..."
+                    stats == null -> "Check day trading success rate"
+                    else -> "Re-check success rate"
+                }
+            )
+        }
+        if (stats != null) {
+            Spacer(Modifier.height(8.dp))
+            StatCard {
+                Text(
+                    "Based on real price history, only from AFTER each recommendation was made",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                if (stats.entriesTriggered == 0) {
+                    Text(
+                        "Nothing to measure yet - none of the ${stats.totalRecommendations} " +
+                            "recorded recommendation" +
+                            (if (stats.totalRecommendations == 1) "" else "s") +
+                            " has a decided outcome. Keep using the Day Trading tab (this " +
+                            "only records what it actually shows you), then check again.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    KeyValue(
+                        "Target hit rate",
+                        "${Fmt.pctSigned(stats.targetHitRate).removePrefix("+")} " +
+                            "(${stats.targetHit} of ${stats.entriesTriggered})",
+                        signColor(stats.targetHitRate - 50.0)
+                    )
+                    KeyValue(
+                        "Closed profitable overall",
+                        "${Fmt.pctSigned(stats.profitableRate).removePrefix("+")} " +
+                            "(${stats.targetHit + stats.closedProfit} of ${stats.entriesTriggered})",
+                        signColor(stats.profitableRate - 50.0)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    KeyValue(
+                        "If you only traded this system",
+                        Fmt.pctSigned(stats.avgReturnPct),
+                        signColor(stats.avgReturnPct),
+                        bold = true
+                    )
+                    Text(
+                        "Average return per trade, equal amount on every pick, no " +
+                            "compounding - your own portfolio and anything already in it is " +
+                            "not part of this number.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "${stats.totalRecommendations} recommendations recorded - " +
+                            "${stats.entriesTriggered} triggered " +
+                            "(${stats.targetHit} hit target, ${stats.stopHit} hit stop, " +
+                            "${stats.closedProfit + stats.closedLoss} closed at the bell " +
+                            "without hitting either), ${stats.noEntry} never triggered, " +
+                            "${stats.pending} still in progress" +
+                            (if (stats.dataUnavailable > 0)
+                                ", ${stats.dataUnavailable} with no price history available"
+                            else ""
+                            ) + ".",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
