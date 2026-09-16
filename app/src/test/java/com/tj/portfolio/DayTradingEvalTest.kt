@@ -86,18 +86,22 @@ class DayTradingEvalTest {
     @Test fun barsBeforeTheRecommendationAreNeverConsidered() {
         val recordedAt = 2000L
         val bars = listOf(
-            bar(0L, high = 20.0, low = 9.0, close = 15.0),   // target(20) and stop(9) both "hit" here
+            // BEFORE recordedAt - touches both target(20) and stop(9.0) already. A buggy
+            // filter would report WIN or LOSS from these; the correct answer ignores them
+            // entirely because entry(15) never triggers again afterward.
+            bar(0L, high = 20.0, low = 9.0, close = 15.0),
             bar(1L, high = 20.0, low = 9.0, close = 15.0),
-            bar(2L, high = 12.0, low = 9.5, close = 11.0),
-            bar(3L, high = 11.5, low = 10.5, close = 11.0),  // recordedAt=2000ms falls at/after t=2
-            bar(4L, high = 11.5, low = 10.5, close = 11.0)
+            // AFTER recordedAt (t*1000 >= 2000) - stays well below entry(15) the whole time.
+            bar(2L, high = 11.0, low = 10.5, close = 10.8),
+            bar(3L, high = 11.2, low = 10.6, close = 11.0),
+            bar(4L, high = 11.3, low = 10.7, close = 11.1)
         )
         val (outcome, exit) = DayTradingEval.evaluate(
-            ResearchScore.SETUP_BREAKOUT, entry = 12.0, stop = 9.0, target = 20.0,
+            ResearchScore.SETUP_BREAKOUT, entry = 15.0, stop = 9.0, target = 20.0,
             recordedAt = recordedAt, bars = bars, sessionStillOpen = false
         )
         assertEquals(
-            "the only bars after recordedAt never reach entry(12) at all",
+            "the only bars after recordedAt never reach entry(15) at all",
             DayTradingOutcome.NO_ENTRY, outcome
         )
         assertNull(exit)
