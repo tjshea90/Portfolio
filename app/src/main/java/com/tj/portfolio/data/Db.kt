@@ -1415,7 +1415,19 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             })
         }
         root.put("overrides", ov)
-        root.put("watchlist", JSONArray(watch))
+        // OBJECTS, NOT BARE STRINGS (backup v3) - carrying `added`/`addedPrice` is the whole
+        // fix for the bug this format change closes: a restore used to call `addWatch(sym)`,
+        // which stamps `added` at the moment of RESTORING rather than keeping the original
+        // date, silently resetting every %-since-added anchor on a backup round-trip.
+        // `restoreMerge` still reads the old bare-string shape too, so an old backup file
+        // restores exactly as it always did.
+        val wl = JSONArray()
+        for (w in watch) {
+            wl.put(JSONObject().apply {
+                put("symbol", w.symbol); put("added", w.addedAt); put("addedPrice", w.addedPrice)
+            })
+        }
+        root.put("watchlist", wl)
 
         val st = JSONObject()
         readableDatabase.rawQuery("SELECT k,v FROM settings", null).use { c ->
