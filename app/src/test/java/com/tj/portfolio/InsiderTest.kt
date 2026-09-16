@@ -66,6 +66,38 @@ class InsiderTest {
         assertEquals(refs.size, refs.map { it.accession }.distinct().size)
     }
 
+    // ------------------------------------------------------------- market-wide listing
+
+    /**
+     * The `getcurrent` feed's shape, captured live 15 Sept 2026: one entry PER PARTY sharing
+     * an accession number (the fixture's Talon filings), and `type=4` matching `424B2` by
+     * prefix past the point real Form 4s run out - the same trap [listingKeepsOnlyRealForm4s]
+     * pins for the per-symbol feed, now pinned for this one too.
+     */
+    @Test fun currentListingDedupesByAccessionAndDropsOtherFormTypes() {
+        val refs = Insider.parseCurrentListing(res("edgar_current_listing.xml"))
+        // 5 distinct accessions in the fixture (two Talon entries share one, the 424B2 is
+        // dropped entirely) even though the fixture has 6 <entry> blocks.
+        assertEquals(4, refs.size)
+        assertEquals(refs.size, refs.map { it.accession }.distinct().size)
+        assertTrue(
+            "a 424B2 must never reach the fetcher",
+            refs.none { it.docUrl.contains("0001999371-26-020566") }
+        )
+        assertTrue(refs.any { it.accession == "0001213900-26-100292" })
+        assertEquals(refs.map { it.filedAt }.sortedDescending(), refs.map { it.filedAt })
+    }
+
+    @Test fun currentListingReadsTheDocUrlFromThePlainAtomLink() {
+        val refs = Insider.parseCurrentListing(res("edgar_current_listing.xml"))
+        val talon = refs.first { it.accession == "0001213900-26-100292" }
+        assertEquals(
+            "https://www.sec.gov/Archives/edgar/data/2073340/000121390026100292/" +
+                "0001213900-26-100292.txt",
+            talon.docUrl
+        )
+    }
+
     @Test fun documentUrlIsDerivedFromTheIndexPage() {
         assertEquals(
             "https://www.sec.gov/Archives/edgar/data/1045810/000119764726000009/" +
