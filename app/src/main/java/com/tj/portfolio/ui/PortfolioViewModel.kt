@@ -5565,7 +5565,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val (outcome, exitPrice) = com.tj.portfolio.net.DayTradingEval.evaluate(
-            entry.setup, entry.entry, entry.stop, entry.target, entry.recordedAt, bars, stillOpen
+            entry.setup, entry.entry, entry.stop, entry.target, entry.priceAtRecommendation,
+            entry.recordedAt, bars, stillOpen
         )
         db.setDayTradingOutcome(entry.id, outcome, exitPrice)
     }
