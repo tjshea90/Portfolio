@@ -76,9 +76,9 @@ class InsiderTest {
      */
     @Test fun currentListingDedupesByAccessionAndDropsOtherFormTypes() {
         val refs = Insider.parseCurrentListing(res("edgar_current_listing.xml"))
-        // 5 distinct accessions in the fixture (two Talon entries share one, the 424B2 is
-        // dropped entirely) even though the fixture has 6 <entry> blocks.
-        assertEquals(4, refs.size)
+        // 3 distinct accessions in the fixture's 6 <entry> blocks: two pairs share an
+        // accession (issuer + reporting owner), and the 424B2 entry is dropped entirely.
+        assertEquals(3, refs.size)
         assertEquals(refs.size, refs.map { it.accession }.distinct().size)
         assertTrue(
             "a 424B2 must never reach the fetcher",
