@@ -287,6 +287,96 @@ def headline(f):
     return s
 
 
+# ------------------------------------------------------- market-wide (all companies)
+
+MIN_MARKET_TRADE_VALUE = 50_000.0
+
+
+def current_listing(start=0):
+    """One page of EDGAR's `getcurrent` feed - a different shape from `list_filings`'s
+    per-CIK listing: no <filing-type>/<accession-number>/<filing-href>, the form type is
+    <category term=...>, the accession lives inside <id>, and the page link is a plain Atom
+    <link href=...>. One entry PER PARTY, not per filing - dedup by accession is most of the
+    work, not an edge case."""
+    url = ("https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&company="
+           "&dateb=&owner=include&count=100&output=atom" + (f"&start={start}" if start else ""))
+    REQUESTS["listing"] += 1
+    xml = get(url)
+    out, seen = [], set()
+    for m in re.finditer(r"<entry>(.*?)</entry>", xml, re.S):
+        e = m.group(1)
+        term = re.search(r'<category[^>]*\bterm="([^"]*)"', e)
+        # type=4 is a PREFIX match here too, same trap as the per-symbol listing.
+        if not term or term.group(1) not in ("4", "4/A"):
+            continue
+        acc_m = re.search(r"accession-number=([0-9-]+)", e)
+        href_m = re.search(r'<link[^>]*href="([^"]*)"', e)
+        upd = re.search(r"<updated>([^<]*)", e)
+        if not (acc_m and href_m):
+            continue
+        acc = acc_m.group(1)
+        if acc in seen:
+            continue
+        seen.add(acc)
+        stamp = 0
+        if upd:
+            try:
+                stamp = datetime.fromisoformat(upd.group(1).strip()).timestamp()
+            except ValueError:
+                stamp = 0
+        out.append((acc, href_m.group(1), stamp))
+    out.sort(key=lambda r: -r[2])
+    return out
+
+
+def main_market(pages):
+    print(f"market-wide: reading {pages} page(s) of EDGAR's getcurrent feed "
+          f"(major = ${MIN_MARKET_TRADE_VALUE:,.0f}+, discretionary only)\n")
+    refs = []
+    for p in range(pages):
+        try:
+            page = current_listing(p * 100)
+        except Exception as e:
+            print(f"  page {p}: failed: {e}")
+            continue
+        print(f"  page {p}: {len(page)} real Form 4s (after the type filter)")
+        refs += page
+        time.sleep(0.12)
+
+    refs = list({acc: (acc, href, stamp) for acc, href, stamp in refs}.values())
+    refs.sort(key=lambda r: -r[2])
+    print(f"\n{len(refs)} distinct filings across {pages} page(s); fetching documents\n")
+
+    filings = []
+    for acc, href, stamp in refs:
+        try:
+            REQUESTS["doc"] += 1
+            body = get(href.replace("-index.htm", ".txt"))
+        except Exception as e:
+            print(f"   ! {acc}: {e}")
+            continue
+        f = parse_form4("", acc, href, stamp, body)
+        if f:
+            filings.append(f)
+        time.sleep(0.12)
+
+    filings.sort(key=lambda f: -f["filed_at"])
+    major = [
+        f for f in filings
+        if f["trade"]["action"] in ("BUY", "SELL") and not f["planned"]
+        and f["trade"]["shares"] * f["trade"]["price"] >= MIN_MARKET_TRADE_VALUE
+    ]
+    print(f"\n===== MAJOR, ALL COMPANIES  ({len(major)} of {len(filings)} parsed)")
+    for f in major[:40]:
+        when = datetime.fromtimestamp(f["filed_at"], timezone.utc).strftime("%b %d")
+        print(f"  {when}  {f['symbol']:<6} {headline(f)}")
+        print(f"          {f['person']} · {f['trade']['code']}")
+
+    print(f"\nrequests: {REQUESTS['listing']} listings + {REQUESTS['doc']} documents = "
+          f"{REQUESTS['listing'] + REQUESTS['doc']}, {REQUESTS['bytes']/1024:.0f} KB")
+    print(f"parsed {len(filings)} of {len(refs)} documents, {len(major)} cleared the major floor")
+
+
 # -------------------------------------------------------------------- main
 
 def main(symbols):
