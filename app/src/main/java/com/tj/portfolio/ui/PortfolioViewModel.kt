@@ -3919,6 +3919,50 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         )
     }
 
+    /** Fill the "All companies" view on demand, the same on-open rule [refreshInsidersIfEmpty]
+     *  follows for the portfolio-scoped one. */
+    fun refreshMarketInsidersIfEmpty() {
+        if (_marketInsiderLoading.value || _marketInsiders.value.isNotEmpty()) return
+        loadMoreMarketInsiders()
+    }
+
+    /**
+     * One more page of the market-wide feed, newest-first from wherever the last page left
+     * off. The "Load more" button on the All-companies list calls this directly; opening the
+     * tab calls it once through [refreshMarketInsidersIfEmpty] above.
+     */
+    fun loadMoreMarketInsiders() {
+        if (_marketInsiderLoading.value) return
+        val startAt = marketInsiderPageStart
+        marketInsiderJob = fgScope.launch {
+            _marketInsiderLoading.value = true
+            try {
+                val known = snapshotInsiderDocs()
+                val fresh = withContext(Dispatchers.IO) {
+                    runCatching {
+                        Insider.marketWide(known, secGate, insiderSkip, pageStart = startAt)
+                    }.getOrDefault(emptyList())
+                }
+                // The never-parseable set is shared with the portfolio-scoped path (Insider.kt's
+                // own note on [marketWide]) - a document that showed up in both sweeps is only
+                // ever downloaded and judged unparseable once.
+                saveInsiderSkip()
+                if (fresh.isNotEmpty()) {
+                    rememberInsiderDocs(fresh)
+                    _marketInsiders.value = (_marketInsiders.value + fresh)
+                        .distinctBy { it.accession }
+                        .sortedByDescending { it.filedAt }
+                    // Advances even on a page that turned out to hold nothing NEW (every ref
+                    // already known) - "Load more" must move forward, not spin on the same
+                    // hundred filings because none of them happened to be unseen.
+                    marketInsiderPageStart = startAt + MARKET_INSIDER_PAGE_ADVANCE
+                }
+            } finally {
+                _marketInsiderLoading.value = false
+            }
+        }
+    }
+
     /** Sort, de-duplicate, bound, publish, and write through to the cache. */
     private fun publishInsiders(filings: List<com.tj.portfolio.data.InsiderFiling>) {
         val merged = (filings + _insiderFilings.value)
