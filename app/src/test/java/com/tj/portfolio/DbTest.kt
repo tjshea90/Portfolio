@@ -367,6 +367,11 @@ class DbTest {
         assertEquals("AVERAGE", upgraded.get(Keys.COST_METHOD))
         assertEquals(33.0, upgraded.overrides()["SYM3"]!!.avgCost!!, 1e-9)
         assertEquals(listOf("TSLA"), upgraded.watchlist())
+        // v8 added watchlist.added_price - a row from before it existed must upgrade to a
+        // real 0.0, not a crash or a null read, and keep the `added` stamp it already had.
+        val tsla = upgraded.watchlistEntries().single { it.symbol == "TSLA" }
+        assertEquals(1L, tsla.addedAt)
+        assertEquals(0.0, tsla.addedPrice, 1e-9)
         // v2 added the imports table
         assertEquals(0, upgraded.importCount())
         upgraded.recordImport(1, 0, 0, 0, "TEST")
