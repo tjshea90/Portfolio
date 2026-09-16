@@ -371,15 +371,31 @@ object Insider {
     private const val MAX_MARKET_DOCS_PER_PASS = 60
 
     /**
+     * [marketWide]'s result, plus whether THIS WINDOW ([pageStart]'s page of the feed) still
+     * has undrained refs after [MAX_MARKET_DOCS_PER_PASS] was applied.
+     *
+     * [remaining] is what lets the caller know whether to advance [pageStart] or call again
+     * at the SAME one - see [marketWide]'s own note on why re-listing the same window is the
+     * correct way to drain it rather than a bug.
+     */
+    data class MarketResult(val filings: List<InsiderFiling>, val remaining: Int)
+
+    /**
      * The market-wide "just filed" feed - every Form 4 filed by anyone, newest first.
      *
-     * [pageStart] is EDGAR's own pagination offset (0, 100, 200, ...) - the caller advances it
-     * to page further back, the same "Load more" idiom the rest of this app uses rather than
-     * trying to pull a whole day in one pass.
+     * [pageStart] is EDGAR's own pagination offset (0, 100, 200, ...). THE CALLER ADVANCES IT
+     * ONLY ONCE [MarketResult.remaining] IS ZERO - a busy window can hold more distinct
+     * accessions than [MAX_MARKET_DOCS_PER_PASS] fetches in one pass, and the SAME window has
+     * to be re-read (not skipped past) until every ref in it has been resolved. This is
+     * exactly [forSymbols]'s own carry-over behaviour: a call that finds a symbol's listing
+     * unchanged treats what is already `cached` as free and spends its budget on what still
+     * is not - here that just means the caller re-listing the same [pageStart] rather than
+     * the same symbol set.
      *
-     * Reuses [fetch]/[Form4.parse]/the accession cache completely unchanged - a market-wide
-     * filing is cached exactly like a portfolio one, so switching between "My stocks" and
-     * "All companies" never re-downloads anything already seen.
+     * Reuses [fetch]/[Form4.parse] completely unchanged. [cached] is NOT the shared
+     * portfolio-scoped accession map - the caller passes its own accumulated market-wide
+     * result set, so an unbounded "All companies" browsing session cannot pressure or evict
+     * the bounded portfolio cache (a real bug an early draft of this function had).
      */
     suspend fun marketWide(
         cached: Map<String, InsiderFiling>,
@@ -388,16 +404,16 @@ object Insider {
         pageStart: Int = 0,
         pages: Int = MAX_MARKET_PAGES_PER_PASS,
         docBudget: Int = MAX_MARKET_DOCS_PER_PASS
-    ): List<InsiderFiling> = coroutineScope {
+    ): MarketResult = coroutineScope {
         val refs = (0 until pages).map { p ->
             async { runCatching { currentListing(pageStart + p * 100).refs }.getOrDefault(emptyList()) }
         }.awaitAll().flatten().distinctBy { it.accession }
 
         val known = refs.mapNotNull { cached[it.accession] }
-        val missing = refs
+        val notYetFetched = refs
             .filter { cached[it.accession] == null && it.accession !in skip }
             .sortedByDescending { it.filedAt }
-            .take(docBudget)
+        val missing = notYetFetched.take(docBudget)
 
         val fetched = missing.map { ref ->
             async {
@@ -408,13 +424,22 @@ object Insider {
                 if (parsed is Unreadable) { synchronized(skip) { skip.add(ref.accession) }; null }
                 else parsed as? InsiderFiling
             }
-            // A blank symbol has nowhere to route to on screen (no row, no cache key worth
-            // keeping) - real but rare: a foreign private issuer with no US ticker on file.
-            // Not remembered in `skip` because that set means "unparseable", and this document
-            // parsed fine; it is simply excluded from this pass's result every time.
-        }.awaitAll().filterNotNull().filter { it.symbol.isNotBlank() }
+        }.awaitAll().filterNotNull()
 
-        (known + fetched).distinctBy { it.accession }.sortedByDescending { it.filedAt }
+        // A BLANK SYMBOL IS ALSO A PERMANENT ANSWER, NOT A TEMPORARY ONE - a foreign private
+        // issuer with no US ticker on file, real but rare. It parsed fine, so it is not
+        // `Unreadable`, but it has nowhere to route to on screen either. Without adding it to
+        // `skip` here it is neither cached nor skipped, so every future pass that re-lists
+        // this window would re-download the same useless document forever - the exact
+        // "resolved once, cached forever" invariant this file's header claims elsewhere.
+        val blank = fetched.filter { it.symbol.isBlank() }
+        if (blank.isNotEmpty()) synchronized(skip) { skip.addAll(blank.map { it.accession }) }
+        val usable = fetched.filter { it.symbol.isNotBlank() }
+
+        MarketResult(
+            filings = (known + usable).distinctBy { it.accession }.sortedByDescending { it.filedAt },
+            remaining = notYetFetched.size - missing.size
+        )
     }
 
     /** One page of the market-wide feed, [Listing.answered] on the same "did EDGAR reply" rule. */
