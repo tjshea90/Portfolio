@@ -1046,4 +1046,106 @@ gate is green.
       created the `v7.22` tag and published the Release; recorded in `BUILDLOG.md`. Tj grabs
       it himself from https://github.com/tjshea90/Portfolio/releases/tag/v7.22 (Claude does
       not relay release-asset bytes, per the standing rule in CLAUDE.md).
-- [ ] Ship (awaiting Tj).
+- [x] Ship (v7.22 shipped above; nothing further queued after it).
+
+## Part 14: Insider tab market-wide + legitimacy signal; Watchlist % since added
+
+Tj's request, 2026-09-16 (his own words, two parts):
+
+> For this app in the feed section for the insider tab, it only shows insider activity on
+> sticks I own or have owned before. I want it to show all major insider activity for all
+> publicly traded companies on the stock market (for example, purchases or sales of stocks by
+> CEO or director). Make sure there is a way I can tell from the feed whether it is a
+> legitimate purchase or sale instead of an automated, prescheduled, tax transaction, or
+> anything other than a deliberate purchase or sale by the person.
+
+> For the watchlist, add a feature that shows how much percent up or down a stock or etf is
+> from the date I added it to the watchlist. For example, if I add a stock to the watchlist on
+> Feb 22, keep that date saved and keep a running percentage on how much percentage the stock
+> has changed in price since that date. EXCLUDE the date I added it to the watchlist because I
+> may have added it to the watchlist in the middle of the day and I don't want to include the
+> change for that day.
+
+### Screening (SCREENER.md)
+
+Both parts stay on Sonnet. Neither touches cost basis, gains/losses, the ledger, or any
+buy/hold/sell/recommendation-scoring logic — the two categories SCREENER.md's money-accuracy
+criterion actually names. Checked in the code before deciding, not assumed:
+
+- **The "legitimate vs. automated" ask is already built.** `Form4.kt`/`InsiderModels.kt`
+  already parse the SEC's own Rule 10b5-1 checkbox (`aff10b5One`) plus footnote fallback into
+  `InsiderFiling.planned`/`isDiscretionary`, and `InsiderUi.kt`/`FeedScreen.kt` already show a
+  "10b5-1 PLAN" badge and an Open market / All trades / Everything scope filter defaulting to
+  discretionary-only. There is no new judgment call to invent here, no accuracy risk to
+  introduce — it already reads an authoritative SEC field, not a heuristic.
+- **Market-wide scope is a widen, not an invention.** EDGAR publishes the exact endpoint this
+  needs (`action=getcurrent&type=4`, the newest Form 4s filed by anyone, paginated) and this
+  app already has a second "not just my portfolio" precedent (Research/Trending's screener
+  universe). The one real design call — what counts as "major" — is a UX/volume tuning
+  decision (a dollar floor, same category as the existing `WINDOW_DAYS`/`MAX_PER_SYMBOL`
+  constants that were always set directly in-file), not a "subtle logic error misinforms a
+  real financial decision" one: getting the threshold wrong shows more or fewer rows, it does
+  not put a wrong number in front of a trade Tj might make.
+- **Watchlist % change** stores a display-only stat (nothing here touches a position, the
+  ledger, or cost basis) and reuses the chart-history fetch the app already has, so it is
+  "well-specified... existing pattern" per SCREENER.md's own "stays on Sonnet" list.
+- The "make sure" language in Tj's message (the screener's own keyword hint fired on it) is a
+  feature requirement ("make sure the feed can show this"), not a "make sure this is right and
+  someone might lose money if it's wrong" flag like the Day Trading escalations — checked
+  against that precedent directly before concluding this.
+
+### Design decisions, made before writing code
+
+**Insider — market-wide, "major" filter:**
+- New scope alongside the existing `OPEN_MARKET`/`ALL_TRADES`/`EVERYTHING` chips: a
+  `My stocks` / `All companies` toggle (same naming FeedScreen already uses for
+  `F_ALL`/`F_MINE`), defaulting to **All companies** per Tj's ask that the tab show
+  market-wide activity by default — "My stocks" stays one tap away, nothing is removed.
+- Market-wide filings come from EDGAR's `getcurrent` atom feed (`type=4`, paginated via
+  `start=`), reusing `Form4.parse`/`Insider.Unreadable`/the accession-keyed cache completely
+  unchanged — a market-wide filing is cached exactly like a portfolio one.
+- "Major," in All-companies mode only: the existing discretionary (P/S, not a 10b5-1 plan)
+  filter, plus a dollar-value floor on the headline trade — named `MIN_MARKET_TRADE_VALUE`,
+  starting at $50,000, in one place so it is easy to change later. Role (CEO/officer/director)
+  is already on every row via the existing `role` field/badge, so Tj's own example is covered
+  without a separate role filter.
+- Fetch only runs while the Insider tab is open AND All-companies is selected (same "asleep
+  unless the tab is open" rule the rest of this app's live-refresh features follow), bounded
+  per pass the same way the per-symbol path is (`MAX_PER_SYMBOL`/`MAX_DOCS_PER_PASS`), with a
+  "Load more" to page further back rather than trying to fetch a whole day at once.
+
+**Watchlist — % since added:**
+- `watchlist.added` already exists in the DB (every entry already has it, including ones
+  added long before this feature). New column `added_price` (DB v7→8, additive-only, matches
+  `onUpgrade`'s existing rule) holds the resolved baseline close, written **once** and never
+  recomputed — same "resolved once, cached forever" rule the Insider/chart caches already
+  follow.
+- Baseline = the closing price on the trading day the symbol was added (the first trading-day
+  close on or after `added`, found via the same Yahoo chart series the app already fetches for
+  the stock's own chart). Using that day's CLOSE as day-zero is what "excludes the day added"
+  means concretely: everything that happened on that day, before or after the tap, is baked
+  into the reference point, so the running percentage only accrues from the next session
+  onward — exactly Tj's own worry about adding mid-day.
+- Added today, before that day's close exists yet: shown as "added today — tracking starts
+  after today's close" rather than guessing at a number. Resolved once and stored; every later
+  screen view costs nothing.
+- Backup/restore fix needed alongside this: `Db.exportJson`/`restoreMerge` currently write and
+  read the watchlist as bare symbol strings, so a restore already calls `addWatch(sym)` and
+  silently resets `added` to the restore moment — which would silently wipe this feature's own
+  anchor date on every backup round-trip. Fixed as part of this: the backup now carries
+  `{symbol, added, addedPrice}` per entry, restore accepts that shape AND the old bare-string
+  shape (so an old backup file still restores exactly as before).
+
+- [ ] Insider: `Insider.marketWide()` fetch (EDGAR `getcurrent`, paginated, budgeted, cached
+      through the existing accession map), wired into the ViewModel with its own on-open
+      trigger and idle-when-closed rule.
+- [ ] Insider UI: `My stocks` / `All companies` toggle in `FeedScreen`'s Insider tab, the
+      $50,000 major-trade floor applied only in All-companies mode, "Load more" pagination.
+- [ ] Watchlist: DB v8 (`added_price` column), `Db.watchlistEntries()`, baseline resolution in
+      the ViewModel (Yahoo chart lookup, resolved once, persisted), `Row.watchedAt`/
+      `watchedBasePrice`/`sinceWatchedPct`.
+- [ ] Watchlist UI: the "+X.X% since added Mon D" line on `WatchlistScreen`'s rows, colour-coded
+      the same way every other gain/loss figure in this app is.
+- [ ] Backup/restore: new watchlist entry shape, old-format restore path kept working.
+- [ ] Tests for all of the above, then the full Gradle unit suite.
+- [ ] Checkpoint after each of the five items above, not batched.
