@@ -665,6 +665,15 @@ fun ResearchScreen(
                             }
                         }
 
+                        if (section == Section.DAY_TRADING) {
+                            Spacer(Modifier.height(8.dp))
+                            DayTradingSuccessRate(
+                                stats = dayTradingStats,
+                                loading = dayTradingStatsLoading,
+                                onCheck = { vm.evaluateDayTradingLog() }
+                            )
+                        }
+
                         val explainedAt = if (section == Section.DAY_TRADING) set.dtExplained else set.explained
                         val explainedVia = if (section == Section.DAY_TRADING) set.dtExplainedBy else set.explainedBy
                         if (explainedAt > 0) {
