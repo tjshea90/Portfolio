@@ -13,6 +13,7 @@ import com.tj.portfolio.data.Recommendation
 import com.tj.portfolio.data.TradeVerdict
 import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
+import com.tj.portfolio.data.WatchEntry
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
