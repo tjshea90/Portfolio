@@ -5457,6 +5457,78 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * The "success rate" button. Tj: *"On a separate button that I can press, the app will
+     * show the success rate... based on... whether the actual stocks that day actually hit
+     * those targets or not."* No automatic call anywhere near this - it runs ONLY when pressed,
+     * the same "asleep unless asked for" rule the rest of the Day Trading feature already
+     * follows for its own live network activity.
+     *
+     * Re-fetches intraday history only for rows that still need it - never-evaluated, or
+     * [com.tj.portfolio.data.DayTradingOutcome.PENDING]/[com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE]
+     * from an earlier press (see [com.tj.portfolio.data.DayTradingOutcome.isFinal]) - so
+     * pressing it again after the log has grown costs requests only for what actually changed,
+     * not the whole history every time.
+     */
+    fun evaluateDayTradingLog() {
+        if (_dayTradingStatsLoading.value) return
+        fgScope.launch {
+            _dayTradingStatsLoading.value = true
+            try {
+                val all = withContext(Dispatchers.IO) { db.dayTradingLog() }
+                val needsEval = all.filter {
+                    !com.tj.portfolio.data.DayTradingOutcome.isFinal(it.outcome)
+                }
+                if (needsEval.isNotEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        val gate = Semaphore(MAX_PARALLEL_REQUESTS)
+                        needsEval.map { entry ->
+                            async {
+                                gate.withPermit { resolveOneDayTradingEntry(entry) }
+                            }
+                        }.awaitAll()
+                    }
+                }
+                val refreshed = withContext(Dispatchers.IO) { db.dayTradingLog() }
+                _dayTradingStats.value = com.tj.portfolio.net.DayTradingEval.stats(refreshed)
+            } finally {
+                _dayTradingStatsLoading.value = false
+            }
+        }
+    }
+
+    /** One log row's own fetch-and-decide step, split out of [evaluateDayTradingLog] so the
+     *  gate above bounds it the same way every other per-symbol network loop in this file is
+     *  bounded. */
+    private suspend fun resolveOneDayTradingEntry(entry: com.tj.portfolio.data.DayTradingLogEntry) {
+        val bounds = com.tj.portfolio.net.DayTradingEval.sessionBoundsMs(entry.tradingDay)
+        // An unparseable trading_day can only mean a corrupt row - nothing to evaluate, and
+        // retrying it every press would be pointless. Marked unavailable rather than left null
+        // forever, which would otherwise look identical to "never tried yet".
+        if (bounds == null) {
+            db.setDayTradingOutcome(entry.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
+            return
+        }
+        val stillOpen = System.currentTimeMillis() < bounds.second
+        val bars = runCatching {
+            com.tj.portfolio.net.DayTradingEval.fetchDaySeries(entry.symbol, entry.tradingDay)
+        }.getOrNull()
+        if (bars.isNullOrEmpty()) {
+            // A day still in progress with no bars yet is simply too early to say anything -
+            // left as whatever it already was (null or PENDING) rather than written over, so
+            // the NEXT press tries again instead of settling for "unavailable" prematurely.
+            // Once the day has closed, an empty result really does mean the data is gone.
+            if (!stillOpen) {
+                db.setDayTradingOutcome(entry.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
+            }
+            return
+        }
+        val (outcome, exitPrice) = com.tj.portfolio.net.DayTradingEval.evaluate(
+            entry.setup, entry.entry, entry.stop, entry.target, entry.recordedAt, bars, stillOpen
+        )
+        db.setDayTradingOutcome(entry.id, outcome, exitPrice)
+    }
+
+    /**
      * IS THE ETF LIST DUE A REBUILD?
      *
      * Its own clock, deliberately - [com.tj.portfolio.net.Research.ETF_TTL_MS] is six hours
