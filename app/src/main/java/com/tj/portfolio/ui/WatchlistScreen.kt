@@ -143,6 +143,18 @@ fun WatchlistScreen(
 
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
 
+        // PortfolioScreen already surfaces state.error for the same refresh path
+        // (vm.refresh()) - this screen was reading the same UiState without ever showing it,
+        // so a failed refresh here left stale prices on screen with no warning at all.
+        if (state.error != null) {
+            Text(
+                state.error,
+                color = redText,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
+
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
