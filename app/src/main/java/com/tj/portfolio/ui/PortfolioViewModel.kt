@@ -5312,6 +5312,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun lastTab(): Int = db.get(Keys.LAST_TAB, "0").toIntOrNull() ?: 0
     fun setLastTab(i: Int) = db.set(Keys.LAST_TAB, i.toString())
 
+    /**
+     * The Feed tab's own filter/scope/source chips, persisted for the same reason
+     * [watchSubTab]/[researchTab] are: `FeedScreen` leaves composition on every tab switch (its
+     * own comment on the refresh `LaunchedEffect` says so), so a plain `remember` for these was
+     * silently discarded and reset to the defaults every time the tab was reopened. Validating
+     * a stored value against the live enum/const list is FeedScreen's own job, same as
+     * `researchTab`'s index-clamping is its caller's - this is a plain pass-through.
+     */
+    fun feedFilter(): String = db.get(Keys.FEED_FILTER, "")
+    fun setFeedFilter(v: String) = db.set(Keys.FEED_FILTER, v)
+    fun feedInsiderScope(): String = db.get(Keys.FEED_INSIDER_SCOPE, "")
+    fun setFeedInsiderScope(v: String) = db.set(Keys.FEED_INSIDER_SCOPE, v)
+    fun feedInsiderSource(): String = db.get(Keys.FEED_INSIDER_SOURCE, "")
+    fun setFeedInsiderSource(v: String) = db.set(Keys.FEED_INSIDER_SOURCE, v)
+
     fun latestTxnDate(): Long = db.latestTxnDate()
     fun importCount(): Int = db.importCount()
     fun lastBackup(): String = db.get(Keys.LAST_BACKUP)
