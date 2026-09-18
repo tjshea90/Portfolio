@@ -202,38 +202,113 @@ object DayTradingEval {
     }
 
     /**
-     * The "success rate" button's other half - turns a pile of resolved log rows into the two
-     * headline numbers [DayTradingStats.targetHitRate] and [DayTradingStats.avgReturnPct]. See
-     * [DayTradingStats]'s own header for what each means and why.
+     * WHAT A REAL FILL COSTS, THAT A 5-MINUTE BAR CANNOT SHOW (2026-09-18).
+     *
+     * [evaluate] exits at exactly `stop` and exactly `target` because those are the only prices
+     * the bar data can PROVE were reached. Reported straight, that is a backtest of a trader who
+     * never pays a spread and whose stop always fills at its own price - and every one of those
+     * idealisations flatters the system, so the error does not average out, it accumulates in one
+     * direction. Tj asked whether the tracker "tells me an accurate number if I were to trade
+     * using the day trading system"; a figure that quietly assumes perfect fills does not.
+     *
+     * The three numbers below are in BASIS POINTS OF PRICE, not cents, because a $2 stock and a
+     * $200 stock have completely different tick economics and this section screens both:
+     *
+     *  - [ENTRY_BPS] 5bp. A day-trade entry here is a buy-STOP above resistance or a buy-LIMIT
+     *    at support. The limit gets its price or better; the stop becomes a market order and
+     *    pays. Five basis points is about the measured effective spread on a liquid US name -
+     *    and this section already floors its candidates at [Research]'s $2 / 1M-share filters,
+     *    so a liquid name is what it screens.
+     *  - [STOP_BPS] 15bp, three times the entry. A protective stop is a market order that
+     *    triggers precisely when the tape is moving fast against the position - which is when
+     *    slippage is worst, not average. This is the one asymmetry in the model and it is
+     *    deliberate.
+     *  - [CLOSE_BPS] 5bp, for the flat-by-the-bell exit, which is a market order in the busiest
+     *    part of the session.
+     *
+     * A TARGET EXIT PAYS NOTHING, because it is a resting limit order at a price the tape
+     * actually traded through - it fills at the target or better. That is the optimistic corner
+     * left standing: a target only TICKED may not have filled a real order at all, and nothing
+     * in bar data can say. Noted here rather than modelled with a number that would be invented.
+     *
+     * JUDGMENT CALLS, DOCUMENTED AS SUCH - measured spreads vary by name, time of day and order
+     * type, and no free feed available here reports the fill Tj would actually have got. They
+     * are set to err toward UNDERSTATING the system, which is the safe direction for a number
+     * whose whole job is to say whether the advice is worth following.
+     */
+    object Costs {
+        const val ENTRY_BPS = 5.0
+        const val STOP_BPS = 15.0
+        const val CLOSE_BPS = 5.0
+
+        private fun bps(v: Double) = v / 10_000.0
+
+        /** What was actually paid to get in - the trigger price plus the entry slippage. */
+        fun entryFill(entry: Double): Double = entry * (1.0 + bps(ENTRY_BPS))
+
+        /** What the exit actually returned, by how the trade ended. */
+        fun exitFill(outcome: String?, exit: Double): Double = when (outcome) {
+            // A resting limit at a level price traded through: its own price or better.
+            DayTradingOutcome.WIN -> exit
+            DayTradingOutcome.LOSS -> exit * (1.0 - bps(STOP_BPS))
+            else -> exit * (1.0 - bps(CLOSE_BPS))
+        }
+
+        /** The round trip's total drag, in percent, for the on-screen note. */
+        fun roundTripPct(outcome: String?): Double = ENTRY_BPS / 100.0 + when (outcome) {
+            DayTradingOutcome.WIN -> 0.0
+            DayTradingOutcome.LOSS -> STOP_BPS / 100.0
+            else -> CLOSE_BPS / 100.0
+        }
+    }
+
+    /**
+     * The "success rate" button's other half - turns a pile of resolved log rows into the
+     * headline numbers on [DayTradingStats]. See that class's own header for what each means
+     * and why, including what 2026-09-18 added and the two real gaps it closed.
      */
     fun stats(entries: List<DayTradingLogEntry>): DayTradingStats {
         var targetHit = 0; var stopHit = 0; var closedProfit = 0; var closedLoss = 0
         var noEntry = 0; var pending = 0; var dataUnavailable = 0
         val returns = ArrayList<Double>()
+        val netReturns = ArrayList<Double>()
+        val rMultiples = ArrayList<Double>()
 
         fun pctReturn(entry: Double, exit: Double): Double =
             if (entry > 1e-9) (exit - entry) / entry * 100.0 else 0.0
 
+        /**
+         * One decided row, three ways: as the levels said it went, as it would have gone after
+         * [Costs], and in units of its own risk. Kept in one place so a future change to the
+         * cost model cannot update the percentage figures and leave the R figures behind
+         * describing a different trade.
+         */
+        fun record(e: DayTradingLogEntry, exit: Double) {
+            returns.add(pctReturn(e.entry, exit))
+            val paid = Costs.entryFill(e.entry)
+            val got = Costs.exitFill(e.outcome, exit)
+            netReturns.add(pctReturn(paid, got))
+            // RISK IS MEASURED FROM THE PLAN'S OWN LEVELS, NOT FROM THE FILLED PRICES. `entry -
+            // stop` is what the position was SIZED against by `ResearchScore.positionSize` when
+            // the order went in; re-deriving it from the slipped fill would be measuring the
+            // result against a risk budget that was never actually set.
+            val risk = e.entry - e.stop
+            if (risk > 1e-9) rMultiples.add((got - paid) / risk)
+        }
+
         for (e in entries) {
             when (e.outcome) {
-                DayTradingOutcome.WIN -> {
-                    targetHit++; returns.add(pctReturn(e.entry, e.outcomeExitPrice ?: e.target))
-                }
-                DayTradingOutcome.LOSS -> {
-                    stopHit++; returns.add(pctReturn(e.entry, e.outcomeExitPrice ?: e.stop))
-                }
-                DayTradingOutcome.CLOSED_PROFIT -> {
-                    closedProfit++; returns.add(pctReturn(e.entry, e.outcomeExitPrice ?: e.entry))
-                }
-                DayTradingOutcome.CLOSED_LOSS -> {
-                    closedLoss++; returns.add(pctReturn(e.entry, e.outcomeExitPrice ?: e.entry))
-                }
+                DayTradingOutcome.WIN -> { targetHit++; record(e, e.outcomeExitPrice ?: e.target) }
+                DayTradingOutcome.LOSS -> { stopHit++; record(e, e.outcomeExitPrice ?: e.stop) }
+                DayTradingOutcome.CLOSED_PROFIT -> { closedProfit++; record(e, e.outcomeExitPrice ?: e.entry) }
+                DayTradingOutcome.CLOSED_LOSS -> { closedLoss++; record(e, e.outcomeExitPrice ?: e.entry) }
                 DayTradingOutcome.NO_ENTRY -> noEntry++
                 DayTradingOutcome.DATA_UNAVAILABLE -> dataUnavailable++
                 else -> pending++ // null (never evaluated) reads the same as an explicit PENDING
             }
         }
         val decided = targetHit + stopHit + closedProfit + closedLoss
+        val totalR = rMultiples.sum()
         return DayTradingStats(
             totalRecommendations = entries.size,
             entriesTriggered = decided,
@@ -247,6 +322,16 @@ object DayTradingEval {
             targetHitRate = if (decided > 0) targetHit.toDouble() / decided * 100.0 else 0.0,
             profitableRate = if (decided > 0) (targetHit + closedProfit).toDouble() / decided * 100.0 else 0.0,
             avgReturnPct = if (returns.isNotEmpty()) returns.average() else 0.0,
+            totalReturnPct = returns.sum(),
+            netAvgReturnPct = if (netReturns.isNotEmpty()) netReturns.average() else 0.0,
+            netTotalReturnPct = netReturns.sum(),
+            totalR = totalR,
+            avgR = if (rMultiples.isNotEmpty()) totalR / rMultiples.size else 0.0,
+            accountReturnPct = totalR * ResearchScore.dayTradeRiskFraction() * 100.0,
+            // EVERY row's session, not just the decided ones - "42 picks across 9 sessions" is
+            // the context an average per trade needs, and a day whose picks all expired without
+            // triggering is still a day the system was followed.
+            sessions = entries.mapTo(HashSet()) { it.tradingDay }.size,
             evaluatedAt = System.currentTimeMillis()
         )
     }
