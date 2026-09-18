@@ -82,6 +82,24 @@ object DayTradingOutcome {
  * dollar-amount trade per pick, no compounding across trades or days) - the standard, honest
  * way to answer "if I traded this system" without inventing an account size Tj never gave.
  * That assumption is real and is spelled out on screen next to the number, not left implicit.
+ *
+ * ---- WHAT 2026-09-18 ADDED, AND WHY THE CARD WAS UNDER-ANSWERING HIM
+ *
+ * An AVERAGE PER TRADE was the only figure on the card, under a row labelled "If you only
+ * traded this system". Those are two different questions and the gap between them is not
+ * small: sixty trades averaging a genuine +0.5% is not "+0.5%", it is roughly +30% of the
+ * money staked. A reader glancing at that row got a number an order of magnitude away from
+ * what he asked for. [totalReturnPct] and [accountReturnPct] are the cumulative readings; the
+ * average stays, as the per-trade statistic it always was.
+ *
+ * AND EVERY EXIT WAS ASSUMED TO FILL PERFECTLY. [com.tj.portfolio.net.DayTradingEval.evaluate]
+ * exits at exactly `stop` and exactly `target`, because those are the only prices a 5-minute
+ * bar can prove were reached. A real stop is a MARKET order once touched, and it is touched
+ * precisely when the tape is fast; a real buy-stop entry fills at or above its trigger. Every
+ * one of those errors runs the same way, so the measured result was systematically optimistic -
+ * the one direction a "did this actually work" number must never be wrong in. The `net` figures
+ * below are the same trades after [com.tj.portfolio.net.DayTradingEval.Costs], and both the
+ * gross and the net are shown so the size of that assumption is visible rather than buried.
  */
 data class DayTradingStats(
     val totalRecommendations: Int = 0,
@@ -104,5 +122,41 @@ data class DayTradingStats(
      *  reached target but was still up when the session ended. */
     val profitableRate: Double = 0.0,
     val avgReturnPct: Double = 0.0,
+
+    // ---- CUMULATIVE, AND AFTER MODELLED COSTS (2026-09-18). See this class's header.
+
+    /**
+     * Every decided trade's GROSS return added up - the same fixed equal stake per trade, no
+     * compounding. "Put $1,000 into each of these N trades and you would be up this much of one
+     * $1,000 stake." Not a compounded account curve, which would need an account size and a
+     * one-trade-at-a-time assumption neither of which is true here.
+     */
+    val totalReturnPct: Double = 0.0,
+    /** [avgReturnPct] after [com.tj.portfolio.net.DayTradingEval.Costs]. */
+    val netAvgReturnPct: Double = 0.0,
+    /** [totalReturnPct] after [com.tj.portfolio.net.DayTradingEval.Costs]. */
+    val netTotalReturnPct: Double = 0.0,
+    /**
+     * Sum of every decided trade's NET R-MULTIPLE - its result measured in units of the risk it
+     * actually put up, `(exit - entry) / (entry - stop)`.
+     *
+     * THIS IS THE ONE FIGURE THAT ANSWERS TJ'S QUESTION IN THE APP'S OWN TERMS, which is why it
+     * is here rather than left as a trader's nicety. [com.tj.portfolio.net.ResearchScore
+     * .positionSize] sizes every plan to risk a fixed 1% of equity, so a system that returned
+     * +8R over a stretch moved the ACCOUNT about +8%, whatever each individual stock cost. A
+     * percentage-of-stake figure cannot say that, because a $2 stock with a 3% stop and a $200
+     * stock with a 0.4% stop are sized completely differently by that rule.
+     */
+    val totalR: Double = 0.0,
+    /** [totalR] divided by [entriesTriggered] - expectancy per trade, in R. */
+    val avgR: Double = 0.0,
+    /**
+     * [totalR] converted to account terms at the app's own 1%-per-trade sizing rule. An UPPER
+     * BOUND, and labelled as one on screen: `positionSize`'s 25%-of-equity notional cap makes
+     * some trades risk less than the full 1%, never more.
+     */
+    val accountReturnPct: Double = 0.0,
+    /** Distinct trading days the log covers - the context an average per trade needs. */
+    val sessions: Int = 0,
     val evaluatedAt: Long = 0L
 )
