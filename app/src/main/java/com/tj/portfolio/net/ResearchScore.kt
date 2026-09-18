@@ -1614,7 +1614,30 @@ object ResearchScore {
     data class HoldingInput(
         val price: Double,
         val consensus: Consensus? = null,
-        val values: Map<String, Double> = emptyMap()
+        val values: Map<String, Double> = emptyMap(),
+        /**
+         * The DATED per-analyst actions, newest first - `Fundamentals.ratings`, straight from
+         * Yahoo's `upgradeDowngradeHistory`. This is what makes the analyst term age-aware:
+         * [consensus] carries no date at all (see [RatingRecency]'s header for why "0m" is not
+         * "rated this month"), so without these the scorer cannot tell a note published
+         * yesterday from one nobody has revisited since last year.
+         *
+         * Empty is a supported state, not a broken one - a symbol nobody's rating history
+         * covers, or a fetch that failed. The scorer then falls back to [consensus] at
+         * [RatingRecency.undatedTrust] of its face value and says so in the reasons.
+         */
+        val ratings: List<AnalystRating> = emptyList(),
+        /**
+         * The four monthly `recommendationTrend` snapshots - free, already fetched, and the
+         * only thing that sharpens the undated fallback above past a flat constant. See
+         * [RatingRecency.monthsWithoutObservedChange].
+         */
+        val trend: List<RatingTrend> = emptyList(),
+        /**
+         * Read once by the caller and passed in, because this file owns no clock by design -
+         * the same rule [tradePlan]'s `minutesLeft` and [dayTrading]'s `sessionWord` follow.
+         */
+        val now: Long = 0L
     )
 
     /**
