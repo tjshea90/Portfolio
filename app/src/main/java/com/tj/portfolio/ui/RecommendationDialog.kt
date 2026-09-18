@@ -166,8 +166,17 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                             )
                             if (r.hasTarget && !r.upsidePct.isNaN()) {
                                 Text(
+                                    // "TODAY'S" WAS OVERSTATING IT (2026-09-18). This verdict is
+                                    // computed once per trading day and frozen, so `r.price` is
+                                    // the price at THAT MOMENT - typically the first time the
+                                    // stock was looked at today. On a name that has moved since,
+                                    // "vs today's $104.10" next to a live header reading $112 is
+                                    // the reader's first thought that the app is broken, and the
+                                    // same class of unmarked-stale number Tj asked about on the
+                                    // analyst side. Naming the time costs one clock read.
                                     (if (r.upsidePct >= 0.0) "+" else "") + Fmt.pct(r.upsidePct) +
-                                        " vs today's " + Fmt.price(r.price) +
+                                        " vs " + Fmt.price(r.price) +
+                                        (if (r.computedAt > 0L) " at ${Fmt.clock(r.computedAt)}" else "") +
                                         (if (r.targetIsWeighted && r.targetAgeDays >= 0)
                                             " · targets typically ${r.targetAgeDays} days old"
                                         else ""),
