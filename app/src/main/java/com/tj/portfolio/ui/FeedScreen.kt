@@ -69,9 +69,20 @@ fun FeedScreen(
     val filingsLoading by vm.insiderLoading.collectAsState()
     val marketFilings by vm.marketInsiders.collectAsState()
     val marketFilingsLoading by vm.marketInsiderLoading.collectAsState()
-    var filter by remember { mutableStateOf(F_ALL) }
-    var scope by remember { mutableStateOf(InsiderScope.OPEN_MARKET) }
-    var source by remember { mutableStateOf(InsiderSource.ALL_COMPANIES) }
+    // PERSISTED, NOT A PLAIN `remember`. FeedScreen leaves composition on every tab switch
+    // (see the refresh LaunchedEffect's own comment below), which silently discarded these
+    // three and reset them to the defaults every time the tab was reopened - a requested
+    // audit found this. `vm.feedFilter()`/etc. are read once per entry into composition, same
+    // as `researchTab()` is read by ResearchScreen for the same reason.
+    var filter by remember {
+        mutableStateOf(listOf(F_ALL, F_MINE, F_INSIDER, F_WSB).find { it == vm.feedFilter() } ?: F_ALL)
+    }
+    var scope by remember {
+        mutableStateOf(InsiderScope.entries.find { it.name == vm.feedInsiderScope() } ?: InsiderScope.OPEN_MARKET)
+    }
+    var source by remember {
+        mutableStateOf(InsiderSource.entries.find { it.name == vm.feedInsiderSource() } ?: InsiderSource.ALL_COMPANIES)
+    }
 
     // Populate on first visit, and again whenever the tab is re-opened with nothing in it -
     // FeedScreen leaves composition on a tab switch, so this re-runs on the way back in.
