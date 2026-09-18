@@ -224,19 +224,33 @@ class AnalystRecencyTest {
 
     // ============================================================ the undated fallback
 
-    private fun trend(vararg counts: Triple<String, Int, Int>) =
-        counts.map { (p, buy, sell) -> RatingTrend(period = p, buy = buy, hold = 2, sell = sell) }
+    /** `buys` per period, newest first: 0m, -1m, -2m, -3m for as many as are given. */
+    private fun trend(vararg buys: Int) = buys.mapIndexed { i, b ->
+        RatingTrend(period = if (i == 0) "0m" else "-${i}m", buy = b, hold = 2, sell = 1)
+    }
 
     @Test fun `a consensus that moved last month is read as live coverage`() {
-        val t = trend("0m" to 9 to 1, "-1m" to 7 to 1, "-2m" to 7 to 1, "-3m" to 7 to 1)
+        val t = trend(9, 7, 7, 7)
         assertEquals(0, RatingRecency.monthsWithoutObservedChange(t))
         assertEquals(0.90, RatingRecency.undatedTrust(t), 1e-9)
     }
 
+    @Test fun `a consensus that last moved two months back is discounted further`() {
+        val t = trend(7, 7, 5, 5)
+        assertEquals(1, RatingRecency.monthsWithoutObservedChange(t))
+        assertEquals(0.75, RatingRecency.undatedTrust(t), 1e-9)
+    }
+
     @Test fun `a consensus unchanged across all four snapshots is discounted hardest`() {
-        val t = trend("0m" to 7 to 1, "-1m" to 7 to 1, "-2m" to 7 to 1, "-3m" to 7 to 1)
+        val t = trend(7, 7, 7, 7)
         assertEquals(3, RatingRecency.monthsWithoutObservedChange(t))
         assertEquals(0.45, RatingRecency.undatedTrust(t), 1e-9)
+    }
+
+    @Test fun `a missing snapshot stops the count rather than reading as unchanged`() {
+        // Only 0m and -1m published, and they match. That is one month of no observed change -
+        // not three. Reading an absent snapshot as "same" would claim evidence nobody supplied.
+        assertEquals(1, RatingRecency.monthsWithoutObservedChange(trend(7, 7)))
     }
 
     @Test fun `no snapshots at all falls back to the documented middle`() {
@@ -245,11 +259,7 @@ class AnalystRecencyTest {
     }
 
     @Test fun `the undated trust never reaches full weight`() {
-        for (t in listOf(
-            trend("0m" to 9 to 1, "-1m" to 7 to 1),
-            trend("0m" to 7 to 1, "-1m" to 7 to 1, "-2m" to 7 to 1, "-3m" to 7 to 1),
-            emptyList()
-        )) {
+        for (t in listOf(trend(9, 7), trend(7, 7, 7, 7), emptyList())) {
             assertTrue(RatingRecency.undatedTrust(t) < 1.0)
         }
     }
