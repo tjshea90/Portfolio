@@ -1337,17 +1337,75 @@ internal fun DayTradingSuccessRate(
                         "${Fmt.pctSigned(stats.profitableRate).removePrefix("+")} " +
                             "(${stats.targetHit + stats.closedProfit} of ${stats.entriesTriggered})"
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                    Spacer(Modifier.height(8.dp))
+
+                    // ---- THE HEADLINE IS NOW CUMULATIVE, IN ACCOUNT TERMS (2026-09-18).
+                    //
+                    // It used to be `avgReturnPct` - the average of each trade's own percentage
+                    // return - under a row reading "If you only traded this system". Those are
+                    // two different questions and the gap is not small: sixty trades averaging
+                    // +0.5% is not "+0.5%", it is roughly +30% of the money staked. Tj asked
+                    // "how much percent up or down my portfolio would be", so the headline is
+                    // the figure that actually answers that, in the sizing this app's own
+                    // `ResearchScore.positionSize` uses, and the per-trade average stays below
+                    // it as the per-trade statistic it always was.
                     KeyValue(
-                        "If you only traded this system",
-                        Fmt.pctSigned(stats.avgReturnPct),
-                        signColor(stats.avgReturnPct),
+                        "Your portfolio, trading this system",
+                        Fmt.pctSigned(stats.accountReturnPct),
+                        signColor(stats.accountReturnPct),
                         bold = true
                     )
                     Text(
-                        "Average return per trade, equal amount on every pick, no " +
-                            "compounding - your own portfolio and anything already in it is " +
-                            "not part of this number.",
+                        "${stats.entriesTriggered} trade" +
+                            (if (stats.entriesTriggered == 1) "" else "s") +
+                            " across ${stats.sessions} session" +
+                            (if (stats.sessions == 1) "" else "s") +
+                            ", each sized the way this app sizes them - 1% of the portfolio " +
+                            "risked per trade. An upper bound: the 25%-of-portfolio cap on one " +
+                            "position means some trades risk less than the full 1%, never more.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    KeyValue(
+                        "Average per trade",
+                        Fmt.pctSigned(stats.netAvgReturnPct),
+                        signColor(stats.netAvgReturnPct)
+                    )
+                    KeyValue(
+                        "Total on a fixed stake",
+                        Fmt.pctSigned(stats.netTotalReturnPct),
+                        signColor(stats.netTotalReturnPct)
+                    )
+                    Text(
+                        "The same dollar amount into every pick, profits not reinvested - one " +
+                            "stake's worth, not a compounded account.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // ---- HOW MUCH OF THE RESULT IS FILL ASSUMPTIONS, SHOWN RATHER THAN BURIED.
+                    // The three figures above are net of modelled slippage; this is the same
+                    // trades assuming the perfect fills the bar data literally shows, so the
+                    // size of the assumption is visible instead of being something Tj has to
+                    // take on trust. See `DayTradingEval.Costs`.
+                    Spacer(Modifier.height(6.dp))
+                    KeyValue(
+                        "Before trading costs",
+                        Fmt.pctSigned(stats.totalReturnPct),
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        "A 5-minute bar can only prove a price was reached, not what an order " +
+                            "actually filled at. The figures above assume you pay " +
+                            "${Fmt.oneDp(com.tj.portfolio.net.DayTradingEval.Costs.ENTRY_BPS / 100.0)}% " +
+                            "getting in and " +
+                            "${Fmt.oneDp(com.tj.portfolio.net.DayTradingEval.Costs.STOP_BPS / 100.0)}% " +
+                            "when a stop fires - a stop is a market order, and it fires when the " +
+                            "tape is fast. A target exit pays nothing: it is a resting limit at " +
+                            "a price that traded. Commission is assumed zero.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
