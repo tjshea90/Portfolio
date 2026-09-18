@@ -57,38 +57,80 @@ via `get_session` before any edit — cleared to proceed.**
 
 ### Part 1 — analyst-rating staleness (the headline ask)
 
-- [ ] `net/RatingRecency.kt`: a pure, testable recency model — full weight
+- [x] `net/RatingRecency.kt`: a pure, testable recency model — full weight
       inside 30 days, exponential decay on a 60-day half-life after that,
       rescaled to reach exactly zero at 240 days (no cliff). Dedupe to each
       firm's LATEST action; drop a firm silent past the cutoff entirely.
-- [ ] Recency-weighted consensus AND recency-weighted price target built
+      *(Tested: `AnalystRecencyTest`, the decay/cutoff/dedupe groups.)*
+- [x] Recency-weighted consensus AND recency-weighted price target built
       from the dated ratings, replacing the undated ones in the scorer when
-      the dated ratings are there.
-- [ ] `ResearchScore.holding` takes it: the analyst lean is decay-weighted,
-      scaled by fresh-equivalent breadth and by how current the panel is at
-      all. A panel nobody has revisited in months cannot reach full weight.
-- [ ] When there are NO dated ratings the undated consensus is capped, not
-      trusted at face value, and the reason line says which it is.
-- [ ] `loadRecommendation` gets the dated ratings before it scores (once a
-      day, the same day-key gate the recommendation already has).
-- [ ] Freshness shown on screen — age of the panel, how many ratings still
-      count, and the discount applied — in the recommendation popup.
-- [ ] Tests: `AnalystRecencyTest.kt` pins the weights, the cutoff, the
-      per-firm dedupe and the "stale panel cannot BUY on its own" case.
+      the dated ratings are there. *(`RatingRecency.panel`.)*
+- [x] `ResearchScore.holding` takes it: the analyst lean is decay-weighted,
+      scaled by fresh-equivalent breadth AND by how current the panel is at
+      all, so more stale coverage cannot buy back freshness.
+      *(Tested: "breadth alone cannot buy back currency".)*
+- [x] When there are NO dated ratings the undated consensus is capped by
+      `undatedTrust`, sharpened for free off the four monthly
+      `recommendationTrend` snapshots, and the reason line says which it is.
+- [x] `loadRecommendation` gets the dated ratings before it scores, once a
+      day, behind the existing TTL + failure backoff.
+- [x] Freshness shown on screen in the recommendation popup — panel age,
+      how many ratings still count, how many were dropped, the discount.
+- [x] Tests: `AnalystRecencyTest`, 27 cases including the headline one —
+      the same unanimous BUY panel scored fresh and scored five months old,
+      with only the dates different, is a BUY and then is not.
 
 ### Part 2 — day-trading result tracker (accuracy)
 
-- [ ] Add the CUMULATIVE figure next to the per-trade average, so "how much
-      would my portfolio be up" is answered by a number that means it.
-- [ ] Model entry/stop slippage instead of assuming perfect fills, and say
-      on screen what was assumed.
-- [ ] Say how many sessions and how many picks per session the numbers come
-      from — an average per trade means nothing without the trade count.
-- [ ] Tests for all of it.
+- [x] Cumulative figures added: `totalReturnPct` (fixed equal stake) and
+      `accountReturnPct` (sum of R-multiples at the app's own 1%-per-trade
+      sizing) — the second is the one that actually answers "how much would
+      my portfolio be up". The per-trade average stays, as what it is.
+- [x] `DayTradingEval.Costs` models entry and stop slippage in basis points
+      instead of assuming perfect fills; the card shows gross AND net so the
+      size of the assumption is visible.
+- [x] Sessions and trade counts on the card.
+- [x] Tests in `DayTradingEvalTest` — including that costs can only ever
+      make a result worse, and that a stopless row cannot produce an
+      infinite R-multiple.
 
 ### Part 3 — review pass
 
-- [ ] Day-trading data freshness and soundness: confirm the numbers are
-      pulled fresh and that thresholds are paced against the session.
-- [ ] Code, UI and bug-fix sweep; record anything found but not fixed.
+- [x] **Bug fixed: expired intraday history was re-fetched forever.**
+      `DATA_UNAVAILABLE` is deliberately not `isFinal`, so every press of
+      "re-check success rate" re-requested a session of 5-minute bars for
+      every recommendation ever recorded — including those long past
+      Yahoo's ~60-day minute-level retention, where the answer is empty
+      every time. Cost rose with the age of the log and bought nothing.
+      Gated on `DayTradingEval.intradayStillAvailable`.
+- [x] **UI honesty: "vs today's $X" in the recommendation popup** was the
+      price at the moment the verdict was computed — first thing in the
+      morning, usually — printed next to a live header showing something
+      else. Now names the time it was computed at.
+- [x] **The Research "Best" list's analyst line now says it is undated.**
+      That scorer (`ResearchScore.withAnalyst`) runs over hundreds of
+      screened candidates off Nasdaq's consensus endpoint, which carries no
+      publication dates, and the dated history is a ~195 KB per-symbol
+      payload — affordable once a day for one holding, not at all for a
+      screen. Kept at its existing weight (a third of a ranking, not a
+      verdict) and labelled, rather than given a fix that does not exist.
+- [x] Day-trading data freshness confirmed sound: the candidate universe is
+      nine Yahoo screens plus WSB and news on a 30-minute TTL, the live
+      technicals (VWAP, opening range, ATR, pivots) re-fetch every 30s for
+      visible rows while the tab is open, and every volume threshold is
+      paced against the session rather than compared to a whole-day average.
 
+## Known limitations, recorded rather than fixed
+
+- **The Day Trading candidate list can be up to 30 minutes old.** A stock
+  that comes into play at 10:05 appears at the next rebuild. Shortening it
+  means re-running ~18 requests per rebuild against free feeds the app is
+  deliberately careful with, and pull-to-refresh already forces it. Left
+  alone on purpose; revisit only if Tj asks for the latency.
+- **The success-rate log has a rolling ~60-day horizon**, because that is
+  how far back Yahoo serves 5-minute bars. Older rows stay in the log and
+  are counted in "recommendations recorded", but can never be resolved.
+- **A target exit is still assumed to fill.** `Costs` charges nothing on a
+  target because a resting limit at a price that traded gets its price —
+  but a level only TICKED may not have filled a real order at all, and no
+  bar data can say. The one optimistic corner left standing.
