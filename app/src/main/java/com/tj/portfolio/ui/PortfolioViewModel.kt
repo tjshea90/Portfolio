@@ -5665,7 +5665,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val all = withContext(Dispatchers.IO) { db.dayTradingLog() }
                 val needsEval = all.filter {
-                    !com.tj.portfolio.data.DayTradingOutcome.isFinal(it.outcome)
+                    !com.tj.portfolio.data.DayTradingOutcome.isFinal(it.outcome) &&
+                        // AND ITS BARS ARE STILL FETCHABLE. `DATA_UNAVAILABLE` is not "final" on
+                        // purpose - a one-off failure deserves another try - but once a session
+                        // has aged out of Yahoo's ~60-day minute-level window the answer will be
+                        // empty every single time. Without this, every press re-requested one
+                        // session of intraday history for every recommendation ever recorded
+                        // past that window, forever, for nothing. See
+                        // [com.tj.portfolio.net.DayTradingEval.INTRADAY_RETENTION_DAYS].
+                        com.tj.portfolio.net.DayTradingEval.intradayStillAvailable(it.tradingDay)
                 }
                 if (needsEval.isNotEmpty()) {
                     withContext(Dispatchers.IO) {

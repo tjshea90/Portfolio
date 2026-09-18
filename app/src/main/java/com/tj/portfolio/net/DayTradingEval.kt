@@ -112,6 +112,43 @@ object DayTradingEval {
     }
 
     /**
+     * HOW FAR BACK YAHOO ACTUALLY KEEPS 5-MINUTE BARS, and why this app has to know.
+     *
+     * [fetchDaySeries] asks for `interval=5m` over one past session. Yahoo serves minute-level
+     * history for roughly the last 60 days and then stops - the request still succeeds, it just
+     * comes back with no bars, which [com.tj.portfolio.ui.PortfolioViewModel
+     * .resolveOneDayTradingEntry] correctly records as
+     * [com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE].
+     *
+     * THE BUG THAT NEEDED THIS CONSTANT. `DATA_UNAVAILABLE` is deliberately not
+     * [com.tj.portfolio.data.DayTradingOutcome.isFinal] - a fetch can fail for a day that is
+     * still perfectly readable, and that row deserves another try. But a day whose bars have
+     * aged out of the provider's window is NOT coming back, ever, and the log only grows. So
+     * every press of "re-check success rate" was re-requesting one session of intraday history
+     * for every recommendation ever recorded past the window, getting the same empty answer
+     * every time, forever - a cost that rises with the age of the log and buys nothing. Rows
+     * older than this are left alone.
+     *
+     * 55, not 60: the edge of a provider's retention window is not a documented contract, and
+     * being a few days conservative costs at most a handful of retries on days that were about
+     * to expire anyway.
+     */
+    const val INTRADAY_RETENTION_DAYS = 55
+
+    /**
+     * Is [tradingDay]'s intraday history still inside the provider's window? Pure, and a
+     * `false` here is the only thing that stops a permanently-empty row being re-requested on
+     * every press - see [INTRADAY_RETENTION_DAYS].
+     *
+     * An unparseable key answers TRUE: "I cannot tell how old this is" must not become "skip
+     * it", or a corrupt row would silently stop being evaluated instead of being marked.
+     */
+    fun intradayStillAvailable(tradingDay: String, now: Long = System.currentTimeMillis()): Boolean {
+        val bounds = sessionBoundsMs(tradingDay) ?: return true
+        return (now - bounds.second) <= INTRADAY_RETENTION_DAYS * 86_400_000L
+    }
+
+    /**
      * Which way price has to move to reach [com.tj.portfolio.data.DayTradingLogEntry.entry] -
      * decided from [priceAtRecommendation] whenever it is usable, which is the DIRECT answer
      * ("is entry above or below where the stock actually was") rather than an inference from
