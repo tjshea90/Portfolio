@@ -1400,10 +1400,14 @@ internal fun DayTradingSuccessRate(
                     Text(
                         "A 5-minute bar can only prove a price was reached, not what an order " +
                             "actually filled at. The figures above assume you pay " +
-                            "${Fmt.oneDp(com.tj.portfolio.net.DayTradingEval.Costs.ENTRY_BPS / 100.0)}% " +
-                            "getting in and " +
-                            "${Fmt.oneDp(com.tj.portfolio.net.DayTradingEval.Costs.STOP_BPS / 100.0)}% " +
-                            "when a stop fires - a stop is a market order, and it fires when the " +
+                            // `Fmt.pct` (two decimals), NOT `oneDp` - these are fractions of a
+                            // percent, and one decimal place rounds 0.05% to "0.1%" and 0.15%
+                            // to "0.2%": a note about how conservative the model is, printing
+                            // numbers twice the size of the ones it actually uses.
+                            Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.ENTRY_BPS / 100.0) +
+                            " getting in and " +
+                            Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.STOP_BPS / 100.0) +
+                            " when a stop fires - a stop is a market order, and it fires when the " +
                             "tape is fast. A target exit pays nothing: it is a resting limit at " +
                             "a price that traded. Commission is assumed zero.",
                         style = MaterialTheme.typography.labelSmall,
