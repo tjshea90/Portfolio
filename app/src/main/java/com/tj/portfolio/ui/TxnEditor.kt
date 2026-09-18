@@ -168,9 +168,15 @@ fun TxnEditorDialog(
     /** A split has a symbol and a ratio, and nothing else - see [TxnType.SPLIT]. */
     val isSplit = type == TxnType.SPLIT
 
+    // Parsed here, ahead of `expected` below, because the fee auto-fill needs it too - a
+    // backfilled trade dated before Fees.RATES_EFFECTIVE_MS must not be auto-filled at 2026's
+    // current rates (see that constant's own note). Save's validation further down reuses the
+    // same value.
+    val parsedDate = remember(date) { Fmt.parseDate(date) }
+
     // What Ally would actually charge for this trade, recomputed as the fields change.
-    val expected = remember(type, qty, price) {
-        Fees.forEquityTrade(type, qty.toNum(), price.toNum())
+    val expected = remember(type, qty, price, parsedDate) {
+        Fees.forEquityTrade(type, qty.toNum(), price.toNum(), parsedDate)
     }
     // Fill the Fees box in for the user. A stock or ETF BUY at Ally costs nothing, so this
     // normally puts a hard 0 there instead of leaving an empty box that invites a guess.
@@ -185,7 +191,6 @@ fun TxnEditorDialog(
     // quietly re-orders the FIFO lots and changes the cost basis of a stock you have
     // held for a year. A blank symbol or zero shares wrote a row the ledger ignores
     // but the Activity tab still shows. Both are now blocked before they reach the db.
-    val parsedDate = remember(date) { Fmt.parseDate(date) }
     val qNum = qty.toNum()
     val pNum = price.toNum()
     val aNum = amount.toNum()
