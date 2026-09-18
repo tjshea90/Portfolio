@@ -1672,28 +1672,80 @@ object ResearchScore {
         val price = input.price
         val c = input.consensus
 
+        // ---- THE ANALYST TERMS ARE AGE-AWARE SINCE 2026-09-18. See [RatingRecency].
+        //
+        // Tj: "it doesn't make sense to buy a stock based on an analyst rating from 2 months
+        // ago." Both terms below used to read [Consensus] at face value, and [Consensus] has no
+        // date on it anywhere - so the app's two heaviest inputs (+-30 and +-12.5 of a scale
+        // centred on 50) could be carried entirely by ratings nobody had revisited in a year.
+        // `panel` is the same votes and the same targets after each firm's LATEST action has
+        // been weighted by its age, dropped past [RatingRecency.CUTOFF_DAYS], and the panel as
+        // a whole checked for whether anyone is still actively covering the name.
+        val panel = RatingRecency.panel(input.ratings, now = input.now)
+
         // --- analyst verdict (+-30): three-way already, from professional coverage.
         want++
-        if (c != null && c.hasVotes) {
+        if (panel != null && panel.hasVotes) {
             have++
+            s += panel.lean * 30.0 * panel.strength
+            why.add(leanLabel(panel.lean) + " consensus, weighted by how recent each rating is - " +
+                panel.ageSummary() +
+                (if (panel.droppedStale > 0)
+                    ", ${panel.droppedStale} dropped as stale (over ${CUTOFF_MONTHS} months old)"
+                else "") +
+                (if (panel.strength < 0.95)
+                    ". Counted at ${(panel.strength * 100).roundToInt()}% of full weight " +
+                        staleBecause(panel)
+                else "")
+            )
+        } else if (c != null && c.hasVotes) {
+            // NO DATED RATINGS AT ALL - a symbol the history feed does not cover, or a fetch
+            // that failed. The consensus is still real; its AGE is what is unknown, and an
+            // unknown age on this app's heaviest input cannot be read as "today".
+            have++
+            val trust = RatingRecency.undatedTrust(input.trend)
+            s += RatingRecency.undatedLean(c) * 30.0 * trust
             val buyVotes = c.strongBuy + c.buy
             val sellVotes = c.sell + c.strongSell
-            val lean = (buyVotes - sellVotes).toDouble() / c.votes
-            s += lean * 30.0
             val lab = c.meanLabel.ifBlank { "Mixed" }
             why.add(
                 "$lab consensus - $buyVotes buy / ${c.hold} hold / $sellVotes sell across " +
                     "${c.votes} analysts"
             )
+            why.add(RatingRecency.undatedNote(input.trend))
         }
 
         // --- price vs. target (+-12.5): "for how much", the number TJ asked for by name.
+        //
+        // AGED THE SAME WAY, AND FOR A SHARPER REASON THAN THE VOTES. An analyst target is a
+        // TWELVE-MONTH figure set against the price on the day it was written. When a stock has
+        // run since, a stale panel's average target sits below today's price and this term reads
+        // it as analysts calling the stock overvalued - when all that actually happened is that
+        // nobody has updated the number. That is a manufactured SELL signal, which is the worst
+        // direction for this particular bug to point.
         want++
-        if (c != null && c.hasTarget && price > 0.0) {
+        val datedTarget = panel?.takeIf { it.hasTarget && it.targetFirms >= RatingRecency.MIN_TARGET_FIRMS }
+        if (datedTarget != null && price > 0.0) {
+            have++
+            val up = (datedTarget.target - price) / price * 100.0
+            s += (ramp(up, -30.0, 30.0, 25.0) - 12.5) * datedTarget.currency
+            why.add(
+                (if (up >= 0)
+                    "Analyst target ${Fmt.price(datedTarget.target)} - ${pct(up)} above today"
+                else
+                    "Analyst target ${Fmt.price(datedTarget.target)} - ${pct(-up)} BELOW today") +
+                    ", averaged across ${datedTarget.targetFirms} firms and weighted toward the " +
+                    "newest (typically ${datedTarget.targetAgeDays} days old)"
+            )
+        } else if (c != null && c.hasTarget && price > 0.0) {
             val up = c.upsidePct(price)
             if (up != null) {
                 have++
-                s += ramp(up, -30.0, 30.0, 25.0) - 12.5
+                // Same cap as the undated votes above, and for the same reason: Yahoo's
+                // `targetMeanPrice` averages every covering firm's CURRENT target with no
+                // indication of when any of them was set.
+                val trust = panel?.currency ?: RatingRecency.undatedTrust(input.trend)
+                s += (ramp(up, -30.0, 30.0, 25.0) - 12.5) * trust
                 why.add(
                     if (up >= 0)
                         "Average analyst target ${Fmt.price(c.targetMean)} - ${pct(up)} above today"
