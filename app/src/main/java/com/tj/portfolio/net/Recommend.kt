@@ -52,7 +52,10 @@ object Recommend {
             targetMean = weighted?.target ?: c?.targetMean ?: 0.0,
             targetHigh = c?.targetHigh ?: 0.0,
             targetLow = c?.targetLow ?: 0.0,
-            analystCount = c?.votes ?: 0,
+            // The feed's headcount when there is one; the dated panel's otherwise, so a symbol
+            // with real rating history but no `financialData` consensus does not read as
+            // "0 analysts" next to a verdict its analysts helped decide.
+            analystCount = (c?.votes ?: 0).takeIf { it > 0 } ?: (panel?.firms ?: 0),
             price = price,
             dayKey = MarketClock.dayKey(now),
             computedAt = now,

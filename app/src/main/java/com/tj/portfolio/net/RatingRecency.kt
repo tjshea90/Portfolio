@@ -206,6 +206,13 @@ object RatingRecency {
      */
     fun panel(ratings: List<AnalystRating>, now: Long): Panel? {
         if (ratings.isEmpty()) return null
+        // NO CLOCK MEANS NO PANEL, NEVER A PANEL OF INFINITELY FRESH RATINGS. Every age here is
+        // `now - date`, so a caller that forgot to pass a real clock would hand every rating a
+        // NEGATIVE age - which [weight] deliberately reads as full weight, for the genuine
+        // future-stamped-note case. Falling through with `now = 0` would therefore restore the
+        // exact bug this whole file exists to fix, silently, on a path nobody would look at
+        // again. A missing clock falls back to the undated consensus instead, which is capped.
+        if (now <= 0L) return null
 
         // Latest DATED action per firm. `maxByOrNull` on the date rather than trusting the
         // list's order: `Fundamentals.merge` sorts descending, but a caller handing this a
