@@ -839,7 +839,8 @@ fun PriceChart(
                         // non-null, so the safe call was dead code the compiler warned about.
                         .clickable { onResetWindow.invoke() }
                         .padding(horizontal = 10.dp, vertical = 3.dp)
-                        .testTag(RESET_ZOOM_TAG)
+                        .testTag(RESET_ZOOM_TAG),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         "Reset zoom",
