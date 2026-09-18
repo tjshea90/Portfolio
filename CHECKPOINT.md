@@ -1,20 +1,13 @@
-# CHECKPOINT 1542 — read me first, then TASKS.md
+# CHECKPOINT 1543 — read me first, then TASKS.md
 
-**Written:** 2026-09-18T15:20:57Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/day-trading-app-release-49yt07` · **builds on:** `5c7226f` (this checkpoint is the commit after it)
+**Written:** 2026-09-18T16:40:05Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/day-trading-app-release-49yt07` · **builds on:** `5cb15d2` (this checkpoint is the commit after it)
 
 ## Just done
-gated v7.25 (code 82) and pushed it: checkinit, the full unit suite and the
-versionCode check all passed here. NOT yet built - GitHub has not been asked.
+Confirmed v7.25 (code 82) build green and Release published; recorded it in BUILDLOG.md
 
 ## Do this next
-TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
-android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
-confirm the Release is published (get_release_by_tag is enough) and then run:
-  bash tools/record-release.sh v7.25 "General audit pass: fixed a same-bar false-WIN credit for pullback trades in the Day Trading success-rate evaluator, a stock split not rescaling an existing oversold shortfall, the fee auto-fill silently using current-year SEC/TAF rates on backdated pre-4-Apr-2026 trades, an insider Form 4's footnote plan-detection overriding an explicit not-planned checkbox, plus network/UI fixes: chart history now uses conditional-GET caching, day-trading-log writes are now batched in one transaction, the Watchlist tab now surfaces a failed refresh, the chart's Reset-zoom chip meets the 48dp touch target, the Insider tab's filter/scope/source no longer reset on every tab switch, and a headline with no link or ticker is no longer a dead click target."
-Do NOT try to send Tj the APK - he downloads it himself from the Release page
-(CLAUDE.md, his rule of 2026-09-11), and this container cannot fetch a private
-repo's release asset bytes anyway.
+Nothing pending - full audit pass (day-trading logic/accuracy, UI, network efficiency, ledger/parsing correctness) shipped as v7.25. Await Tj's next request.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -23,6 +16,7 @@ repo's release asset bytes anyway.
 
 ## Last ten checkpoints
 ```
+  17484a6 ckpt 1542: gated v7.25 (code 82) and pushed it: checkinit, the full unit suite and the v
   7106821 ckpt 1541: Fixed 8 real bugs from a 4-way parallel audit (day-trading logic, UI, network
   4db7ea9 ckpt 1540: Confirmed v7.24 (code 81) build green and Release published; recorded it in B
   379455f ckpt 1538: gated v7.24 (code 81) and pushed it: checkinit, the full unit suite and the v
@@ -33,6 +27,3 @@ repo's release asset bytes anyway.
   07e3d49 ckpt 1519: Added 9 new DbTest cases for day_trading_log: round-trip, the core append-onl
   0be47df ckpt 1515: Implemented Part 15's core: Db v8->9 (day_trading_log table, append-only via 
 ```
-
-(1 automatic checkpoint(s) since the last deliberate one — the
-session was still mid-step. `git diff` against it shows what changed.)
