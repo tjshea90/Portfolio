@@ -43,6 +43,21 @@ object Fees {
     const val TAF_PER_OPTION_CONTRACT = 0.00329
     const val ORF_PER_CONTRACT = 0.02000
 
+    /**
+     * When the rates above took effect - the one date this file can say for certain, because
+     * [SEC_FEE_PER_MILLION]'s own note pins it. A sale dated before this was not necessarily
+     * charged today's FINRA TAF either (this file's very own history records an earlier,
+     * different TAF rate with no confirmed date for when it stopped applying), so
+     * [forEquityTrade] does not guess ANY regulatory fee for a trade this old - see its own
+     * note at that check. A fabricated number silently written into a real P&L is worse than
+     * an empty box asking the user to fill it in.
+     */
+    val RATES_EFFECTIVE_MS: Long by lazy {
+        val c = java.util.GregorianCalendar(java.util.TimeZone.getTimeZone("UTC"))
+        c.clear(); c.set(2026, 3, 4) // month is 0-based: 3 = April
+        c.timeInMillis
+    }
+
     // ------------------------------------------------------------ Ally's own
 
     const val LOW_PRICED_UNDER = 2.00
