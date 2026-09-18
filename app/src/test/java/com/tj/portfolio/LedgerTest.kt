@@ -222,6 +222,23 @@ class LedgerTest {
     }
 
     /**
+     * A requested audit found this one: [Position.oversold] is real share units of the symbol
+     * it belongs to ("shares sold beyond what the recorded history could cover"), so a split on
+     * that symbol has to rescale it exactly like every other share count on the position - a
+     * presumed-missing 3 shares must read as 30 after a 10-for-1 split, not stay pinned at 3.
+     */
+    @Test fun `a split rescales an existing oversold shortfall too`() {
+        val txns = listOf(
+            sell(3.0, 50.0, session - 60 * day),      // sold with nothing on the books
+            split(10.0, session - 30 * day)
+        )
+        for (method in listOf(Ledger.FIFO, Ledger.AVERAGE)) {
+            val p = pos(txns, method)
+            assertEquals("$method: shortfall scales with the split", 30.0, p.oversold, 1e-9)
+        }
+    }
+
+    /**
      * A RATIO THAT MAKES NO SENSE IS IGNORED, NOT APPLIED. Multiplying a holding by zero or
      * by a negative would destroy it outright - the one outcome worse than having no split
      * support at all - so [TxnType.splitRatio] refuses it and the replay skips the row.
