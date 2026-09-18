@@ -113,8 +113,11 @@ object Fees {
      * What Ally would charge on one stock or ETF trade.
      *
      * @param type [TxnType.BUY] or [TxnType.SELL]; anything else has no trade fee.
+     * @param tradeDate when the trade happened, epoch ms - null (the default) means "assume
+     *   today's rates," which is right for every LIVE trade but wrong for a backfilled old one.
+     *   Pass the entered date when one is available - see [RATES_EFFECTIVE_MS].
      */
-    fun forEquityTrade(type: String, shares: Double, price: Double): Breakdown {
+    fun forEquityTrade(type: String, shares: Double, price: Double, tradeDate: Long? = null): Breakdown {
         val qty = kotlin.math.abs(shares)
         if (qty < 1e-9 || price <= 0.0) return Breakdown()
         if (type != TxnType.BUY && type != TxnType.SELL) return Breakdown()
@@ -123,6 +126,11 @@ object Fees {
 
         // Both regulatory fees are on SALES only. An ordinary purchase is genuinely free.
         if (type == TxnType.BUY) return Breakdown(commission = commission)
+
+        // A SALE DATED BEFORE THE RATES THIS SCHEDULE DESCRIBES TOOK EFFECT gets no
+        // auto-computed regulatory fee at all - see [RATES_EFFECTIVE_MS]'s own note on why a
+        // blank is safer here than a number computed at the wrong rate.
+        if (tradeDate != null && tradeDate < RATES_EFFECTIVE_MS) return Breakdown(commission = commission)
 
         val proceeds = qty * price
         return Breakdown(
