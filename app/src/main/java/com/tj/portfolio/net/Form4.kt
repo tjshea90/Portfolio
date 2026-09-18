@@ -126,12 +126,18 @@ object Form4 {
         val otherText = valueOf(doc, "otherText").trim()
         val role = roleFor(isDirector, isOfficer, isTenPct, officerTitle, otherText)
 
-        // EITHER signal is enough. The checkbox is authoritative when present but is absent
-        // on older filings and on some agent-prepared ones, and a filer who omits it almost
-        // always still names the plan in a footnote - so the footnotes are read regardless
-        // rather than only as a fallback.
+        // THE CHECKBOX WINS WHENEVER IT IS PRESENT, full stop - a requested audit found the
+        // footnote fallback used to be OR'd in unconditionally, so an explicit "not planned"
+        // checkbox could be silently flipped to "planned" by a footnote that merely NAMES
+        // Rule 10b5-1, which is exactly what the SEC's own required disclosure sentence does:
+        // "This transaction was not effected pursuant to a Rule 10b5-1 trading plan" matches
+        // [mentionsPlan]'s substring search just as readily as a genuine plan does. The
+        // footnote is now read ONLY when the checkbox element is missing entirely (older
+        // filings, some agent-prepared ones) - which is the actual fallback this comment always
+        // claimed to be.
         val footnotes = sectionOf(doc, "footnotes").orEmpty()
-        val planned = isTrue(valueOf(doc, "aff10b5One")) || mentionsPlan(footnotes)
+        val planned = if (blockRange(doc, "aff10b5One", 0) != null) isTrue(valueOf(doc, "aff10b5One"))
+            else mentionsPlan(footnotes)
 
         val trades = ArrayList<InsiderTrade>()
         collect(doc, "nonDerivativeTransaction", false, trades)
