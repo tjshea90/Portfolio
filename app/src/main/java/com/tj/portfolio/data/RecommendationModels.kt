@@ -34,19 +34,76 @@ data class Recommendation(
     /** The price this was computed against, so a stale-looking upside can be explained. */
     val price: Double = 0.0,
     val dayKey: String = "",
-    val computedAt: Long = 0L
+    val computedAt: Long = 0L,
+
+    // ---- HOW FRESH THE ANALYST HALF OF THIS VERDICT ACTUALLY IS (2026-09-18).
+    //
+    // Tj: "it doesn't make sense to buy a stock based on an analyst rating from 2 months ago."
+    // The scoring fix lives in [com.tj.portfolio.net.RatingRecency]; these fields are what the
+    // POPUP needs to say so out loud, because a discount the reader cannot see is a discount he
+    // has no way to disagree with. All of them are defaulted, so a row decoded from a cache
+    // written before this existed reads as "unknown" rather than as a confident zero.
+
+    /** True when real publication dates were available, so the weighting below is measured. */
+    val ratingsDated: Boolean = false,
+    /** Firms whose latest note still counts (inside [com.tj.portfolio.net.RatingRecency.CUTOFF_DAYS]). */
+    val currentRatings: Int = 0,
+    /** Firms dropped outright for being past the cutoff - said out loud, not silently ignored. */
+    val staleRatingsDropped: Int = 0,
+    /** [currentRatings] after age weighting - "worth this many fresh analysts". */
+    val effectiveAnalysts: Double = 0.0,
+    /** Age in days of the most recent surviving rating; -1 when no dates were available. */
+    val newestRatingDays: Int = -1,
+    /** 0.0-1.0: the fraction of its full weight the analyst term was actually allowed. */
+    val analystWeight: Double = 1.0,
+    /** True when [targetMean] is the recency-weighted target rather than the feed's flat mean. */
+    val targetIsWeighted: Boolean = false,
+    /** Weighted mean age in days of the targets behind [targetMean]; -1 when unknown. */
+    val targetAgeDays: Int = -1
 ) {
     val hasTarget: Boolean get() = targetMean > 0.0
 
     val upsidePct: Double
         get() = if (hasTarget && price > 0.0) (targetMean - price) / price * 100.0 else Double.NaN
+
+    /** The analyst term was cut for age or thin coverage by enough to be worth showing. */
+    val analystDiscounted: Boolean get() = analystWeight < 0.95
+
+    /**
+     * One line for the popup: how old this verdict's analyst input is and what was done about
+     * it. Blank when there was no analyst input at all - a blank is honest, an invented
+     * freshness claim is not.
+     */
+    fun freshnessNote(): String {
+        val cut = "Counted at ${Math.round(analystWeight * 100)}% of full weight"
+        return when {
+            ratingsDated && currentRatings > 0 -> {
+                val eff = Math.round(effectiveAnalysts * 10.0) / 10.0
+                "$currentRatings analyst rating${if (currentRatings == 1) "" else "s"} still " +
+                    "current, newest $newestRatingDays day${if (newestRatingDays == 1) "" else "s"} " +
+                    "old - worth $eff fresh" +
+                    (if (staleRatingsDropped > 0)
+                        ", and $staleRatingsDropped older than 8 months dropped entirely"
+                    else "") +
+                    ". " + (if (analystDiscounted) "$cut." else "Counted in full.")
+            }
+            analystCount > 0 -> "Analyst ratings came back with no publication dates, so their " +
+                "age could not be checked. $cut."
+            else -> ""
+        }
+    }
 }
 
 /** On-disk codec, stored in the existing `fundamentals` table under its own kind. */
 object RecommendationJson {
 
     fun encode(r: Recommendation): String = JSONObject().apply {
-        put("v", 1)
+        // v2 ADDED THE FRESHNESS FIELDS. Nothing reads this number to branch on - every new
+        // field below is defaulted in [Recommendation] and read with an `opt*` default here, so
+        // a v1 row written before 2026-09-18 decodes cleanly and simply reports "no dates".
+        // It is stored because a version that was never written is a version nobody can check
+        // against when the shape does eventually have to change incompatibly.
+        put("v", 2)
         put("symbol", r.symbol)
         put("verdict", r.verdict.name)
         put("score", r.score)
@@ -59,6 +116,14 @@ object RecommendationJson {
         put("price", r.price)
         put("dayKey", r.dayKey)
         put("computedAt", r.computedAt)
+        put("ratingsDated", r.ratingsDated)
+        put("currentRatings", r.currentRatings)
+        put("staleRatingsDropped", r.staleRatingsDropped)
+        put("effectiveAnalysts", r.effectiveAnalysts)
+        put("newestRatingDays", r.newestRatingDays)
+        put("analystWeight", r.analystWeight)
+        put("targetIsWeighted", r.targetIsWeighted)
+        put("targetAgeDays", r.targetAgeDays)
     }.toString()
 
     /** Total: an unreadable row degrades to "compute it again", never to an exception. */
@@ -81,7 +146,19 @@ object RecommendationJson {
             analystCount = o.optInt("analystCount", 0),
             price = d("price"),
             dayKey = o.optString("dayKey"),
-            computedAt = o.optLong("computedAt", 0L)
+            computedAt = o.optLong("computedAt", 0L),
+            ratingsDated = o.optBoolean("ratingsDated", false),
+            currentRatings = o.optInt("currentRatings", 0),
+            staleRatingsDropped = o.optInt("staleRatingsDropped", 0),
+            effectiveAnalysts = d("effectiveAnalysts"),
+            newestRatingDays = o.optInt("newestRatingDays", -1),
+            // 1.0, NOT 0.0, FOR A ROW THAT PREDATES THIS FIELD. A missing weight means "this
+            // was scored before ages were checked", and the score in the same row was computed
+            // at full weight - reporting 0% next to it would describe a discount that was never
+            // applied. It is corrected the moment the day rolls over and the row is recomputed.
+            analystWeight = if (o.has("analystWeight")) d("analystWeight") else 1.0,
+            targetIsWeighted = o.optBoolean("targetIsWeighted", false),
+            targetAgeDays = o.optInt("targetAgeDays", -1)
         )
     }.getOrNull()
 }
