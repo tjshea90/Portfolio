@@ -39,7 +39,7 @@ object ChartFeed {
                 MarketData.enc(symbol) +
                 "?range=${range.yRange}&interval=${range.interval}" +
                 if (range.prePost) "&includePrePost=true" else ""
-            val r = Http.get(url, mapOf("Accept" to "application/json"))
+            val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
             if (r.throttledLocally) continue
             if (!r.ok) continue
             val parsed = runCatching { parse(symbol, range, r.body) }.getOrNull()
