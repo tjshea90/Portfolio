@@ -221,6 +221,39 @@ class InsiderTest {
         assertEquals("CFO sold 1,000 shares — \$10K", f.headline())
     }
 
+    /**
+     * A requested audit found this one: the SEC's own required disclosure sentence for an
+     * UNPLANNED trade - "This transaction was not effected pursuant to a Rule 10b5-1 trading
+     * plan" - names the rule just as readily as a genuine plan does, and the old code OR'd the
+     * footnote match in unconditionally, so this exact filing would have been misread as
+     * PLANNED even though its own checkbox explicitly says otherwise. The checkbox is now
+     * authoritative whenever it is present, and the footnote is read only as a fallback for a
+     * filing that has none at all - see [aPlanNamedOnlyInAFootnoteStillCounts] for that case.
+     */
+    @Test fun anExplicitCheckboxWinsOverAFootnoteThatMerelyNamesTheRule() {
+        val doc = """
+            <ownershipDocument><documentType>4</documentType>
+            <issuerTradingSymbol>ZZZ</issuerTradingSymbol>
+            <reportingOwner><reportingOwnerId><rptOwnerName>DOE JANE</rptOwnerName>
+            </reportingOwnerId><reportingOwnerRelationship><isOfficer>1</isOfficer>
+            <officerTitle>CFO</officerTitle></reportingOwnerRelationship></reportingOwner>
+            <nonDerivativeTable><nonDerivativeTransaction>
+            <transactionDate><value>2026-09-01</value></transactionDate>
+            <transactionCoding><transactionCode>S</transactionCode>
+            <equitySwapInvolved>0</equitySwapInvolved></transactionCoding>
+            <transactionAmounts><transactionShares><value>1000</value></transactionShares>
+            <transactionPricePerShare><value>10</value></transactionPricePerShare>
+            <transactionAcquiredDisposedCode><value>D</value></transactionAcquiredDisposedCode>
+            </transactionAmounts></nonDerivativeTransaction></nonDerivativeTable>
+            <aff10b5One>0</aff10b5One>
+            <footnotes><footnote id="F1">This transaction was not effected pursuant to a
+            Rule 10b5-1 trading plan.</footnote></footnotes></ownershipDocument>
+        """.trimIndent()
+        val f = Form4.parse("ZZZ", "acc", "u", 1L, doc)!!
+        assertFalse("the explicit checkbox says false - the footnote must not override it", f.planned)
+        assertTrue("an unplanned trade is discretionary", f.isDiscretionary)
+    }
+
     /** A small trade keeps its exact figure; "$1K" for $1,234 tells the reader nothing. */
     @Test fun smallValuesAreNotRoundedToThousands() {
         assertEquals("\$1,234", InsiderFiling.money(1_234.0))
