@@ -1767,8 +1767,8 @@ object ResearchScore {
                 have++
                 // THE WORSE OF THE TWO SIGNALS, NOT WHICHEVER HAPPENS TO BE AVAILABLE. Yahoo's
                 // `targetMeanPrice` averages every covering firm's CURRENT target with no
-                // indication of when any of them was set - so even a demonstrably ACTIVE panel
-                // does not make this particular number dated. Taking the minimum means a fresh
+                // indication of when any of them was set - so a demonstrably ACTIVE panel says
+                // nothing about how current THIS number is. Taking the minimum means a fresh
                 // panel cannot vouch for a target that carries no date of its own, and a stale
                 // panel still drags it down; either discount alone could be talked past.
                 val trust = minOf(
