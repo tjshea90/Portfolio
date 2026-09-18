@@ -567,6 +567,28 @@ class DayTradingEvalTest {
         assertEquals(2, s.entriesTriggered)
     }
 
+    @Test fun aSessionPastTheProvidersRetentionWindowIsNotRefetchedForever() {
+        // `DATA_UNAVAILABLE` is deliberately not "final", so a failed fetch gets another try -
+        // but once a day has aged out of Yahoo's ~60-day minute window the answer is empty every
+        // time. Without this gate, every press of the success-rate button re-requested one
+        // session of intraday history for every recommendation ever recorded past that window.
+        val now = DayTradingEval.sessionBoundsMs("20260101")!!.second
+        assertTrue(DayTradingEval.intradayStillAvailable("20260101", now))
+        assertTrue(
+            DayTradingEval.intradayStillAvailable("20260101", now + 54L * 86_400_000L)
+        )
+        assertTrue(
+            !DayTradingEval.intradayStillAvailable("20260101", now + 56L * 86_400_000L)
+        )
+    }
+
+    @Test fun anUnreadableTradingDayIsStillOfferedForEvaluation() {
+        // "I cannot tell how old this is" must not become "skip it" - a corrupt row has to reach
+        // the evaluator so it can be MARKED, not silently dropped out of the log's arithmetic.
+        assertTrue(DayTradingEval.intradayStillAvailable("nonsense"))
+        assertTrue(DayTradingEval.intradayStillAvailable(""))
+    }
+
     @Test fun anEmptyLogLeavesEveryNewFigureAtZero() {
         val s = DayTradingEval.stats(emptyList())
         assertEquals(0.0, s.totalReturnPct, 1e-9)
