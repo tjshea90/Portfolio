@@ -89,6 +89,40 @@ class FeesTest {
         assertEquals(0.76, total(TxnType.SELL, 10.0, 1.50), 0.005)
     }
 
+    // ------------------------------------------------------------ backdated trades
+
+    /**
+     * A requested audit found this one: the fee box auto-fills from [Fees.forEquityTrade]
+     * with no idea what date the user actually entered, so a sale backfilled from an old
+     * statement got 2026's current SEC/TAF rates silently written in - wrong for a trade dated
+     * before those rates existed. A trade dated before [Fees.RATES_EFFECTIVE_MS] gets NO
+     * auto-computed regulatory fee at all now, rather than a number computed at the wrong rate -
+     * the same "a blank is safer than a guess" rule this app follows elsewhere.
+     */
+    @Test fun `a sale dated before the rates took effect gets no regulatory fee guessed`() {
+        val before = Fees.RATES_EFFECTIVE_MS - 86_400_000L
+        val b = Fees.forEquityTrade(TxnType.SELL, 100.0, 291.06, tradeDate = before)
+        assertEquals("no SEC fee guessed for an old trade", 0.0, b.secFee, 1e-9)
+        assertEquals("no TAF guessed for an old trade", 0.0, b.taf, 1e-9)
+    }
+
+    /** The low-priced commission is Ally's own, not a rate that changed over time - it still
+     *  applies to a backdated low-priced trade. */
+    @Test fun `a backdated low-priced sale still pays Ally's own commission`() {
+        val before = Fees.RATES_EFFECTIVE_MS - 86_400_000L
+        val b = Fees.forEquityTrade(TxnType.SELL, 10.0, 1.50, tradeDate = before)
+        assertEquals(0.75, b.commission, 0.005)
+        assertEquals("no regulatory fee guessed", 0.0, b.secFee + b.taf, 1e-9)
+    }
+
+    /** A sale dated ON or AFTER the effective date is unaffected - same numbers as no date at all. */
+    @Test fun `a sale dated on or after the effective date uses the current schedule`() {
+        val on = Fees.RATES_EFFECTIVE_MS
+        val withDate = Fees.forEquityTrade(TxnType.SELL, 100.0, 291.06, tradeDate = on).total
+        val noDate = Fees.forEquityTrade(TxnType.SELL, 100.0, 291.06).total
+        assertEquals(noDate, withDate, 1e-9)
+    }
+
     // ------------------------------------------------------------ the guards
 
     @Test fun `a zero-share or unpriced trade has no fee`() {
