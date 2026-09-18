@@ -822,6 +822,11 @@ fun PriceChart(
                         // scale above about 1.3x.
                         .align(Alignment.TopStart)
                         .padding(top = 6.dp)
+                        // THE APP'S OWN 48dp RULE (same as RangeChips below) - this was the
+                        // one tappable chip on the chart that never got it, ~22dp tall as
+                        // measured. `defaultMinSize` before the background, so the painted
+                        // chip is the full 48dp rather than a smaller pill with dead space.
+                        .minTapTarget()
                         .background(
                             MaterialTheme.colorScheme.surfaceVariant,
                             RoundedCornerShape(8.dp)
