@@ -249,9 +249,17 @@ object Ledger {
             // reason to invent an empty holding.
             if (t.type == TxnType.SPLIT) {
                 val ratio = TxnType.splitRatio(t)
-                if (ratio > 0.0) lots[sym]?.forEach {
-                    it.shares *= ratio
-                    it.unitCost /= ratio
+                if (ratio > 0.0) {
+                    lots[sym]?.forEach {
+                        it.shares *= ratio
+                        it.unitCost /= ratio
+                    }
+                    // OVERSOLD SCALES TOO. It is denominated in real share units of this same
+                    // symbol - "shares sold beyond what the recorded history could cover" - so a
+                    // split has to rescale it exactly like every other share count on the
+                    // position, or a presumed-missing 6 shares silently stays "6" after a
+                    // 10-for-1 split instead of the 60 real shares that figure now represents.
+                    oversold[sym]?.let { oversold[sym] = it * ratio }
                 }
                 continue
             }
