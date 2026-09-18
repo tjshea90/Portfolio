@@ -1420,6 +1420,23 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private val coreFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val ratingsFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
+    /**
+     * Symbols whose dated-ratings fetch has already been attempted for a given day key, so the
+     * one "try again with dates" recompute [settledForToday] allows cannot become a loop.
+     *
+     * DECLARED HERE, WITH THE OTHER FETCH MARKS, NOT NEXT TO THE FUNCTION THAT USES IT -
+     * `tools/checkinit.py` rejects a property declared below the `init` block, because one that
+     * is does not exist yet while `init` runs. That is not a style rule: it is what crashed
+     * v4.6 on startup.
+     *
+     * DELIBERATELY NOT CLEARED BY THE MEMORY-TRIM HANDLER, unlike [ratingsFetchedAt] beside it.
+     * A trim drops `_fundamentals` so the next screen open refetches, which is right for a tab
+     * being looked at - but this mark exists to stop the app re-asking for the heaviest payload
+     * it fetches on behalf of a symbol that simply has no rating history. Clearing it would
+     * make every trim re-open that question for every such symbol.
+     */
+    private val recRatingsTried = java.util.concurrent.ConcurrentHashMap<String, String>()
+
     private val computeAffecting = setOf(
         Keys.CASH_OVERRIDE, Keys.USE_CASH_OVERRIDE, Keys.COST_METHOD, Keys.SORT_MODE
     )
@@ -4283,12 +4300,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
-
-    /**
-     * Symbols whose dated-ratings fetch has already been attempted for a given day key, so the
-     * one "try again with dates" recompute [settledForToday] allows cannot become a loop.
-     */
-    private val recRatingsTried = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     /**
      * IS TODAY'S CACHED VERDICT ACTUALLY FINISHED, or was it scored before the analyst
