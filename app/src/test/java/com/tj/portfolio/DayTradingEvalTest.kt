@@ -469,4 +469,112 @@ class DayTradingEvalTest {
         // (50 + -30) / 2 = 10
         assertEquals(10.0, s.avgReturnPct, 1e-9)
     }
+
+    // ============================================ cumulative + cost-aware stats (2026-09-18)
+    //
+    // Tj: "whether the day trading result tracker truly tracks actual results and tells me an
+    // accurate number if I were to trade using the day trading system". The card used to print
+    // an AVERAGE PER TRADE under a row labelled as though it were a portfolio result, and it
+    // assumed every order filled at exactly its own level. Both are pinned down here.
+
+    @Test fun theTotalIsTheSumOfTheTrades_notTheAverage() {
+        // The exact confusion this closes: four trades averaging +6.25% is +25% of one stake,
+        // and the card used to show only the 6.25.
+        val entries = listOf(
+            entry(outcome = DayTradingOutcome.WIN, entry = 10.0, target = 14.0, exitPrice = 14.0),
+            entry(outcome = DayTradingOutcome.LOSS, entry = 10.0, stop = 8.0, exitPrice = 8.0),
+            entry(outcome = DayTradingOutcome.CLOSED_PROFIT, entry = 10.0, exitPrice = 11.0),
+            entry(outcome = DayTradingOutcome.CLOSED_LOSS, entry = 10.0, exitPrice = 9.5)
+        )
+        val s = DayTradingEval.stats(entries)
+        assertEquals(6.25, s.avgReturnPct, 1e-9)
+        assertEquals(25.0, s.totalReturnPct, 1e-9)   // 40 - 20 + 10 - 5
+    }
+
+    @Test fun costsAlwaysMakeTheResultWorse_neverBetter() {
+        // The whole point of modelling fills: every idealisation in `evaluate` flatters the
+        // system, so the net figure must sit strictly below the gross on a winner AND on a
+        // loser. A cost model that could improve a trade would be a sign-error, not a model.
+        val win = DayTradingEval.stats(
+            listOf(entry(outcome = DayTradingOutcome.WIN, entry = 10.0, target = 14.0, exitPrice = 14.0))
+        )
+        assertTrue(
+            "net ${win.netTotalReturnPct} should be below gross ${win.totalReturnPct}",
+            win.netTotalReturnPct < win.totalReturnPct
+        )
+        val loss = DayTradingEval.stats(
+            listOf(entry(outcome = DayTradingOutcome.LOSS, entry = 10.0, stop = 8.0, exitPrice = 8.0))
+        )
+        assertTrue(
+            "a loser must be reported as worse after costs, not better",
+            loss.netTotalReturnPct < loss.totalReturnPct
+        )
+    }
+
+    @Test fun aStopCostsMoreThanATargetExit() {
+        // A protective stop is a market order that triggers exactly when the tape is fast; a
+        // target is a resting limit at a price that traded. The model has to keep that
+        // asymmetry or it is just a flat haircut wearing a spread's name.
+        val stopDrag = DayTradingEval.Costs.roundTripPct(DayTradingOutcome.LOSS)
+        val targetDrag = DayTradingEval.Costs.roundTripPct(DayTradingOutcome.WIN)
+        assertTrue(stopDrag > targetDrag)
+        assertEquals(0.0, DayTradingEval.Costs.exitFill(DayTradingOutcome.WIN, 14.0) - 14.0, 1e-9)
+        assertTrue(DayTradingEval.Costs.entryFill(10.0) > 10.0)
+        assertTrue(DayTradingEval.Costs.exitFill(DayTradingOutcome.LOSS, 8.0) < 8.0)
+    }
+
+    @Test fun theRMultipleIsMeasuredAgainstThePlansOwnRisk() {
+        // entry 10, stop 8 -> 2.00 of risk. Target 14 is +4.00 gross, so 2R before costs; after
+        // the entry slippage it is a shade under, which is exactly the direction it should move.
+        val s = DayTradingEval.stats(
+            listOf(entry(outcome = DayTradingOutcome.WIN, entry = 10.0, stop = 8.0,
+                target = 14.0, exitPrice = 14.0))
+        )
+        assertTrue("avgR ${s.avgR} should be just under the gross 2R", s.avgR in 1.9..2.0)
+        assertEquals(s.totalR, s.avgR, 1e-9)         // one trade
+        // 1% of equity risked per trade, so ~2R is about +2% on the account.
+        assertEquals(s.totalR * 1.0, s.accountReturnPct, 1e-9)
+    }
+
+    @Test fun aStoplessRowCannotPoisonTheRMultiple() {
+        // `entry == stop` would be a divide-by-zero. A Claude-imported plan is only required to
+        // satisfy stop < entry < target, but a corrupt or hand-edited row must degrade to
+        // "excluded from the R figures", never to an Infinity that silently becomes the headline.
+        val s = DayTradingEval.stats(
+            listOf(
+                entry(outcome = DayTradingOutcome.WIN, entry = 10.0, stop = 10.0,
+                    target = 14.0, exitPrice = 14.0),
+                entry(outcome = DayTradingOutcome.WIN, entry = 10.0, stop = 8.0,
+                    target = 14.0, exitPrice = 14.0)
+            )
+        )
+        assertTrue("totalR ${s.totalR} must stay finite", s.totalR.isFinite())
+        assertTrue(s.accountReturnPct.isFinite())
+        assertEquals(2, s.entriesTriggered)          // both still counted as trades
+    }
+
+    @Test fun sessionsCountEveryRecordedDay_notJustTheDecidedOnes() {
+        // A day whose picks all expired without triggering is still a day the system was
+        // followed - dropping it would flatter the per-session arithmetic on screen.
+        val s = DayTradingEval.stats(
+            listOf(
+                entry(outcome = DayTradingOutcome.WIN, exitPrice = 14.0).copy(tradingDay = "20260101"),
+                entry(outcome = DayTradingOutcome.LOSS, exitPrice = 8.0).copy(tradingDay = "20260101"),
+                entry(outcome = DayTradingOutcome.NO_ENTRY).copy(tradingDay = "20260102")
+            )
+        )
+        assertEquals(2, s.sessions)
+        assertEquals(2, s.entriesTriggered)
+    }
+
+    @Test fun anEmptyLogLeavesEveryNewFigureAtZero() {
+        val s = DayTradingEval.stats(emptyList())
+        assertEquals(0.0, s.totalReturnPct, 1e-9)
+        assertEquals(0.0, s.netTotalReturnPct, 1e-9)
+        assertEquals(0.0, s.netAvgReturnPct, 1e-9)
+        assertEquals(0.0, s.totalR, 1e-9)
+        assertEquals(0.0, s.avgR, 1e-9)
+        assertEquals(0.0, s.accountReturnPct, 1e-9)
+        assertEquals(0, s.sessions)
+    }
 }
