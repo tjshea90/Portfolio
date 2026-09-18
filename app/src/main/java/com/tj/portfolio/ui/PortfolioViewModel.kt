@@ -4626,50 +4626,114 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun loadRatings(symbol: String, force: Boolean = false) {
         val sym = symbol.uppercase()
+        if (!ratingsWanted(sym, force)) return
+        if (_ratingsLoading.value.contains(sym)) return
+        fgScope.launch { fetchRatings(sym, force) }
+    }
+
+    /**
+     * Is a ratings fetch for [sym] actually worth making right now - the TTL and failure-backoff
+     * half of [loadRatings], split out so [ensureRatingsForRecommendation] asks the SAME question
+     * rather than a second, drifting copy of it.
+     */
+    private fun ratingsWanted(sym: String, force: Boolean): Boolean {
         val since = System.currentTimeMillis() - (ratingsFetchedAt[sym] ?: 0L)
         if (!force && since < com.tj.portfolio.net.FundamentalsFeed.RATINGS_TTL_MS &&
             _fundamentals.value[sym]?.ratings?.isNotEmpty() == true
-        ) return
+        ) return false
         // Same guard, and it matters more here: the analyst payload is the heaviest thing
         // this app fetches, and a stock nobody covers returns nothing every single time.
-        if (!force && fundRetry.blocked("$sym|ratings")) return
-        if (_ratingsLoading.value.contains(sym)) return
+        if (!force && fundRetry.blocked("$sym|ratings")) return false
+        return true
+    }
 
-        fgScope.launch {
-            _ratingsLoading.value = _ratingsLoading.value + sym
-            try {
-                if (_fundamentals.value[sym]?.ratings.isNullOrEmpty()) {
-                    val disk = withContext(Dispatchers.IO) {
-                        runCatching { db.cachedFundamentals(sym, Keys.KIND_RATINGS) }.getOrNull()
-                    }
-                    if (disk != null) {
-                        mergeFundamentals(sym, disk)
-                        if (!force && disk.ratings.isNotEmpty() &&
-                            System.currentTimeMillis() - disk.fetched <
-                            com.tj.portfolio.net.FundamentalsFeed.RATINGS_TTL_MS
-                        ) {
-                            ratingsFetchedAt[sym] = disk.fetched
-                            return@launch
-                        }
+    /**
+     * The body of [loadRatings], as a SUSPEND function that can be awaited.
+     *
+     * Split out on 2026-09-18 so the BUY/HOLD/SELL path can wait for the dated ratings instead
+     * of racing them. [com.tj.portfolio.net.RatingRecency] needs each analyst's publication
+     * date, and those live only in this payload - a verdict computed before it lands would be
+     * scored from the undated consensus and then FROZEN FOR THE TRADING DAY by the day-key
+     * gate, which is exactly the stale-rating verdict Tj asked to stop seeing.
+     *
+     * Returns true when [_fundamentals] now holds dated ratings for [sym] - from disk or the
+     * wire - so the caller can tell "the ages are known" from "this symbol has no coverage".
+     */
+    private suspend fun fetchRatings(sym: String, force: Boolean): Boolean {
+        if (_ratingsLoading.value.contains(sym)) return false
+        _ratingsLoading.value = _ratingsLoading.value + sym
+        try {
+            if (_fundamentals.value[sym]?.ratings.isNullOrEmpty()) {
+                val disk = withContext(Dispatchers.IO) {
+                    runCatching { db.cachedFundamentals(sym, Keys.KIND_RATINGS) }.getOrNull()
+                }
+                if (disk != null) {
+                    mergeFundamentals(sym, disk)
+                    if (!force && disk.ratings.isNotEmpty() &&
+                        System.currentTimeMillis() - disk.fetched <
+                        com.tj.portfolio.net.FundamentalsFeed.RATINGS_TTL_MS
+                    ) {
+                        ratingsFetchedAt[sym] = disk.fetched
+                        return true
                     }
                 }
+            }
 
-                val fresh = withContext(Dispatchers.IO) {
-                    runCatching { com.tj.portfolio.net.FundamentalsFeed.ratings(sym) }.getOrNull()
+            val fresh = withContext(Dispatchers.IO) {
+                runCatching { com.tj.portfolio.net.FundamentalsFeed.ratings(sym) }.getOrNull()
+            }
+            val got = fresh != null && (fresh.ratings.isNotEmpty() || fresh.consensus != null)
+            if (got) fundRetry.success("$sym|ratings") else fundRetry.failure("$sym|ratings")
+            if (fresh != null && got) {
+                ratingsFetchedAt[sym] = System.currentTimeMillis()
+                mergeFundamentals(sym, fresh)
+                viewModelScope.launch(Dispatchers.IO) {
+                    runCatching { db.cacheFundamentals(sym, Keys.KIND_RATINGS, fresh) }
                 }
-                val got = fresh != null && (fresh.ratings.isNotEmpty() || fresh.consensus != null)
-                if (got) fundRetry.success("$sym|ratings") else fundRetry.failure("$sym|ratings")
-                if (fresh != null && got) {
-                    ratingsFetchedAt[sym] = System.currentTimeMillis()
-                    mergeFundamentals(sym, fresh)
-                    viewModelScope.launch(Dispatchers.IO) {
-                        runCatching { db.cacheFundamentals(sym, Keys.KIND_RATINGS, fresh) }
-                    }
-                }
-            } finally {
-                _ratingsLoading.value = _ratingsLoading.value - sym
+            }
+        } finally {
+            _ratingsLoading.value = _ratingsLoading.value - sym
+        }
+        return _fundamentals.value[sym]?.ratings?.isNotEmpty() == true
+    }
+
+    /**
+     * Make sure [sym]'s DATED analyst ratings are in hand before a BUY/HOLD/SELL verdict is
+     * computed and frozen for the day.
+     *
+     * ---- WHY THIS IS NOT A NEW NETWORK COST WORTH WORRYING ABOUT
+     *
+     * The payload is the heaviest thing this app fetches (~195 KB of complete rating history
+     * for a large cap), which is why it has always been deferred to the Analysts tab. Three
+     * things bound it here: the verdict is computed at most ONCE PER TRADING DAY per symbol, so
+     * this runs at most once a day; [FundamentalsFeed] fetches it through
+     * `Http.get(conditionalKey = true)` against a crumb-independent cache key, so every request
+     * after the first for a given symbol is a bodyless 304; and [ratingsWanted] still applies
+     * the 12-hour TTL and the failure backoff, so a symbol nobody covers is not re-asked for
+     * all day. The first fetch per symbol is the real cost, and it buys the one thing the
+     * verdict cannot be honest without.
+     *
+     * Reads from disk first, exactly like every other cache in this file - a symbol whose
+     * Analysts tab was opened yesterday costs nothing at all.
+     */
+    private suspend fun ensureRatingsForRecommendation(sym: String) {
+        if (_fundamentals.value[sym]?.ratings?.isNotEmpty() == true) return
+        // Disk before the wire. `fetchRatings` does this too, but doing it here first means a
+        // symbol already cached does not have to take the in-flight guard at all.
+        val disk = withContext(Dispatchers.IO) {
+            runCatching { db.cachedFundamentals(sym, Keys.KIND_RATINGS) }.getOrNull()
+        }
+        if (disk != null && disk.ratings.isNotEmpty()) {
+            mergeFundamentals(sym, disk)
+            if (System.currentTimeMillis() - disk.fetched <
+                com.tj.portfolio.net.FundamentalsFeed.RATINGS_TTL_MS
+            ) {
+                ratingsFetchedAt[sym] = disk.fetched
+                return
             }
         }
+        if (!ratingsWanted(sym, force = false)) return
+        fetchRatings(sym, force = false)
     }
 
     /** Rows held and total payload size, for the Settings diagnostics card. */
