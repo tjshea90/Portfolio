@@ -178,7 +178,7 @@ fun FeedScreen(
             listOf(F_ALL, F_MINE, F_INSIDER, F_WSB).forEach { f ->
                 FilterChip(
                     selected = filter == f,
-                    onClick = { filter = f },
+                    onClick = { filter = f; vm.setFeedFilter(f) },
                     label = { Text(f) },
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Accent.copy(alpha = 0.18f),
