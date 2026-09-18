@@ -4283,8 +4283,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // before the publication dates land would carry the undated-consensus fallback
                 // until tomorrow - the exact stale-rating verdict Tj asked to stop seeing. See
                 // [ensureRatingsForRecommendation] for why this is not a new per-day cost.
-                ensureRatingsForRecommendation(sym)
-                recRatingsTried[sym] = today
+                // Only mark the symbol as tried when the fetch actually CONCLUDED. If another
+                // pass (the Analysts tab on the same stock) held the guard, the dates are still
+                // on their way and `_fundamentals` updating will bring this function straight
+                // back - marking it here would close that door for the rest of the day.
+                if (ensureRatingsForRecommendation(sym)) recRatingsTried[sym] = today
 
                 val f = _fundamentals.value[sym] ?: return@launch
                 val fresh = com.tj.portfolio.net.Recommend.build(sym, price, f) ?: return@launch
@@ -4675,6 +4678,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val sym = symbol.uppercase()
         if (!ratingsWanted(sym, force)) return
         if (_ratingsLoading.value.contains(sym)) return
+        // Fire and forget: this caller is the Analysts tab, which reads the result off
+        // [_fundamentals] rather than off a return value.
         fgScope.launch { fetchRatings(sym, force) }
     }
 
@@ -4704,10 +4709,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * gate, which is exactly the stale-rating verdict Tj asked to stop seeing.
      *
      * Returns true when [_fundamentals] now holds dated ratings for [sym] - from disk or the
-     * wire - so the caller can tell "the ages are known" from "this symbol has no coverage".
+     * wire - false when it genuinely has none, and NULL when this call did nothing because
+     * another fetch for the same symbol already owns the in-flight guard. The caller has to be
+     * able to tell those apart: "nobody covers this stock" is an answer, "the Analysts tab is
+     * fetching it right now" is not, and treating the second as the first is how a verdict gets
+     * frozen for the day without the dates that were about to arrive.
      */
-    private suspend fun fetchRatings(sym: String, force: Boolean): Boolean {
-        if (_ratingsLoading.value.contains(sym)) return false
+    private suspend fun fetchRatings(sym: String, force: Boolean): Boolean? {
+        if (_ratingsLoading.value.contains(sym)) return null
         _ratingsLoading.value = _ratingsLoading.value + sym
         try {
             if (_fundamentals.value[sym]?.ratings.isNullOrEmpty()) {
@@ -4762,9 +4771,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      *
      * Reads from disk first, exactly like every other cache in this file - a symbol whose
      * Analysts tab was opened yesterday costs nothing at all.
+     *
+     * Returns whether the question is SETTLED for now, which is what [settledForToday] keys its
+     * one-upgrade-pass rule off. False means only "another fetch owns this symbol right now" -
+     * the Analysts tab being open on the same stock is enough - and the caller must then leave
+     * the retry door open rather than freeze a dateless verdict for the rest of the day. That
+     * race is narrow and it is exactly the case this whole change exists to prevent.
      */
-    private suspend fun ensureRatingsForRecommendation(sym: String) {
-        if (_fundamentals.value[sym]?.ratings?.isNotEmpty() == true) return
+    private suspend fun ensureRatingsForRecommendation(sym: String): Boolean {
+        if (_fundamentals.value[sym]?.ratings?.isNotEmpty() == true) return true
         // Disk before the wire. `fetchRatings` does this too, but doing it here first means a
         // symbol already cached does not have to take the in-flight guard at all.
         val disk = withContext(Dispatchers.IO) {
@@ -4776,11 +4791,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 com.tj.portfolio.net.FundamentalsFeed.RATINGS_TTL_MS
             ) {
                 ratingsFetchedAt[sym] = disk.fetched
-                return
+                return true
             }
         }
-        if (!ratingsWanted(sym, force = false)) return
-        fetchRatings(sym, force = false)
+        // The TTL or the failure backoff saying "do not ask" IS a settled answer - this symbol
+        // is not going to be asked about again for a while either way, so holding the door open
+        // would just re-enter this on every recomposition for nothing.
+        if (!ratingsWanted(sym, force = false)) return true
+        // Null means the guard was already held. Anything else - ratings found, or a real fetch
+        // that came back empty - is an answer.
+        return fetchRatings(sym, force = false) != null
     }
 
     /** Rows held and total payload size, for the Settings diagnostics card. */
