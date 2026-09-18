@@ -5501,8 +5501,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val recordedAt = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
-                for (r in priced) {
-                    db.logDayTradingRecommendation(
+                db.logDayTradingRecommendations(priced.map { r ->
+                    com.tj.portfolio.data.Db.PendingDayTradingLog(
                         symbol = r.symbol,
                         tradingDay = today,
                         recordedAt = recordedAt,
@@ -5514,7 +5514,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         source = if (r.planByClaude) com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE
                         else com.tj.portfolio.data.DayTradingLogEntry.SOURCE_APP
                     )
-                }
+                })
             }
         }
     }
