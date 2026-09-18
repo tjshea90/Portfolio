@@ -2038,6 +2038,17 @@ object Keys {
     const val FEED_AT = "feed_at"
 
     /**
+     * The Feed tab's own filter/scope/source chips: "All"/"My stocks"/"Insider"/"WallStreetBets",
+     * plus the Insider sub-tab's own two pairs. `FeedScreen` leaves composition on every tab
+     * switch (see its own comment on the refresh `LaunchedEffect`), so a plain `remember` for
+     * these was silently discarded and reset back to the defaults every time - persisted here,
+     * the same "which sub-view was open last" pattern [WATCH_SUBTAB]/[RESEARCH_TAB] already use.
+     */
+    const val FEED_FILTER = "feed_filter"
+    const val FEED_INSIDER_SCOPE = "feed_insider_scope"
+    const val FEED_INSIDER_SOURCE = "feed_insider_source"
+
+    /**
      * When SEC Form 4 filings were last pulled, on THIS device (Round 66).
      *
      * A real field rather than a counter inside the polling coroutine, which is what it used
