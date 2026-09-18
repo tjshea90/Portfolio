@@ -394,10 +394,12 @@ private fun Empty(text: String) {
 }
 
 @Composable
-private fun FeedRow(f: FeedItem, onClick: () -> Unit) {
+private fun FeedRow(f: FeedItem, onClick: (() -> Unit)?) {
     val isInsider = f.kind == FeedItem.INSIDER
     Column(
-        Modifier.fillMaxWidth().clickable { onClick() }.padding(horizontal = 16.dp, vertical = 11.dp)
+        Modifier.fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+            .padding(horizontal = 16.dp, vertical = 11.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             // Market headlines carry no ticker unless one of the holdings was named in the
