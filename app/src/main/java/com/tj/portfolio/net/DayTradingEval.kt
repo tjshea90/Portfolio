@@ -154,6 +154,14 @@ object DayTradingEval {
         bars: List<IntradayBar>,
         sessionStillOpen: Boolean
     ): Pair<String, Double?> {
+        // A BAR ALREADY UNDER WAY WHEN recordedAt LANDS IS EXCLUDED WHOLE, not sliced at the
+        // moment of recording - [IntradayBar] carries no `open`, so there is no way to tell how
+        // much of a straddled bar's high/low happened before vs. after recordedAt. This can
+        // discard up to ~5 real minutes of genuine post-recommendation trading (a conservative
+        // miss - PENDING/NO_ENTRY a beat later than reality) rather than risk the opposite and
+        // far worse mistake: crediting an entry/target/stop touch that may have happened before
+        // the recommendation was ever made, which is exactly what Tj's own requirement (this
+        // file's header) rules out.
         val after = bars.filter { it.t * 1000L >= recordedAt }
         val rises = entryRises(setup, entry, priceAtRecommendation)
         val entryIndex = after.indexOfFirst { bar -> if (rises) bar.high >= entry else bar.low <= entry }
