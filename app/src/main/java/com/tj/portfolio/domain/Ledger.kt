@@ -364,6 +364,9 @@ object Ledger {
                         a.shares *= ratio
                         a.todayShares *= ratio
                         a.beforeShares *= ratio
+                        // Same reasoning as fifo()'s own SPLIT branch: oversold is real share
+                        // units of this symbol and has to scale with everything else on it.
+                        a.oversold *= ratio
                     }
                 }
                 continue
