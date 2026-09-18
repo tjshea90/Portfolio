@@ -356,11 +356,17 @@ fun FeedScreen(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     }
                     items(shown, key = { it.id }) { f ->
-                        FeedRow(f) {
-                            // a market headline with no link and no ticker has nowhere to go
-                            if (f.url.isNotBlank()) onOpenUrl(f.url, f.title)
-                            else if (f.symbol.isNotBlank()) onOpen(f.symbol)
-                        }
+                        // A market headline with neither a link nor a ticker has nowhere to go -
+                        // a requested audit found the row was clickable anyway, a dead target
+                        // that silently did nothing. Mirrors DetailScreen's NewsTab fix for the
+                        // identical case: only a row with somewhere to go is tappable at all.
+                        val hasTarget = f.url.isNotBlank() || f.symbol.isNotBlank()
+                        FeedRow(f, onClick = if (!hasTarget) null else {
+                            {
+                                if (f.url.isNotBlank()) onOpenUrl(f.url, f.title)
+                                else onOpen(f.symbol)
+                            }
+                        })
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     }
                     if (shown.isEmpty()) {
