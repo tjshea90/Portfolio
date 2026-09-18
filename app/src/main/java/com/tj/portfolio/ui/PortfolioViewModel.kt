@@ -4245,7 +4245,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (_recLoading.value.contains(sym)) return
         val today = MarketClock.dayKey()
         val have = _recommendations.value[sym]
-        if (have != null && have.dayKey == today) return
+        if (have != null && have.dayKey == today && settledForToday(sym, have, today)) return
 
         fgScope.launch {
             _recLoading.value = _recLoading.value + sym
@@ -4257,9 +4257,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     if (disk != null) {
                         _recommendations.value = _recommendations.value + (sym to disk)
                         // Already today's answer - nothing to recompute.
-                        if (disk.dayKey == today) return@launch
+                        if (disk.dayKey == today && settledForToday(sym, disk, today)) return@launch
                     }
                 }
+
+                // THE DATED RATINGS COME FIRST, AND THE ORDER IS THE POINT (2026-09-18). The
+                // verdict this computes is frozen for the trading day, so a verdict scored
+                // before the publication dates land would carry the undated-consensus fallback
+                // until tomorrow - the exact stale-rating verdict Tj asked to stop seeing. See
+                // [ensureRatingsForRecommendation] for why this is not a new per-day cost.
+                ensureRatingsForRecommendation(sym)
+                recRatingsTried[sym] = today
 
                 val f = _fundamentals.value[sym] ?: return@launch
                 val fresh = com.tj.portfolio.net.Recommend.build(sym, price, f) ?: return@launch
@@ -4275,6 +4283,34 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    /**
+     * Symbols whose dated-ratings fetch has already been attempted for a given day key, so the
+     * one "try again with dates" recompute [settledForToday] allows cannot become a loop.
+     */
+    private val recRatingsTried = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * IS TODAY'S CACHED VERDICT ACTUALLY FINISHED, or was it scored before the analyst
+     * publication dates were available?
+     *
+     * The day-key gate on its own used to be the whole test, and after 2026-09-18 that is one
+     * case short. A verdict can now be computed from either the DATED ratings (the real answer -
+     * see [com.tj.portfolio.net.RatingRecency]) or, when they have not landed, the undated
+     * consensus at a discount. Freezing the second for the rest of the day would mean a symbol
+     * whose first look happened before its rating history arrived keeps the weaker scoring until
+     * tomorrow.
+     *
+     * So exactly one upgrade pass is allowed: a today-row with no dates recomputes once, after a
+     * ratings fetch has actually been attempted for this symbol today. [recRatingsTried] is what
+     * makes it once - a symbol genuinely without rating history (a small ADR, a new listing)
+     * would otherwise re-enter this every time a screen recomposed, forever.
+     */
+    private fun settledForToday(
+        sym: String,
+        r: com.tj.portfolio.data.Recommendation,
+        today: String
+    ): Boolean = r.ratingsDated || recRatingsTried[sym] == today
 
     /**
      * Fundamentals - and through them, the BUY/HOLD/SELL badge - for every row on the
