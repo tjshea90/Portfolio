@@ -1,13 +1,13 @@
-# CHECKPOINT 1548 — read me first, then TASKS.md
+# CHECKPOINT 1549 — read me first, then TASKS.md
 
-**Written:** 2026-09-18T17:41:08Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/analyst-ratings-staleness-review-gt1upk` · **builds on:** `8e0d039` (this checkpoint is the commit after it)
+**Written:** 2026-09-18T17:50:24Z · **tests:** all 3 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/analyst-ratings-staleness-review-gt1upk` · **builds on:** `e412842` (this checkpoint is the commit after it)
 
 ## Just done
-v7.26 (code 83) gated and pushed; GitHub build run 35375660271 triggered and running (unit tests step)
+Shipped v7.26 (code 83): analyst-rating recency scoring, day-trading tracker accuracy, three bug fixes. Release published and recorded in BUILDLOG.md
 
 ## Do this next
-When run 35375660271 is green: confirm the v7.26 Release, then bash tools/record-release.sh v7.26 with the ship note
+Nothing pending - await Tj's next request
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ When run 35375660271 is green: confirm the v7.26 Release, then bash tools/record
 
 ## Last ten checkpoints
 ```
+  188cc8a ckpt 1548: v7.26 (code 83) gated and pushed; GitHub build run 35375660271 triggered and 
   82a0e39 ckpt 1547: gated v7.26 (code 83) and pushed it: checkinit, the full unit suite and the v
   67ca002 ckpt 1546: Recency scoring + day-trading cost/cumulative stats + retention-gate bug fix 
   2441caa ckpt 1545: Analyst-recency scoring (RatingRecency + holding + Recommend + VM + popup) an
@@ -25,8 +26,4 @@ When run 35375660271 is green: confirm the v7.26 Release, then bash tools/record
   7106821 ckpt 1541: Fixed 8 real bugs from a 4-way parallel audit (day-trading logic, UI, network
   4db7ea9 ckpt 1540: Confirmed v7.24 (code 81) build green and Release published; recorded it in B
   379455f ckpt 1538: gated v7.24 (code 81) and pushed it: checkinit, the full unit suite and the v
-  59f8c2f ckpt 1536: Fixed both real issues the independent audit agent found in the new Day Tradi
 ```
-
-(1 automatic checkpoint(s) since the last deliberate one — the
-session was still mid-step. `git diff` against it shows what changed.)
