@@ -1552,9 +1552,22 @@ object ResearchScore {
             val share = c.buyShare
             a = 20.0 + share.coerceIn(0.0, 1.0) * 60.0
             val lab = c.label()
+            // ---- SAY THAT THIS ONE IS UNDATED (2026-09-18).
+            //
+            // The per-holding BUY/HOLD/SELL scorer now ages every analyst rating it uses
+            // ([holding], and [RatingRecency] for why). THIS scorer cannot: it runs over a few
+            // hundred screened candidates, its [Consensus2] comes from Nasdaq's consensus
+            // endpoint, and no free feed gives publication dates for that shape at that scale -
+            // the dated history is a ~195 KB per-symbol payload, which is affordable once a day
+            // for a holding and not at all for a screen. The honest move is therefore to keep
+            // using it at its existing weight (a THIRD of a ranking, not a verdict) and say so,
+            // rather than to leave the reader assuming this line is as current as the one on
+            // his own holdings' cards. Noted in TASKS.md as a known limitation, not a to-do
+            // with a cheap fix behind it.
             why.add(
                 "$lab consensus - ${c.buy} buy / ${c.hold} hold / ${c.sell} sell " +
-                    "across ${c.total} analysts"
+                    "across ${c.total} analysts (standing ratings - this screen cannot check " +
+                    "how recently each was written)"
             )
         }
 
@@ -1752,10 +1765,16 @@ object ResearchScore {
             val up = c.upsidePct(price)
             if (up != null) {
                 have++
-                // Same cap as the undated votes above, and for the same reason: Yahoo's
+                // THE WORSE OF THE TWO SIGNALS, NOT WHICHEVER HAPPENS TO BE AVAILABLE. Yahoo's
                 // `targetMeanPrice` averages every covering firm's CURRENT target with no
-                // indication of when any of them was set.
-                val trust = panel?.currency ?: RatingRecency.undatedTrust(input.trend)
+                // indication of when any of them was set - so even a demonstrably ACTIVE panel
+                // does not make this particular number dated. Taking the minimum means a fresh
+                // panel cannot vouch for a target that carries no date of its own, and a stale
+                // panel still drags it down; either discount alone could be talked past.
+                val trust = minOf(
+                    panel?.currency ?: 1.0,
+                    RatingRecency.undatedTrust(input.trend)
+                )
                 s += (ramp(up, -30.0, 30.0, 25.0) - 12.5) * trust
                 why.add(
                     if (up >= 0)
