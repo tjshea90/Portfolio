@@ -266,6 +266,44 @@ class DayTradingEvalTest {
         assertEquals(8.5, exit!!, 1e-9)
     }
 
+    /**
+     * The bug a requested audit found: a falling (pullback) entry triggers off a bar's LOW and
+     * a target off the same bar's HIGH - two different extremes with no way to know which came
+     * first inside one 5-minute bar, unlike the rising case above where both read off the HIGH
+     * and are never ambiguous. Crediting a WIN here without proof is exactly the "resolve an
+     * ambiguous bar in the strategy's own favour" mistake this file's header warns against -
+     * this must defer to a later bar, not credit the win on the entry bar itself.
+     */
+    @Test fun fallingEntryTargetInTheSameBarAsTheTriggerIsNotYetAWin() {
+        val bars = listOf(
+            // entry(14) triggers off the low; target(16) is also touched in this same bar, but
+            // stop(12) is not - the ambiguity this test exists for.
+            bar(0L, 16.1, 13.9, 15.0),
+            bar(1L, 15.0, 14.8, 14.9)   // next bar: neither target nor stop reached
+        )
+        val (outcome, exit) = eval(
+            ResearchScore.SETUP_PULLBACK, entry = 14.0, stop = 12.0, target = 16.0,
+            bars = bars, sessionStillOpen = true, price = 15.2
+        )
+        assertEquals(DayTradingOutcome.PENDING, outcome)
+        assertNull(exit)
+    }
+
+    /** Same setup, but the target is touched again on a LATER bar - by then entry is known to
+     *  have already triggered, so that later touch is unambiguous and credits the win. */
+    @Test fun fallingEntryTargetConfirmedOnALaterBarIsACleanWin() {
+        val bars = listOf(
+            bar(0L, 16.1, 13.9, 15.0),  // entry(14) triggers; target(16) touched but ambiguous
+            bar(1L, 16.2, 15.9, 16.0)   // target(16) touched again, one bar later - provable now
+        )
+        val (outcome, exit) = eval(
+            ResearchScore.SETUP_PULLBACK, entry = 14.0, stop = 12.0, target = 16.0,
+            bars = bars, sessionStillOpen = false, price = 15.2
+        )
+        assertEquals(DayTradingOutcome.WIN, outcome)
+        assertEquals(16.0, exit!!, 1e-9)
+    }
+
     // ------------------------------------------------------------------ pending / no-entry / closed flat
 
     @Test fun entryNotYetTriggeredWithTheSessionStillOpenIsPending() {
