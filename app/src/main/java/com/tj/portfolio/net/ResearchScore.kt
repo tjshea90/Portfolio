@@ -1180,6 +1180,14 @@ object ResearchScore {
     private const val RISK_FRACTION = 0.01
 
     /**
+     * [RISK_FRACTION], for [DayTradingEval.stats] - which needs it to turn a sum of R-multiples
+     * into an account return, and must not hardcode a second copy of it. The constant stays
+     * private so the sizing rule has exactly one definition; this is the read-only window onto
+     * it, the same pattern `internal fun rewardRisk` follows for the reward:risk arithmetic.
+     */
+    fun dayTradeRiskFraction(): Double = RISK_FRACTION
+
+    /**
      * And the share of equity ONE position may be worth, whatever that risk maths says.
      * See [positionSize] for why this cap is the load-bearing half rather than a formality.
      */
