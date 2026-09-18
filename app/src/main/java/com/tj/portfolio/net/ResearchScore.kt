@@ -1,7 +1,9 @@
 package com.tj.portfolio.net
 
+import com.tj.portfolio.data.AnalystRating
 import com.tj.portfolio.data.Consensus
 import com.tj.portfolio.data.Consensus2
+import com.tj.portfolio.data.RatingTrend
 import com.tj.portfolio.data.ScreenRow
 import com.tj.portfolio.data.TradeVerdict
 import com.tj.portfolio.util.Fmt
@@ -10,6 +12,7 @@ import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * THE SCORING ENGINE - the app's own arithmetic, and the reason the Research tab can be
@@ -1831,6 +1834,40 @@ object ResearchScore {
         if (why.isEmpty()) why.add("Not enough public data yet to form a view either way")
 
         return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
+    }
+
+    /** [RatingRecency.CUTOFF_DAYS] in whole months, for the one sentence that names it. */
+    private val CUTOFF_MONTHS = (RatingRecency.CUTOFF_DAYS / 30.0).roundToInt()
+
+    /**
+     * The weighted lean as the word a reader expects, on the same boundaries [Consensus.meanLabel]
+     * uses for Yahoo's 1-5 scale - so an age-weighted panel and an undated one never describe the
+     * same balance of opinion with two different words.
+     */
+    internal fun leanLabel(lean: Double): String = when {
+        lean >= 0.75 -> "Strong buy"
+        lean >= 0.25 -> "Buy"
+        lean > -0.25 -> "Hold"
+        lean > -0.75 -> "Sell"
+        else -> "Strong sell"
+    }
+
+    /**
+     * WHICH of the two discounts actually bit, in Tj's language - never a bare percentage with
+     * no cause. `breadth` and `currency` answer different questions (see [RatingRecency.Panel]),
+     * and a reader told only "counted at 41%" cannot tell a thinly-covered stock from a
+     * well-covered one the street has stopped updating; those call for opposite reactions.
+     */
+    internal fun staleBecause(panel: RatingRecency.Panel): String {
+        val thin = panel.breadth < 0.95
+        val old = panel.currency < 0.95
+        return when {
+            thin && old ->
+                "- thin coverage, and the newest rating is ${panel.newestAgeDays} days old"
+            old -> "- the newest rating is ${panel.newestAgeDays} days old"
+            thin -> "- too little current coverage to carry a full vote"
+            else -> ""
+        }
     }
 
     /**
