@@ -166,7 +166,22 @@ object DayTradingEval {
             // this can never credit a win it did not actually prove happened. See this file's
             // own header on why a 5-minute high/low cannot say which came first inside it.
             if (bar.low <= stop) return DayTradingOutcome.LOSS to stop
-            if (bar.high >= target) return DayTradingOutcome.WIN to target
+            // A FALLING (PULLBACK) ENTRY'S OWN TRIGGER BAR IS THE ONE CASE WHERE THE TARGET
+            // CHECK ABOVE IS ITSELF AMBIGUOUS, not just the stop/target pair. Entry there
+            // triggers off the bar's LOW (price fell to the buy-limit); target is read off the
+            // same bar's HIGH - two different extremes with no way to know which came first
+            // inside one 5-minute bar. That is NOT true of the rising case (entry and target
+            // both read off the HIGH, so target > entry mathematically guarantees price passed
+            // through entry on the way up - no ambiguity) or of the stop check just above
+            // (entry and stop both read off the LOW, same reasoning). Crediting a WIN here
+            // would be exactly the "resolve an ambiguous bar in the strategy's own favour"
+            // mistake this file's header warns against, so it is deferred to the first LATER
+            // bar instead - by then entry is known to have already triggered, so any target hit
+            // is unambiguous. A real intrabar win in the entry bar itself reads one bar late
+            // rather than not at all, and one that never really filled before retracing is
+            // never credited - both err toward under-, not over-, crediting the strategy.
+            val targetProvable = rises || i > entryIndex
+            if (targetProvable && bar.high >= target) return DayTradingOutcome.WIN to target
         }
         if (sessionStillOpen) return DayTradingOutcome.PENDING to null
         // A DAY TRADE IS FLAT BEFORE THE CLOSE (TradePlan's own rule) - simulated the same way
