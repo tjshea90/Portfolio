@@ -149,7 +149,13 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 if (r.hasTarget) {
-                                    "Average analyst target " + Fmt.price(r.targetMean) +
+                                    // NAME WHICH TARGET THIS IS. Since 2026-09-18 it is the
+                                    // RECENCY-WEIGHTED target whenever enough firms published a
+                                    // dated one - a different number from the feed's flat
+                                    // all-ages mean, and calling both "average analyst target"
+                                    // would make the two readings look like a data error.
+                                    (if (r.targetIsWeighted) "Analyst target (weighted toward the newest) "
+                                    else "Average analyst target ") + Fmt.price(r.targetMean) +
                                         if (r.targetHigh > 0.0 && r.targetLow > 0.0)
                                             " (range ${Fmt.price(r.targetLow)} - ${Fmt.price(r.targetHigh)})"
                                         else ""
@@ -161,7 +167,10 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                             if (r.hasTarget && !r.upsidePct.isNaN()) {
                                 Text(
                                     (if (r.upsidePct >= 0.0) "+" else "") + Fmt.pct(r.upsidePct) +
-                                        " vs today's " + Fmt.price(r.price),
+                                        " vs today's " + Fmt.price(r.price) +
+                                        (if (r.targetIsWeighted && r.targetAgeDays >= 0)
+                                            " · targets typically ${r.targetAgeDays} days old"
+                                        else ""),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -180,6 +189,31 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                             "• $line",
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
+                    // ---- HOW FRESH THE ANALYST HALF ACTUALLY IS (2026-09-18).
+                    //
+                    // Tj asked that stale ratings stop driving these verdicts; the scoring fix
+                    // is in `net/RatingRecency.kt`. This is the other half of keeping that
+                    // honest - a discount the reader cannot see is one he has no way to argue
+                    // with, and "worth 2.1 fresh analysts, newest 96 days old" is the single
+                    // line that tells him whether the BUY above is backed by live coverage or
+                    // by a panel that stopped paying attention last quarter.
+                    val freshness = r.freshnessNote()
+                    if (freshness.isNotBlank()) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "How current the analyst input is",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            freshness,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (r.analystDiscounted) MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("recFreshness")
                         )
                     }
                     if (r.analystCount == 0) {
@@ -202,8 +236,10 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                     Spacer(Modifier.height(10.dp))
                     Text(
                         "Not financial advice. A rule-based read of price, valuation, growth " +
-                            "and published analyst views, recomputed once each trading day - " +
-                            "not a guarantee of what the stock will do next.",
+                            "and published analyst views - each analyst rating weighted by how " +
+                            "recently it was written, and dropped entirely past eight months - " +
+                            "recomputed once each trading day, not a guarantee of what the " +
+                            "stock will do next.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
