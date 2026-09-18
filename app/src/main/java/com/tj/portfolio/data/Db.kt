@@ -1435,6 +1435,62 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // it here, after a coroutine dispatch, was measuring the wrong moment.
         recordedAt: Long = System.currentTimeMillis()
     ) {
+        writeDayTradingRecommendation(
+            writableDatabase, symbol, tradingDay, setup, entry, stop, target,
+            priceAtRecommendation, source, recordedAt
+        )
+    }
+
+    /** One row's worth of [logDayTradingRecommendation]'s arguments, for [logDayTradingRecommendations]. */
+    data class PendingDayTradingLog(
+        val symbol: String,
+        val tradingDay: String,
+        val setup: String,
+        val entry: Double,
+        val stop: Double,
+        val target: Double,
+        val priceAtRecommendation: Double,
+        val source: String,
+        val recordedAt: Long
+    )
+
+    /**
+     * Same as [logDayTradingRecommendation], for every row at once, in ONE transaction - the
+     * live Day Trading loop calls this every ~30 seconds with up to
+     * [com.tj.portfolio.net.Research.DAY_TRADING_BUFFER] rows while the tab is open, and after
+     * the first tick of a trading day nearly every one of those is a no-op `CONFLICT_IGNORE`.
+     * One committed transaction for the whole batch instead of one implicit transaction per row
+     * is the same fix [cacheQuotes] already applies to the identical per-tick-many-rows shape.
+     */
+    fun logDayTradingRecommendations(entries: List<PendingDayTradingLog>) {
+        if (entries.isEmpty()) return
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            entries.forEach {
+                writeDayTradingRecommendation(
+                    db, it.symbol, it.tradingDay, it.setup, it.entry, it.stop, it.target,
+                    it.priceAtRecommendation, it.source, it.recordedAt
+                )
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    private fun writeDayTradingRecommendation(
+        db: SQLiteDatabase,
+        symbol: String,
+        tradingDay: String,
+        setup: String,
+        entry: Double,
+        stop: Double,
+        target: Double,
+        priceAtRecommendation: Double,
+        source: String,
+        recordedAt: Long
+    ) {
         if (entry <= 0.0 || stop <= 0.0 || target <= 0.0 || tradingDay.isBlank()) return
         val cv = ContentValues().apply {
             put("symbol", symbol.uppercase())
@@ -1445,9 +1501,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             put("price_at_recommendation", priceAtRecommendation)
             put("source", source)
         }
-        writableDatabase.insertWithOnConflict(
-            "day_trading_log", null, cv, SQLiteDatabase.CONFLICT_IGNORE
-        )
+        db.insertWithOnConflict("day_trading_log", null, cv, SQLiteDatabase.CONFLICT_IGNORE)
     }
 
     /** Every recommendation ever recorded, newest first. */
