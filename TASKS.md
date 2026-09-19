@@ -43,12 +43,101 @@ diff; this is a fresh standalone pass over the whole app at v7.27.
         BEFORE writing, so a failed write destroyed the old backup and
         returned a bare null. Both branches now keep the prior bytes and
         put them back if the write throws.
-- [ ] Parallel subsystem audits (recommendation/scoring, day-trading,
-      network/caching, UI/battery/persistence) — 4 agents running
-- [ ] Reconcile findings and fix everything real
+- [x] Parallel subsystem audits (recommendation/scoring, day-trading,
+      network/caching, UI/battery/persistence) — all 4 reported back
+- [x] Verified BRIEF.md's un-CI'd randomised ledger harness
+      (`tests/ledger_props.py`): it was exiting 1 with 689/5000 violations.
+      Diagnosed to completion — all of them quantity-less "ghost" rows,
+      which the app already defends end to end (editor blocks since v3.5,
+      BOTH import paths refuse in code and report the count, legacy rows
+      surface on the Settings data-health card). The LEDGER was correct and
+      the HARNESS was wrong; fixed the harness and it is now 40,000
+      histories clean across both modes.
+- [x] Reconcile findings and fix everything real — see the list below
 - [ ] Re-run the unit suite after fixes; re-check anything a fix touched
 - [ ] Checkpoint as work completes
 - [ ] Ship the result per CLAUDE.md's auto-ship policy and post the link
+
+### What the audits found, and what was done
+
+Every finding below was re-verified against the code before being acted on.
+
+**Data loss / retention**
+- [x] HIGH (found independently by TWO audits) — the entire day-trading
+      recommendation log was absent from every backup this app has ever
+      written. Not re-buildable: each row is a plan made against live
+      screener state that no longer exists plus an outcome measured against
+      intraday bars Yahoo serves ~55 days. Now in export/restore
+      (BACKUP_VERSION 4), additive on both modes, never destructive.
+- [x] `Storage.saveToAppFolder` truncated before writing, so a failed write
+      left a TRUNCATED file carrying the NEWEST mtime — which is exactly
+      what "restore latest snapshot" picks. Now writes to `.tmp` and
+      renames (atomic).
+- [x] The money dialogs and the Claude import-review dialog discarded
+      everything on a stray tap outside; a FAILED import commit also threw
+      the whole extraction away (it cost a real API call). Both fixed.
+
+**Wrong numbers shown**
+- [x] HIGH — `ResearchScore`'s 52-week term treated a MISSING S&P return as
+      a flat market, so Finviz-filled symbols scored ABSOLUTE return as if
+      it were RELATIVE. Up 15% in a market up 15% scored +11.25 instead of
+      0, where BUY starts at 63.
+- [x] HIGH — a dropped intraday request was indistinguishable from a
+      genuine no-session-today, so `effectiveTechnicals` zeroed every
+      intraday field — which changes which plan branch runs and swaps the
+      stop's ruler, making entry/stop/target flicker between two different
+      trade plans.
+- [x] Finnhub fabricated `prevClose` from today's price, rendering a
+      confident +0.00% — the exact thing the Yahoo and Stooq parsers refuse
+      by name.
+- [x] "Up -35.00%" for a stock that fell; `Recommend` reported panel
+      freshness the score never used; the undated-consensus line took its
+      WORD from Yahoo's 1-5 mean while its POINTS came from vote counts;
+      earnings countdown said "In 0 days"/"In 1 days" where the popup for
+      the same field said "today"/"in 1 day"; a weighted analyst target was
+      printed beside the feed's all-ages range (two different populations).
+- [x] A fee entered on a DEPOSIT/DIVIDEND/etc. counted as a fee paid but
+      never left the cash balance. Fees are now offered only on trades.
+
+**Battery / network**
+- [x] HIGH — the day-trading sweep re-downloaded 3 months of DAILY candles
+      per symbol every 30s (data computed only from CLOSED sessions, so it
+      cannot change intraday), and polled identically at 3am and offline.
+      Now memoised per (symbol, ET date, side of the close), both legs
+      conditional, and the loop skips entirely when closed or offline.
+- [x] Social clock stamped only on success → an outage meant re-asking
+      every 3 min instead of 15. `RetryClock` leaked an entry per
+      symbol-range forever. `DayTradingEval` re-fetched immutable closed
+      sessions uncached and abandoned the second host on an empty parse.
+
+**Day-trading log integrity**
+- [x] A pre-open sweep could log YESTERDAY's levels under today's key, and
+      market holidays logged as real sessions (permanently DATA_UNAVAILABLE
+      and inflating the session count). One guard — the row's own
+      `sessionDay` must be today — closes both, plus the priceless-row case.
+
+**UI correctness**
+- [x] `refresh()` reported coroutine CANCELLATION as "Refresh failed:
+      StandaloneCoroutine was cancelled" and could pin it on screen for up
+      to 15 minutes.
+- [x] Deleting a position never navigated back (the lambda closed over a
+      pre-delete `UiState`, so the check was always false).
+- [x] The detail header offered "Edit position"/"Add transaction" for an
+      unknown symbol, because `null != true`.
+
+### Raised, deliberately NOT changed (needs Tj's call)
+
+- `DayTradingEval` scores a rising entry whose trigger bar also dipped
+  below the stop as a LOSS. On that one bar the order is genuinely
+  unknowable; the current choice is PESSIMISTIC (it understates the
+  system), and it is pinned by an existing test, so changing it is a
+  deliberate change to how results are measured rather than a bug fix.
+  The misleading comment beside it is the part worth correcting.
+- `or5High`/`or5Low`/`openingRangeComplete`/`openingBarBullish` have no
+  `ResearchRow` field, so they are lost on a failed intraday tick even
+  within the same session. Carrying them would mean adding persisted
+  fields to the research cache — a schema change with migration risk,
+  worth doing on its own rather than at the end of an audit pass.
 
 ---
 
