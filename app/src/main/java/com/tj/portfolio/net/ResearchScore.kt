@@ -1736,7 +1736,15 @@ object ResearchScore {
             s += RatingRecency.undatedLean(c) * 30.0 * trust
             val buyVotes = c.strongBuy + c.buy
             val sellVotes = c.sell + c.strongSell
-            val lab = c.meanLabel.ifBlank { "Mixed" }
+            // THE WORD AND THE POINTS COME FROM THE SAME INPUT. This read `c.meanLabel`,
+            // which is derived from Yahoo's 1-5 `recommendationMean` - a DIFFERENT figure from
+            // the vote counts the line goes on to quote and from `undatedLean`, which is what
+            // actually scored. `parseYahooConsensus` accepts a consensus with `mean = 0.0` and
+            // real counts (it requires only one of mean/target/counts), and `meanLabel` is
+            // blank at mean 0, so "Mixed consensus - 8 buy / 0 hold / 0 sell" could sit beside
+            // a term that had just added the full +27. That is precisely the "reason line the
+            // arithmetic does not support" this file's header exists to prevent.
+            val lab = leanLabel(RatingRecency.undatedLean(c))
             why.add(
                 "$lab consensus - $buyVotes buy / ${c.hold} hold / $sellVotes sell across " +
                     "${c.votes} analysts"
@@ -1832,16 +1840,42 @@ object ResearchScore {
         }
 
         // --- a year of performance against the market (+-15).
+        //
+        // ---- BOTH NUMBERS, OR NEITHER. THE MARKET'S RETURN IS NOT ZERO.
+        //
+        // This term is RELATIVE performance, and `(chg - (sp ?: 0.0))` used to stand in a flat
+        // market whenever the S&P figure was missing. That is not a neutral default, it is a
+        // directional bet: in an up year it flatters every stock, in a down year it punishes
+        // every stock, and rule 3 in this file's own header says a missing field scores ZERO
+        // for its component instead of being guessed at.
+        //
+        // IT WAS REACHABLE, NOT THEORETICAL. Only Yahoo's `defaultKeyStatistics` writes the
+        // two keys together (FundamentalsFeed `52WeekChange` + `SandP52WeekChange`). The
+        // Finviz fallback writes `change52Week` from "Perf Year" and has no S&P companion at
+        // all, and `core()` merges Finviz in whenever Yahoo and Nasdaq together came back with
+        // fewer than MIN_USABLE_VALUES - so a Finviz-filled symbol scored its own absolute
+        // return as though it were relative. With the S&P up 15% a stock up 15% had MATCHED
+        // the market and should score 0; it scored +11.25 instead, on a 100-point scale where
+        // BUY starts at 63. The mirror case is worse: down 10% against an S&P down 20% is a
+        // 10-point BEAT that scored -7.5.
+        //
+        // So the term is now scored only when the comparison can actually be made. A symbol
+        // without the market's return does not get a guessed one - it gets no term, `have`
+        // does not count it, and the confidence figure on the card drops to say so.
         want++
         val chg = v["change52Week"]
-        if (chg != null) {
+        val sp = v["sp500Change52Week"]
+        if (chg != null && sp != null) {
             have++
-            val sp = v["sp500Change52Week"]
-            val relPct = (chg - (sp ?: 0.0)) * 100.0
+            val relPct = (chg - sp) * 100.0
             s += relPct.coerceIn(-20.0, 20.0) * 0.75
+            // "Up -35.00%" was the reading for every stock that fell - `Fmt.pct` carries the
+            // minus sign but nothing flipped the word in front of it. Every sibling term in
+            // this function already branches (growth "growing"/"shrinking", `withAnalyst` on
+            // `up >= 0`); this one did not.
             why.add(
-                "Up ${pct(chg * 100.0)} over the past year" +
-                    if (sp != null) " vs ${pct(sp * 100.0)} for the S&P 500" else ""
+                (if (chg >= 0) "Up ${pct(chg * 100.0)}" else "Down ${pct(-chg * 100.0)}") +
+                    " over the past year vs ${pct(sp * 100.0)} for the S&P 500"
             )
         }
 
