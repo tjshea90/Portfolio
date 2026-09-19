@@ -304,6 +304,42 @@ use the same judgment that previously decided when Tj would have said
 "ship it"; when genuinely unsure whether a change is release-worthy, ask
 rather than either spamming small releases or silently skipping a real one.
 
+**2026-09-19: the Release link can 404 for Tj — that's expected while the
+repo is private, not a broken link.** `tjshea90/Portfolio` is a PRIVATE
+repo (confirmed via `search_repositories`'s `visibility` field). GitHub
+returns 404, not 403, to anyone viewing a private repo's Release page
+without access — verified by fetching the exact same URL unauthenticated
+and getting the same 404 a correctly-published release gets. If Tj reports
+a 404 on a link Claude posted, the fix is not to regenerate the link (it's
+already right — confirm with `get_release_by_tag` if unsure) but to check
+whether the repo is still private: if so, he needs to be logged into the
+`tjshea90` GitHub account in the browser he's opening it from. **Claude has
+no tool that can change a GitHub repo's visibility** — no `update_repository`
+call in the GitHub MCP toolset here, no `gh` CLI, no raw API access. That
+switch is only in GitHub's own Settings → General → Danger Zone page, and
+only Tj can flip it.
+
+**Before Tj (or anyone) makes this repo public: the signing keystore is in
+old git history.** `app/sideload.jks` was committed in two pre-2026-09-10
+commits (`f00c950`, `5304cd6` — the Cowork-import era) and later dropped
+from the working tree, but the blob is still fully fetchable from those
+SHAs. BRIEF.md's "keystore is irreplaceable, never in git" model assumed
+the repo stayed private; it does NOT account for the key already being in
+history. Making the repo public exposes it immediately and permanently
+(public GitHub repos get scraped for secrets within minutes) — and it
+can't be rotated afterward without forcing Tj to uninstall the app and
+lose his portfolio data (BRIEF.md). If a future session is asked to make
+this repo public, or if this comes up again: surface this risk before
+acting, the same way this session did (`git log --all --diff-filter=A
+--name-only -- '*.jks'` finds it in seconds) — do not just proceed because
+a CLAUDE.md line here says "ship automatically," since that policy is
+about releases, not repository visibility. Tj was told this on 2026-09-19
+and chose to accept the risk for going public; that decision is recorded
+in TASKS.md, but a session should still mention it again rather than treat
+consent given once, for a different request, as blanket permission. The
+keystore blob can be purged from history with a `git filter-repo`-style
+rewrite (force-push required) if asked; nobody has done this yet.
+
 **Why Claude triggers it instead of pushing a tag.** `git push origin v7.9`
 returns `RPC failed; HTTP 403` from a Claude container: the session's egress
 policy allows `refs/heads/*` and refuses `refs/tags/*`. Measured, not guessed,
