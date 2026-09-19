@@ -1,13 +1,13 @@
-# CHECKPOINT 1566 — read me first, then TASKS.md
+# CHECKPOINT 1567 — read me first, then TASKS.md
 
-**Written:** 2026-09-19T17:12:43Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/finish-started-test-vxwq2e` · **builds on:** `a7a4ef6` (this checkpoint is the commit after it)
+**Written:** 2026-09-19T17:21:37Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/finish-started-test-vxwq2e` · **builds on:** `3e78a72` (this checkpoint is the commit after it)
 
 ## Just done
-Network/UI/day-trading audit fixes, all verified in code first. NETWORK: day-trading sweep re-downloaded 3 months of DAILY candles per symbol every 30s - numbers computed only from CLOSED sessions, so they cannot change intraday; now memoised per (symbol, ET date, side of the 4pm close) and both legs made conditional (304s), and the loop itself now skips entirely when the market is CLOSED or the device is offline (5-min heartbeat when shut) - it previously polled identically at 3am and armed the very Http cooldowns startAuto is careful to avoid. Finnhub fabricated prevClose from today's price (optDouble('pc', c)), rendering a confident +0.00% - the exact thing parseYahoo/stooq refuse by name. Social clock stamped only on success, so an outage meant re-asking every 3 min instead of 15. RetryClock leaked an attemptedAt entry per symbol-range forever. UI: refresh() reported coroutine CANCELLATION as 'Refresh failed: StandaloneCoroutine was cancelled' and could pin it on screen for up to 15 min; deleting a position never navigated back (the lambda closed over a pre-delete UiState so the check was always false); the detail header offered 'Edit position'/'Add transaction' for an unknown symbol because null != true; the money dialogs and the Claude import-review dialog discarded everything on a stray outside tap, and a FAILED import commit threw the whole extraction away too. DAY-TRADING HIGH: a dropped intraday request was indistinguishable from a genuine no-session-today, so effectiveTechnicals zeroed every intraday field - vwap/sessionLow at 0 changes which plan branch runs and swaps the stop's ruler from the 5-min ATR to atr14*0.10, making entry/stop/target flicker between two different plans on a routine dropped request. Added DayTechnicals.intradayFetched to tell the two apart; 6 new tests incl. the 09:31 'never carry yesterday's session' guard.
+Full-tests audit COMPLETE and green: 1204 tests / 0 failures / 0 skipped, checkinit ok, randomised ledger harness clean. Final batch: confined transaction fees to TRADES (a fee on a DEPOSIT/DIVIDEND counted as a fee paid via Ledger.fees() but cashEffect never subtracted it, so cash was permanently overstated by that amount; a FEE row with both double-counted itself) and updated the TxnEditorTest assertion that had pinned the old contract; the backup's own read-back verification now covers the day-trading log too, so 'backup verified' can never be reported over a copy that silently lost the one section that cannot be rebuilt; day-trading capture now requires the row's OWN sessionDay to be today, which closes three log-poisoning routes at once (a pre-open sweep logging YESTERDAY's levels under today's key and INSERT OR IGNORE making it permanent, market holidays logging as real sessions that are DATA_UNAVAILABLE forever and inflate the session count, and a priceless Claude row whose buy-limit entry gets read as a buy-stop); DayTradingEval now fetches closed sessions conditionally and still tries the second host on an unparseable answer; plus the scoring doc/constant corrections (leanLabel's false equivalence claim, the PEG term's unreachable +20, the unnamed 0.3R target standoff) and the 'upper bound' stats wording that was only true while the number was positive.
 
 ## Do this next
-Remaining audit items: day-trading log capture guards (a pre-open sweep can log YESTERDAY's levels under today's key, and holidays log as real sessions), fees charged on non-trade rows never leave cash, plus the smaller doc/naming findings. Then full suite + ship.
+Ship it: bump versionCode/versionName, ship.sh, trigger android.yml, confirm green, record-release.sh, post the link.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Remaining audit items: day-trading log capture guards (a pre-open sweep can log 
 
 ## Last ten checkpoints
 ```
+  10b3209 ckpt 1566: Network/UI/day-trading audit fixes, all verified in code first. NETWORK: day-
   a110aa1 ckpt 1565: HIGH (found independently by TWO audits): the day-trading recommendation log 
   8f0e38d ckpt 1564: Scoring-audit fixes in (all verified against the code first, not taken on tru
   ca480ee ckpt 1563: Floor re-run: 1191 tests, 1 failure - an existing DbTest case pinned the OLD 
@@ -25,8 +26,7 @@ Remaining audit items: day-trading log capture guards (a pre-open sweep can log 
   ad86005 ckpt 1559: Investigated Tj's '404 on the release link' report: the repo is private, the 
   35518b0 ckpt 1558: v7.27 (code 84) shipped end to end: gated, GitHub Actions run 35419792350 bui
   29cef66 ckpt 1557: gated v7.27 (code 84) and pushed it: checkinit, the full unit suite and the v
-  58bc3c8 ckpt 1556: Logged Tj's ship request in TASKS.md and made it permanent policy in CLAUDE.m
 ```
 
-(15 automatic checkpoint(s) since the last deliberate one — the
+(9 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
