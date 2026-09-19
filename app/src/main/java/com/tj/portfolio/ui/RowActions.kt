@@ -14,6 +14,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -21,7 +23,21 @@ import androidx.compose.ui.unit.dp
 import com.tj.portfolio.util.Fmt
 
 /** A long-press action waiting to be handled. */
-data class PendingAction(val symbol: String, val action: RowAction)
+data class PendingAction(val symbol: String, val action: RowAction) {
+    companion object {
+        // So the three screens that own a `pending` flag can use rememberSaveable: without
+        // it, a pending EDIT_POSITION/ADD_TXN survives a rotation but not a process death,
+        // and the dialog it was about to open just never appears - no crash, no message.
+        val Saver: Saver<PendingAction?, Any> = Saver(
+            save = { it?.let { p -> listOf(p.symbol, p.action.name) } },
+            restore = { saved ->
+                @Suppress("UNCHECKED_CAST")
+                (saved as? List<String>)?.takeIf { it.size == 2 }
+                    ?.let { PendingAction(it[0], RowAction.valueOf(it[1])) }
+            }
+        )
+    }
+}
 
 /**
  * Renders whatever dialog the long-press menu asked for. Shared by the Portfolio tab,
