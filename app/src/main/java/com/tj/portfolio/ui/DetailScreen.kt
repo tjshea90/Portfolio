@@ -827,7 +827,7 @@ fun DetailScreen(
                     onAddTxn = { addingTxn = true },
                     onWatchToggle = { pending = PendingAction(symbol, RowAction.WATCH_TOGGLE) },
                     onDeletePosition = { pending = PendingAction(symbol, RowAction.DELETE) },
-                    onEditTxn = { editingTxn = it },
+                    onEditTxn = { editingTxnId = it.id },
                     onDeleteTxn = { confirmDelete = it },
                     onSeeAllStats = { tab = DetailTab.STATS },
                     onSeeAnalysts = { tab = DetailTab.ANALYSTS },
