@@ -20,6 +20,16 @@ Two parts:
    downloading a private repo's release asset bytes is unrelated and
    still stands.
 
+### Done
+
+- [x] Bumped versionCode 83→84, versionName 7.26→7.27 in app/build.gradle.kts
+- [x] `ship.sh` gated (checkinit, full unit suite, versionCode check) and pushed
+- [x] Triggered `android.yml` on `main` with `full_build: true` (run 35419792350) - green
+- [x] Confirmed Release v7.27 published with its signed APK asset
+- [x] `record-release.sh` recorded it in BUILDLOG.md
+- [x] Posted the release link in chat
+- [x] Made auto-ship-and-notify the standing policy in CLAUDE.md (see above)
+
 ## Tj's earlier request, 2026-09-19 (his own words)
 
 > Run full tests of the latest version of this app
