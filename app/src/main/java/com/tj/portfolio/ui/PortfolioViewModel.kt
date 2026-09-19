@@ -2402,6 +2402,24 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
 
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // ---- BACKGROUNDING THE APP IS NOT A REFRESH FAILURE.
+                //
+                // `refresh()` runs on `fgScope`, and `setForeground(false)` cancels that scope
+                // by design. `CancellationException` IS an `Exception`, so it fell into the
+                // branch below and wrote "Refresh failed: StandaloneCoroutine was cancelled"
+                // into the UI state - a message about the app's own lifecycle, phrased as if
+                // the network had broken.
+                //
+                // It was usually invisible because coming back calls `refresh()` again, which
+                // clears `error`. But cancellation unwinds asynchronously: flick away and
+                // straight back, and the resume-path `refresh()` can hit the `loading` guard
+                // and return BEFORE the cancelled pass's `finally` clears the flag. No
+                // replacement pass then runs, and the Portfolio header and Watchlist show that
+                // sentence until the next tick - 15 seconds with the market open, 15 minutes
+                // with it shut. Rethrowing also restores correct structured concurrency: a
+                // cancelled child must not report itself as completed-with-error.
+                throw e
             } catch (e: Exception) {
                 _ui.value = _ui.value.copy(error = "Refresh failed: ${e.message}")
             } finally {
