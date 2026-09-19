@@ -6926,6 +6926,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val fileWatch = got.optJSONArray("watchlist")?.length() ?: -1
                 val fileOv = got.optJSONArray("overrides")?.length() ?: -1
                 val fileImp = got.optJSONArray("imports")?.length() ?: -1
+                // Verified like the other four, now that it is in the file at all. The whole
+                // point of this section is that it cannot be rebuilt from anywhere else, so
+                // "the backup ran" must not be reported over a copy that silently lost it.
+                val fileDt = got.optJSONArray("dayTradingLog")?.length() ?: -1
+                val liveDt = db.dayTradingLog().size
                 val liveWatch = db.watchlist().size
                 val liveOv = db.overrides().size
                 val liveImp = db.importCount()
@@ -6935,6 +6940,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     if (fileWatch != liveWatch) add("watchlist $fileWatch/$liveWatch")
                     if (fileOv != liveOv) add("overrides $fileOv/$liveOv")
                     if (fileImp != liveImp) add("imports $fileImp/$liveImp")
+                    if (fileDt != liveDt) add("day-trading log $fileDt/$liveDt")
                     if (expected?.optInt("transactions", -1) != fileTxns) add("manifest mismatch")
                 }
                 if (problems.isNotEmpty()) {
@@ -6944,7 +6950,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     BackupOutcome(
                         true,
                         "Verified: $fileTxns transactions, $fileOv override(s), " +
-                            "$liveWatch watchlist, $fileImp import record(s) -> ${saved.display}"
+                            "$liveWatch watchlist, $fileImp import record(s)" +
+                            (if (liveDt > 0) ", $fileDt day-trading record(s)" else "") +
+                            " -> ${saved.display}"
                     )
                 }
             }
