@@ -2,6 +2,25 @@
 
 ## Tj's request, 2026-09-19 (his own words)
 
+> Run full tests of the latest version of this app
+
+This is the "full tests" protocol defined below in CLAUDE.md's "Testing on
+request" section. Executing it now: no budget limit, full unit suite as the
+floor, then a whole-app audit split across parallel subagents by subsystem
+(recommendation/scoring, day-trading, network/caching, UI), fix everything
+found, re-verify, checkpoint.
+
+### Full-test progress
+
+- [ ] `checkinit.py` + full Gradle unit suite (floor)
+- [ ] Parallel subsystem audits (recommendation/scoring, day-trading,
+      network/caching, UI/battery)
+- [ ] Reconcile findings, fix everything
+- [ ] Re-run unit suite + re-check touched areas
+- [ ] Checkpoint
+
+## Tj's earlier request, 2026-09-19 (his own words)
+
 > From now on, I will be asking for "light tests" and "full tests" after
 > Claude does work on this project. Make permanent knowledge for Claude so
 > that when I tell it to run light tests (at any time I ask) or full
