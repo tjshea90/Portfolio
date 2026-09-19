@@ -6,7 +6,7 @@ import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
 import kotlin.math.abs
 
-/** A computed position in one symbol, using the average-cost method. */
+/** A computed position in one symbol, from either the FIFO or average-cost replay. */
 data class Position(
     val symbol: String,
     val shares: Double,
