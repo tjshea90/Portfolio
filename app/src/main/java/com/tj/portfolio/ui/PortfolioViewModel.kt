@@ -3567,15 +3567,29 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     n
                 }.getOrElse {
                     toast("Import failed: ${it.message}")
-                    0
+                    // NULL, NOT 0. A commit that THREW and a commit where every row turned out
+                    // to be a duplicate both used to come back as 0, and the caller could not
+                    // tell them apart - see the `_importResult` note below, which depends on
+                    // exactly that distinction.
+                    null
                 }
             }
-            if (res > 0) autoBackupIfDue(force = true)
+            val n = res ?: 0
+            if (n > 0) autoBackupIfDue(force = true)
             _lastImport.value = withContext(Dispatchers.IO) { db.lastImport() }
-            _importResult.value = null
+            // ---- KEEP THE EXTRACTION IF THE WRITE FAILED.
+            //
+            // This cleared unconditionally, including on the failure path above - so a disk
+            // error threw away rows that only a deliberate Claude API call can produce, left
+            // a "Import failed" toast, and then immediately toasted "Imported 0
+            // transaction(s)" on top of it. Nothing remained to retry from.
+            //
+            // A successful commit clears as before, INCLUDING the legitimate zero where every
+            // row was already on file - that is a finished job, not a failure.
+            if (res != null) _importResult.value = null
             recompute()
             refresh()
-            onDone(res)
+            onDone(n)
         }
     }
 
