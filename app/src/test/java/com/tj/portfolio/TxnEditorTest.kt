@@ -173,6 +173,22 @@ class TxnEditorTest {
      * quantity/price on a non-trade type, so no total was ever wrong - but the row's own
      * subtitle permanently misdescribed what happened, on the one screen whose job is to be
      * the record.
+     *
+     * ---- THE FEE JOINED THEM, ONCE ITS BOX STOPPED BEING ON SCREEN.
+     *
+     * This test used to assert `fees are still read` for these types, which was right while
+     * the dialog offered a Fees box on every non-SPLIT row. It no longer does, and the reason
+     * is the same class of fault the rest of this test is about, one layer down:
+     * `Txn.cashEffect` returns a bare +-abs(amount) for DEPOSIT / WITHDRAWAL / DIVIDEND /
+     * INTEREST / FEE and never subtracts `fees`, while `Ledger.fees()` sums `fees` across ALL
+     * rows. So a $50 dividend entered with a $2 fee reported $2 of fees paid, showed "fees
+     * $2.00" on the Activity row and counted into the fee audit - while leaving cash
+     * overstated by exactly $2, permanently. A FEE row carrying both double-counted itself.
+     *
+     * A fee on a cash movement belongs in its own FEE row, which is already a type here. The
+     * box is hidden rather than silently emptied at save, so nothing anyone typed is thrown
+     * away - and `resolve` zeroes it for the same reason it zeroes quantity and price: a
+     * value behind a hidden box must not reach a saved row.
      */
     @Test fun `a leftover share count and price cannot leak into a non-trade row`() {
         for (type in TxnType.ALL.filter { it != TxnType.BUY && it != TxnType.SELL && it != TxnType.SPLIT }) {
@@ -180,8 +196,27 @@ class TxnEditorTest {
             assertEquals("$type: quantity must not carry over", 0.0, r.quantity, 1e-9)
             assertEquals("$type: price must not carry over", 0.0, r.price, 1e-9)
             assertEquals("$type: amount is still read", 50.0, r.amount, 1e-9)
-            assertEquals("$type: fees are still read", 3.0, r.fees, 1e-9)
+            assertEquals("$type: a fee it cannot charge must not carry over",
+                0.0, r.fees, 1e-9)
         }
+    }
+
+    /**
+     * And the cash a non-trade row moves is its amount, with no fee applied - the invariant
+     * the zeroing above exists to keep true.
+     */
+    @Test fun `a non-trade row moves exactly its amount`() {
+        val dep = TxnFields.resolve(TxnType.DEPOSIT, "", "", "50", "3")
+        assertEquals(50.0, TxnFields.cashOf(TxnType.DEPOSIT, dep), 1e-9)
+        val wd = TxnFields.resolve(TxnType.WITHDRAWAL, "", "", "50", "3")
+        assertEquals(-50.0, TxnFields.cashOf(TxnType.WITHDRAWAL, wd), 1e-9)
+    }
+
+    /** A trade still carries its fee, which is the whole point of confining it to trades. */
+    @Test fun `a trade still resolves its fee`() {
+        val buy = TxnFields.resolve(TxnType.BUY, "10", "5", "", "3")
+        assertEquals(3.0, buy.fees, 1e-9)
+        assertEquals(10.0, buy.quantity, 1e-9)
     }
 
     /**
