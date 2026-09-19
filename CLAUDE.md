@@ -135,6 +135,79 @@ and committed. The next session will not re-verify a ticked box.
 There is no model screener. Work every request under whichever model this
 session is actually running — don't stop to ask Tj to switch.
 
+## Testing on request — "light tests" and "full tests"
+
+Tj triggers these two protocols by saying the phrase, at any point, in any
+session — including a brand-new session with zero other context. Recognize
+any wording close to "light test(s)"/"light testing" or "full test(s)"/
+"full testing"/"comprehensive tests" and run the matching protocol below.
+No further explanation from him is needed or expected.
+
+### Light tests
+
+Low Claude-effort. Run once whatever Tj most recently asked for is
+otherwise complete.
+
+1. Run the existing automated floor: `python3 tools/checkinit.py` and
+   `bash tools/gradle.sh testDebugUnitTest` (the full Kotlin unit suite —
+   it's fast; always run it, it is not optional).
+2. Read the diff since this session's work started (against
+   `CHECKPOINT.md`'s "builds on" commit, or the last ship) for obvious
+   bugs and UI-logic mistakes — state handling, null/empty cases,
+   off-by-one, a Compose recomposition or layout error. There is no
+   emulator or device in this container, so "UI issues" means reading the
+   changed Compose code carefully for logic errors, not a live visual
+   check — say so if asked why nothing was screenshotted.
+3. Grep for other callers/usages of anything this session changed (a
+   function signature, a data-class field, a scoring input, a cache key)
+   to confirm nothing else in the app now reads stale or mismatched data —
+   this is the "did it corrupt some other part of the app" check.
+4. Fix anything found.
+5. If there were any major findings, after fixing them, repeat this same
+   light pass once more (steps 1-3) to confirm the fix didn't break
+   anything else. Don't loop beyond that second pass.
+6. Checkpoint the result (`bash tools/ckpt.sh "did" "next"`), same as any
+   other completed step.
+
+### Full tests
+
+No budget or time limit — best effort, release-quality bar. This is a
+standalone deep audit of the whole app, not just the current diff.
+
+1. Run `python3 tools/checkinit.py` and the full Gradle unit suite
+   (`bash tools/gradle.sh testDebugUnitTest`) first, as the floor.
+2. Audit the whole app for:
+   - **Bugs / breakage** — anything broken or corrupted by recent changes,
+     anywhere in the app, not only files touched this session.
+   - **Code and UI quality** — simplification, consistency, intuitiveness.
+   - **Network efficiency** — redundant fetches, anything that could be
+     served from the existing `http_cache` layer instead of a fresh
+     request, and violations of BRIEF.md's "Locked architecture
+     decisions" source order (Yahoo primary → Finnhub → Stooq, batched
+     quotes, etc).
+   - **Caching and data retention** — nothing the user entered or the app
+     already fetched should be silently lost; check the persistence paths
+     (`SQLiteOpenHelper`, the ledger, the day-trading log) for gaps.
+   - **Scoring/engine logic** — `ResearchScore`, `Recommend`, the
+     day-trading system, cost-basis/accounting (FIFO default) — confirm
+     they still work as designed and still match BRIEF.md's locked
+     decisions.
+   - **Battery / resource use** — background work actually stops on
+     `ON_STOP` and resumes on `ON_START` (the `fgScope` pattern), no
+     runaway polling, nothing left running (timers, repeated fetches)
+     when the app isn't in use.
+3. For a pass this size, prefer splitting the audit across parallel
+   subagents by subsystem (recommendation/scoring, day-trading,
+   network/caching, UI) — see `audits/round66/` and the checkpoint history
+   ("4-way parallel audit") for the pattern already used successfully on
+   this project — then reconcile and fix the findings yourself.
+4. Fix everything found. This is an improvement pass, not just a report.
+5. Once fixes are in, re-run the unit suite and re-check anything a fix
+   touched.
+6. Checkpoint as work completes. This is exactly the kind of session that
+   should end with `bash ship.sh "note"` once Tj confirms he wants the
+   result released, per "Releasing" below.
+
 ## Saving work — three levels (see "FIRST ACTION" above before trusting level 1)
 
 **1. Automatic (hooks — when they fire).** `tools/autosave.sh` commits and
