@@ -56,10 +56,18 @@ object DayTradingEval {
         for (host in listOf("query1", "query2")) {
             val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
                 MarketData.enc(symbol) + "?period1=$period1&period2=$period2&interval=5m"
-            val r = Http.get(url, mapOf("Accept" to "application/json"))
+            // CONDITIONAL: this window is a CLOSED session addressed by explicit period1/
+            // period2 bounds, so the answer is immutable - the one case where a validator can
+            // never be wrong. Every PENDING row inside the 55-day retention window was
+            // re-downloading it in full on every press.
+            val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
             if (r.throttledLocally) continue
             if (!r.ok) continue
-            return parseBars(r.body)
+            // `continue`, NOT `return`: a 200 that parses to nothing (a truncated body, a
+            // proxy error page) used to end the loop, so query2 never got its turn and the
+            // caller wrote DATA_UNAVAILABLE against a day whose bars the other host had.
+            val bars = parseBars(r.body)
+            if (bars.isNotEmpty()) return bars
         }
         return null
     }

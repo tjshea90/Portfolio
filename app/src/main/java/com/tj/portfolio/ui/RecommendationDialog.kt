@@ -154,9 +154,19 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                                     // dated one - a different number from the feed's flat
                                     // all-ages mean, and calling both "average analyst target"
                                     // would make the two readings look like a data error.
+                                    // AND THE RANGE ONLY BELONGS TO THE UNWEIGHTED MEAN.
+                                    // `targetHigh`/`targetLow` are Yahoo `financialData`'s
+                                    // all-ages min and max, while a weighted mean comes from
+                                    // the DATED panel - two different populations. Printed
+                                    // together they read as one figure and its own bounds, and
+                                    // the weighted mean is not guaranteed to fall inside them,
+                                    // so the card could show a "mean" outside its stated
+                                    // range. Same fault the sentence above already avoids for
+                                    // the number itself.
                                     (if (r.targetIsWeighted) "Analyst target (weighted toward the newest) "
                                     else "Average analyst target ") + Fmt.price(r.targetMean) +
-                                        if (r.targetHigh > 0.0 && r.targetLow > 0.0)
+                                        if (!r.targetIsWeighted &&
+                                            r.targetHigh > 0.0 && r.targetLow > 0.0)
                                             " (range ${Fmt.price(r.targetLow)} - ${Fmt.price(r.targetHigh)})"
                                         else ""
                                 } else {
