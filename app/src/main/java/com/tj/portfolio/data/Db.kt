@@ -1695,6 +1695,18 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                     "watchlist or overrides in it."
             )
         }
+        // A MERGE off a watchlist-only file is a perfectly reasonable thing to do. A REPLACE
+        // is not: the branch below clears txns, overrides, watchlist AND imports before it
+        // reads anything, so a file carrying only a `watchlist` key passed this gate and then
+        // wiped the entire ledger to restore a handful of symbols. Replace needs the array it
+        // is about to replace.
+        if (replace && txnArr == null) {
+            return RestoreResult(
+                error = "That file has no transactions in it, so \"Replace all\" would erase " +
+                    "the ledger and put nothing back. Nothing was changed. Use Merge if you " +
+                    "only meant to restore the watchlist or overrides."
+            )
+        }
 
         val db = writableDatabase
         db.beginTransaction()
@@ -1839,11 +1851,39 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 db.insert("imports", null, cv); iN++
             }
 
+            // ---- THE MANIFEST CHECK RUNS BEFORE THE COMMIT, NOT AFTER IT.
+            //
+            // `exportJson` writes the `counts` manifest precisely so a restore can prove it
+            // read the whole file. Checked AFTER `setTransactionSuccessful()`, as it was, the
+            // result could only ever be a string - the rows were already committed. So a
+            // truncated backup restored with "Replace all" ran `delete("txns", null, null)`,
+            // inserted whatever subset happened to parse, COMMITTED, and reported success
+            // with a warning tacked onto the toast.
+            //
+            // And the loss did not stop at the database. `restoreAsync` takes a forced safety
+            // copy on any non-error result, and `autoBackupIfDue` skips only a COMPLETELY
+            // empty ledger - so a restore that left 3 of 200 rows immediately wrote those 3
+            // over `portfolio-autosave.json` in Downloads, the one copy documented as
+            // surviving an uninstall. Full ledger gone from both places, inside a second,
+            // with nothing to go back to.
+            //
+            // A short count on a REPLACE now fails the restore instead: returning here skips
+            // `setTransactionSuccessful()`, so the `finally` below rolls the whole thing back
+            // and the user keeps exactly what they had. A MERGE only ever adds, so it keeps
+            // the old advisory warning.
+            val expected = root.optJSONObject("counts")?.optInt("transactions", -1) ?: -1
+            val short = expected >= 0 && expected != n + skipped
+            if (short && replace) {
+                return RestoreResult(
+                    error = "That backup looks incomplete - it lists $expected transactions " +
+                        "but only ${n + skipped} could be read. Nothing was changed. Try " +
+                        "another copy of the file, or use Merge instead of Replace."
+                )
+            }
+
             db.setTransactionSuccessful()
 
-            // cross-check against the manifest the export wrote
-            val expected = root.optJSONObject("counts")?.optInt("transactions", -1) ?: -1
-            val warning = if (expected >= 0 && expected != n + skipped)
+            val warning = if (short)
                 "Warning: the file lists $expected transactions but ${n + skipped} were readable."
             else null
 
