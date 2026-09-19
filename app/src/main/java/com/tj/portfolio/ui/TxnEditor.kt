@@ -158,15 +158,15 @@ fun TxnEditorDialog(
     //
     // Fifty cents, silently, on a screen whose whole job is to be the record. `Fmt.exact`
     // round-trips: what is shown parses back to the identical double. See its note.
-    var qty by remember { mutableStateOf(TxnFields.qty(existing)) }
-    var price by remember { mutableStateOf(TxnFields.price(existing)) }
-    var amount by remember { mutableStateOf(TxnFields.amount(existing)) }
-    var fees by remember { mutableStateOf(TxnFields.fees(existing)) }
+    var qty by rememberSaveable { mutableStateOf(TxnFields.qty(existing)) }
+    var price by rememberSaveable { mutableStateOf(TxnFields.price(existing)) }
+    var amount by rememberSaveable { mutableStateOf(TxnFields.amount(existing)) }
+    var fees by rememberSaveable { mutableStateOf(TxnFields.fees(existing)) }
     // Once the user types in the Fees box themselves, the app stops filling it in. Editing
     // an existing transaction counts as already-decided, so an import is never overwritten.
-    var feesTouched by remember { mutableStateOf(existing != null) }
-    var date by remember { mutableStateOf(Fmt.iso(existing?.date ?: Fmt.todayMs())) }
-    var note by remember { mutableStateOf(existing?.note ?: "") }
+    var feesTouched by rememberSaveable { mutableStateOf(existing != null) }
+    var date by rememberSaveable { mutableStateOf(Fmt.iso(existing?.date ?: Fmt.todayMs())) }
+    var note by rememberSaveable { mutableStateOf(existing?.note ?: "") }
 
     val isTrade = type == TxnType.BUY || type == TxnType.SELL
     /** A split has a symbol and a ratio, and nothing else - see [TxnType.SPLIT]. */
