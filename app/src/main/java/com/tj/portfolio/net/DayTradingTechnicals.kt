@@ -224,7 +224,25 @@ object DayTradingTechnicals {
      * estimate rather than showing a broken number.
      */
     suspend fun fetch(symbol: String, now: Long = System.currentTimeMillis()): DayTechnicals {
-        val daily = fetchBars(symbol, range = "3mo", interval = "1d", prePost = false)
+        // ---- THE DAILY BARS ARE IMMUTABLE DURING A SESSION, SO ASK FOR THEM ONCE.
+        //
+        // This leg is `range=3mo&interval=1d`, and everything computed from it - `atr14`,
+        // `adr`, `prevHigh/prevLow/prevClose` - comes out of `completedSessions`, i.e.
+        // sessions that have ALREADY CLOSED. None of those numbers can change while the
+        // market is open. It was nevertheless re-downloaded on every tick of the 30-second
+        // day-trading sweep: with the default page of 10 rows that is 1,200 requests an hour
+        // for three months of candles that were settled before the bell, on top of the 1,200
+        // for the intraday leg. BRIEF.md's locked decision is "chart refresh rate: the range's
+        // own candle interval, never faster", and a 1-day candle asked for twice a minute is
+        // the clearest possible breach of it.
+        //
+        // Memoised per symbol, per ET date, and per side of the 4pm close - that last part
+        // matters because `completedSessions` starts counting today's bar once the session
+        // ends, so the series legitimately changes exactly once a day, at the close.
+        val dailyKey = "$symbol|${etDateKey(now / 1000)}|${if (afterClose(now)) 1 else 0}"
+        val daily = dailyCache.get(dailyKey) ?: fetchBars(
+            symbol, range = "3mo", interval = "1d", prePost = false
+        )?.also { dailyCache.put(dailyKey, it) }
         // PRE/POST INCLUDED SINCE ROUND 69 - the premarket high is a real trigger level (see
         // the header), and it costs nothing: the same one request now carries both sessions,
         // and [regularSession] splits them back apart so VWAP, the opening range and the
@@ -293,7 +311,11 @@ object DayTradingTechnicals {
                 MarketData.enc(symbol) +
                 "?range=$range&interval=$interval" +
                 if (prePost) "&includePrePost=true" else ""
-            val r = Http.get(url, mapOf("Accept" to "application/json"))
+                // CONDITIONAL, like every other repeat request in the app. Without a validator
+            // key an unchanged series is re-sent in full on every tick; with one it is a
+            // bodyless 304 that `Http` answers from `http_cache`. See BRIEF.md's locked
+            // "Response caching" decision - nothing already stored should be downloaded again.
+            val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
             if (r.throttledLocally) continue
             if (!r.ok) continue
             val parsed = runCatching { parseBars(r.body) }.getOrNull()
