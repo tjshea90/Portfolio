@@ -7034,7 +7034,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // written at 8am, left the new phone with no backup for the rest of the day.
                 // Those keys are excluded from backups now, but forcing here is what makes
                 // the guarantee unconditional rather than a consequence of another fix.
-                autoBackupIfDue(force = true)
+                //
+                // NOT ON A SHORT READ, THOUGH. `r.warning` means the file's own manifest
+                // disagreed with what parsed out of it, so this ledger is knowingly less
+                // than the backup described. Copying it over `portfolio-autosave.json` -
+                // the one copy that survives an uninstall - would overwrite a good backup
+                // with a worse one at exactly the moment we have evidence something is
+                // wrong. `restoreJson` already refuses this outright on a Replace; this
+                // covers the Merge case, where the result is additive but still incomplete.
+                if (r.warning == null) autoBackupIfDue(force = true)
             }
             onDone(r)
         }
