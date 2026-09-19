@@ -89,30 +89,59 @@ def check(txns, session=None):
                 problems.append(f"{name} {s}: negative same-day pool")
             if p["sharesToday"] < 1e-9 and abs(p["costToday"]) > 1e-6:
                 problems.append(f"{name} {s}: empty same-day pool keeps cost {p['costToday']}")
-    # 4. equity - net deposits == realized + unrealized + dividends - fees
+    # 4. equity - net deposits == realized + unrealized + dividends - fees + ghost-row cash
+    #
+    # ---- WHY GHOST-ROW CASH IS A TERM AND NOT A VIOLATION
+    #
+    # A BUY or SELL with no share count moves money and builds no position: both ledger
+    # methods skip it (`if qty < 1e-9: continue`) while `cash()` still counts its amount, so
+    # it sits outside the identity by construction. This harness generates those rows on
+    # purpose (see ZEROQ) and used to report every history containing one as a reconciliation
+    # failure - 689 of 5000 on the default seed sweep. That is not a ledger defect, it is the
+    # harness failing to model a condition the app already handles end to end:
+    #
+    #   * the transaction editor has blocked them since v3.5
+    #     (`isTrade && qNum <= 0 -> "Enter how many shares"`),
+    #   * both import paths refuse them in CODE and report the count rather than dropping
+    #     them silently (Claude.kt and ClaudeBridge.kt, via `Claude.appendUnusable`),
+    #   * and any row already on file from an older build or a restored backup is surfaced by
+    #     the Settings data-health card as `FeeAudit.quantityless` / `quantitylessCash`.
+    #
+    # A harness that is red on a correct ledger is a harness nobody reads, and BRIEF.md tells
+    # sessions to run this one by hand whenever they touch ledger code - so a genuine
+    # regression would have had 689 false positives to hide in. The ghost-row cash is
+    # therefore carried as an explicit term, exactly the figure `quantitylessCash` reports.
+    # Anything left over after accounting for it is a real violation.
+    ghost_cash = sum(t["amount"] for t in txns
+                     if t["type"] in (L.BUY, L.SELL) and abs(t["quantity"]) < 1e-9)
     for name, pos in (("FIFO", f), ("AVG", a)):
         lhs = (equity(pos) + L.cash(txns)) - L.net_deposits(txns)
         # Only FEE-TYPE rows belong on the right: a per-trade `fees` value is already
         # inside realized (subtracted from proceeds) and inside cost basis (added to the
         # lot), so counting it again here would double it.
         fee_rows = sum(abs(t["amount"]) for t in txns if t["type"] == L.FEE)
-        rhs = realized(pos) + (equity(pos) - basis(pos)) + L.dividends(txns) - fee_rows
+        rhs = (realized(pos) + (equity(pos) - basis(pos)) + L.dividends(txns)
+               - fee_rows + ghost_cash)
         if abs(lhs - rhs) > 1e-6:
             problems.append(f"{name}: reconciliation off by {lhs - rhs:.9f}")
     saw_today = any(p["sharesToday"] > 1e-9 for p in f.values())
-    return problems, saw_today
+    saw_ghost = abs(ghost_cash) > 1e-9
+    return problems, saw_today, saw_ghost
 
 
 def main():
     runs = int(sys.argv[1]) if len(sys.argv) > 1 else 5000
     bad = 0
     same_day = 0
+    ghost = 0
     for i in range(runs):
         rng = random.Random(i)
         random.seed(i)
-        problems, saw_today = check(gen(rng, rng.randrange(1, 40)))
+        problems, saw_today, saw_ghost = check(gen(rng, rng.randrange(1, 40)))
         if saw_today:
             same_day += 1
+        if saw_ghost:
+            ghost += 1
         if problems:
             bad += 1
             if bad <= 3:
@@ -121,9 +150,17 @@ def main():
     # Reported so "is the same-day path even being exercised?" is answerable from the output
     # rather than assumed - it was silently zero for the life of this harness.
     print(f"  histories holding shares bought in-session: {same_day}")
+    print(f"  histories carrying a quantity-less trade:   {ghost}")
     if same_day == 0:
         print("  !! the same-day pool was never exercised - the session window and the "
               "generated dates have drifted apart")
+        bad += 1
+    # Same reasoning as the line above, for the term added to property 4: if ZEROQ stops
+    # producing ghost rows, that term is silently never tested and the identity above
+    # quietly stops proving anything about them.
+    if ZEROQ and ghost == 0:
+        print("  !! ZEROQ is on but no quantity-less trade was generated - the ghost-row "
+              "term in property 4 went untested")
         bad += 1
     return 1 if bad else 0
 
