@@ -342,8 +342,10 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
         // nowhere else - so one tap outside a dialog that can be a hundred rows tall
         // permanently discarded a result that only a deliberate button press can produce.
         // Cancel and Import are now the only ways out, both explicit.
-        onDismissRequest = { },
-        properties = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false),
+        // Back still cancels - that is a deliberate gesture, and a dialog that swallows it
+        // feels broken. Only the accidental outside tap is refused.
+        onDismissRequest = { vm.clearImport() },
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = {
             Text(
                 if (r.error != null) "Import failed"
