@@ -275,10 +275,13 @@ fun DetailScreen(
         insiderMap[symbol].orEmpty().distinctBy { it.accession }
             .sortedByDescending { it.filedAt }
     }
-    var pending by remember { mutableStateOf<PendingAction?>(null) }
-    var editingTxn by remember { mutableStateOf<Txn?>(null) }
-    var addingTxn by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf<Long?>(null) }
+    var pending by rememberSaveable(stateSaver = PendingAction.Saver) { mutableStateOf<PendingAction?>(null) }
+    // Stored as an id, not the Txn itself - Txn isn't Saveable, and this is looked up against
+    // `txns` below once it's in scope, so it survives a process death the same way the dialog's
+    // own fields now do (see TxnEditor.kt).
+    var editingTxnId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var addingTxn by rememberSaveable { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable { mutableStateOf<Long?>(null) }
     var showRecommendation by remember(symbol) { mutableStateOf(false) }
 
     /**
