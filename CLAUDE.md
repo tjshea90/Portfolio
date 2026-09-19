@@ -286,7 +286,23 @@ ASSET BYTES, and a raw-`curl`/git-credential workaround for that gap was
 tried once (2026-09-11) and correctly blocked by the harness as credential
 exploration — treat that as settled, not a bug to keep poking at. Just
 confirm the Release is published (`get_release_by_tag` is enough) and move
-on; optionally mention the tag/version in chat so Tj knows it is ready.
+on.
+
+**Tj's rule, 2026-09-19: ship every future update automatically, and always
+post the link — don't wait to be asked.** Once a session finishes a
+meaningful unit of work (a fix, a feature, an audit-and-fix pass — the same
+granularity that used to wait for Tj to say "ship it"), run the full
+release flow above on its own: bump versionCode/versionName, `ship.sh`,
+trigger the build, confirm green, `record-release.sh`. Then post the
+Release page link in chat (`https://github.com/tjshea90/Portfolio/releases/tag/vX.Y`,
+or `get_release_by_tag`'s `html_url`) without being asked. This does NOT
+reopen the 2026-09-11 rule above — "the link" is the Release page/asset
+URL, never the raw APK bytes, and that technical block is unrelated and
+still stands. Do not auto-ship a trivial or purely internal change (a
+checkpoint-worthy fix mid-task, a doc/comment tweak, a TASKS.md update) —
+use the same judgment that previously decided when Tj would have said
+"ship it"; when genuinely unsure whether a change is release-worthy, ask
+rather than either spamming small releases or silently skipping a real one.
 
 **Why Claude triggers it instead of pushing a tag.** `git push origin v7.9`
 returns `RPC failed; HTTP 403` from a Claude container: the session's egress
