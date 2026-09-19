@@ -49,18 +49,6 @@
           }
         ]
       }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "for f in __REPO_ROOT__/*/tools/hooks/screen.sh; do [ -f \"$f\" ] && exec bash \"$f\"; done; true  # portfolio-checkpoint-hooks",
-            "timeout": 30,
-            "statusMessage": "Screening request..."
-          }
-        ]
-      }
     ]
   }
 }
