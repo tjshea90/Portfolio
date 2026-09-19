@@ -105,10 +105,38 @@ object Storage {
             val resolver = ctx.contentResolver
             val existing = findOwnDownload(ctx, fileName, subDir)
             if (existing != null) {
-                // "wt" truncates; without it a shorter export would leave trailing bytes
-                // of the previous one and the file would not parse.
-                resolver.openOutputStream(existing, "wt")?.use { it.write(content.toByteArray()) }
-                    ?: return null
+                // ---- "wt" TRUNCATES FIRST, SO A FAILED WRITE DESTROYS THE OLD COPY.
+                //
+                // The truncation is necessary - without it a shorter export leaves trailing
+                // bytes of the previous one behind and the file no longer parses. But it
+                // happens BEFORE any of the new content is written, and this is the writer
+                // for `portfolio-autosave.json`: the single copy that survives uninstalling
+                // the app or moving phones (the private snapshot folder goes with the app).
+                // If the write throws part-way - disk full, MediaStore revoking the URI -
+                // what was left on disk was a partial JSON document, the caller got a bare
+                // null it could not distinguish from "nothing to do", and nothing re-checked
+                // the file. The next recovery read then found a truncated backup.
+                //
+                // So: keep the old bytes, and put them back if the new write does not land.
+                // Worst case the user still has the copy they had before, which is the whole
+                // point of the file.
+                val prior = runCatching {
+                    resolver.openInputStream(existing)?.use { it.readBytes() }
+                }.getOrNull()
+                val bytes = content.toByteArray()
+                try {
+                    resolver.openOutputStream(existing, "wt")?.use { it.write(bytes) }
+                        ?: return null
+                } catch (e: Exception) {
+                    // Best-effort rollback. If this fails too there is nothing further to
+                    // try here, and `autoBackupIfDue` has already written the identical
+                    // content to the private snapshot folder, so the data itself still
+                    // exists on the device - it is only the uninstall-proof copy at risk.
+                    if (prior != null) runCatching {
+                        resolver.openOutputStream(existing, "wt")?.use { it.write(prior) }
+                    }
+                    return null
+                }
                 Saved(fileName, displayPath(subDir, fileName), existing)
             } else {
                 saveToDownloads(ctx, fileName, content, mime, subDir)
@@ -117,7 +145,16 @@ object Storage {
             val dir = legacyDir(subDir)
             if (!dir.exists()) dir.mkdirs()
             val f = File(dir, fileName)
-            f.writeText(content)
+            // Same hazard as the MediaStore branch above, and the same answer: `writeText`
+            // truncates before it writes, so a failure part-way leaves a partial file where
+            // the only uninstall-proof backup used to be.
+            val prior = if (f.exists()) runCatching { f.readBytes() }.getOrNull() else null
+            try {
+                f.writeText(content)
+            } catch (e: Exception) {
+                if (prior != null) runCatching { f.writeBytes(prior) }
+                return null
+            }
             Saved(fileName, displayPath(subDir, fileName), Uri.fromFile(f))
         }
     } catch (e: Exception) {
