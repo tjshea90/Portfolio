@@ -57,6 +57,13 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         createNews(db)
         createFundamentals(db)
         createDayTradingLog(db)
+        // These two were reached on a fresh install only via `onOpen`'s repair block, which
+        // runs after `onCreate` inside `getWritableDatabase`. That worked, but it made them
+        // the only tables in the schema whose existence depended on the belt-and-braces pass
+        // rather than on the schema itself. Both are `IF NOT EXISTS`, so stating them here
+        // costs nothing and removes the asymmetry.
+        createHttpCache(db)
+        createChartCache(db)
     }
 
     /**
