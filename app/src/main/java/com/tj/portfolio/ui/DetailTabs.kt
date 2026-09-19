@@ -432,10 +432,22 @@ fun EarningsTab(
                             onInfo = onInfo
                         )
                         val now = System.currentTimeMillis()
-                        val days = (f.earningsDate - now) / 86_400_000L
+                        // floorDiv and the singular/today wording, to match the "i" popup for
+                        // this very same field (Explain.TOPIC_EARNINGS_DATE). Plain division
+                        // truncates toward zero, and while the `>= now` guard keeps the
+                        // numerator non-negative here - so this was never the sign bug fixed
+                        // in Explain.kt - the COPY was still wrong at both ends: a report five
+                        // hours away read "In 0 days" and one twenty-five hours away read
+                        // "In 1 days", while the popup for the same date said "today" and
+                        // "in 1 day". Two screens, one field, two answers.
+                        val days = Math.floorDiv(f.earningsDate - now, 86_400_000L)
                         Text(
                             if (f.earningsDate >= now)
-                                "In $days days. Expect a bigger-than-usual price move that day."
+                                when (days) {
+                                    0L -> "Today. Expect a bigger-than-usual price move."
+                                    1L -> "Tomorrow. Expect a bigger-than-usual price move."
+                                    else -> "In $days days. Expect a bigger-than-usual price move that day."
+                                }
                             else "That date has passed; the next one is not scheduled yet.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
