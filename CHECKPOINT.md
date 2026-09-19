@@ -1,13 +1,13 @@
-# CHECKPOINT 1553 — read me first, then TASKS.md
+# CHECKPOINT 1554 — read me first, then TASKS.md
 
-**Written:** 2026-09-19T03:28:20Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-app-tests-3ajf43` · **builds on:** `29fc217` (this checkpoint is the commit after it)
+**Written:** 2026-09-19T03:33:52Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-app-tests-3ajf43` · **builds on:** `3c31cd6` (this checkpoint is the commit after it)
 
 ## Just done
-Full-tests fixes batch 1: (1) Http.postJson now disconnects the socket on cancellation, mirroring Http.get's documented pattern - was paying for the whole body and holding a per-host permit on a cancelled Claude API call. (2) Fixed EarningsTab off-by-one (Long division truncation toward zero made a past earnings date still show 'In 0 days'). (3) Data-loss fix: promoted TxnEditorDialog's typed fields, EditPositionDialog's shares/cost, and every dialog-open flag (addingTxn/editingTxn-by-id/confirmDelete/pending via a new PendingAction.Saver/showAdd/showImport/importText/pendingRestore/confirmReplace) from remember to rememberSaveable across TxnEditor.kt, RowActions.kt, DetailScreen.kt, ActivityScreen.kt, PortfolioScreen.kt, WatchlistScreen.kt, SettingsScreen.kt - a full-test audit found these all reset silently on process death (not just rotation), losing in-progress typed money entries with no warning. All from the 4-way parallel full-test audit (network/caching/battery + UI subsystems).
+Full-tests fixes batch 2: (1) HIGH - DayTradingTechnicals.sessionDay/intraday fields were stamped from wall-clock 'now' instead of the actual date of the bars Yahoo returned, so a weekend/holiday/pre-4am fetch that got back the last CLOSED session's real VWAP/opening-range/session-high-low was labeled as today's and passed straight through effectiveTechnicals' non-zero direct-pass-through (which never consulted sameSession) - rangeUsed read as a fully-spent day at market open on stocks that hadn't traded. Now gates intraday-derived fields on the bars' own date matching today, zeroing them (and blanking sessionDay) when they don't. (2) Fixed ScreenRow.merge's earningsEstimated being ANDed across both sides regardless of which side's earningsAt actually survived the merge - now reads the flag from the same side the surviving date came from. (3) Fixed an off-center analyst price-target scoring term in ResearchScore.withAnalyst (was -2 at zero upside instead of neutral, unlike its symmetric sibling in holding()) - offset corrected from -12.0 to -10.0. (4) Reconciled the three different 'where issuers close funds' dollar figures across Research.kt/EtfScore.kt (25m/50m/100m) - each already served a genuinely different purpose (admission floor/score ramp/UI warning) so the numbers stayed, but the wording no longer claims each is THE one threshold. (5) Fixed a stale Position KDoc claiming average-cost-only. All from the 4-way parallel full-test audit (recommendation/scoring subsystem).
 
 ## Do this next
-Fix the day-trading HIGH finding (DayTradingTechnicals.sessionDay stamped from wall-clock instead of the actual bar date, defeating the stale-session guard on weekends/holidays/pre-market), then the smaller scoring findings (ScreenRow.merge earningsEstimated bug, ResearchScore withAnalyst off-center term, fund-closure dollar figure inconsistency, stale Position KDoc), then re-run full suite and reconcile.
+Reconcile the day-trading LOW finding (entryFill comment vs code, optional) and any remaining minor items, then run the full test suite one more time, review the diff for consistency, and checkpoint as the full-tests session end.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Fix the day-trading HIGH finding (DayTradingTechnicals.sessionDay stamped from w
 
 ## Last ten checkpoints
 ```
+  889707a ckpt 1553: Full-tests fixes batch 1: (1) Http.postJson now disconnects the socket on can
   f90d691 ckpt 1552: Full-tests: floor checks green (checkinit + full Gradle unit suite, BUILD SUC
   a22f2c0 ckpt 1551: Made 'light tests' and 'full tests' permanent knowledge: added a 'Testing on 
   f69cc64 ckpt 1550: Permanently removed the Opus screener: deleted tools/screener.sh, tools/hooks
@@ -25,8 +26,7 @@ Fix the day-trading HIGH finding (DayTradingTechnicals.sessionDay stamped from w
   67ca002 ckpt 1546: Recency scoring + day-trading cost/cumulative stats + retention-gate bug fix 
   2441caa ckpt 1545: Analyst-recency scoring (RatingRecency + holding + Recommend + VM + popup) an
   0c65883 ckpt 1544: Audited the recommendation + day-trading code; wrote Tj's 2026-09-18 request 
-  9ad5997 ckpt 1543: Confirmed v7.25 (code 82) build green and Release published; recorded it in B
 ```
 
-(21 automatic checkpoint(s) since the last deliberate one — the
+(8 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
