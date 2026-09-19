@@ -54,7 +54,7 @@ fun PortfolioScreen(
     onSearch: () -> Unit
 ) {
     var sortMenu by remember { mutableStateOf(false) }
-    var pending by remember { mutableStateOf<PendingAction?>(null) }
+    var pending by rememberSaveable(stateSaver = PendingAction.Saver) { mutableStateOf<PendingAction?>(null) }
     val rows = state.rows.filter { !it.watchOnly }
     val dataMissing by vm.dataMissing.collectAsState()
     val recoverable by vm.recoverableBackup.collectAsState()
