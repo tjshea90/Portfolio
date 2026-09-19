@@ -43,6 +43,23 @@ object Recommend {
         // that used a different number is exactly the "a reason line the arithmetic does not
         // support" fault ResearchScore's own header exists to prevent.
         val weighted = panel?.takeIf { it.hasTarget && it.targetFirms >= RatingRecency.MIN_TARGET_FIRMS }
+
+        // ---- AND THE SAME RULE FOR THE VOTES, NOT JUST THE TARGET.
+        //
+        // `RatingRecency.panel` returns non-null as soon as ONE firm survives the cutoff, even
+        // when every surviving firm's grade is unbucketable - such a firm "keeps its place in
+        // `firms`" and casts no vote (see AnalystRecencyTest's "an unbucketable grade keeps its
+        // seat"). The scorer handles that correctly: it branches on `panel.hasVotes`, so a
+        // vote-less panel falls through to the UNDATED consensus and scores
+        // `undatedLean * 30 * undatedTrust` - 45-90% of full weight.
+        //
+        // The card, though, reported the panel regardless, and the two then described
+        // different arithmetic: `ratingsDated = true`, `currentRatings = 4`,
+        // `analystWeight = panel.strength` = breadth(0 votes) = 0.0. `freshnessNote()` printed
+        // "4 analyst ratings still current ... Counted at 0% of full weight" underneath a
+        // verdict that had actually counted them at 60%. Same fault as the target above, and
+        // the same fix: report from the branch the score was computed from.
+        val voting = panel?.takeIf { it.hasVotes }
         return Recommendation(
             symbol = symbol.uppercase(),
             verdict = ResearchScore.verdictFor(sc.score),
@@ -59,12 +76,12 @@ object Recommend {
             price = price,
             dayKey = MarketClock.dayKey(now),
             computedAt = now,
-            ratingsDated = panel != null,
-            currentRatings = panel?.firms ?: 0,
-            staleRatingsDropped = panel?.droppedStale ?: 0,
-            effectiveAnalysts = panel?.effectiveAnalysts ?: 0.0,
-            newestRatingDays = panel?.newestAgeDays ?: -1,
-            analystWeight = panel?.strength
+            ratingsDated = voting != null,
+            currentRatings = voting?.firms ?: 0,
+            staleRatingsDropped = voting?.droppedStale ?: 0,
+            effectiveAnalysts = voting?.effectiveAnalysts ?: 0.0,
+            newestRatingDays = voting?.newestAgeDays ?: -1,
+            analystWeight = voting?.strength
                 ?: (if (c?.hasVotes == true) RatingRecency.undatedTrust(fundamentals.trend) else 0.0),
             targetIsWeighted = weighted != null,
             targetAgeDays = weighted?.targetAgeDays ?: -1
