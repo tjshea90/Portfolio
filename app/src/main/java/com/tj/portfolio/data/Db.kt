@@ -17,7 +17,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         /** Bump only alongside an additive block in onUpgrade. */
         const val DB_VERSION = 9
         const val BACKUP_FORMAT = "tj-portfolio-backup"
-        const val BACKUP_VERSION = 3
+        // 4: adds `dayTradingLog`. A v3 file simply has no such key and restores exactly as
+        // it always did - the restore loop reads an absent array as empty.
+        const val BACKUP_VERSION = 4
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -1636,6 +1638,37 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         }
         root.put("imports", im)
 
+        // ---- THE DAY-TRADING LOG IS IN THE BACKUP, BECAUSE IT CANNOT BE REBUILT.
+        //
+        // It was left out of every backup this app has ever written. Nothing loses it ON THIS
+        // DEVICE - the table is append-only, no purge touches it - so the gap was invisible
+        // right up until the one moment it matters: a reinstall or a new phone restored the
+        // ledger in full and started the recommendation history at zero.
+        //
+        // And unlike a quote or a chart, it is not re-fetchable. Each row is a plan the app
+        // made against live screener state that no longer exists, plus the outcome measured
+        // against intraday bars Yahoo only serves for about 55 days
+        // (`DayTradingEval.INTRADAY_RETENTION_DAYS`). Once it is gone the win/loss record that
+        // answers "does this system actually work" is gone with it, permanently. Tj's
+        // requirement for this table was to "record and track each and every one" of them.
+        val dt = JSONArray()
+        for (e in dayTradingLog()) {
+            dt.put(JSONObject().apply {
+                put("symbol", e.symbol); put("tradingDay", e.tradingDay)
+                put("recordedAt", e.recordedAt); put("setup", e.setup)
+                put("entry", e.entry); put("stop", e.stop); put("target", e.target)
+                put("priceAtRecommendation", e.priceAtRecommendation)
+                put("source", e.source)
+                // `put(String, Any?)` REMOVES a key when the value is null, which is exactly
+                // right here: an unresolved row carries no outcome and must not restore as
+                // the string "null".
+                put("outcome", e.outcome)
+                put("outcomeExitPrice", e.outcomeExitPrice)
+                put("outcomeEvaluatedAt", e.outcomeEvaluatedAt)
+            })
+        }
+        root.put("dayTradingLog", dt)
+
         // a manifest the restore step checks itself against
         root.put("counts", JSONObject().apply {
             put("transactions", arr.length())
@@ -1643,6 +1676,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             put("watchlist", watch.size)
             put("settings", st.length())
             put("imports", im.length())
+            put("dayTradingLog", dt.length())
         })
         return root.toString(1)
     }
@@ -1849,6 +1883,46 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                     put("source", o.optString("source", "RESTORE"))
                 }
                 db.insert("imports", null, cv); iN++
+            }
+
+            // ---- ALWAYS ADDITIVE, ON BOTH REPLACE AND MERGE.
+            //
+            // The `replace` branch above deliberately does NOT clear `day_trading_log`: it is
+            // the app's own measured history, not part of the ledger the user is replacing.
+            // `INSERT OR IGNORE` against the table's `UNIQUE(symbol, trading_day)` therefore
+            // does the right thing in both modes - a row already on this device wins, and a
+            // row only the backup has is added. That also makes restoring the same file twice
+            // a no-op instead of a duplicate.
+            var dN = 0
+            val dtl = root.optJSONArray("dayTradingLog") ?: JSONArray()
+            for (i in 0 until dtl.length()) {
+                val o = dtl.optJSONObject(i) ?: continue
+                val symD = o.optString("symbol").uppercase()
+                val dayD = o.optString("tradingDay")
+                // The same floor `writeDayTradingRecommendation` applies on the way in, so a
+                // malformed row in a file cannot put something in the table that the app
+                // would never have written itself.
+                if (symD.isBlank() || dayD.isBlank()) continue
+                val en = o.optDouble("entry", 0.0); val st2 = o.optDouble("stop", 0.0)
+                val tg = o.optDouble("target", 0.0)
+                if (!(en > 0.0) || !(st2 > 0.0) || !(tg > 0.0)) continue
+                val cv = ContentValues().apply {
+                    put("symbol", symD); put("trading_day", dayD)
+                    put("recorded_at", o.optLong("recordedAt"))
+                    put("setup", o.optString("setup", ""))
+                    put("entry", en); put("stop", st2); put("target", tg)
+                    put("price_at_recommendation", o.optDouble("priceAtRecommendation", 0.0))
+                    put("source", o.optString("source", "RESTORE"))
+                    if (!o.isNull("outcome")) put("outcome", o.optString("outcome"))
+                    if (!o.isNull("outcomeExitPrice"))
+                        put("outcome_exit_price", o.optDouble("outcomeExitPrice"))
+                    if (!o.isNull("outcomeEvaluatedAt"))
+                        put("outcome_evaluated_at", o.optLong("outcomeEvaluatedAt"))
+                }
+                if (db.insertWithOnConflict(
+                        "day_trading_log", null, cv, SQLiteDatabase.CONFLICT_IGNORE
+                    ) >= 0
+                ) dN++
             }
 
             // ---- THE MANIFEST CHECK RUNS BEFORE THE COMMIT, NOT AFTER IT.
