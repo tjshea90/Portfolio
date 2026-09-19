@@ -650,9 +650,16 @@ object Http {
         }
         noteRequest(host)
         gateFor(host).withPermit {
+            // Same reasoning as get()'s connRef: an AtomicReference, not a captured `var`,
+            // so the cancellation handler (running on whichever thread called cancel()) is
+            // guaranteed to see the connection the IO thread assigned.
+            val connRef = java.util.concurrent.atomic.AtomicReference<HttpURLConnection?>(null)
             var conn: HttpURLConnection? = null
+            val cancelWatch = coroutineContext[Job]?.invokeOnCompletion { cause ->
+                if (cause != null) runCatching { connRef.get()?.disconnect() }
+            }
             try {
-                conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                conn = (URL(url).openConnection() as HttpURLConnection).also { connRef.set(it) }.apply {
                     requestMethod = "POST"
                     connectTimeout = 30000
                     readTimeout = timeoutMs
@@ -678,6 +685,7 @@ object Http {
                 noteUnreachable(host)
                 HttpResult(-1, e.message ?: "network error")
             } finally {
+                cancelWatch?.dispose()
                 conn?.disconnect()
             }
         }
