@@ -364,17 +364,43 @@ class DbTest {
         assertEquals("an unrelated JSON file destroyed the ledger", 1, db.allTxns().size)
     }
 
-    @Test fun `the manifest cross-check warns when the file is short`() {
-        val json = JSONObject().apply {
-            put("transactions", JSONArray().put(JSONObject().apply {
-                put("type", "BUY"); put("symbol", "NVDA"); put("quantity", 1)
-                put("price", 100); put("amount", -100); put("date", day(2026, 9, 1))
-            }))
-            put("counts", JSONObject().apply { put("transactions", 5) })
-        }.toString()
-        val r = db.restoreJson(json, replace = true)
-        assertNotNull("a truncated backup restored silently", r.warning)
+    /**
+     * A short manifest count used to be a WARNING on a completed Replace. It is now a refusal.
+     *
+     * The check ran after `setTransactionSuccessful()`, so by the time it noticed the file was
+     * incomplete the four up-front deletes had already committed and the only thing left to do
+     * was word a toast. A half-copied backup therefore wiped the ledger, put back whatever
+     * subset parsed, and reported success. See [RestoreSafetyTest] for the full case, including
+     * the forced autobackup that then copied the loss over the uninstall-proof file.
+     */
+    private fun shortBackup() = JSONObject().apply {
+        put("transactions", JSONArray().put(JSONObject().apply {
+            put("type", "BUY"); put("symbol", "NVDA"); put("quantity", 1)
+            put("price", 100); put("amount", -100); put("date", day(2026, 9, 1))
+        }))
+        put("counts", JSONObject().apply { put("transactions", 5) })
+    }.toString()
+
+    @Test fun `the manifest cross-check refuses a short file on Replace`() {
+        db.insertTxn(buy("AMD", 2.0, 50.0, day(2026, 9, 1)))
+
+        val r = db.restoreJson(shortBackup(), replace = true)
+
+        assertNotNull("a truncated backup replaced the ledger anyway", r.error)
+        assertTrue("the refusal does not say how many rows were expected",
+            r.summary().contains("5"))
+        assertEquals("the up-front deletes were not rolled back", 1, db.allTxns().size)
+        assertEquals("AMD", db.allTxns().first().symbol)
+    }
+
+    /** MERGE only ever adds, so an incomplete file is still worth taking - with a warning. */
+    @Test fun `the manifest cross-check only warns on Merge`() {
+        val r = db.restoreJson(shortBackup(), replace = false)
+
+        assertNull("a merge was refused for a short count", r.error)
+        assertNotNull("a truncated backup merged silently", r.warning)
         assertTrue(r.summary().contains("5"))
+        assertEquals("the row that did parse was not merged in", 1, db.allTxns().size)
     }
 
     // ------------------------------------------------------------- dedupe
