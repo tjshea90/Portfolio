@@ -5725,9 +5725,43 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun captureDayTradingRecommendations(rows: List<com.tj.portfolio.data.ResearchRow>) {
         if (com.tj.portfolio.net.MarketClock.phase() != com.tj.portfolio.net.MarketClock.Phase.OPEN) return
-        val priced = rows.filter { it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 }
-        if (priced.isEmpty()) return
         val today = com.tj.portfolio.net.MarketClock.dayKey()
+        // ---- GUARD 3: THE ROW'S OWN SESSION HAS TO BE TODAY'S.
+        //
+        // Guard 1 above asks the CLOCK whether the market is open. That is not the same
+        // question as "were these numbers computed from today's session", and three separate
+        // ways of logging a plan that was never today's got through on the difference. The row
+        // carries the answer itself - `sessionDay` is stamped from the intraday bars' own
+        // dates - so ask the row.
+        //
+        //  * THE MORNING REBUILD. `ResearchScreen` restores yesterday's cached rows and starts
+        //    the live loop at the same moment; the first sweep runs against those restored
+        //    rows, and any symbol whose technicals fetch fails or returns empty passes through
+        //    unchanged - still holding YESTERDAY's entry/stop/target. `sweeping` then forces a
+        //    `cacheResearch`, which wrote yesterday's levels under today's key with
+        //    `recordedAt = now`. `INSERT OR IGNORE` made that first wrong row permanent for
+        //    the day and blocked the correct plan from ever replacing it.
+        //
+        //  * MARKET HOLIDAYS. `MarketClock` deliberately does not model them, so `phase()`
+        //    returns OPEN at 10am on Thanksgiving. No bars are dated today, so every plan is
+        //    built from prior-session structure and then logged under a `tradingDay` for which
+        //    `DayTradingEval.fetchDaySeries` can only ever return nothing: every row becomes
+        //    DATA_UNAVAILABLE, is re-requested on every press for 55 days, and inflates the
+        //    "N trades across M sessions" figure on the stats card. A holiday has no intraday
+        //    bars, so this guard recognises it without needing a calendar.
+        //
+        //  * A PRICELESS ROW. `cacheResearch` runs BEFORE `fillResearchPrices`, so a symbol
+        //    Claude has just added has no price yet. `priceAtRecommendation` is what
+        //    `DayTradingEval.entryRises` prefers when deciding whether an entry is a buy-stop
+        //    or a buy-limit; at 0 it falls back to matching the setup string against the
+        //    literal word "Pullback", and Claude's setup text is free-form ("Support bounce"),
+        //    so a genuine limit entry is read as a stop entry and "triggers" on the first bar
+        //    that trades anywhere near it - crediting or blaming a fill that never happened.
+        val priced = rows.filter {
+            it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 &&
+                it.price > 0.0 && it.sessionDay == today
+        }
+        if (priced.isEmpty()) return
         val recordedAt = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
