@@ -240,9 +240,9 @@ object DayTradingTechnicals {
         // matters because `completedSessions` starts counting today's bar once the session
         // ends, so the series legitimately changes exactly once a day, at the close.
         val dailyKey = "$symbol|${etDateKey(now / 1000)}|${if (afterClose(now)) 1 else 0}"
-        val daily = dailyCache.get(dailyKey) ?: fetchBars(
+        val daily = cachedDaily(dailyKey) ?: fetchBars(
             symbol, range = "3mo", interval = "1d", prePost = false
-        )?.also { dailyCache.put(dailyKey, it) }
+        )?.also { cacheDaily(dailyKey, it) }
         // PRE/POST INCLUDED SINCE ROUND 69 - the premarket high is a real trigger level (see
         // the header), and it costs nothing: the same one request now carries both sessions,
         // and [regularSession] splits them back apart so VWAP, the opening range and the
@@ -467,6 +467,20 @@ object DayTradingTechnicals {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Bar>>) =
             size > DAILY_CACHE_MAX
     }
+
+    // SYNCHRONISED, because the sweep is parallel. `enrichDayTradingVisible` fetches symbols
+    // concurrently under a Semaphore, and an access-ordered LinkedHashMap rewrites its own
+    // links on a plain `get` - so reads race with reads here, not just with writes.
+    private fun cachedDaily(key: String): List<Bar>? = synchronized(dailyCache) {
+        dailyCache[key]
+    }
+
+    private fun cacheDaily(key: String, bars: List<Bar>) = synchronized(dailyCache) {
+        dailyCache.put(key, bars); Unit
+    }
+
+    /** Test seam: the memo is process-wide, so a test that fakes the clock must be able to drop it. */
+    internal fun clearDailyCache() = synchronized(dailyCache) { dailyCache.clear() }
 
     /** Calendar date in New York, as a comparable yyyymmdd integer. */
     private fun etDateKey(epochSeconds: Long): Int {
