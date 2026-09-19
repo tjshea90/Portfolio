@@ -903,26 +903,55 @@ internal fun scoreDayTradingRow(
  */
 internal fun effectiveTechnicals(
     row: com.tj.portfolio.data.ResearchRow,
-    tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
+    tech: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals,
+    // A parameter with a default rather than a bare clock call, so the carry-forward rule
+    // below can be exercised on a timeline a test controls. Every caller in the app omits it.
+    now: Long = System.currentTimeMillis()
 ): com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals {
     val sameSession = row.sessionDay.isNotBlank() && row.sessionDay == tech.sessionDay
+    // ---- A FAILED REQUEST IS NOT A CHANGE OF SESSION.
+    //
+    // `tech.sessionDay` is blank both when the intraday request FAILED and when it succeeded
+    // with no bars dated today, and this function used to treat the two identically: every
+    // intraday field fell to 0. On a 30-symbol sweep a transient failure of one host is
+    // routine, so that happened often - and it was not a cosmetic blank. With `vwap` and
+    // `sessionLow` at 0, `ResearchScore.planInternal` can no longer take the VWAP-reclaim or
+    // pullback branch, `rangeUsed` reads 0, the room cap disappears entirely, and `vol` swaps
+    // from the real 5-minute ATR to `atr14 * 0.10`. Since the stop is sized at 1.5-2.5x `vol`,
+    // the entry, stop and target the user is looking at changed by a large factor on that
+    // tick and changed back on the next - three money levels flickering between two entirely
+    // different trade plans, for no reason but a dropped request.
+    //
+    // So: when the request never came back, keep what the row already had - but only while
+    // the row's own reading really is THIS session's. That last condition is what stops the
+    // carry-forward from resurrecting yesterday's high and low across the open, which is the
+    // failure mode the `sameSession` rule exists to prevent in the first place.
+    val fetchFailed = !tech.intradayFetched &&
+        row.sessionDay.isNotBlank() &&
+        row.sessionDay == com.tj.portfolio.net.MarketClock.dayKey(now)
+    val keepIntraday = sameSession || fetchFailed
     return tech.copy(
         atr14 = if (tech.atr14 > 0) tech.atr14 else row.atr,
         adr = if (tech.adr > 0) tech.adr else row.adr,
         prevHigh = if (tech.prevHigh > 0) tech.prevHigh else row.prevHigh,
-        vwap = if (tech.vwap > 0) tech.vwap else if (sameSession) row.vwap else 0.0,
+        vwap = if (tech.vwap > 0) tech.vwap else if (keepIntraday) row.vwap else 0.0,
         openingRangeHigh = if (tech.openingRangeHigh > 0) tech.openingRangeHigh
-        else if (sameSession) row.openingRangeHigh else 0.0,
+        else if (keepIntraday) row.openingRangeHigh else 0.0,
         openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow
-        else if (sameSession) row.openingRangeLow else 0.0,
+        else if (keepIntraday) row.openingRangeLow else 0.0,
         atrIntraday = if (tech.atrIntraday > 0) tech.atrIntraday
-        else if (sameSession) row.atrIntraday else 0.0,
+        else if (keepIntraday) row.atrIntraday else 0.0,
         premarketHigh = if (tech.premarketHigh > 0) tech.premarketHigh
-        else if (sameSession) row.premarketHigh else 0.0,
+        else if (keepIntraday) row.premarketHigh else 0.0,
         sessionHigh = if (tech.sessionHigh > 0) tech.sessionHigh
-        else if (sameSession) row.sessionHigh else 0.0,
+        else if (keepIntraday) row.sessionHigh else 0.0,
         sessionLow = if (tech.sessionLow > 0) tech.sessionLow
-        else if (sameSession) row.sessionLow else 0.0
+        else if (keepIntraday) row.sessionLow else 0.0,
+        // The reading now describes the row's session again, so say so - otherwise the NEXT
+        // tick sees a blank `sessionDay` on the merged row and the carry-forward unravels one
+        // tick later than it used to.
+        sessionDay = if (keepIntraday && tech.sessionDay.isBlank()) row.sessionDay
+        else tech.sessionDay
     )
 }
 
