@@ -54,9 +54,17 @@ diff; this is a fresh standalone pass over the whole app at v7.27.
       the HARNESS was wrong; fixed the harness and it is now 40,000
       histories clean across both modes.
 - [x] Reconcile findings and fix everything real — see the list below
-- [ ] Re-run the unit suite after fixes; re-check anything a fix touched
-- [ ] Checkpoint as work completes
+- [x] Re-run the unit suite after fixes; re-check anything a fix touched
+      — 1204 tests / 0 failures / 0 skipped, checkinit ok, randomised
+      ledger harness clean. Two existing tests pinned behaviour this pass
+      deliberately changed (a truncated backup "warning" on Replace, and a
+      fee resolving on a non-trade row); both were rewritten to the new
+      contract rather than worked around.
+- [x] Checkpoint as work completes (ckpt 1562-1568)
 - [ ] Ship the result per CLAUDE.md's auto-ship policy and post the link
+      — v7.28 (code 85) gated and pushed; GitHub run 35457943340 triggered.
+      When green: `bash tools/record-release.sh v7.28 "<ship note>"`, then
+      post the Release link.
 
 ### What the audits found, and what was done
 
