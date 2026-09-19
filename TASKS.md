@@ -1,6 +1,54 @@
 # TASKS — the current job
 
-## Tj's request, 2026-09-19 (his own words)
+## Tj's follow-up, 2026-09-19 (his own words)
+
+> The link gives me a 404. Fix this for all future ships
+
+Investigated: `tjshea90/Portfolio` is a PRIVATE repo, confirmed via
+`search_repositories` (`"visibility":"private"`). GitHub returns 404, not
+403, to anyone viewing a private repo's Release page without access - so
+the link itself was correct (verified: it exists, is published, has its
+signed APK attached), but an unauthenticated fetch of the exact same URL
+also 404s. This means Tj's browser wasn't logged into the `tjshea90`
+GitHub account when he clicked it.
+
+While investigating, found something more serious: **the signing keystore
+(`app/sideload.jks`) is present in this repo's git HISTORY** - added in the
+old Cowork-era commit `f00c950` (2026-09-07) and again in the `5304cd6`
+"Import ... checkpoint 66" commit (2026-09-10), never scrubbed, just later
+removed from the working tree. It is NOT in the current HEAD tree, but the
+blob is fully fetchable from those commit SHAs today. This matters because
+BRIEF.md's whole safety model for this file assumed the repo stayed
+private - not that the key was actually absent from history.
+
+Asked Tj how to proceed (AskUserQuestion, twice - once on repo visibility,
+once specifically on the keystore-in-history risk after finding it). He
+chose: **make the whole repo public, accepting the keystore exposure risk
+knowingly.**
+
+Then hit a hard capability wall: **there is no tool in this session that
+can change a GitHub repo's visibility.** The GitHub MCP toolset here has no
+`update_repository`/settings call, and there's no `gh` CLI or raw API
+access in this environment (see the system prompt's GitHub Integration
+section). This is not something `ship.sh`/`record-release.sh`/the
+`android.yml` workflow can do either - it is a one-time manual step only
+Tj can take, from github.com → Settings → General → Danger Zone → Change
+repository visibility → Public.
+
+### Status - blocked on Tj, not on more work here
+
+- [x] Diagnosed the 404 (private repo, correct link, needs login OR public)
+- [x] Found and disclosed the keystore-in-history exposure risk before
+      acting on "make it public"
+- [x] Got Tj's explicit, risk-informed decision (public, accepts the risk)
+- [ ] **Tj**: flip visibility himself (I cannot do this from here) - OR
+      ask a future session to purge the keystore blob from history first,
+      which I offered and he declined for now
+- [ ] Once the repo is confirmed public (a future session can check via
+      `search_repositories`'s `visibility` field), the "log in to see the
+      link" caveat can be dropped from how release links are announced
+
+## Tj's earlier request, 2026-09-19 (his own words)
 
 > Do what you need to do to ship it and make the new version APK, and for
 > every future update, always push the apk and send me the link to the
