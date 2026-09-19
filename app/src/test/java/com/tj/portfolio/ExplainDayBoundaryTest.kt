@@ -56,8 +56,13 @@ class ExplainDayBoundaryTest {
             s.contains("essentially now"))
     }
 
+    // NOTE the extra 6 hours, here and in the earnings case below. An EXACT multiple of a
+    // day sits precisely on the floor boundary: `now` is read here and again inside Explain
+    // a few millis later, so the gap is a hair UNDER nine days by the time it is divided and
+    // floors to 8. That is the function behaving correctly - it is the test that would be
+    // racy - so the fixture is placed mid-day instead of on the edge.
     @Test fun `ex-dividend cut-off well ahead counts the days`() {
-        val s = divRead("exDividendDate", now + 9 * 24 * hour)
+        val s = divRead("exDividendDate", now + 9 * 24 * hour + 6 * hour)
         assertTrue("expected a forward count: $s", s.contains("in 9 days"))
     }
 
@@ -97,7 +102,7 @@ class ExplainDayBoundaryTest {
     }
 
     @Test fun `earnings several days out still counts the days`() {
-        val s = earningsRead(now + 4 * 24 * hour)
+        val s = earningsRead(now + 4 * 24 * hour + 6 * hour)
         assertTrue("expected a forward count: $s", s.contains("in 4 days"))
     }
 }
