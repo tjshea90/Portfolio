@@ -1688,6 +1688,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         val watchlist: Int = 0,
         val settings: Int = 0,
         val imports: Int = 0,
+        val dayTrading: Int = 0,
         val replaced: Boolean = false,
         val error: String? = null,
         val warning: String? = null
@@ -1701,6 +1702,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             if (watchlist > 0) append(", ").append(watchlist).append(" watchlist symbol(s)")
             if (settings > 0) append(", ").append(settings).append(" setting(s)")
             if (imports > 0) append(", ").append(imports).append(" import record(s)")
+            if (dayTrading > 0)
+                append(", ").append(dayTrading).append(" day-trading record(s)")
             if (warning != null) append(". ").append(warning)
         }
     }
@@ -1961,7 +1964,10 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 "Warning: the file lists $expected transactions but ${n + skipped} were readable."
             else null
 
-            return RestoreResult(n, skipped, ovN, wN, sN, iN, replace, null, warning)
+            return RestoreResult(
+                n, skipped, ovN, wN, sN, iN, dN,
+                replaced = replace, error = null, warning = warning
+            )
         } catch (e: Exception) {
             return RestoreResult(error = "Restore failed: ${e.message}")
         } finally {
