@@ -130,28 +130,10 @@ from his side he already explained it.
 Tick a box only when it is written, tested (name the test, if one applies)
 and committed. The next session will not re-verify a ticked box.
 
-## Model screener — flag before working, not after
+## Model
 
-Tj runs Claude Sonnet 5 by default. A `UserPromptSubmit` hook
-(`tools/screener.sh`, wired the same way as the other three hooks — see
-`tools/hooks/screen.sh`) fires on every single message he sends, not just
-at session start, and reminds you to weigh the request against
-`SCREENER.md`'s Opus-escalation criteria before touching anything. That
-reminder is mechanical and cheap; the actual judgment call is yours, every
-time, freshly — don't rely on having "already decided" earlier in a long
-session, since this is exactly the kind of check compaction and time can
-erode.
-
-If a request matches — money-accuracy logic, anything irreversible (the
-keystore, the release pipeline), a locked architecture change, a genuinely
-ambiguous design decision, a fix already tried and failed, or Tj's own
-words flagging it as important — confirm the current model with
-`get_session` (session_id omitted) and, if it isn't already Opus-class,
-**stop before any edit, build, or `ship.sh`/git push** and say so, so he can
-switch models and restart the same request. Don't do a little work "just to
-be safe" first — the whole point is to flag before, not after.
-
-Full protocol and criteria: `SCREENER.md`.
+There is no model screener. Work every request under whichever model this
+session is actually running — don't stop to ask Tj to switch.
 
 ## Saving work — three levels (see "FIRST ACTION" above before trusting level 1)
 
