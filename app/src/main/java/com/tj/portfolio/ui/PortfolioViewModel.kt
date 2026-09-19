@@ -408,6 +408,15 @@ private const val MAX_PRICE_FILL = 20
 private const val DAY_TRADING_LIVE_INTERVAL_MS = 30_000L
 
 /**
+ * The same loop's heartbeat once the market is shut.
+ *
+ * Not zero, because the tab can be left open across the bell and the loop has to notice the
+ * open without being restarted. Five minutes is well inside the slack that matters for that
+ * and is 10x cheaper than pretending it is a trading session all night.
+ */
+private const val DAY_TRADING_LIVE_CLOSED_INTERVAL_MS = 300_000L
+
+/**
  * How many Form 4 filings the Insider tab holds.
  *
  * Its OWN cap, and that is the point. Sharing [MAX_FEED_ITEMS] with the news feed is what
@@ -6441,8 +6450,39 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         dayTradingLiveJob?.cancel()
         dayTradingLiveJob = fgScope.launch {
             while (isActive) {
-                enrichDayTradingVisible()
-                delay(DAY_TRADING_LIVE_INTERVAL_MS)
+                // ---- ASK THE CLOCK AND THE RADIO FIRST, THE WAY `startAuto` ALREADY DOES.
+                //
+                // This loop used to sweep unconditionally. Two cases made that expensive for
+                // nothing:
+                //
+                // CLOSED MARKET. Neither leg of `DayTradingTechnicals.fetch` can produce a
+                // different answer at 11pm or on a Sunday - the daily bars are settled and
+                // there are no new intraday bars - yet the cadence was identical to the
+                // open-market one. The main quote loop has consulted the clock for this
+                // reason since Round 56 (`currentQuoteIntervalSecs`), and
+                // `captureDayTradingRecommendations` gates itself on `phase() == OPEN`; this
+                // loop simply never asked. Tj's "use as much data as it needs while the tab
+                // is open" was about the trading session, not about 3am.
+                //
+                // OFFLINE. `startAuto` skips its pass when `online()` is false, with a note
+                // that a tunnel otherwise "cost battery going in and a stale screen for
+                // minutes coming out", because three failures arm an escalating per-host
+                // cooldown in `Http`. This loop had no such check, so a dead spot fired a
+                // failing socket per visible row every 30 seconds and armed the very
+                // cooldowns the main loop is careful to avoid - leaving the tab stale for
+                // minutes after signal returned.
+                //
+                // EXTENDED hours still sweep: pre-market and after-hours prints move the
+                // premarket high and the session high/low, which are real trigger levels.
+                val phase = com.tj.portfolio.net.MarketClock.phase()
+                if (phase != com.tj.portfolio.net.MarketClock.Phase.CLOSED && online()) {
+                    enrichDayTradingVisible()
+                }
+                delay(
+                    if (phase == com.tj.portfolio.net.MarketClock.Phase.CLOSED)
+                        DAY_TRADING_LIVE_CLOSED_INTERVAL_MS
+                    else DAY_TRADING_LIVE_INTERVAL_MS
+                )
             }
         }
     }
