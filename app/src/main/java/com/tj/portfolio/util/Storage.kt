@@ -246,12 +246,42 @@ object Storage {
     fun appBackupDir(ctx: Context): File =
         File(ctx.filesDir, "backups").apply { if (!exists()) mkdirs() }
 
+    /**
+     * ---- WRITE BESIDE IT, THEN SWAP. The same hazard as the Downloads writer above.
+     *
+     * `writeText` truncates before it writes, and this is the writer for the rolling private
+     * snapshots. A write that threw part-way (disk full, IO error) left a TRUNCATED file
+     * carrying the NEWEST modification time - and `latestSnapshotJson` picks the newest by
+     * mtime and hands it to Settings' "restore latest snapshot" button. So the failure did not
+     * just lose one snapshot: it promoted the broken one to the head of the queue, where it
+     * also counted against the `keep` window and pushed a good snapshot out on the next save.
+     *
+     * A temp file plus `renameTo` is atomic within a filesystem, so a reader sees either the
+     * whole old snapshot or the whole new one and never a half-written document. If the rename
+     * cannot be done, the previous snapshot is left exactly as it was - which is the entire
+     * point of keeping it.
+     */
     fun saveToAppFolder(ctx: Context, fileName: String, content: String): File? = try {
-        val f = File(appBackupDir(ctx), fileName)
-        f.writeText(content)
-        prune(ctx)
-        f
+        val dir = appBackupDir(ctx)
+        val f = File(dir, fileName)
+        val tmp = File(dir, "$fileName.tmp")
+        tmp.writeText(content)
+        val landed = if (tmp.renameTo(f)) {
+            true
+        } else {
+            // Some filesystems refuse a rename onto an existing file. Deleting first opens a
+            // window where neither copy exists, so it is the fallback, not the first move.
+            f.delete(); tmp.renameTo(f)
+        }
+        if (!landed) {
+            tmp.delete()
+            null
+        } else {
+            prune(ctx)
+            f
+        }
     } catch (e: Exception) {
+        runCatching { File(appBackupDir(ctx), "$fileName.tmp").delete() }
         null
     }
 

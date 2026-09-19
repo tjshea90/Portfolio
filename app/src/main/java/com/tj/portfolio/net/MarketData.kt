@@ -496,7 +496,15 @@ object MarketData {
             Quote(
                 symbol = symbol.uppercase(),
                 price = c,
-                prevClose = o.optDouble("pc", c),
+                // NEVER FABRICATE A PREVIOUS CLOSE - the same rule `parseYahoo` and `stooq`
+                // already state in full. `optDouble(key, fallback)` returns the fallback when
+                // the key is ABSENT, and the fallback here was `c`, today's price: a Finnhub
+                // reply carrying `c` but no `pc` produced `prevClose == price`, so the day
+                // change rendered as a confident +0.00 / +0.00%. Finnhub is the middle rung of
+                // the locked source order, so this is the parser a user actually sees when
+                // Yahoo is throttled - and a fake flat day is indistinguishable from a real
+                // one. At 0.0 the UI prints "not available" and `hasDay` keeps it off the row.
+                prevClose = o.optDouble("pc", 0.0).coerceAtLeast(0.0),
                 dayHigh = o.optDouble("h", 0.0),
                 dayLow = o.optDouble("l", 0.0),
                 marketState = "",
