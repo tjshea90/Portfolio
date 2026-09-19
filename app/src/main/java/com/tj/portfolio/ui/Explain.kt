@@ -1219,8 +1219,9 @@ object Explain {
                         "before then to receive the next payment." to Verdict.NEUTRAL
                     d in 0..1 -> "The cut-off is ${Fmt.day(c.v.toLong())} - essentially now." to
                         Verdict.NEUTRAL
-                    else -> "The last cut-off was ${Fmt.day(c.v.toLong())}, ${-d} days ago." to
-                        Verdict.NEUTRAL
+                    // -d is now reachable at 1 (floorDiv), so this has to say "1 day ago".
+                    else -> ("The last cut-off was ${Fmt.day(c.v.toLong())}, ${-d} " +
+                        (if (d == -1L) "day" else "days") + " ago.") to Verdict.NEUTRAL
                 }
             }
         )
@@ -1236,9 +1237,15 @@ object Explain {
                 "and whether you have it reinvested automatically.",
             read = { c ->
                 val d = daysFromNow(c.v)
-                if (d >= 0) "The next payment is due ${Fmt.day(c.v.toLong())}, in $d days." to
-                    Verdict.NEUTRAL
-                else "The last payment was ${Fmt.day(c.v.toLong())}." to Verdict.NEUTRAL
+                when {
+                    d > 1 -> "The next payment is due ${Fmt.day(c.v.toLong())}, in $d days." to
+                        Verdict.NEUTRAL
+                    d == 1L -> "The next payment is due ${Fmt.day(c.v.toLong())}, tomorrow." to
+                        Verdict.NEUTRAL
+                    d == 0L -> "The next payment is due ${Fmt.day(c.v.toLong())} - today." to
+                        Verdict.NEUTRAL
+                    else -> "The last payment was ${Fmt.day(c.v.toLong())}." to Verdict.NEUTRAL
+                }
             }
         )
 
