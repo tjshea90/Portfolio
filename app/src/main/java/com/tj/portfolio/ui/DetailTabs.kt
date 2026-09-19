@@ -431,9 +431,10 @@ fun EarningsTab(
                             startPad = 0,
                             onInfo = onInfo
                         )
-                        val days = (f.earningsDate - System.currentTimeMillis()) / 86_400_000L
+                        val now = System.currentTimeMillis()
+                        val days = (f.earningsDate - now) / 86_400_000L
                         Text(
-                            if (days >= 0)
+                            if (f.earningsDate >= now)
                                 "In $days days. Expect a bigger-than-usual price move that day."
                             else "That date has passed; the next one is not scheduled yet.",
                             style = MaterialTheme.typography.bodySmall,
