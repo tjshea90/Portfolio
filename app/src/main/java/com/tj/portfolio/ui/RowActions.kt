@@ -163,10 +163,10 @@ private fun EditPositionDialog(
     // This is the identical bug the transaction editor had and fixed in this same round -
     // `Fmt.exact` was written for it, and the KDoc at [Fmt.exact] tells the story. The other
     // editor that writes to the ledger was missed.
-    var shares by remember(symbol) {
+    var shares by rememberSaveable(symbol) {
         mutableStateOf(PositionFields.shares(row?.shares ?: 0.0))
     }
-    var cost by remember(symbol) {
+    var cost by rememberSaveable(symbol) {
         mutableStateOf(PositionFields.cost(row?.avgCost ?: 0.0))
     }
     val hasOverride = remember(symbol) { vm.overrideFor(symbol) != null }
