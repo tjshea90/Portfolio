@@ -117,8 +117,22 @@ object Explain {
     private fun money(v: Double): String =
         if (abs(v) >= 1_000_000) "$" + Fmt.compact(v) else Fmt.usd(v)
 
+    /**
+     * Whole calendar days from now to [ms], floor-rounded so a timestamp in the PAST reads
+     * as negative (`-1`, `-2`, ...) rather than `0`.
+     *
+     * PLAIN `/` ON A LONG TRUNCATES TOWARD ZERO, NOT FLOOR. A date 17 hours in the past
+     * divides a small negative numerator and lands on `0`, so every "is it still ahead of
+     * us?" test written as `d >= 0` stayed true for the whole ~24 hours AFTER the date had
+     * passed - telling the reader an ex-dividend cut-off they have already missed is
+     * "essentially now", and that a dividend paid yesterday is still "due". `Math.floorDiv`
+     * rounds toward negative infinity instead, so the boundary lands on the correct side.
+     *
+     * This is the same trap, and the same fix, as [com.tj.portfolio.net.Research.daysUntilEarnings]
+     * - which documents it at length. Kept in step with that one deliberately.
+     */
     private fun daysFromNow(ms: Double): Long =
-        (ms.toLong() - System.currentTimeMillis()) / 86_400_000L
+        Math.floorDiv(ms.toLong() - System.currentTimeMillis(), 86_400_000L)
 
     /**
      * Pick the first band whose upper bound the value is under. Bands are given
