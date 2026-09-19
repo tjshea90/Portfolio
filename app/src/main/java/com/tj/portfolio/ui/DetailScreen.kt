@@ -376,6 +376,7 @@ fun DetailScreen(
     // state.txns is the full history and this screen recomposes on every price tick, so
     // the filter is keyed on the list identity - it only re-runs when the ledger changes.
     val txns = remember(state.txns, symbol) { state.txns.filter { it.symbol == symbol } }
+    val editingTxn = remember(txns, editingTxnId) { txns.firstOrNull { it.id == editingTxnId } }
 
     LaunchedEffect(symbol) {
         vm.loadNews(symbol)
