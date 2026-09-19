@@ -123,7 +123,7 @@ fun WatchlistScreen(
     onOpenNews: (String) -> Unit,
     onSearch: () -> Unit
 ) {
-    var pending by remember { mutableStateOf<PendingAction?>(null) }
+    var pending by rememberSaveable(stateSaver = PendingAction.Saver) { mutableStateOf<PendingAction?>(null) }
     val rows = state.rows.filter { it.watchOnly }
 
     // The one place %-since-added baselines get resolved - opening the tab is the signal,
