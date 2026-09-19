@@ -168,6 +168,12 @@ object DayTradingTechnicals {
          * YESTERDAY's session high and low to this morning's plan the first time the 09:31
          * fetch missed - and since `rangeUsed` on a finished session is about 1.0, every
          * affected row would open the day reading "already extended, do not chase".
+         *
+         * BLANK, NOT TODAY'S DATE, when [fetch] found no intraday bars actually dated today -
+         * weekends, market holidays, and any request before 4am ET all hand back the LAST
+         * trading day's bars instead (see [latestDay]), and every intraday-derived field above
+         * is 0.0 in that case for the same reason: a finished session's real numbers are not
+         * this morning's, however non-zero they are.
          */
         val sessionDay: String = ""
     ) {
