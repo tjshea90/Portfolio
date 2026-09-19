@@ -954,9 +954,21 @@ fun DetailScreen(
         onOpen = { },
         onNews = { },
         onDone = {
+            // ---- READ THE LIVE STATE, NOT THE ONE THIS LAMBDA CLOSED OVER.
+            //
+            // `state` is a plain `UiState` PARAMETER, captured by value when this lambda was
+            // created. The DELETE confirm handler calls `vm.deleteSymbol(symbol)` - which
+            // recomputes and publishes synchronously - and then `onDone()`, all inside the
+            // same click. Compose does not recompose in the middle of a click handler, so the
+            // executing lambda still held the PRE-DELETE `state`, whose `rows` still contained
+            // the symbol. `none { }` was therefore always false and `onBack()` never ran,
+            // leaving the user on a detail screen for a position that no longer exists.
+            //
+            // `vm.ui.value` is the published state as of right now, which is what the question
+            // "is this symbol still held?" actually means here.
             val wasDelete = pending?.action == RowAction.DELETE
             pending = null
-            if (wasDelete && state.rows.none { it.symbol == symbol }) onBack()
+            if (wasDelete && vm.ui.value.rows.none { it.symbol == symbol }) onBack()
         }
     )
 }
