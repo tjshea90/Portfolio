@@ -94,9 +94,12 @@ internal fun txnSubtitle(t: Txn): String = buildString {
 @Composable
 fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
     val ctx = LocalContext.current
-    var showAdd by remember { mutableStateOf(false) }
-    var editing by remember { mutableStateOf<Txn?>(null) }
-    var confirmDelete by remember { mutableStateOf<Long?>(null) }
+    var showAdd by rememberSaveable { mutableStateOf(false) }
+    // An id, not the Txn itself - Txn isn't Saveable. Looked up against state.txns below,
+    // the same pattern DetailScreen's edit dialog uses, so this survives process death.
+    var editingId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val editing = remember(state.txns, editingId) { state.txns.firstOrNull { it.id == editingId } }
+    var confirmDelete by rememberSaveable { mutableStateOf<Long?>(null) }
     val importing by vm.importing.collectAsState()
     val result by vm.importResult.collectAsState()
     val lastImport by vm.lastImport.collectAsState()
