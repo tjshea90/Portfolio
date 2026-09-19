@@ -449,6 +449,25 @@ object DayTradingTechnicals {
         intraday.filter { etMinutes(it.t) in PREMARKET_START_MIN until OR_START_MIN }
             .maxOfOrNull { it.high } ?: 0.0
 
+    /** True once 16:00 ET has passed on the given instant's own New York date. */
+    private fun afterClose(nowMs: Long): Boolean = etMinutes(nowMs / 1000) >= SESSION_END_MIN
+
+    /**
+     * The memo behind `fetch`'s daily leg.
+     *
+     * Deliberately tiny and deliberately in memory. The bars it holds are already on disk in
+     * `http_cache` (the request is conditional), so this is not the durable cache - it exists
+     * to stop the app opening a socket at all for a series that provably cannot have changed
+     * since the last tick. `DAY_TRADING_BUFFER` is 40 symbols, so the cap is generous enough
+     * to hold a whole sweep and small enough to be irrelevant to memory; when the ET date or
+     * the side of the close changes, every key changes with it and the old entries fall out.
+     */
+    private const val DAILY_CACHE_MAX = 64
+    private val dailyCache = object : LinkedHashMap<String, List<Bar>>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Bar>>) =
+            size > DAILY_CACHE_MAX
+    }
+
     /** Calendar date in New York, as a comparable yyyymmdd integer. */
     private fun etDateKey(epochSeconds: Long): Int {
         val c = Calendar.getInstance(ET)
