@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.util.Fmt
@@ -335,7 +336,14 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
     val dupCount = dupes.count { it }
 
     AlertDialog(
-        onDismissRequest = { vm.clearImport() },
+        // ---- THE EXTRACTION COST A REAL CLAUDE API CALL. DO NOT DROP IT ON A MISTAP.
+        //
+        // `clearImport()` is `_importResult.value = null`, and the extracted rows exist
+        // nowhere else - so one tap outside a dialog that can be a hundred rows tall
+        // permanently discarded a result that only a deliberate button press can produce.
+        // Cancel and Import are now the only ways out, both explicit.
+        onDismissRequest = { },
+        properties = DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false),
         title = {
             Text(
                 if (r.error != null) "Import failed"

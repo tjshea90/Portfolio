@@ -20,6 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.tj.portfolio.util.Fmt
 
 /** A long-press action waiting to be handled. */
@@ -173,6 +174,14 @@ private fun EditPositionDialog(
 
     AlertDialog(
         onDismissRequest = onDone,
+        // ---- A TAP OUTSIDE MUST NOT THROW AWAY WHAT WAS TYPED.
+        //
+        // Material3's default `DialogProperties` dismisses on an outside tap, and this
+        // dialog's dismiss path keeps nothing: everything entered is gone, with no
+        // confirmation and no undo. Making the fields `rememberSaveable` protected them
+        // against PROCESS DEATH; the far more likely loss is a mistap while entering a
+        // trade. Back still dismisses, so there is always a deliberate way out.
+        properties = DialogProperties(dismissOnClickOutside = false),
         title = { Text("Edit $symbol") },
         text = {
             Column {
