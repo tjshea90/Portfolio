@@ -728,7 +728,20 @@ fun DetailScreen(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            if (row?.watchOnly != true) {
+            // ---- `row == null` IS "WE KNOW NOTHING ABOUT THIS SYMBOL", NOT "YOU OWN IT".
+            //
+            // `row` is the held/watched row, or a transient watch-only row built from a cached
+            // quote - so it is NULL for a symbol the user searched into view that is neither
+            // held nor watched and has no quote yet. The test was `row?.watchOnly != true`,
+            // and `null != true` is true, so that symbol got the OWNER's controls: "Edit
+            // position" (opening the override dialog seeded from `row?.shares ?: 0.0`) and
+            // "Add transaction", with no way to add it to the watchlist from the very screen
+            // the user had just searched it into.
+            //
+            // Usually it lasted a second, until the quote landed. Offline, or when every
+            // provider fails for that ticker, it was the permanent state. Ownership now has to
+            // be positively known.
+            if (row != null && !row.watchOnly) {
                 BigIconButton(Icons.Filled.Edit, "Edit position") {
                     pending = PendingAction(symbol, RowAction.EDIT_POSITION)
                 }
