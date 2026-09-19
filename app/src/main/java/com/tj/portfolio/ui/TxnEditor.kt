@@ -140,9 +140,12 @@ fun TxnEditorDialog(
     onDelete: (() -> Unit)? = null,
     onSave: (Txn) -> Unit
 ) {
-    var type by remember { mutableStateOf(existing?.type ?: presetType ?: TxnType.BUY) }
-    var typeMenu by remember { mutableStateOf(false) }
-    var symbol by remember { mutableStateOf(existing?.symbol ?: presetSymbol ?: "") }
+    // rememberSaveable, not remember: this dialog holds typed-but-unsaved money figures, and
+    // Android can kill the process while it's backgrounded (not just rotate it). Without this,
+    // that typed entry vanished with no warning - see the "full tests" audit that found it.
+    var type by rememberSaveable { mutableStateOf(existing?.type ?: presetType ?: TxnType.BUY) }
+    var typeMenu by rememberSaveable { mutableStateOf(false) }
+    var symbol by rememberSaveable { mutableStateOf(existing?.symbol ?: presetSymbol ?: "") }
     // ---- SEEDED FROM THE STORED VALUES, NOT FROM A DISPLAY FORMATTER (Round 66).
     //
     // THE BUG THIS FIXES. These four boxes used to be filled by `Fmt.shares` and
