@@ -64,12 +64,15 @@ fun SettingsScreen(vm: PortfolioViewModel) {
     var useCash by remember { mutableStateOf(vm.useCashOverride()) }
     var cash by remember { mutableStateOf(if (vm.cashOverrideValue() == 0.0) "" else vm.cashOverrideValue().toString()) }
     var showKey by remember { mutableStateOf(false) }
-    var importText by remember { mutableStateOf("") }
-    var showImport by remember { mutableStateOf(false) }
+    // rememberSaveable below: these hold pasted/picked backup JSON that isn't written
+    // anywhere until the user confirms, and process death would otherwise drop it silently -
+    // see the "full tests" audit that found this class of bug in the txn editor too.
+    var importText by rememberSaveable { mutableStateOf("") }
+    var showImport by rememberSaveable { mutableStateOf(false) }
     var confirmWipe by remember { mutableStateOf(false) }
-    var pendingRestore by remember { mutableStateOf<String?>(null) }
+    var pendingRestore by rememberSaveable { mutableStateOf<String?>(null) }
     /** The backup text waiting on the second confirmation for a destructive "Replace all". */
-    var confirmReplace by remember { mutableStateOf<String?>(null) }
+    var confirmReplace by rememberSaveable { mutableStateOf<String?>(null) }
     var lastBackup by remember { mutableStateOf(vm.lastBackup()) }
     var autoBackup by remember { mutableStateOf(vm.autoBackupOn()) }
     var costMethod by remember { mutableStateOf(vm.costMethod()) }
