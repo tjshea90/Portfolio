@@ -2070,9 +2070,14 @@ object Explain {
                 longTerm = "Over years, the accumulation of quarterly results IS the story " +
                     "of the investment. Any single quarter is mostly noise.",
                 read = if (f.earningsDate > 0) {
-                    val days = (f.earningsDate - System.currentTimeMillis()) / 86_400_000L
-                    if (days >= 0) "The next report is expected ${Fmt.day(f.earningsDate)}, " +
+                    // floorDiv, not `/` - see daysFromNow. Plain Long division made a
+                    // report released last night read as "expected ... in 0 days" for the
+                    // whole following day, promising a price move that had already happened.
+                    val days = Math.floorDiv(f.earningsDate - System.currentTimeMillis(), 86_400_000L)
+                    if (days > 0) "The next report is expected ${Fmt.day(f.earningsDate)}, " +
                         "in $days days. Expect a larger-than-usual price move that day."
+                    else if (days == 0L) "The next report is expected ${Fmt.day(f.earningsDate)} " +
+                        "- today. Expect a larger-than-usual price move."
                     else "The most recent report was ${Fmt.day(f.earningsDate)}."
                 } else "No earnings date is scheduled in the data right now.",
                 verdict = Verdict.NEUTRAL
