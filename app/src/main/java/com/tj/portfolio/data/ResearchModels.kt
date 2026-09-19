@@ -87,7 +87,10 @@ data class ScreenRow(
         else other.fiftyTwoWeekChangePct,
         dividendYield = if (dividendYield != 0.0) dividendYield else other.dividendYield,
         earningsAt = if (earningsAt > 0) earningsAt else other.earningsAt,
-        earningsEstimated = earningsEstimated && other.earningsEstimated,
+        // Read from whichever side's earningsAt actually survives above, not ANDed blindly -
+        // otherwise a real date from `other` inherits this side's flag regardless of whether
+        // this side even had a date to be estimated or confirmed.
+        earningsEstimated = if (earningsAt > 0) earningsEstimated else other.earningsEstimated,
         exchange = exchange.ifBlank { other.exchange },
         lists = lists + other.lists
     )
