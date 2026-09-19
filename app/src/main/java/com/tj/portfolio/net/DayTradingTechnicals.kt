@@ -259,11 +259,14 @@ object DayTradingTechnicals {
             prevHigh = prev?.high ?: 0.0,
             prevLow = prev?.low ?: 0.0,
             prevClose = prev?.close ?: 0.0,
-            premarketHigh = intradayAll?.let { premarketHigh(it) } ?: 0.0,
+            premarketHigh = intradayToday?.let { premarketHigh(it) } ?: 0.0,
             sessionHigh = regular?.maxOfOrNull { it.high } ?: 0.0,
             sessionLow = regular?.minOfOrNull { it.low } ?: 0.0,
             sessionLive = MarketClock.phase(now) == MarketClock.Phase.OPEN,
-            sessionDay = MarketClock.dayKey(now)
+            // Blank, not today's date, when there is no intraday reading for today - so
+            // `sameSession` downstream correctly refuses to carry a row's own cached values
+            // forward either, rather than agreeing with itself that nothing is today's.
+            sessionDay = if (intradayToday != null) MarketClock.dayKey(now) else ""
         )
     }
 
