@@ -108,8 +108,12 @@ object TxnFields {
         // The ledger itself ignores quantity/price on a non-trade type, so this never
         // touched a total - but it permanently corrupted what the row's own subtitle shows.
         // Zeroed at the source, the same way SPLIT already is just above.
+        // The fee goes too, for the same reason the quantity and price do: the box is not on
+        // screen for these types, `cashEffect` does not apply a fee to them, and a value left
+        // behind it after switching type would be counted by `Ledger.fees()` while never
+        // leaving the cash balance. See the Fees box's own note in the dialog.
         if (type != TxnType.BUY && type != TxnType.SELL) {
-            return Resolved(0.0, 0.0, amount.toNum(), fees.toNum())
+            return Resolved(0.0, 0.0, amount.toNum(), 0.0)
         }
         val q = qty.toNum()
         val f = fees.toNum()
@@ -224,7 +228,10 @@ fun TxnEditorDialog(
         // A split moves no money, so it must not be asked for an amount - and its fee box
         // is not on screen, so a stale value behind it must not block saving either.
         !isTrade && !isSplit && aNum <= 0 -> "Enter an amount"
-        !isSplit && feeNum < 0 -> "Fees can't be negative"
+        // `isTrade`, not `!isSplit`: the fee box is only on screen for a trade now, so a
+        // stale negative left behind it on any other type must not block a save it cannot
+        // affect - exactly the reasoning the amount check above already applies to SPLIT.
+        isTrade && feeNum < 0 -> "Fees can't be negative"
         else -> null
     }
 
@@ -294,7 +301,22 @@ fun TxnEditorDialog(
                         if (isTrade) "Total cash moved, fees included (optional)" else "Amount",
                         amount, numeric = true
                     ) { amount = it }
-                    EditField("Fees", fees, numeric = true) { fees = it; feesTouched = true }
+                    // ---- ONLY A TRADE HAS A FEE THAT THIS APP CAN ACCOUNT FOR.
+                    //
+                    // The box used to be shown for every non-SPLIT type, but `Txn.cashEffect`
+                    // returns a bare +-abs(amount) for DEPOSIT / WITHDRAWAL / DIVIDEND /
+                    // INTEREST / FEE and never subtracts `fees` - while `Ledger.fees()` sums
+                    // `fees` across ALL rows. So a $50 dividend entered with a $2 fee reported
+                    // $2 of fees paid, showed "fees $2.00" on the Activity row, counted into
+                    // the fee audit - and left cash overstated by exactly $2, permanently. A
+                    // FEE row carrying both `amount` and `fees` double-counted itself.
+                    //
+                    // Hidden rather than silently dropped at save: a fee on a cash movement
+                    // belongs in its own FEE row, which is already a type in this app, and a
+                    // box that is not offered cannot lose what someone typed into it.
+                    if (isTrade) {
+                        EditField("Fees", fees, numeric = true) { fees = it; feesTouched = true }
+                    }
                 }
                 if (isTrade) {
                     Text(
