@@ -813,7 +813,7 @@ object ResearchScore {
         // target already. Whichever of the two is higher is the real floor for supply overhead.
         val above = maxOf(entry, price)
         val nearestAbove = overhead
-            .filter { it.price > above + risk * 0.3 }
+            .filter { it.price > above + risk * MIN_TARGET_STANDOFF_R }
             .minByOrNull { it.price }
 
         // "How much room is left in the day" is a live-session question - the same reason the
@@ -1798,14 +1798,27 @@ object ResearchScore {
             }
         }
 
-        // --- valuation (+-20): PEG where it exists, since it already prices in growth;
-        // forward P/E against a plain reasonable-multiple band otherwise.
+        // --- valuation: PEG where it exists, since it already prices in growth; forward P/E
+        // against a plain reasonable-multiple band otherwise.
+        //
+        // THE TWO BRANCHES DO NOT HAVE THE SAME REACH, which the old "(+-20)" hid. The PEG
+        // curve is `(1.5 - peg) * 10` over `peg > 0`, so it saturates at +15 as peg approaches
+        // zero and only the penalty side reaches the -20 clamp; the forward-P/E fallback,
+        // `(25 - fwdPe) * 0.8`, is symmetric and reaches both. So a stock at PEG 0.3 scores
+        // +12 while an equally cheap one with NO published PEG and a forward P/E of 8 scores
+        // +13.6 - the score moves slightly on whether Yahoo happened to publish a PEG.
+        //
+        // Left as it is deliberately: re-tuning a scoring curve changes every verdict the app
+        // has ever given, and there is no evidence here that +15 is the wrong ceiling for a
+        // sub-zero PEG (a very low PEG is as often a collapsed growth estimate as a bargain).
+        // The clamp below now states the range the branch can actually produce instead of
+        // implying a symmetry it does not have.
         want++
         val peg = v["pegRatio"]
         val fwdPe = v["peForward"]
         if (peg != null && peg > 0.0) {
             have++
-            val pts = ((1.5 - peg) * 10.0).coerceIn(-20.0, 20.0)
+            val pts = ((1.5 - peg) * 10.0).coerceIn(-20.0, 15.0)
             s += pts
             why.add(
                 "PEG ratio ${Fmt.priceBare(peg)} - " + when {
@@ -1902,13 +1915,41 @@ object ResearchScore {
         return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
     }
 
+    /**
+     * How far above the entry a resistance level has to sit before it can be the target,
+     * measured in R (the planned risk).
+     *
+     * Named rather than left as a bare `0.3` in the filter, which is how every other threshold
+     * in this file is expressed. A ceiling essentially ON the entry is not a target - taking
+     * it would be a trade whose reward is a rounding error against its risk - so the nearest
+     * candidate must clear the entry by at least this much before step 4 will use it.
+     */
+    private const val MIN_TARGET_STANDOFF_R = 0.3
+
     /** [RatingRecency.CUTOFF_DAYS] in whole months, for the one sentence that names it. */
     private val CUTOFF_MONTHS = (RatingRecency.CUTOFF_DAYS / 30.0).roundToInt()
 
     /**
-     * The weighted lean as the word a reader expects, on the same boundaries [Consensus.meanLabel]
-     * uses for Yahoo's 1-5 scale - so an age-weighted panel and an undated one never describe the
-     * same balance of opinion with two different words.
+     * The weighted lean as the word a reader expects.
+     *
+     * ---- THIS IS NOT [Consensus.meanLabel]'s SCALE, AND IT CANNOT BE.
+     *
+     * The doc here used to claim both used "the same boundaries ... so an age-weighted panel
+     * and an undated one never describe the same balance of opinion with two different words".
+     * That was simply false. `meanLabel` reads Yahoo's 1-5 `recommendationMean`, where 1 is
+     * strong buy and 5 strong sell; `lean` is a NET of three buckets, bounded to -1..+1. Under
+     * this app's own bucket-to-mean mapping (buy=2, hold=3, sell=4) the two are related by
+     * `mean = 3 - lean`, so `meanLabel`'s cut points land at lean 1.5 / 0.5 / -0.5 / -1.5 -
+     * and lean can never exceed 1.0, which would make "Strong buy" unreachable on a panel
+     * where every single firm says buy. The thresholds below are the ones that make the word
+     * meaningful on a -1..+1 scale, and they are deliberately not Yahoo's.
+     *
+     * The consequence is real and is left as-is on purpose: an all-buy dated panel reads
+     * "Strong buy consensus" in the recommendation popup while the Analysts tab, rendering
+     * Yahoo's own mean, reads "Buy". Two different measurements of two different populations,
+     * each labelled correctly for what it is. What was actually wrong was the undated reason
+     * line taking its WORD from `meanLabel` while its POINTS came from `undatedLean` - fixed
+     * where that line is built, not here.
      */
     internal fun leanLabel(lean: Double): String = when {
         lean >= 0.75 -> "Strong buy"
