@@ -2,48 +2,67 @@
 
 ## Tj's request, 2026-09-19 (his own words)
 
-> Permanently Get rid of the opus screener and just use whatever model I'm
-> using at the time. Make sure you can get rid of the screener without
-> breaking anything
+> From now on, I will be asking for "light tests" and "full tests" after
+> Claude does work on this project. Make permanent knowledge for Claude so
+> that when I tell it to run light tests (at any time I ask) or full
+> tests, Claude knows exactly what to do with no further explanation from
+> me. This must be permanently in Claude awareness so that if I ask, even
+> in a brand new code session with no context, Claude knows what to do.
+>
+> If I ask for light tests (or any similar wording like light test or
+> light testing): run low usage, light test on the last version of the
+> app or the latest in progress work on the app after all work is
+> complete and look for obvious bugs or ui issues and look for any ways
+> other parts of the app may have broken or been corrupted by anything
+> that was changed in the current session. Then fix any findings. If
+> there were any major findings, fix them and when the fixes are
+> complete, run another light test to ensure the fixes worked without
+> breaking any other part of the app.
+>
+> If I ask for full tests (or anything similar like full test or full
+> testing or comprehensive tests): do a full, comprehensive test suite of
+> the entire app. Usage and amount of time spent on the testing is no
+> concern, prioritize best effort at app testing and improvement. During
+> a full test, look for any improvements in code or ui, improvements in
+> network efficiency if Internet is needed, improvements in caching and
+> data retention so important data is not lost from the app, improvements
+> in logic for systems and engines within the app and make sure they work
+> as designed, and search for and fix any bugs or parts of the app that
+> have broken or been corrupted from changes. Search for waste of
+> resources or battery usage and ensure that the app properly sleeps when
+> it is not in use. The goal of this testing is to ensure the final
+> release of the app is efficient and well coded and the features and UI
+> work well and are intuitive with little to no bugs or data loss.
 
 ## Screening
 
-Explicit tooling-removal request, scoped to housekeeping/tests — the class
-SCREENER.md itself carved out as "stays on Sonnet." No escalation.
-
-## What "the screener" was
-
-A `UserPromptSubmit` hook (`tools/screener.sh`, coordinated across repos by
-`tools/hooks/screen.sh`) fired on every message and told the session to
-weigh the request against `SCREENER.md`'s Opus-escalation criteria, stopping
-before any edit if a flagged request wasn't running on an Opus-class model.
+Housekeeping/policy request — writing a permanent protocol into CLAUDE.md,
+no app-logic change. No escalation.
 
 ## Done
 
-- [x] Deleted `tools/screener.sh`, `tools/hooks/screen.sh`,
-      `tools/test_screener.sh`, `SCREENER.md`.
-- [x] Removed the `UserPromptSubmit` block from both hook templates:
-      `tools/session-root-hooks.json` (multi-repo) and this repo's own
-      `.claude/settings.json` (direct). Both re-validated as parseable
-      JSON.
-- [x] Cleaned the stray reference to `screen.sh`/`tools/screener.sh` in
-      `tools/hooks/lib.sh`'s comment.
-- [x] Replaced CLAUDE.md's "Model screener — flag before working, not
-      after" section with a one-line "Model" note: no screener, work under
-      whichever model the session is actually running.
-- [x] Confirmed `install-hooks.sh` (unchanged — it strips any hook entry
-      whose command matches `tools/hooks/` or is tagged
-      `portfolio-checkpoint-hooks` when the template no longer defines that
-      event) actually removes the *already-installed* `UserPromptSubmit`
-      entry from the live session-root settings file, not just from the
-      templates in git. Verified: ran it, `UserPromptSubmit` key is gone
-      from `/home/user/.claude/settings.json`'s `hooks`.
-- [x] Ran `python3 tools/checkinit.py` and all of `tools/test_*.sh`
-      (now just `test_resume.sh`, since `test_screener.sh` is deleted) —
-      all green, nothing else referenced the screener (`BRIEF.md`,
-      `bootstrap.sh`, `resume.sh`, `ckpt.sh` were all clean already).
-- [x] `audits/` and this file's own prior (now-superseded) sections were
-      left untouched — they're historical record, not live wiring.
+- [x] Added a "Testing on request" section to CLAUDE.md (auto-loaded as
+      project instructions every session, independent of hooks or
+      `bootstrap.sh` — the most reliable place, so this works even in a
+      session that never runs `tools/resume.sh`) spelling out the exact
+      "light tests" and "full tests" protocols, worded so no further
+      explanation from Tj is ever needed:
+      - **Light tests**: run `checkinit.py` + the full unit suite, review
+        the session's diff for bugs/UI-logic issues (noting this
+        container has no emulator/device, so "UI issues" means reading
+        the changed Compose code, not a live visual check), grep for
+        other callers of anything changed to catch ripple effects, fix
+        findings, and re-run the same light pass once if anything major
+        was fixed.
+      - **Full tests**: no budget/time limit, full unit suite as the
+        floor, then a whole-app audit (bugs/breakage, code+UI quality,
+        network efficiency and BRIEF.md source-order compliance, caching
+        and data-retention gaps, scoring/engine logic vs. BRIEF.md's
+        locked decisions, battery/background-lifecycle correctness via
+        the `fgScope` pattern), suggesting parallel subagents by
+        subsystem the way past sessions already did (see
+        `audits/round66/`, the "4-way parallel audit" checkpoints), fix
+        everything found, then re-verify.
 
 ## Do this next
 
