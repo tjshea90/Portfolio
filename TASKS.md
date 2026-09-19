@@ -2,6 +2,26 @@
 
 ## Tj's request, 2026-09-19 (his own words)
 
+> Do what you need to do to ship it and make the new version APK, and for
+> every future update, always push the apk and send me the link to the
+> finished apk automatically, without me asking
+
+Two parts:
+1. Ship the full-tests fix session below as a real release (bump version,
+   `ship.sh`, trigger the GitHub build, confirm green, record it).
+2. A standing policy change for every future session: don't wait to be
+   asked to ship - after a meaningful unit of work is done, ship it the
+   same way and post the release link in chat automatically. This is
+   written into CLAUDE.md's "Releasing" section so it survives into new
+   sessions, the same way the light/full-test protocols were. It does NOT
+   change the 2026-09-11 rule that Claude never sends the raw APK bytes -
+   "the link" means the GitHub Release page/asset URL, which
+   `get_release_by_tag` already provides; the technical block on
+   downloading a private repo's release asset bytes is unrelated and
+   still stands.
+
+## Tj's earlier request, 2026-09-19 (his own words)
+
 > Run full tests of the latest version of this app
 
 This is the "full tests" protocol defined below in CLAUDE.md's "Testing on
