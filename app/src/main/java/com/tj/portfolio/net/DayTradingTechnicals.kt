@@ -159,6 +159,25 @@ object DayTradingTechnicals {
         /** True only while the regular session is actually open - see [fetch]. */
         val sessionLive: Boolean = false,
         /**
+         * WHETHER THE INTRADAY REQUEST CAME BACK AT ALL, as distinct from what it said.
+         *
+         * [sessionDay] is blank in two completely different situations, and the difference
+         * decides whether a caller may keep the reading it already has:
+         *
+         *  - the request FAILED (both hosts throttled or erroring) - nothing was learned about
+         *    this session, so the row's own reading from thirty seconds ago is still the best
+         *    information available;
+         *  - the request SUCCEEDED and carried no bars dated today (a weekend, a market
+         *    holiday, any time before 04:00 ET) - that is real information, and yesterday's
+         *    VWAP and session high/low must NOT be carried into it.
+         *
+         * Without this flag `PortfolioViewModel.effectiveTechnicals` had to treat both as a
+         * session change and zero every intraday field, which on a routine transient failure
+         * rebuilt the trade plan from a daily-ATR fallback and made the displayed entry, stop
+         * and target jump to a different plan and back again on the next tick.
+         */
+        val intradayFetched: Boolean = false,
+        /**
          * WHICH TRADING DAY THE INTRADAY HALF OF THIS READING DESCRIBES ([MarketClock.dayKey]).
          *
          * Carried so a stale reading can be told from an out-of-date one. VWAP, the opening
@@ -287,6 +306,8 @@ object DayTradingTechnicals {
             sessionHigh = regular?.maxOfOrNull { it.high } ?: 0.0,
             sessionLow = regular?.minOfOrNull { it.low } ?: 0.0,
             sessionLive = MarketClock.phase(now) == MarketClock.Phase.OPEN,
+            // The REQUEST's fate, not the data's date - see the field's own note.
+            intradayFetched = intradayAll != null,
             // Blank, not today's date, when there is no intraday reading for today - so
             // `sameSession` downstream correctly refuses to carry a row's own cached values
             // forward either, rather than agreeing with itself that nothing is today's.
