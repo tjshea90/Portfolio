@@ -251,11 +251,16 @@ object DayTradingEval {
      * The three numbers below are in BASIS POINTS OF PRICE, not cents, because a $2 stock and a
      * $200 stock have completely different tick economics and this section screens both:
      *
-     *  - [ENTRY_BPS] 5bp. A day-trade entry here is a buy-STOP above resistance or a buy-LIMIT
-     *    at support. The limit gets its price or better; the stop becomes a market order and
-     *    pays. Five basis points is about the measured effective spread on a liquid US name -
-     *    and this section already floors its candidates at [Research]'s $2 / 1M-share filters,
-     *    so a liquid name is what it screens.
+     *  - [ENTRY_BPS] 5bp, charged to EVERY entry alike, not split by setup. A day-trade entry
+     *    here is a buy-STOP above resistance or a buy-LIMIT at support: in principle the limit
+     *    gets its price or better while the stop becomes a market order and pays. [entryFill]
+     *    does not make that distinction - it is one more place this model errs toward
+     *    UNDERSTATING the system, the same rule the rest of this section follows: a limit
+     *    order's "price or better" is the optimistic case, or not a fill at all, and charging
+     *    it the stop's cost anyway is the conservative side to be wrong on. Five basis points
+     *    is about the measured effective spread on a liquid US name - and this section already
+     *    floors its candidates at [Research]'s $2 / 1M-share filters, so a liquid name is what
+     *    it screens.
      *  - [STOP_BPS] 15bp, three times the entry. A protective stop is a market order that
      *    triggers precisely when the tape is moving fast against the position - which is when
      *    slippage is worst, not average. This is the one asymmetry in the model and it is
