@@ -233,8 +233,11 @@ object Research {
 
     /**
      * Funds below these are not opportunities, they are spreads - the same argument
-     * [MIN_MARKET_CAP] makes for stocks, at fund scale. $25m is where issuers start closing
-     * funds; $50k of daily turnover is where the bid-ask stops being a rounding error.
+     * [MIN_MARKET_CAP] makes for stocks, at fund scale. Below $25m a fund is excluded outright
+     * as too thin to screen at all - some issuers already close funds this small, though the
+     * real closure risk climbs gradually well past it; see [EtfScore]'s $50m scoring floor and
+     * $100m on-screen warning, which are deliberately higher and separate from this admission
+     * cutoff. $50k of daily turnover is where the bid-ask stops being a rounding error.
      */
     private const val MIN_FUND_ASSETS = 2.5e7
     private const val MIN_FUND_DOLLAR_VOLUME = 5e4
