@@ -12,9 +12,39 @@ diff; this is a fresh standalone pass over the whole app at v7.27.
 
 ### Full-test progress
 
-- [ ] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+- [x] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+      — green (1174 tests, 0 failures) in the first session; re-running now
+      over the in-flight fixes below.
+- [x] Own audit pass 1 (first session): day-boundary bug class in Explain.kt
+      and Research.daysUntilEarnings — plain Long division truncates TOWARD
+      ZERO, so a date 1-23h in the PAST divided to 0 and every `d >= 0`
+      "is it still ahead?" test stayed true for a whole day after the date
+      passed. Fixed with Math.floorDiv at all four sites; pinned by
+      ExplainDayBoundaryTest (10 tests).
+- [x] Own audit pass 2 (first session, interrupted mid-step — finished this
+      session): three data-loss holes on the restore/backup path, all now
+      pinned by the new RestoreSafetyTest:
+      - `Db.restoreJson(replace = true)` deletes txns/overrides/watchlist/
+        imports BEFORE reading the file, so a file carrying only a
+        `watchlist` key wiped the whole ledger to restore a few symbols.
+        Replace now requires the array it is about to replace.
+      - The `counts` manifest cross-check ran AFTER
+        `setTransactionSuccessful()`, so a truncated backup restored with
+        "Replace all" wiped the ledger, committed whatever subset parsed,
+        and reported success with a warning on the toast. The check moved
+        ahead of the commit, so a short count on a Replace now rolls the
+        whole transaction back. Merge keeps the advisory warning — it only
+        ever adds.
+      - `restoreAsync` forced an autobackup on any non-error result, so a
+        short-read Merge immediately wrote the incomplete ledger over
+        `portfolio-autosave.json` — the one copy that survives an
+        uninstall. Now skipped when `r.warning != null`.
+      - `Storage.saveToDownloads` used `"wt"` / `writeText`, which truncate
+        BEFORE writing, so a failed write destroyed the old backup and
+        returned a bare null. Both branches now keep the prior bytes and
+        put them back if the write throws.
 - [ ] Parallel subsystem audits (recommendation/scoring, day-trading,
-      network/caching, UI/battery/persistence)
+      network/caching, UI/battery/persistence) — 4 agents running
 - [ ] Reconcile findings and fix everything real
 - [ ] Re-run the unit suite after fixes; re-check anything a fix touched
 - [ ] Checkpoint as work completes
