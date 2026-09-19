@@ -252,9 +252,9 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
     editing?.let { t ->
         TxnEditorDialog(
             existing = t,
-            onDismiss = { editing = null },
-            onDelete = { vm.deleteTxn(t.id); editing = null; vm.toast("Transaction deleted") },
-            onSave = { updated -> vm.updateTxn(updated); editing = null; vm.toast("Transaction updated") }
+            onDismiss = { editingId = null },
+            onDelete = { vm.deleteTxn(t.id); editingId = null; vm.toast("Transaction deleted") },
+            onSave = { updated -> vm.updateTxn(updated); editingId = null; vm.toast("Transaction updated") }
         )
     }
 
