@@ -293,8 +293,8 @@ object EtfScore {
             s += logRamp(r.netAssets, 5e7, 5e10, 16.0)
             why.add("${Fmt.compactMoney(r.netAssets)} under management")
             if (r.netAssets < 1e8) why.add(
-                "Small fund - under \$100m is where issuers close funds, which forces a sale " +
-                    "in a tax year you did not choose"
+                "Small fund - under \$100m, closure risk is real: an issuer shutting it down " +
+                    "forces a sale in a tax year you did not choose"
             )
         }
 
