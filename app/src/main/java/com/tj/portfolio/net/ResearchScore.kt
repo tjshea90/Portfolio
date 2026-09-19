@@ -1573,7 +1573,12 @@ object ResearchScore {
 
         val up = c.upsidePct(price)
         if (!up.isNaN()) {
-            a += ramp(up, -20.0, 40.0, 30.0) - 12.0
+            // -10.0, not an arbitrary offset: ramp(0, -20, 40, 30) is 10.0, so this is what
+            // centers the term at exactly zero when the price already sits at the average
+            // target - the same "neutral at zero upside" rule [holding]'s analogous term
+            // follows with its own symmetric range and -12.5 offset. A stock trading at its
+            // target should score neither bullish nor bearish on this alone.
+            a += ramp(up, -20.0, 40.0, 30.0) - 10.0
             why.add(
                 if (up >= 0)
                     "Average price target ${Fmt.price(c.target)} - ${pct(up)} above today"
