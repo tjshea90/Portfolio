@@ -225,7 +225,19 @@ object DayTradingTechnicals {
         // session high/low stay regular-hours-only, exactly as their definitions require.
         val intradayAll = fetchBars(symbol, range = "1d", interval = "5m", prePost = true)
             ?.let { latestDay(it) }
-        val regular = intradayAll?.let { regularSession(it) }
+        // `intradayAll` CAN BE A PRIOR, FULLY-CLOSED SESSION - weekends, market holidays, and
+        // every request before 4am ET, when Yahoo has printed nothing for "today" yet and
+        // `latestDay` anchors to the newest date actually present, which is the last trading
+        // day. Its VWAP/opening-range/session-high-low are then real, complete numbers for a
+        // session that finished hours or days ago - exactly what [sessionDay]'s own doc warns
+        // against treating as this morning's. Gating on the bars' own date, not just carrying
+        // `sessionDay` through, is required: `sessionDay` alone only protects the `tech.field <=
+        // 0` fallback branch in `PortfolioViewModel.effectiveTechnicals` - a non-zero stale
+        // reading sails through its direct pass-through untouched.
+        val intradayToday = intradayAll?.takeIf { bars ->
+            bars.firstOrNull()?.let { etDateKey(it.t) == etDateKey(now / 1000) } ?: false
+        }
+        val regular = intradayToday?.let { regularSession(it) }
         // COMPUTED ONCE, not once per field - `openingRange` filters and re-scans the whole
         // intraday bar list, and calling it twice (once for the high, once for the low) did
         // that work twice for no reason on every symbol, every 30-second tick.
