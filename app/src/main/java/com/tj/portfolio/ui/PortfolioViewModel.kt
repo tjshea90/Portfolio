@@ -981,7 +981,13 @@ internal class RetryClock {
     // `now` is a parameter with a default rather than a bare call to the clock, so the rule
     // can be exercised on a timeline a test controls. Every caller in the app omits it.
     fun success(key: String, now: Long = System.currentTimeMillis()) {
-        attemptedAt[key] = now
+        // BOTH MAPS, not just the failure count. `attemptedAt` is only ever READ alongside a
+        // failure count (the age-out branch in `blocked()` runs for keys that have one), so a
+        // timestamp left behind after a success is unreachable state that is never collected:
+        // `chartRetry` is keyed "SYMBOL|RANGE", so a long session browsing search results and
+        // Research lists accumulated a permanent entry per symbol-range pair across all five
+        // RetryClocks. Small each, unbounded in total, and useful to nobody.
+        attemptedAt.remove(key)
         failures.remove(key)
     }
 
@@ -5302,9 +5308,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
                 // ---- stage 3: whatever the Reddit call has by now
                 val trend = socialJob.await()
+                // STAMPED ON THE ATTEMPT, NOT ON SUCCESS - the rule `stampFilingsAt()` already
+                // follows 200 lines up, and for the same reason: "stamping only on success
+                // would turn an outage into a request on every single tick". `socialAt`
+                // advanced only when rows came back, and `Social.merge` returns an empty list
+                // when BOTH sources are empty - and the primary one (api.tradestie.com) has
+                // served an expired certificate since 3 Jan 2026. So one ApeWisdom outage
+                // pinned `socialAt` at zero and re-fired both endpoints on every feed pass
+                // (3 minutes) instead of every 15, which is the opposite of the clock's job.
+                socialAt = System.currentTimeMillis()
                 if (trend.isNotEmpty()) {
                     _trending.value = trend.distinctBy { it.symbol }
-                    socialAt = System.currentTimeMillis()
                 }
             } catch (e: Exception) {
                 // a feed failure must never take the app down; last good data stays on screen
