@@ -1,5 +1,29 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-19 (his own words)
+
+> Full test the latest version of this app
+
+This is the "full tests" protocol from CLAUDE.md's "Testing on request"
+section, run against the latest shipped version, **v7.27 (versionCode 84)**.
+No budget or time limit; release-quality bar; whole-app deep audit, not
+just the current diff. A previous session ran full tests on the v7.26→v7.27
+diff; this is a fresh standalone pass over the whole app at v7.27.
+
+### Full-test progress
+
+- [ ] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+- [ ] Parallel subsystem audits (recommendation/scoring, day-trading,
+      network/caching, UI/battery/persistence)
+- [ ] Reconcile findings and fix everything real
+- [ ] Re-run the unit suite after fixes; re-check anything a fix touched
+- [ ] Checkpoint as work completes
+- [ ] Ship the result per CLAUDE.md's auto-ship policy and post the link
+
+---
+
+## Previous requests (history)
+
 ## Tj's follow-up, 2026-09-19 (his own words)
 
 > The link gives me a 404. Fix this for all future ships
