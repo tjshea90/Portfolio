@@ -942,9 +942,9 @@ fun DetailScreen(
     editingTxn?.let { t ->
         TxnEditorDialog(
             existing = t,
-            onDismiss = { editingTxn = null },
-            onDelete = { vm.deleteTxn(t.id); editingTxn = null; vm.toast("Transaction deleted") },
-            onSave = { u -> vm.updateTxn(u); editingTxn = null; vm.toast("Transaction updated") }
+            onDismiss = { editingTxnId = null },
+            onDelete = { vm.deleteTxn(t.id); editingTxnId = null; vm.toast("Transaction deleted") },
+            onSave = { u -> vm.updateTxn(u); editingTxnId = null; vm.toast("Transaction updated") }
         )
     }
 
