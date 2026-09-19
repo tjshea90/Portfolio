@@ -10,14 +10,44 @@ floor, then a whole-app audit split across parallel subagents by subsystem
 (recommendation/scoring, day-trading, network/caching, UI), fix everything
 found, re-verify, checkpoint.
 
-### Full-test progress
+### Full-test progress — DONE
 
-- [ ] `checkinit.py` + full Gradle unit suite (floor)
-- [ ] Parallel subsystem audits (recommendation/scoring, day-trading,
-      network/caching, UI/battery)
-- [ ] Reconcile findings, fix everything
-- [ ] Re-run unit suite + re-check touched areas
-- [ ] Checkpoint
+- [x] `checkinit.py` + full Gradle unit suite (floor) — green
+- [x] Parallel subsystem audits (recommendation/scoring, day-trading,
+      network/caching, UI/battery) — all 4 reported back
+- [x] Reconciled findings, fixed everything found:
+      - HIGH: `DayTradingTechnicals.sessionDay`/intraday fields were stamped
+        from wall-clock time instead of the actual date of the fetched bars,
+        so a weekend/holiday/pre-4am fetch that got back the last closed
+        session's real numbers was labeled "today" and sailed through
+        `effectiveTechnicals`'s non-zero direct pass-through unchallenged -
+        `rangeUsed` read as a fully-spent day at market open on a stock
+        that hadn't traded. Now gated on the bars' own date.
+      - `Http.postJson` didn't disconnect the socket on cancellation
+        (unlike `Http.get`), so a cancelled Claude API call paid for the
+        whole body and held a per-host permit. Fixed to mirror `get()`.
+      - Data-loss risk: every dialog holding typed-but-unsaved data
+        (TxnEditorDialog, EditPositionDialog, the Settings backup/restore
+        text) and every dialog-open flag used plain `remember`, which does
+        not survive Android killing the process while backgrounded (only
+        rotation). Promoted to `rememberSaveable` across TxnEditor.kt,
+        RowActions.kt, DetailScreen.kt, ActivityScreen.kt,
+        PortfolioScreen.kt, WatchlistScreen.kt, SettingsScreen.kt.
+      - `EarningsTab` off-by-one: `Long` division truncation toward zero
+        made a just-passed earnings date still read "In 0 days."
+      - `ScreenRow.merge`'s `earningsEstimated` was ANDed across both
+        sides regardless of which side's `earningsAt` actually survived.
+      - An off-center analyst price-target term in `ResearchScore.withAnalyst`
+        (-2 at zero upside instead of neutral) - offset corrected.
+      - Three different "where issuers close funds" dollar figures across
+        Research.kt/EtfScore.kt reconciled in wording (each threshold's
+        actual use - admission floor/score ramp/UI warning - was already
+        deliberately different; only the contradictory phrasing was fixed).
+      - A stale `Position` KDoc claiming average-cost-only.
+      - Tightened a comment in `DayTradingEval.Costs` that implied a
+        buy-stop/buy-limit distinction the code doesn't make.
+- [x] Re-ran the full unit suite after every batch — green throughout
+- [x] Checkpointed as work completed (ckpt 1552-1554)
 
 ## Tj's earlier request, 2026-09-19 (his own words)
 
