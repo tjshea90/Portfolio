@@ -178,6 +178,96 @@ class RestoreSafetyTest {
             db.allTxns().none { it.amount == 99.0 })
     }
 
+    // ---- 4. the day-trading log travels with the backup
+
+    /**
+     * IT WAS NOT IN THE BACKUP AT ALL, AND IT CANNOT BE REBUILT.
+     *
+     * `exportJson` carried transactions, overrides, watchlist, settings and imports - and not
+     * `day_trading_log`. Nothing lost it on the device (the table is append-only and no purge
+     * touches it), so the gap stayed invisible until the one moment it mattered: a reinstall
+     * or a new phone restored the ledger in full and started the recommendation history at
+     * zero. The rows are not re-fetchable - each is a plan made against live screener state
+     * that no longer exists, plus an outcome measured against intraday bars Yahoo serves for
+     * about 55 days.
+     */
+    private fun logPick(sym: String, day: String, outcome: String? = null): Unit {
+        db.logDayTradingRecommendation(
+            symbol = sym, tradingDay = day, setup = "Breakout",
+            entry = 10.0, stop = 9.5, target = 11.0,
+            priceAtRecommendation = 9.9, source = "APP", recordedAt = 1_757_000_000_000L
+        )
+        if (outcome != null) {
+            val row = db.dayTradingLog().first { it.symbol == sym && it.tradingDay == day }
+            db.setDayTradingOutcome(row.id, outcome, 11.0)
+        }
+    }
+
+    @Test fun `the day-trading log survives an export and restore onto a clean install`() {
+        seedLedger()
+        logPick("ONDS", "2026-09-15", outcome = "CLOSED_PROFIT")
+        logPick("NVDA", "2026-09-16")
+        val json = db.exportJson()
+
+        // A NEW PHONE: same app, nothing in it yet.
+        db.close()
+        app.deleteDatabase(Db.DB_NAME)
+        db = Db(app)
+        assertTrue("fixture did not start clean", db.dayTradingLog().isEmpty())
+
+        val r = db.restoreJson(json, replace = true)
+
+        assertNull("the restore failed: ${r.error}", r.error)
+        assertEquals("the day-trading log did not come back", 2, db.dayTradingLog().size)
+        assertEquals("the restore did not report the rows it put back", 2, r.dayTrading)
+        val closed = db.dayTradingLog().first { it.symbol == "ONDS" }
+        assertEquals("2026-09-15", closed.tradingDay)
+        assertEquals("Breakout", closed.setup)
+        assertEquals(10.0, closed.entry, 1e-9)
+        assertEquals(9.5, closed.stop, 1e-9)
+        assertEquals(11.0, closed.target, 1e-9)
+        assertEquals("the measured outcome was lost", "CLOSED_PROFIT", closed.outcome)
+        assertEquals(11.0, closed.outcomeExitPrice!!, 1e-9)
+        // An unresolved row must come back unresolved, not as the string "null".
+        assertNull("a pending row restored with a fabricated outcome",
+            db.dayTradingLog().first { it.symbol == "NVDA" }.outcome)
+    }
+
+    @Test fun `restoring the same backup twice does not duplicate day-trading rows`() {
+        seedLedger()
+        logPick("ONDS", "2026-09-15")
+        val json = db.exportJson()
+
+        db.restoreJson(json, replace = false)
+        db.restoreJson(json, replace = false)
+
+        assertEquals("the append-only log gained a duplicate", 1, db.dayTradingLog().size)
+    }
+
+    @Test fun `a restore never deletes a day-trading row this device already had`() {
+        seedLedger()
+        val json = db.exportJson()          // exported BEFORE the pick was recorded
+        logPick("ONDS", "2026-09-15")
+
+        db.restoreJson(json, replace = true)
+
+        assertEquals("Replace all destroyed measured history the backup predated",
+            1, db.dayTradingLog().size)
+    }
+
+    @Test fun `a v3 backup with no day-trading key still restores`() {
+        seedLedger()
+        val root = JSONObject(db.exportJson())
+        root.remove("dayTradingLog")
+        root.getJSONObject("counts").remove("dayTradingLog")
+        root.put("version", 3)
+
+        val r = db.restoreJson(root.toString(), replace = true)
+
+        assertNull("an older backup was refused: ${r.error}", r.error)
+        assertEquals(0, r.dayTrading)
+    }
+
     @Test fun `a file that is not a backup at all is still refused for both modes`() {
         val before = seedLedger()
         val junk = JSONObject().put("hello", "world").toString()
