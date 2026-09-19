@@ -1363,8 +1363,14 @@ internal fun DayTradingSuccessRate(
                             " across ${stats.sessions} session" +
                             (if (stats.sessions == 1) "" else "s") +
                             ", each sized the way this app sizes them - 1% of the portfolio " +
-                            "risked per trade. An upper bound: the 25%-of-portfolio cap on one " +
-                            "position means some trades risk less than the full 1%, never more.",
+                            "risked per trade. The 25%-of-portfolio cap on one position means " +
+                            "some trades risk less than the full 1%, never more, so the real " +
+                            // "An upper bound" was only true while the number was POSITIVE.
+                            // The same "some trades risked less than 1%" reasoning shrinks a
+                            // loss toward zero as well, which makes a negative figure a LOWER
+                            // bound - the wrong way round for the one case a reader most needs
+                            // stated honestly. Phrased once, correctly, for both signs.
+                            "figure sits between this and zero.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
