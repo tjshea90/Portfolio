@@ -404,11 +404,18 @@ $SHAPE
      */
     fun merge(existing: List<ResearchRow>, incoming: List<ResearchRow>): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
+        // ONE STAMP FOR THE WHOLE MERGE, NOT PER ROW - `whyAt` records when Claude last said
+        // anything about a row, and every row in `incoming` said something just now (`section`
+        // above already refuses to build one with nothing in it). This is what lets
+        // `carryExplanations` tell a paragraph written this call from one that has been
+        // riding along by symbol match for weeks.
+        val now = System.currentTimeMillis()
         val byIncoming = incoming.associateBy { it.symbol }
         val merged = existing.map { row ->
             val c = byIncoming[row.symbol] ?: return@map row
             row.copy(
                 why = c.why.ifBlank { row.why },
+                whyAt = now,
                 catalyst = c.catalyst.ifBlank { row.catalyst },
                 // The app's own score survives untouched - see [ResearchRow.conviction].
                 conviction = if (c.conviction > 0) c.conviction else row.conviction
@@ -425,6 +432,7 @@ $SHAPE
         // launch. One `distinctBy` is the difference between a duplicated row and an app
         // that cannot open its own screen.
         val added = incoming.filter { it.symbol !in known }.distinctBy { it.symbol }
+            .map { it.copy(whyAt = now) }
         return merged + added
     }
 }
