@@ -31,14 +31,47 @@ SPY's aligned value depends on the visible window, when it should be
 anchored to the chart's fixed start date regardless of pan position).
 
 ### Progress
-- [ ] Watch the video, inspect the screenshot pixels/values
-- [ ] Read the chart's percent-change/rebasing code (likely PriceChart.kt
-      and/or wherever "vs SPY" series alignment happens)
-- [ ] Determine: axis-scale illusion (not a bug) vs. genuine data/rebasing
-      bug tied to pan/zoom
-- [ ] Fix if it's a real bug
-- [ ] Light tests per Tj's explicit request ("usage is running out")
-- [ ] Checkpoint
+- [x] Watched the video (extracted frames with a bundled static ffmpeg,
+      since the container has no system ffmpeg) and inspected the
+      screenshot.
+- [x] Read the chart's percent-change/rebasing code (PriceChart.kt).
+- [x] Determined: TWO separate things, one per report -
+      - **Screenshot's "flat SPY"**: NOT a bug. Axis-scale illusion - TSXU
+        swung from -21.69% to +134.64% over the period, SPY only +15.44%;
+        both share one y-axis sized to the wider line, so SPY's real
+        movement is genuinely there but compressed near the bottom.
+      - **Video's "baseline jumps, stock flips above/below SPY at the same
+        date"**: a REAL bug, and a repeat of one already "fixed" once
+        before - `ComparePanAnchorUiTest`'s round-67 header quotes Tj
+        reporting almost this exact symptom previously. That fix only
+        froze the comparison anchor for the life of one continuous drag,
+        then deliberately re-synced it to the newly-settled window's own
+        first candle the instant the finger lifted - so every pan-then-
+        release re-measured both lines from a DIFFERENT calendar day.
+        Two lines rebased from two different days can genuinely swap
+        which is on top for the same date on screen; that is not a
+        misreading, it's two different questions sharing one axis.
+- [x] Fixed: the comparison anchor (`compareAnchorT` in PriceChart.kt) is
+      now always the selected range's true start (read from the whole
+      fetched series, never the panned/zoomed window's edge), for both
+      the "vs SPY" overlay and the primary series' own summary readout
+      (kept consistent with each other - same fix shape as the earlier
+      "two moments" bug in this same file). Plain single-stock charts
+      with no benchmark are untouched; intraday (1D/overnight) ranges are
+      untouched (they already anchor to previous close). Removed the now-
+      dead round-67 gesture-freeze machinery (`frozenBaseT`/`anchorT`)
+      since the anchor no longer depends on gesture state at all.
+      Rewrote `ComparePanAnchorUiTest` (its round-67 premise - "freeze
+      during the drag, resync after" - is exactly what got removed) to
+      instead prove the anchor never moves before, during, or after a
+      drag.
+- [x] Light tests: `checkinit.py` + full Gradle unit suite green - 1212
+      tests, 0 failures (up from 1207: 5 new tests for the Claude-cache
+      staleness eviction below, 1 rewritten for the chart-anchor fix).
+      Diff reviewed throughout; grepped for other callers of `whyAt`,
+      `ResearchRow.why` construction sites, and `zoomedIn` to confirm no
+      other path needed the same fix.
+- [x] Checkpoint
 
 ## Tj's request, 2026-09-21b (his own words)
 
