@@ -6254,12 +6254,33 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val done = analystDone.toSet()
             if (head.any { "$name:${it.symbol}" !in done }) {
                 did = true
+                // THIS GENERATION'S STAMP, TAKEN BEFORE THE ONLY SUSPENSION POINT BELOW.
+                // `enrichAnalyst` is a Nasdaq round trip of about a second; if a full rebuild
+                // replaces `_research.value` while this is in flight, `generated` moves on -
+                // see the check right after the suspend, below.
+                val generatedAtStart = _research.value.generated
                 val enriched = withContext(Dispatchers.IO) {
                     com.tj.portfolio.net.Research.enrichAnalyst(
                         head,
                         alreadyDone = head.map { it.symbol }
                             .filter { "$name:$it" in done }.toSet()
                     )
+                }
+                // A REBUILD SUPERSEDED THIS PASS WHILE IT WAS SUSPENDED (the flicker Tj
+                // reported - see the note by `enrichJob?.cancel()` in `loadResearch`).
+                //
+                // `head`/`window` above describe a list that no longer exists once `generated`
+                // has moved on - `Research.build()` produced an entirely new candidate set, so
+                // matching `enriched` back onto the CURRENT list by symbol (below) would splice
+                // this pass's stale, analyst-boosted score onto whatever row now sits at that
+                // symbol, and re-sort the window on it - which is exactly how a stock could
+                // jump to the top of Best on data a newer rebuild had already replaced.
+                // Cancelling `enrichJob` on every rebuild should stop this pass before it gets
+                // here at all; this is the second line of defence for the case cancellation
+                // lands after the suspend point above has already returned.
+                if (_research.value.generated != generatedAtStart) {
+                    did = false
+                    continue
                 }
                 // THE WHOLE WINDOW IS MARKED, AND THAT IS DELIBERATE - see below.
                 //
