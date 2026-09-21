@@ -25,11 +25,21 @@ import org.junit.Test
  */
 class ResearchCarryTest {
 
-    private fun stock(sym: String, why: String = "") =
-        ResearchRow(symbol = sym, score = 70, why = why)
+    // `whyAt` defaults to "just now" - fresh enough to survive the staleness gate
+    // (`WHY_STALE_MS`) that `carryExplanations`/`carryEtfExplanations` now check - so every
+    // existing test below still exercises the CARRY logic itself. The staleness gate gets its
+    // own tests, further down, which pass an explicit old `whyAt`.
+    private fun stock(sym: String, why: String = "", whyAt: Long = System.currentTimeMillis()) =
+        ResearchRow(symbol = sym, score = 70, why = why, whyAt = if (why.isNotBlank()) whyAt else 0L)
 
-    private fun fund(sym: String, why: String = "", category: String = "") = ResearchRow(
+    private fun fund(
+        sym: String,
+        why: String = "",
+        category: String = "",
+        whyAt: Long = System.currentTimeMillis()
+    ) = ResearchRow(
         symbol = sym, score = 80, why = why, catalyst = category,
+        whyAt = if (why.isNotBlank() || category.isNotBlank()) whyAt else 0L,
         etf = EtfFacts(expenseRatio = 0.03, fiveYearAnnualPct = 14.0)
     )
 
