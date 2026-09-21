@@ -392,6 +392,74 @@ class DetailTabsUiTest {
         assertTrue("the confirm button must call back", !open)
     }
 
+    // ---- full-tests audit, round 79: an unmarked-stale verdict timestamp and an unmarked-
+    // stale fundamentals fetch behind it
+
+    @Test fun `a same-day verdict's timestamp carries no date`() {
+        val now = System.currentTimeMillis()
+        show {
+            RecommendationDialog(
+                rec().copy(
+                    price = 200.0, computedAt = now,
+                    dayKey = com.tj.portfolio.net.MarketClock.dayKey(now)
+                ),
+                "NVDA"
+            ) {}
+        }
+        rule.onNodeWithText(
+            "vs ${Fmt.price(200.0)} at ${Fmt.clock(now)}", substring = true
+        ).assertExists()
+    }
+
+    @Test fun `a stale cached verdict's timestamp carries its date, not a bare time`() {
+        // `loadRecommendation` can show yesterday's disk-cached verdict immediately while a
+        // fresh one recomputes in the background - the exact case a bare time is
+        // indistinguishable in.
+        val staleAt = System.currentTimeMillis() - 3L * 86_400_000L
+        show {
+            RecommendationDialog(
+                rec().copy(
+                    price = 200.0, computedAt = staleAt,
+                    dayKey = com.tj.portfolio.net.MarketClock.dayKey(staleAt)
+                ),
+                "NVDA"
+            ) {}
+        }
+        rule.onNodeWithText(
+            "vs ${Fmt.price(200.0)} at ${Fmt.shortDay(staleAt)}, ${Fmt.clock(staleAt)}",
+            substring = true
+        ).assertExists()
+    }
+
+    @Test fun `stale underlying data gets its own note when it lags the verdict by a day`() {
+        val now = System.currentTimeMillis()
+        val oldFetch = now - 3L * 86_400_000L
+        show {
+            RecommendationDialog(
+                rec().copy(
+                    computedAt = now, dayKey = com.tj.portfolio.net.MarketClock.dayKey(now),
+                    fundamentalsAt = oldFetch
+                ),
+                "NVDA"
+            ) {}
+        }
+        rule.onNodeWithTag("recFundamentalsStale").assertExists()
+    }
+
+    @Test fun `same-day underlying data shows no staleness note`() {
+        val now = System.currentTimeMillis()
+        show {
+            RecommendationDialog(
+                rec().copy(
+                    computedAt = now, dayKey = com.tj.portfolio.net.MarketClock.dayKey(now),
+                    fundamentalsAt = now
+                ),
+                "NVDA"
+            ) {}
+        }
+        rule.onNodeWithTag("recFundamentalsStale").assertDoesNotExist()
+    }
+
     // -------------------------------------------- the relocated badge (no longer a tab)
     //
     // TJ, with a screenshot: *"move the buy sell hold tab from where it currently is to
