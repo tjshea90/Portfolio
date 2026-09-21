@@ -1,5 +1,42 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-21b (his own words)
+
+> Make sure the best stocks and etfs and trending tabs in this app properly
+> refresh data. It may be glitchy. When I refreshed the best stocks section
+> a few times, each time a stock appeared at the top then disappeared after
+> about 1 second. Also there is Claude analysis on some of the best stocks,
+> but I haven't run the Claude analysis in weeks, so I'm afraid the
+> recommendations for the top stocks may be stale or the Claude advice.
+> These sections should be accurate every day and on every refresh using
+> sound data and logic that is updated regularly. Nothing should be
+> recommended on stale data or stale Claude advice or old cached
+> recommendations. The entire recommendation engine and logic should
+> refresh with the new best stocks whenever I refresh, or at least daily.
+> If Claude advice hasn't been used in a while, the app should remove it
+> from cache.
+
+Two distinct bugs to chase:
+1. **Flicker bug** — refreshing "Best Stocks" repeatedly makes a stock
+   appear at the top of the list then vanish ~1s later. Likely a race
+   between an optimistic/partial sort update and the final sorted result,
+   or a stale list emission racing the fresh one.
+2. **Stale Claude-analysis cache** — Claude analysis attached to some
+   Best-Stocks/ETFs/Trending cards can be weeks old with no expiry, so it
+   may be shown as current advice when it isn't. Needs: (a) confirm
+   whether/how a cache-age check already gates display, (b) add or fix
+   an expiry so stale Claude advice is never shown as current, and
+   (c) actually evict/remove old unused Claude-analysis cache entries per
+   Tj's explicit ask ("remove it from cache"), not just hide them.
+
+### Progress
+
+- [ ] Investigate the Best Stocks/Trending refresh flicker bug
+- [ ] Investigate Claude-analysis cache staleness/expiry and eviction
+- [ ] Fix findings
+- [ ] Light/full test per CLAUDE.md protocol as appropriate
+- [ ] Checkpoint / ship per policy
+
 ## Tj's request, 2026-09-21 (his own words)
 
 > Run a full test of this app
