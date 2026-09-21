@@ -134,7 +134,7 @@ the new requirement.
 | Quotes | Yahoo v7 **batched** (one request for every symbol) → per-symbol chart → Finnhub → Stooq | Per-symbol chart polling was ~70% of all app traffic |
 | Sparklines | Yahoo chart, own 5-minute clock, visible symbols only | A 64dp line doesn't change in five minutes |
 | Response caching | Validators AND bodies in SQLite (`http_cache`), not the heap | Nothing already stored should be downloaded again |
-| News | Yahoo Finance RSS → Google News RSS → Finnhub | All free, no key needed |
+| News | Yahoo Finance RSS → Nasdaq → Google News RSS → Finnhub | All free except Finnhub, which needs a key |
 | Market-wide news | Finance desks only, two-tier relevance filter | General front pages leak non-market content in |
 | Insider data | Parse the Form 4 DOCUMENT, not EDGAR's listing title | The listing title is boilerplate, identical on every filing |
 | Accounting | Full ledger from transactions + manual override | |
