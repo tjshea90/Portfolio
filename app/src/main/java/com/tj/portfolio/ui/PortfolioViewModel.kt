@@ -5744,13 +5744,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) {
             val raw = runCatching { db.get(Keys.RESEARCH_CACHE) }.getOrDefault("")
             if (raw.isBlank()) return@launch
-            val set = runCatching {
+            val loaded = runCatching {
                 com.tj.portfolio.data.ResearchSet.fromJson(JSONObject(raw))
             }.getOrNull() ?: return@launch
             // `isFullyEmpty`, not `isEmpty`: a cache holding only the ETF list - which is
             // exactly what a user who has opened the ETFs tab and nothing else has - would
             // otherwise be discarded on every launch and rebuilt from ten requests.
-            if (set.isFullyEmpty) return@launch
+            if (loaded.isFullyEmpty) return@launch
+            // A COLD LAUNCH IS THE ONE PATH `carryExplanations`/`carryEtfExplanations` NEVER
+            // SEE - they only run when a rebuild happens, and a cache this old is exactly the
+            // case where none has for weeks. Evict here too, or a paragraph already stale
+            // before the app was ever reopened would sit on screen unchanged until the next
+            // TTL rebuild happened to run.
+            val set = evictStaleWhy(loaded)
             withContext(Dispatchers.Main) {
                 // Merged, not assigned: a live build may have landed while this was parsing,
                 // and a cache read must never overwrite something newer.
