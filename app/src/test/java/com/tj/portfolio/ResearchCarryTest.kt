@@ -215,4 +215,59 @@ class ResearchCarryTest {
         val fresh = listOf(fund("VOO"), fund("QQQ"))
         assertEquals(fresh.map { it.symbol }, carryEtfExplanations(emptyList(), fresh).map { it.symbol })
     }
+
+    // ------------------------------------------------- staleness eviction (round 79)
+    //
+    // Tj: "I haven't run the Claude analysis in weeks... if Claude advice hasn't been used in
+    // a while, the app should remove it from cache." Everything above proves `why` survives a
+    // rebuild while it is RECENT; these prove it stops surviving once it is not - the actual
+    // eviction, not just a display-side warning.
+
+    private val old14Days = System.currentTimeMillis() - (com.tj.portfolio.ui.WHY_STALE_MS + 3_600_000L)
+
+    @Test fun `a stock's stale explanation is evicted, not carried forward`() {
+        val old = ResearchSet(best = listOf(stock("NVDA", why = "weeks-old note", whyAt = old14Days)))
+        val out = carryExplanations(old, ResearchSet(best = listOf(stock("NVDA"))))
+        assertEquals("stale why should have been evicted", "", out.best.first().why)
+        assertEquals(0L, out.best.first().whyAt)
+    }
+
+    @Test fun `a recent explanation is unaffected by the staleness gate`() {
+        val old = ResearchSet(best = listOf(stock("NVDA", why = "fresh note")))
+        val out = carryExplanations(old, ResearchSet(best = listOf(stock("NVDA"))))
+        assertEquals("fresh note", out.best.first().why)
+    }
+
+    @Test fun `an ETF's stale explanation is evicted on its own rebuild too`() {
+        val old = listOf(fund("VOO", why = "weeks-old note", whyAt = old14Days))
+        val out = carryEtfExplanations(old, listOf(fund("VOO")))
+        assertEquals("", out.first().why)
+    }
+
+    @Test fun `a Claude-added fund is dropped outright once its content goes stale`() {
+        // Unlike an app-screened fund, a Claude-added row (`etf == null`) has nothing else on
+        // its card - once its one piece of content is stale there is nothing left to show, so
+        // it is dropped rather than kept with a blank paragraph.
+        val old = listOf(
+            fund("VOO"),
+            ResearchRow(symbol = "VTI", score = 90, why = "The whole market.", whyAt = old14Days)
+        )
+        val out = carryEtfExplanations(old, listOf(fund("VOO")))
+        assertTrue("a stale Claude-added fund should not survive", out.none { it.symbol == "VTI" })
+    }
+
+    @Test fun `evictStaleWhy blanks a stale row on a cold launch, with no rebuild involved`() {
+        // The one path `carryExplanations`/`carryEtfExplanations` never see: a cache this old
+        // restored straight from disk, with no rebuild in between to run the carry logic at
+        // all - see `loadCachedResearch`'s own call to this.
+        val set = ResearchSet(
+            best = listOf(stock("NVDA", why = "weeks-old note", whyAt = old14Days)),
+            trending = listOf(stock("GME", why = "fresh note")),
+            etfs = listOf(fund("VOO", why = "weeks-old note", whyAt = old14Days))
+        )
+        val out = com.tj.portfolio.ui.evictStaleWhy(set)
+        assertEquals("stale best row not evicted", "", out.best.first().why)
+        assertEquals("fresh trending row wrongly touched", "fresh note", out.trending.first().why)
+        assertEquals("stale etf row not evicted", "", out.etfs.first().why)
+    }
 }
