@@ -624,13 +624,25 @@ fun PriceChart(
         // "over 3 hr". It would also widen the y-axis to reach a price from outside the
         // window. Zeroing it makes `from` the first point on screen, which is what every
         // other figure on a moved chart is measured from.
-        val inside = remember(drawn, insideRange, zoomedIn) {
+        //
+        // EXCEPT WHILE COMPARING (`compareAnchorT` != null, see its own note above): then this
+        // summary has to share ITS anchor with the overlay's, or "TSXU +95.99%" printed right
+        // beside "SPY +15.44%" would be two different starting days wearing one "over 6m"
+        // caption - the exact "two moments" bug this file has already fixed once, just
+        // between the two readouts instead of between a readout and the line under it.
+        val inside = remember(drawn, insideRange, zoomedIn, compareAnchorT, shown) {
             val whole = insideRange.first == 0 && insideRange.last == drawn.points.lastIndex
-            if (whole && !zoomedIn) drawn
-            else drawn.copy(
-                points = drawn.points.subList(insideRange.first, insideRange.last + 1),
-                baseline = if (zoomedIn) 0.0 else drawn.baseline
-            )
+            when {
+                compareAnchorT != null -> drawn.copy(
+                    points = drawn.points.subList(insideRange.first, insideRange.last + 1),
+                    baseline = valueAtOrBefore(shown.points, compareAnchorT) ?: 0.0
+                )
+                whole && !zoomedIn -> drawn
+                else -> drawn.copy(
+                    points = drawn.points.subList(insideRange.first, insideRange.last + 1),
+                    baseline = if (zoomedIn) 0.0 else drawn.baseline
+                )
+            }
         }
 
         // ---- ONE GREEN, ONE RED, AND THEY DESCRIBE WHAT IS ON SCREEN.
