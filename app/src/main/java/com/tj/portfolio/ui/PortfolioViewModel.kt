@@ -844,6 +844,21 @@ internal fun mergeDayTradingTech(
     // price or a missing volatility reading, so with both present a null is a decision.
     val declined = plan == null && !row.planByClaude && row.price > 0.0 &&
         (effective.atrIntraday > 0.0 || effective.atr14 > 0.0)
+    // ---- A REAL SESSION ROLLOVER BYPASSES THE DEBOUNCE BELOW ENTIRELY (full-tests audit).
+    //
+    // THE BUG. The debounce a few lines down exists for boundary noise WITHIN one session - a
+    // price sitting right on a "no room left today" line, flickering the verdict tick to tick.
+    // It has no special case for the session itself changing underneath it, which it can:
+    // `fgScope` is only cancelled on `ON_STOP`, so a phone left on the Day Trading tab (plugged
+    // in, screen never locked) keeps ticking straight through a close and into the next
+    // session's pre-market. `effective.sessionDay` (from `effectiveTechnicals`, above) already
+    // correctly flips to the new day - but if the FIRST tick of that new day also happens to
+    // decline (unsurprising pre-market, before anything has printed), the streak requirement
+    // meant up to one extra tick (30s) of showing YESTERDAY'S numeric entry/stop/target under
+    // TODAY'S date, since `sessionDay` itself updates immediately below while the levels lagged
+    // behind it. A stale dollar figure with today's date on it is worse than the flicker this
+    // debounce was built to prevent.
+    val sessionChanged = row.sessionDay.isNotBlank() && row.sessionDay != effective.sessionDay
     // ---- A DECLINE HAS TO REPEAT BEFORE IT CLEARS THE SCREEN (Round 74).
     //
     // THE BUG. Several of `tradePlan`'s "no trade" verdicts - no room left in the day, the
