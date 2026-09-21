@@ -1986,15 +1986,11 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             // this device already has - it can only under-restore what a FILE would have
             // added, which is worth a warning, not the transactions path's hard stop
             // (full-tests audit, 2026-09-21 - `counts.dayTradingLog` was written on every
-            // export and never once read back).
+            // export and never once read back). Compared against the array's own length,
+            // not `dN`: `dN` already excludes rows this device had (CONFLICT_IGNORE), so a
+            // complete file restored a second time would falsely read as short.
             val expectedDtl = root.optJSONObject("counts")?.optInt("dayTradingLog", -1) ?: -1
-            val shortDtl = expectedDtl >= 0 && expectedDtl != dN + dtl.length().let { 0 }.let {
-                // dN counts only rows that passed validation AND were newly inserted (IGNORE
-                // on a duplicate still returns >= 0, so dN already includes "already had it").
-                // The honest comparison is against how many rows the file's array actually
-                // held, not the manifest's own transactions-shaped skip count.
-                dtl.length()
-            } && expectedDtl != dtl.length()
+            val shortDtl = expectedDtl >= 0 && expectedDtl != dtl.length()
 
             val warning = when {
                 short ->
