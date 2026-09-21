@@ -1,13 +1,20 @@
-# CHECKPOINT 1581 — read me first, then TASKS.md
+# CHECKPOINT 1582 — read me first, then TASKS.md
 
-**Written:** 2026-09-21T17:16:27Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/stuck-refresh-loop-3bixfe` · **builds on:** `4db5b40` (this checkpoint is the commit after it)
+**Written:** 2026-09-21T17:17:59Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/stuck-refresh-loop-3bixfe` · **builds on:** `cd26d09` (this checkpoint is the commit after it)
 
 ## Just done
-Diagnosed and fixed the stuck pull-to-refresh spinner Tj reported (screenshot: spinner still turning on the Portfolio tab). Root cause: loadEtfs() and loadResearch() in PortfolioViewModel hand-cleared manualRefresh/refreshSource to false/PULL_NONE in their finally blocks on force=true, instead of deriving the flag via syncManualIndicator() the way refresh() and refreshFeed() already do. Since manualRefresh/refreshSource is one shared flag across every tab's Refreshable, a pull on the Research/ETFs tab that was still mid-build (10-18 requests) could have its hand-clear race against a pull started on a different tab in the meantime: either stripping that other tab's spinner early, or - the stuck case matching the report - a pull on Portfolio overwriting refreshSource to PULL_PRICES while research was still busy, so syncManualIndicator's derived 'want' stayed true (researchLoading) and never let go of PULL_PRICES until the unrelated, possibly slow/flaky-network research build finished. Fixed both finally blocks to call syncManualIndicator() instead of hand-writing the fields, matching the pattern already documented and used in refresh()/refreshFeed(). Ran light tests: checkinit + full Kotlin unit suite green (BUILD SUCCESSFUL, all tests pass); grepped for other manualRefresh=false/refreshSource=PULL_NONE hand-writes (none remain outside a comment) and other _researchBusy writers (detail lookup, explanations - none touch manualRefresh, unaffected).
+gated v7.32 (code 89) and pushed it: checkinit, the full unit suite and the
+versionCode check all passed here. NOT yet built - GitHub has not been asked.
 
 ## Do this next
-Ship this fix per the auto-ship rule (bump versionCode/versionName, ship.sh, trigger GitHub Actions build, confirm green, record-release.sh, post the Release link).
+TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
+android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
+confirm the Release is published (get_release_by_tag is enough) and then run:
+  bash tools/record-release.sh v7.32 "Fixed the stuck pull-to-refresh spinner: loadEtfs() and loadResearch() now derive the manual-refresh indicator via syncManualIndicator() instead of hand-clearing it in their finally blocks, matching the pattern refresh()/refreshFeed() already use. The hand-clear could strand or prematurely drop the spinner on an unrelated tab since manualRefresh/refreshSource is one flag shared across every screen's pull-to-refresh."
+Do NOT try to send Tj the APK - he downloads it himself from the Release page
+(CLAUDE.md, his rule of 2026-09-11), and this container cannot fetch a private
+repo's release asset bytes anyway.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +23,7 @@ Ship this fix per the auto-ship rule (bump versionCode/versionName, ship.sh, tri
 
 ## Last ten checkpoints
 ```
+  0f6e081 ckpt 1581: Diagnosed and fixed the stuck pull-to-refresh spinner Tj reported (screenshot
   ba64fb7 ckpt 1580: Audited the day-trading success-rate feature per Tj's request (numbers 'seem 
   65750c2 ckpt 1579: gated v7.31 (code 88) and pushed it: checkinit, the full unit suite and the v
   7fc4b13 ckpt 1578: Full-tests audit (4 parallel subsystem agents) reconciled and fixed: HIGH bug
@@ -24,5 +32,5 @@ Ship this fix per the auto-ship rule (bump versionCode/versionName, ship.sh, tri
   7ff65c2 ckpt 1575: Fixed Best-Stocks refresh flicker (enrichJob left running as a stray sibling 
 ```
 
-(2 automatic checkpoint(s) since the last deliberate one — the
+(1 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
