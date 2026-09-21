@@ -29,6 +29,7 @@ import com.tj.portfolio.ui.RECOMMENDATION_BADGE_TEST_TAG
 import com.tj.portfolio.ui.RecommendationBadge
 import com.tj.portfolio.ui.RecommendationDialog
 import com.tj.portfolio.ui.StatsTab
+import com.tj.portfolio.util.Fmt
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
