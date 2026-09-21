@@ -11,10 +11,19 @@ This is a fresh standalone deep audit of the whole app, not a diff review.
 
 ### Full-test progress (2026-09-21)
 
-- [ ] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+- [x] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+      — green, 1204 tests / 0 failures / 0 skipped
+- [x] Also ran the un-CI'd compiled-class harnesses per tests/README.md
+      (ShippedTest, LedgerPropTest 20k, DayPnlTest 200k, BridgeTest — all
+      green) and the standalone `tests/ledger_props.py` (20000 clean, 0
+      violations). Found and fixed real bit-rot: `LedgerPropTest.java`
+      no longer compiled against `Fees.forEquityTrade`'s new 4th
+      `tradeDate` param (no `@JvmOverloads`, so Java couldn't see the
+      Kotlin default) — fixed the stale call site to pass `null`
+      explicitly (current-rate cases, correct behavior). Auto-committed.
 - [ ] Audit across subsystems (recommendation/scoring, day-trading,
-      network/caching, UI/battery/persistence) — parallel subagents per
-      CLAUDE.md, reconciled and fixed here
+      network/caching, UI/battery/persistence) — 4 parallel subagents
+      launched, reconciling findings here once they report back
 - [ ] Fix everything found
 - [ ] Re-run the unit suite after fixes; re-check anything a fix touched
 - [ ] Checkpoint as work completes
