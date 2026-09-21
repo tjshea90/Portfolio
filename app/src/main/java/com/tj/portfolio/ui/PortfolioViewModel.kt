@@ -1908,6 +1908,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         checkForRecoverableBackup()
         autoBackupIfDue()
         loadCachedAdvice()
+        loadPendingImport()
         loadCachedResearch()
         loadCachedInsider()
         restoreFromCache(fromInit = true)
