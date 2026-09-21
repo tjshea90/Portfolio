@@ -573,11 +573,22 @@ internal fun evictStaleWhy(
     fun scrub(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
         if (stillCurrent(r.why, r.whyAt, now)) r else r.copy(why = "", whyAt = 0L)
     }
+    // THE BATCH-LEVEL "Explained via Claude" STAMP GOES STALE ON A COLD LAUNCH TOO - see
+    // [carryExplainedStamp]'s own header.
+    val (explainedAt, explainedVia, note) = carryExplainedStamp(set.explained, set.explainedBy, set.notes, now)
+    val (dtExplainedAt, dtExplainedVia, dtNote) =
+        carryExplainedStamp(set.dtExplained, set.dtExplainedBy, set.dtNotes, now)
     return set.copy(
         trending = scrub(set.trending),
         best = scrub(set.best),
         dayTrading = scrub(set.dayTrading),
-        etfs = scrub(set.etfs)
+        etfs = scrub(set.etfs),
+        notes = note,
+        explained = explainedAt,
+        explainedBy = explainedVia,
+        dtNotes = dtNote,
+        dtExplained = dtExplainedAt,
+        dtExplainedBy = dtExplainedVia
     )
 }
 
