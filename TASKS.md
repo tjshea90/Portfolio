@@ -1,5 +1,66 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-21e (his own words)
+
+> This app day trading section success rate is claiming numbers that seem
+> too good to be true. Make sure this success rate feature is working as
+> designed. Make sure it is a true gauge of how much my portfolio would be
+> up or down if I used only the buy and sell recommendations in the day
+> trading system. Make sure it actually tracks the success if I bought the
+> stock at the target price and the stock went up to the target sell
+> price. It shouldn't be calculating based on anything illogical like the
+> total change in value of the stock for the whole day because the target
+> buy and sell points are at specific points within each day.
+
+### Audit result: no bug found - already built exactly this way
+
+Read `net/DayTradingEval.kt`, `data/DayTradingLog.kt`, the recording path
+in `PortfolioViewModel.captureDayTradingRecommendations`/
+`evaluateDayTradingLog`, and the card in `ResearchScreen.kt`, then ran the
+36-test `DayTradingEvalTest` suite standalone to confirm the behavior the
+code claims (all 36 green). Findings:
+
+- It is NOT a whole-day-change calculation. `DayTradingEval.evaluate` reads
+  real 5-minute intraday bars and only credits a WIN/LOSS at the exact
+  point price crosses `entry`, then `stop`, then `target` - never the
+  day's open/close delta. Bars before `recordedAt` (when the pick was
+  actually made) are filtered out before anything else runs, so nothing
+  is credited from price action that happened before the recommendation
+  existed - a real bug of exactly that shape was already found and fixed
+  by a prior session (`entryRises`, 2026-09-16) and has its own regression
+  test (`priceAtRecommendationDecidesDirectionRegardlessOfWhatTheSetupIsCalled`).
+- Same-bar ambiguity (a single 5-min bar's range covers both target and
+  stop, or covers a falling entry's trigger and its target) is always
+  resolved against the strategy (stop wins, or the win is deferred to a
+  later bar) - never in its favor. Tested directly
+  (`targetAndStopBothReachableInTheSameBarReadsAsTheStop`,
+  `fallingEntryTargetInTheSameBarAsTheTriggerIsNotYetAWin`).
+- `entriesTriggered` (the denominator for both rates on screen) only
+  counts picks whose entry price was actually reached - a recommendation
+  nobody could have traded is excluded, not counted as a loss or a win.
+  `UNIQUE(symbol, trading_day)` plus `INSERT OR IGNORE` in `Db.kt` means
+  each symbol is logged once per day at the moment its plan was first
+  shown, so a later, more-favorable re-plan can never silently replace it.
+- The headline "Your portfolio, trading this system" figure is already
+  net of a realistic cost model (`DayTradingEval.Costs` - entry slippage,
+  a wider stop-fill cost since a stop is a market order, close-out cost)
+  that can only ever make the result worse, never better (proven by
+  `costsAlwaysMakeTheResultWorse_neverBetter`), and the screen also shows
+  the pre-cost figure alongside it so the size of that assumption is
+  visible rather than hidden.
+- The screenshot's numbers (60% target hit / 70.91% closed profitable /
+  33 of 55 / 39 of 55, +19.30% account, +23.15% fixed-stake gross of
+  costs down to +19.30% net, 104 recorded - 55 triggered - 35 never
+  triggered - 14 pending) are internally consistent under this exact
+  arithmetic (33+16+6=55 decided; 33/55=60.00%; 39/55=70.909%). No
+  fabricated or inflated inputs found - if the real number still feels
+  high, that is a claim about the underlying stock-picking system finding
+  genuinely good setups, not about this tracker measuring them wrong.
+
+No code changes were needed. Verified via `python3 tools/checkinit.py`
+(clean) and `bash tools/gradle.sh testDebugUnitTest --tests
+"com.tj.portfolio.DayTradingEvalTest"` (36/36 pass, 0 failures).
+
 ## Tj's request, 2026-09-21d (his own words)
 
 > Do everything I mentioned in the last few messages, except, only do a
