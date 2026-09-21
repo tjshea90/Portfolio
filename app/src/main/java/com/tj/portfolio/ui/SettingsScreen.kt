@@ -872,6 +872,11 @@ fun SettingsScreen(vm: PortfolioViewModel) {
     if (showImport) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showImport = false },
+            // A stray outside tap must not silently close a large pasted JSON blob - the
+            // same fix already applied to every other data-entry dialog (TxnEditor,
+            // RowActions, ImportReviewDialog), extended here for consistency
+            // (full-tests audit, 2026-09-21).
+            properties = DialogProperties(dismissOnClickOutside = false),
             title = { Text("Restore from JSON") },
             text = {
                 Column {
