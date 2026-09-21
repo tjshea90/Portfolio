@@ -1830,6 +1830,12 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 val o = ov.optJSONObject(i) ?: continue
                 val sym = o.optString("symbol").trim()
                 if (sym.isBlank()) continue
+                // Merge promises to ADD what is missing, same as the settings block below -
+                // it used to call setOverride() unconditionally on both Replace and Merge,
+                // so merging an older backup silently clobbered a same-symbol override this
+                // device already had (full-tests audit, 2026-09-21). Replace still takes the
+                // file wholesale.
+                if (!replace && hasOverride(sym)) continue
                 // org.json's single-argument optDouble returns NaN when the value is not a
                 // number. A NaN override propagates straight into the cost basis, and from
                 // there into every portfolio total - the whole summary reads "$NaN" and no
