@@ -696,35 +696,32 @@ internal fun carryExplanations(
         if (!stillCurrent(p.why, p.whyAt, now)) return@map r
         r.copy(why = p.why, whyAt = p.whyAt)
     }
+    // ---- THE FUND LIST'S OWN CLOCK, CARRIED ACROSS EXPLICITLY - and both "explained via
+    // Claude" stamps, gated by [carryExplainedStamp] the same way a single row's `why` is
+    // (full-tests audit, round 79 sweep: these used to carry forward unconditionally too).
+    //
+    // `fresh` comes from `Research.build`, which builds both STOCK lists and never touches
+    // `etfs`. Returning it as-is would wipe the fund list - and its timestamp, and its
+    // warnings - on every thirty-minute stock rebuild, in memory and on disk, and the ETFs
+    // tab would then spend ten Yahoo requests rebuilding something it had already paid for.
+    // That is the precise opposite of TJ's rule for this list: "keep the current list in
+    // cache until each update".
+    val (explainedAt, explainedVia, note) = carryExplainedStamp(old.explained, old.explainedBy, old.notes, now)
+    val (dtExplainedAt, dtExplainedVia, dtNote) =
+        carryExplainedStamp(old.dtExplained, old.dtExplainedBy, old.dtNotes, now)
     return fresh.copy(
         trending = carry(fresh.trending),
         best = carry(fresh.best),
         dayTrading = carry(fresh.dayTrading),
-        // ---- THE FUND LIST AND ITS OWN CLOCK, CARRIED ACROSS EXPLICITLY.
-        //
-        // `fresh` comes from `Research.build`, which builds both STOCK lists and
-        // never touches `etfs`. Returning it as-is therefore wiped the fund list - and
-        // its timestamp, and its warnings - on every thirty-minute stock rebuild, in
-        // memory and on disk, and the ETFs tab then spent ten Yahoo requests rebuilding
-        // something it had already paid for. That is the precise opposite of TJ's rule
-        // for this list: "keep the current list in cache until each update".
-        //
-        // `notes` goes with them for the same reason: `explained` and `explainedBy` were
-        // already carried, so losing the text left the screen saying "Explained 4 minutes
-        // ago via API" with nothing to show for it.
         etfs = old.etfs,
         etfGenerated = old.etfGenerated,
         etfWarnings = old.etfWarnings,
-        notes = old.notes,
-        explained = old.explained,
-        explainedBy = old.explainedBy,
-        // dtNotes/dtExplained/dtExplainedBy carried the same way, for the same reason - a
-        // stock rebuild runs `Research.build()` fresh, which knows nothing about a Day
-        // Trading explanation pass that happened since the last one and would otherwise
-        // reset it to blank every thirty minutes.
-        dtNotes = old.dtNotes,
-        dtExplained = old.dtExplained,
-        dtExplainedBy = old.dtExplainedBy
+        notes = note,
+        explained = explainedAt,
+        explainedBy = explainedVia,
+        dtNotes = dtNote,
+        dtExplained = dtExplainedAt,
+        dtExplainedBy = dtExplainedVia
     )
 }
 
