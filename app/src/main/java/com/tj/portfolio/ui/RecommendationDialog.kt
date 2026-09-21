@@ -184,9 +184,23 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                                     // the reader's first thought that the app is broken, and the
                                     // same class of unmarked-stale number Tj asked about on the
                                     // analyst side. Naming the time costs one clock read.
+                                    //
+                                    // A BARE TIME ISN'T ENOUGH (full-tests audit, round 79
+                                    // sweep). `loadRecommendation` can show a cached verdict
+                                    // immediately while a stale one recomputes in the
+                                    // background, so `r.dayKey` can be OLDER than today - and
+                                    // "vs $104.10 at 9:41 AM" with no date looks identical
+                                    // whether that 9:41 was this morning or three days ago. The
+                                    // date is only added when it is not today's, so the common
+                                    // case stays as short as it always was.
                                     (if (r.upsidePct >= 0.0) "+" else "") + Fmt.pct(r.upsidePct) +
                                         " vs " + Fmt.price(r.price) +
-                                        (if (r.computedAt > 0L) " at ${Fmt.clock(r.computedAt)}" else "") +
+                                        (if (r.computedAt > 0L) {
+                                            val stamp = Fmt.clock(r.computedAt)
+                                            " at " + if (r.dayKey.isNotBlank() &&
+                                                r.dayKey != com.tj.portfolio.net.MarketClock.dayKey()
+                                            ) "${Fmt.shortDay(r.computedAt)}, $stamp" else stamp
+                                        } else "") +
                                         (if (r.targetIsWeighted && r.targetAgeDays >= 0)
                                             " · targets typically ${r.targetAgeDays} days old"
                                         else ""),
