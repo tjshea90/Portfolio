@@ -1,5 +1,26 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-21 (his own words)
+
+> Run a full test of this app
+
+The "full tests" protocol from CLAUDE.md's "Testing on request" section,
+run against the latest shipped version, **v7.28 (versionCode 85)** — the
+prior full-tests pass (below) shipped that version and is fully closed out.
+This is a fresh standalone deep audit of the whole app, not a diff review.
+
+### Full-test progress (2026-09-21)
+
+- [ ] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+- [ ] Audit across subsystems (recommendation/scoring, day-trading,
+      network/caching, UI/battery/persistence) — parallel subagents per
+      CLAUDE.md, reconciled and fixed here
+- [ ] Fix everything found
+- [ ] Re-run the unit suite after fixes; re-check anything a fix touched
+- [ ] Checkpoint as work completes
+- [ ] Ship per CLAUDE.md's auto-ship policy and post the link (if the
+      findings are release-worthy)
+
 ## Tj's request, 2026-09-19 (his own words)
 
 > Full test the latest version of this app
