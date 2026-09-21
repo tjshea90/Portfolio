@@ -148,6 +148,19 @@ class ResearchTest {
     }
 
     @Test
+    fun `consensus label never says Sell when buy votes outnumber sell votes`() {
+        // full-tests audit, 2026-09-21: `sellShare >= 0.30` used to fire on its own, with no
+        // check that sell actually outweighed buy - buy=10/hold=3/sell=7 (sellShare=0.35,
+        // buyShare=0.50) fell through both buy branches and read as "Sell" on a panel that
+        // was nearly 3:2 in favor of buying, printed straight into the reasoning text.
+        assertEquals("Hold", Consensus2(buy = 10, hold = 3, sell = 7).label())
+        // Sell only when sell genuinely leads.
+        assertEquals("Sell", Consensus2(buy = 2, hold = 1, sell = 7).label())
+        assertEquals("Strong Buy", Consensus2(buy = 18, hold = 1, sell = 1).label())
+        assertEquals("Buy", Consensus2(buy = 11, hold = 5, sell = 4).label())
+    }
+
+    @Test
     fun `a response with no results parses to nothing rather than throwing`() {
         assertEquals(0, Screener.parse("x", """{"finance":{"result":[]}}""").size)
         assertEquals(0, Screener.parseTrending("""{"finance":{"error":"nope"}}""").size)
