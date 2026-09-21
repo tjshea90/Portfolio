@@ -194,7 +194,10 @@ class ResearchCarryTest {
         // requiring `why` here made a category-only row appear and then vanish.
         val old = listOf(
             fund("VOO"),
-            ResearchRow(symbol = "SCHD", score = 70, catalyst = "US dividend equity")
+            ResearchRow(
+                symbol = "SCHD", score = 70, catalyst = "US dividend equity",
+                whyAt = System.currentTimeMillis()
+            )
         )
         val out = carryEtfExplanations(old, listOf(fund("VOO")))
         assertTrue(out.any { it.symbol == "SCHD" })
