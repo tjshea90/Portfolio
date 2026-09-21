@@ -6066,6 +6066,22 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (!force && researchRetry.blocked(RETRY_STOCKS)) return
         if (force) researchRetry.clear()
         researchJob?.cancel()
+        // THE FLICKER TJ REPORTED: "refreshed the best stocks section a few times... a stock
+        // appeared at the top then disappeared after about 1 second."
+        //
+        // `enrichJob` (the analyst-consensus pass `enrichVisible` launches, below) used to be
+        // left running here. It is a SIBLING of `researchJob`, not a child of it, so cancelling
+        // `researchJob` alone never touched it - and it can genuinely still be mid-flight,
+        // awaiting a Nasdaq round trip (about a second), when a second pull-to-refresh starts a
+        // brand new rebuild. That stale pass then resolves and writes its OWN enriched (score-
+        // boosted) copy of whatever row it fetched onto the CURRENT list purely by symbol
+        // match (`enrichPass`, below) - promoting a stock to the top of Best for as long as
+        // that stray write survives, until the next write (this rebuild's own enrich pass, or
+        // another refresh) puts it back. Cancelling it here, alongside `researchJob`, is what
+        // stops a superseded pass from ever getting to write. [See also the `generatedAtStart`
+        // guard in `enrichPass` - belt and suspenders, for the case cancellation lands too late
+        // to stop a write already in flight.]
+        enrichJob?.cancel()
         researchJob = fgScope.launch {
             _researchBusy.value = BUSY_BUILDING
             _researchError.value = null
