@@ -113,7 +113,7 @@ data class Consensus2(
         total == 0 -> ""
         buyShare >= 0.75 -> "Strong Buy"
         buyShare >= 0.55 -> "Buy"
-        sellShare >= 0.30 -> "Sell"
+        sellShare >= 0.30 && sellShare > buyShare -> "Sell"
         else -> "Hold"
     }
 }
