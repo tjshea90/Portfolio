@@ -84,7 +84,8 @@ object Recommend {
             analystWeight = voting?.strength
                 ?: (if (c?.hasVotes == true) RatingRecency.undatedTrust(fundamentals.trend) else 0.0),
             targetIsWeighted = weighted != null,
-            targetAgeDays = weighted?.targetAgeDays ?: -1
+            targetAgeDays = weighted?.targetAgeDays ?: -1,
+            fundamentalsAt = fundamentals.fetched
         )
     }
 }
