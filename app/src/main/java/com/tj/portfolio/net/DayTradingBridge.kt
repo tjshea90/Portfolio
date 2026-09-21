@@ -418,20 +418,22 @@ $SHAPE
      */
     fun merge(existing: List<ResearchRow>, incoming: List<ResearchRow>): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
-        // See [ResearchBridge.merge]'s own note: one stamp for the whole merge, since every
-        // row in `incoming` said something just now (its own parse already refused a row with
-        // nothing in it).
+        // STAMPED ONLY WHEN `why` ITSELF IS FRESH - see [ResearchBridge.merge]'s own note
+        // (full-tests audit, round 79 sweep: the first version stamped this unconditionally,
+        // which let an old `why` paragraph ride forward under a fresh clock any time Claude's
+        // reply only touched the trade levels or catalyst, not the explanation).
         val now = System.currentTimeMillis()
         val byExisting = existing.associateBy { it.symbol }
         // De-duplicated - same reason [ResearchBridge.merge] does it: a keyed LazyColumn
         // crashes on a repeated key, and a model repeating a ticker is not a hypothetical.
         return incoming.distinctBy { it.symbol }.map { c ->
-            val app = byExisting[c.symbol] ?: return@map c.copy(whyAt = now)
+            val app = byExisting[c.symbol]
+                ?: return@map if (c.why.isNotBlank()) c.copy(whyAt = now) else c
             val takeLevels = c.planByClaude &&
                 levelsUsable(app.price, c.entryPrice, c.stopPrice, c.targetPrice)
             app.copy(
                 why = c.why.ifBlank { app.why },
-                whyAt = now,
+                whyAt = if (c.why.isNotBlank()) now else app.whyAt,
                 catalyst = c.catalyst.ifBlank { app.catalyst },
                 conviction = if (c.conviction > 0) c.conviction else app.conviction,
                 // ALL SIX MOVE TOGETHER OR NONE DO - the same rule the live technicals pass
