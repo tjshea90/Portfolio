@@ -179,7 +179,10 @@ class ResearchCarryTest {
         // hours later and make the user redo the file round trip.
         val old = listOf(
             fund("VOO"),
-            ResearchRow(symbol = "VTI", score = 90, why = "The whole market.")
+            ResearchRow(
+                symbol = "VTI", score = 90, why = "The whole market.",
+                whyAt = System.currentTimeMillis()
+            )
         )
         val out = carryEtfExplanations(old, listOf(fund("VOO")))
         assertTrue("the fund Claude added was dropped", out.any { it.symbol == "VTI" })
