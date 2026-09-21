@@ -154,15 +154,17 @@ class ResearchCarryTest {
         // The same early-exit path as the ETF version of this test - `old.isEmpty` is true
         // because it only asks about the STOCK lists - so this is the other place the bug
         // shape above could have been reintroduced.
+        // RECENT, not an arbitrary fixed epoch - see the note on the fund-list test above.
+        val dtExplainedRecent = System.currentTimeMillis()
         val old = ResearchSet(
             etfs = listOf(fund("VOO")),
             dtNotes = "day-trading note",
-            dtExplained = 1_600_000_000_000L,
+            dtExplained = dtExplainedRecent,
             dtExplainedBy = "Claude app"
         )
         val out = carryExplanations(old, ResearchSet(best = listOf(stock("NVDA"))))
         assertEquals("day-trading note", out.dtNotes)
-        assertEquals(1_600_000_000_000L, out.dtExplained)
+        assertEquals(dtExplainedRecent, out.dtExplained)
         assertEquals("Claude app", out.dtExplainedBy)
     }
 
