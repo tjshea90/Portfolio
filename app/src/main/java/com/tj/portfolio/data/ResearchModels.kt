@@ -328,6 +328,7 @@ data class ResearchRow(
         put("score", score)
         if (reasons.isNotEmpty()) put("reasons", JSONArray(reasons))
         if (why.isNotBlank()) put("why", why)
+        if (whyAt > 0) put("whyAt", whyAt)
         if (mentions > 0) put("mentions", mentions)
         if (mentionDelta != 0) put("mentionDelta", mentionDelta)
         if (rankDelta != 0) put("rankDelta", rankDelta)
