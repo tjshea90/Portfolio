@@ -581,8 +581,13 @@ internal fun carryEtfExplanations(
     // file round trip to get them back. They are kept, still carrying the app's "not in
     // the app's own screen" marker, and re-ranked into place by their existing score.
     //
-    // BUT NOT PAST THE STALENESS WINDOW. A fund with nothing on its card but Claude's own
-    // text has no reason to survive once that text goes stale - see [WHY_STALE_MS]'s header.
+    // BUT NOT PAST THE STALENESS WINDOW - ONLY WHEN THERE IS A `why` PARAGRAPH TO GO STALE.
+    // `whyAt` now tracks specifically when `why` was last written (full-tests audit, round
+    // 79 sweep - see [ResearchBridge.merge]'s note), not "any Claude content", so a
+    // category-only row's `whyAt` is always 0 and would otherwise fail `it.whyAt > 0`
+    // immediately - dropping it the moment it was added, not once it went stale. A category
+    // ("US dividend equity") isn't time-sensitive advice the way a paragraph explaining why
+    // to buy AT TODAY'S PRICE is, so it is kept unconditionally, same as before this session.
     val known = carried.map { it.symbol }.toSet()
     // A CATEGORY COUNTS AS SOMETHING CLAUDE SAID. `ResearchBridge.section` admits a row
     // on any of why / catalyst / risk / vehicle, so requiring `why` here meant a fund
@@ -590,8 +595,7 @@ internal fun carryEtfExplanations(
     // hours later - contradicting what the screen tells the user happens to added funds.
     val addedByClaude = old.filter {
         it.symbol !in known && it.etf == null &&
-            (it.why.isNotBlank() || it.catalyst.isNotBlank()) &&
-            it.whyAt > 0 && now - it.whyAt <= WHY_STALE_MS
+            if (it.why.isNotBlank()) stillCurrent(it.why, it.whyAt, now) else it.catalyst.isNotBlank()
     }
     if (addedByClaude.isEmpty()) return carried
     // ---- HOW AN ADDED ROW IS PLACED (Round 66 audit, R1).
