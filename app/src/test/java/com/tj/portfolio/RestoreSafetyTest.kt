@@ -149,6 +149,30 @@ class RestoreSafetyTest {
             watchBefore, db.watchlist().size)
     }
 
+    @Test fun `a merge never clobbers an override this device already has`() {
+        // full-tests audit, 2026-09-21: setOverride() ran unconditionally for every override
+        // in the file on BOTH modes, so merging an older backup that happened to carry a
+        // stale override for a symbol silently replaced today's value with no skip and no
+        // warning - the one table in restoreJson that didn't follow the settings block's
+        // own "if (!replace && hasSetting(k)) continue" pattern, and a direct contradiction
+        // of the restore dialog's own promise that merge can never remove or replace what
+        // this device already has.
+        db.setOverride(Override("AAPL", avgCost = 150.0, shares = 10.0))
+        val root = JSONObject(db.exportJson())
+        val ov = JSONArray()
+        ov.put(JSONObject().apply {
+            put("symbol", "AAPL"); put("avgCost", 90.0); put("shares", 5.0)
+        })
+        root.put("overrides", ov)
+
+        db.restoreJson(root.toString(), replace = false)
+
+        val after = db.overrides()["AAPL"]
+        assertEquals("merge overwrote a live override instead of skipping it",
+            150.0, after?.avgCost)
+        assertEquals(10.0, after?.shares)
+    }
+
     @Test fun `merge from a truncated backup still restores what it can, with a warning`() {
         seedLedger()
         val json = truncatedBackup(keep = 1)
