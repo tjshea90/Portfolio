@@ -21,14 +21,62 @@ This is a fresh standalone deep audit of the whole app, not a diff review.
       `tradeDate` param (no `@JvmOverloads`, so Java couldn't see the
       Kotlin default) — fixed the stale call site to pass `null`
       explicitly (current-rate cases, correct behavior). Auto-committed.
-- [ ] Audit across subsystems (recommendation/scoring, day-trading,
-      network/caching, UI/battery/persistence) — 4 parallel subagents
-      launched, reconciling findings here once they report back
-- [ ] Fix everything found
-- [ ] Re-run the unit suite after fixes; re-check anything a fix touched
-- [ ] Checkpoint as work completes
-- [ ] Ship per CLAUDE.md's auto-ship policy and post the link (if the
-      findings are release-worthy)
+- [x] Audit across subsystems (recommendation/scoring, day-trading,
+      network/caching, UI/battery/persistence) — 4 parallel subagents,
+      all reported back. Day-trading came back clean (only 3 LOW/
+      non-bug notes, nothing changed). Real findings from the other
+      three, all fixed below.
+- [x] Fix everything found:
+      - **HIGH (network)** — `socialAt` in PortfolioViewModel.kt's feed
+        loop was re-stamped on EVERY feed pass regardless of whether
+        `socialJob` actually attempted a fetch, so after the first pass
+        `now - socialAt` could never exceed one feed interval and
+        `socialDue` could never go true again — WSB/social "Trending"
+        data fetched exactly once per app launch, then froze forever.
+        Gated the stamp on `socialDue`.
+      - **MEDIUM (scoring)** — `Consensus2.label()` (data/ResearchModels.kt)
+        returned "Sell" whenever `sellShare >= 0.30`, with no check that
+        sell actually outweighed buy: buy=10/hold=3/sell=7 (buyShare=0.50,
+        sellShare=0.35) printed "Sell consensus - 10 buy / 3 hold / 7
+        sell" as a reasoning line on the buy-screener's own card. Now
+        requires `sellShare > buyShare` too. New test in ResearchTest.kt.
+      - **MEDIUM (persistence)** — the Claude screenshot-import review
+        (`_importResult`) lived only in the ViewModel's in-memory
+        StateFlow; Android killing the process while the review dialog
+        was open silently lost every extracted row with no warning,
+        wasting a real billed API call. Added `Keys.PENDING_IMPORT`
+        (excluded from backups - device-local in-flight state, not
+        portable data), a `setImportResult()` wrapper that mirrors a
+        real extraction to it, and `loadPendingImport()` on init to
+        restore it.
+      - **MEDIUM (persistence)** — `Db.restoreJson`'s Merge path called
+        `setOverride()` unconditionally for every override in the file,
+        silently clobbering a same-symbol override this device already
+        had - the one table in that function not following the
+        settings block's own "Merge only adds" pattern, and a direct
+        contradiction of the restore dialog's stated promise. Added
+        `hasOverride()` and gated it the same way settings already are.
+        New test in RestoreSafetyTest.kt.
+      - **LOW** — Settings' "Restore from JSON" paste dialog was missing
+        `dismissOnClickOutside=false`, unlike every other data-entry
+        dialog in the app; fixed for consistency.
+      - **LOW** — BRIEF.md's locked-decisions table said News was
+        "Yahoo → Google → Finnhub"; News.kt's own header already
+        documented the real cascade (Yahoo → Nasdaq → Google →
+        Finnhub) and has for a while. Doc-only fix.
+      - **LOW** — day-trading-log restore had no manifest short-count
+        check, unlike transactions, even though `exportJson` always
+        wrote `counts.dayTradingLog`. Added the same comparison as a
+        warning (never a refusal - the table is additive-only on both
+        modes, so nothing on-device was ever actually at risk). New
+        test in RestoreSafetyTest.kt.
+- [x] Re-run the unit suite after fixes; re-check anything a fix touched
+      — 1207 tests / 0 failures / 0 skipped (1204 + 3 new regression
+      tests), checkinit ok.
+- [x] Checkpoint as work completes
+- [ ] Ship per CLAUDE.md's auto-ship policy and post the link — this
+      pass found and fixed a real HIGH bug plus three MEDIUMs, so it
+      qualifies; shipping next.
 
 ## Tj's request, 2026-09-19 (his own words)
 
