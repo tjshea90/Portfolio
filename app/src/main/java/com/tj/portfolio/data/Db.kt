@@ -2058,7 +2058,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     private fun isDerivedCache(k: String) =
         k == Keys.RESEARCH_CACHE || k == Keys.INSIDER_CACHE || k == Keys.INSIDER_SKIP ||
             k == Keys.FEED_AT || k == Keys.FILINGS_AT ||
-            k == Keys.AUTOSAVE_AT || k == Keys.AUTO_BACKUP_AT || k == Keys.DOWNLOADS_TIDIED
+            k == Keys.AUTOSAVE_AT || k == Keys.AUTO_BACKUP_AT || k == Keys.DOWNLOADS_TIDIED ||
+            k == Keys.PENDING_IMPORT
 
     private fun appVersionName(): String = try {
         ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
