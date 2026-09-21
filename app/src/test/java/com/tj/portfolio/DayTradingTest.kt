@@ -864,6 +864,39 @@ Here is my read on today's list. I searched the web for what is actually moving.
         assertEquals(app, DayTradingBridge.merge(app, emptyList()))
     }
 
+    // ---- full-tests audit, round 79: `whyAt` must track `why` specifically, not "any reply"
+    // (same bug and fix as `ResearchBridge.merge`'s equivalent test)
+
+    @Test fun `a reply that only sends fresh levels does not refresh why's clock`() {
+        val staleAt = System.currentTimeMillis() - 20L * 24 * 3_600_000L
+        val app = listOf(
+            ResearchRow(
+                symbol = "GME", price = 22.5, score = 88,
+                why = "Old squeeze note.", whyAt = staleAt
+            )
+        )
+        val claude = DayTradingBridge.parse(
+            """{"dayTrading":{"picks":[{"symbol":"GME","entry":23.10,"stop":22.40,
+               "target":25.00,"trigger":"Buy the break of the premarket high at 23.10."}]}}"""
+        ).picks
+        val gme = DayTradingBridge.merge(app, claude).first()
+        assertTrue("the levels should still have been taken", gme.planByClaude)
+        assertEquals("Old squeeze note.", gme.why)
+        assertEquals("the untouched why's clock must not have been reset", staleAt, gme.whyAt)
+    }
+
+    @Test fun `a reply with a fresh why does stamp a fresh clock`() {
+        val staleAt = System.currentTimeMillis() - 20L * 24 * 3_600_000L
+        val app = listOf(
+            ResearchRow(symbol = "GME", price = 22.5, score = 88, why = "Old note.", whyAt = staleAt)
+        )
+        val claude = listOf(ResearchRow(symbol = "GME", why = "New squeeze note."))
+        val before = System.currentTimeMillis()
+        val gme = DayTradingBridge.merge(app, claude).first()
+        assertEquals("New squeeze note.", gme.why)
+        assertTrue("a genuinely fresh why should stamp a fresh clock", gme.whyAt >= before)
+    }
+
     @Test fun `Claude's own entry, stop and target are accepted and labelled as Claude's`() {
         val app = listOf(
             ResearchRow(
