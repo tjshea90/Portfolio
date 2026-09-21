@@ -175,7 +175,7 @@ public class LedgerPropTest {
         int fp = 0, ff = 0;
         for (double[] c : fee) {
             String ty = c[0] == 0 ? "BUY" : "SELL";
-            double got = Fees.INSTANCE.forEquityTrade(ty, c[1], c[2]).getTotal();
+            double got = Fees.INSTANCE.forEquityTrade(ty, c[1], c[2], null).getTotal();
             boolean ok = Math.abs(got - c[3]) < 0.005;
             if (ok) fp++; else ff++;
             System.out.printf("  [%s] %-4s %8.0f @ %8.2f -> %.2f%s%n", ok?"PASS":"FAIL", ty, c[1], c[2],
