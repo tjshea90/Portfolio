@@ -7293,4 +7293,51 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             generated = o.optLong("generated")
         )
     }
+
+    /** Same field set [Db.exportJson] writes for a transaction, minus [Txn.id] - this row isn't inserted yet. */
+    private fun pendingImportToJson(r: ExtractResult): JSONObject {
+        val arr = JSONArray()
+        r.transactions.forEach { t ->
+            arr.put(JSONObject().apply {
+                put("type", t.type)
+                if (t.symbol.isNullOrBlank()) put("symbol", JSONObject.NULL) else put("symbol", t.symbol)
+                put("quantity", t.quantity); put("price", t.price); put("amount", t.amount)
+                put("fees", t.fees); put("date", t.date); put("note", t.note ?: "")
+                put("source", t.source)
+            })
+        }
+        return JSONObject().apply {
+            put("transactions", arr)
+            put("notes", r.notes)
+            put("error", r.error ?: JSONObject.NULL)
+            put("raw", r.raw)
+        }
+    }
+
+    private fun pendingImportFromJson(o: JSONObject): ExtractResult {
+        val list = ArrayList<Txn>()
+        val arr = o.optJSONArray("transactions") ?: JSONArray()
+        for (i in 0 until arr.length()) {
+            val t = arr.optJSONObject(i) ?: continue
+            list.add(
+                Txn(
+                    type = t.optString("type"),
+                    symbol = t.optString("symbol").takeIf { !t.isNull("symbol") && it.isNotBlank() },
+                    quantity = t.optDouble("quantity", 0.0),
+                    price = t.optDouble("price", 0.0),
+                    amount = t.optDouble("amount", 0.0),
+                    fees = t.optDouble("fees", 0.0),
+                    date = t.optLong("date", 0L),
+                    note = t.optString("note").takeIf { it.isNotBlank() },
+                    source = t.optString("source", "SCREENSHOT")
+                )
+            )
+        }
+        return ExtractResult(
+            transactions = list,
+            notes = o.optString("notes"),
+            error = if (o.isNull("error")) null else o.optString("error"),
+            raw = o.optString("raw")
+        )
+    }
 }
