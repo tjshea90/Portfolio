@@ -87,7 +87,14 @@ object ResearchScore {
                 "Earnings expected to grow ${pct(g * 100.0)} - forward EPS " +
                     "${Fmt.priceBare(r.epsForward)} vs ${Fmt.priceBare(r.epsTtm)} trailing"
             )
-        } else if (r.epsForward > 0 && r.epsTtm <= 0) {
+        } else if (r.epsForward > 0 && r.epsTtm <= 0.01) {
+            // `<= 0.01`, matching `epsGrowth`'s own cutoff (ResearchModels.kt) - not `<= 0`.
+            // A stock at breakeven (say $0.005 trailing EPS) failed `epsGrowth`'s `epsTtm >
+            // 0.01` guard (NaN, so the branch above never fires) AND failed this branch's old
+            // `<= 0` gate, so it fell through both and scored zero growth points with no
+            // reason line at all - identical to a stock with no EPS data whatsoever, even
+            // with a strong forward estimate. The two branches now cover the full range with
+            // no gap between them.
             have++
             s += 14.0
             // A turnaround is a forward earnings improvement, so the valuation line may say
