@@ -258,6 +258,30 @@ class RestoreSafetyTest {
             db.dayTradingLog().first { it.symbol == "NVDA" }.outcome)
     }
 
+    @Test fun `a truncated day-trading section warns instead of silently under-restoring`() {
+        // full-tests audit, 2026-09-21: `counts.dayTradingLog` was written on every export
+        // and never once compared against what actually restored, unlike `counts.transactions`
+        // three lines up - so a truncated day-trading section came back with fewer rows than
+        // the file claimed and no signal that anything was missing. Still a warning, never a
+        // refusal: the table is additive-only, so nothing on this device was ever at risk.
+        seedLedger()
+        logPick("ONDS", "2026-09-15")
+        logPick("NVDA", "2026-09-16")
+        val root = JSONObject(db.exportJson())
+        val full = root.getJSONArray("dayTradingLog")
+        assertTrue("fixture needs at least 2 day-trading rows", full.length() >= 2)
+        root.put("dayTradingLog", JSONArray().put(full.get(0)))
+        // `counts` deliberately left describing the full file, same fixture shape as
+        // `truncatedBackup` above.
+
+        db.close(); app.deleteDatabase(Db.DB_NAME); db = Db(app)
+        val r = db.restoreJson(root.toString(), replace = true)
+
+        assertNull("a short day-trading count must not refuse the restore: ${r.error}", r.error)
+        assertNotNull("the short count was not reported at all", r.warning)
+        assertEquals(1, db.dayTradingLog().size)
+    }
+
     @Test fun `restoring the same backup twice does not duplicate day-trading rows`() {
         seedLedger()
         logPick("ONDS", "2026-09-15")
