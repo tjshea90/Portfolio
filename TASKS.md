@@ -1,5 +1,45 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-21c (his own words)
+
+> When this work is complete, review the attached video and screenshot. In
+> the screenshot, the spy baseline looks flat. Is this correct? Spy has
+> been rising consistently. And in the video, if I move a stock chart by
+> dragging left or right when it is zoomed in, the spy baseline sometimes
+> jumps up and down, making it appear that sometimes the stock outperforms
+> spy but when I move the chart, suddenly the stock at the same point of
+> time drops below spy. Maybe I'm reading it wrong. Review the attached
+> video for how the spy baseline jumps up and down when I move the
+> timeline. See if this is correct. If it is not, fix it. Then run light
+> tests because usage is running out.
+
+Screenshot: TSXU detail screen, 6M range, "vs SPY" toggle on. SPY's line is
+drawn nearly flat (dashed-looking, barely moving) despite SPY genuinely
+having risen over the period (its own "+15.44%" / "+128.46%" annotations
+disagree with how flat the drawn line looks) - this is a PERCENT-CHANGE
+comparison chart (both lines rebased to the same start), so SPY's line
+should show real day-to-day movement, just compressed by TSXU's much
+larger swings on the same axis. Need to check whether that's simply axis
+scale (expected, not a bug) or whether SPY's series itself is wrong
+(flattened/wrong data).
+
+Video: dragging/panning a zoomed-in chart left-right sometimes makes the
+SPY baseline jump, and the stock-vs-SPY relationship at the SAME point in
+time flips (stock above SPY, then below) depending on where the chart is
+scrolled to - that part sounds like a real bug (the comparison base or
+SPY's aligned value depends on the visible window, when it should be
+anchored to the chart's fixed start date regardless of pan position).
+
+### Progress
+- [ ] Watch the video, inspect the screenshot pixels/values
+- [ ] Read the chart's percent-change/rebasing code (likely PriceChart.kt
+      and/or wherever "vs SPY" series alignment happens)
+- [ ] Determine: axis-scale illusion (not a bug) vs. genuine data/rebasing
+      bug tied to pan/zoom
+- [ ] Fix if it's a real bug
+- [ ] Light tests per Tj's explicit request ("usage is running out")
+- [ ] Checkpoint
+
 ## Tj's request, 2026-09-21b (his own words)
 
 > Make sure the best stocks and etfs and trending tabs in this app properly
