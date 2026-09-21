@@ -3615,7 +3615,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             //
             // A successful commit clears as before, INCLUDING the legitimate zero where every
             // row was already on file - that is a finished job, not a failure.
-            if (res != null) _importResult.value = null
+            if (res != null) setImportResult(null)
             recompute()
             refresh()
             onDone(n)
