@@ -46,13 +46,17 @@ class ResearchCarryTest {
     // ---------------------------------------------- the fund list survives a stock rebuild
 
     @Test fun `a stock rebuild keeps the fund list, its clock and its warnings`() {
+        // RECENT, not an arbitrary fixed epoch - round 79's staleness gate on `explained`
+        // (see `carryExplainedStamp`) now evicts an explain-pass stamp past `WHY_STALE_MS`,
+        // and this test is about the CARRY mechanism, not staleness (that has its own tests).
+        val explainedRecent = System.currentTimeMillis()
         val old = ResearchSet(
             best = listOf(stock("NVDA", why = "old note")),
             etfs = listOf(fund("VOO")),
             etfGenerated = 1_600_000_000_000L,
             etfWarnings = listOf("the bond screen was quiet"),
             notes = "Claude's note about the data",
-            explained = 1_650_000_000_000L,
+            explained = explainedRecent,
             explainedBy = "API",
             generated = 1_700_000_000_000L
         )
@@ -68,7 +72,7 @@ class ResearchCarryTest {
         // `explained`/`explainedBy` were already carried, so losing the text left the screen
         // claiming an explanation with nothing to show.
         assertEquals("Claude's note about the data", out.notes)
-        assertEquals(1_650_000_000_000L, out.explained)
+        assertEquals(explainedRecent, out.explained)
         // And the new stock data really is the new stock data.
         assertEquals(1_700_001_800_000L, out.generated)
         assertEquals("old note", out.best.first().why)
