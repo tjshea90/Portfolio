@@ -1,13 +1,13 @@
-# CHECKPOINT 1580 — read me first, then TASKS.md
+# CHECKPOINT 1581 — read me first, then TASKS.md
 
-**Written:** 2026-09-21T15:24:47Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/day-trading-success-rate-gonujf` · **builds on:** `70e8d24` (this checkpoint is the commit after it)
+**Written:** 2026-09-21T17:16:27Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/stuck-refresh-loop-3bixfe` · **builds on:** `4db5b40` (this checkpoint is the commit after it)
 
 ## Just done
-Audited the day-trading success-rate feature per Tj's request (numbers 'seem too good to be true'). Traced the full pipeline (recording in PortfolioViewModel.captureDayTradingRecommendations, evaluation in DayTradingEval.evaluate/stats, display in ResearchScreen's DayTradingSuccessRate) and ran the 36-test DayTradingEvalTest suite standalone (36/36 green). Confirmed: it evaluates real 5-minute intraday bars for exact entry/stop/target crossings after recordedAt only - never a whole-day open/close delta - resolves same-bar ambiguity conservatively (never in the strategy's favor), excludes untriggered picks from the rate denominator, and the headline figure is already net of a realistic slippage/cost model that can only make results worse. No bug found; no code changes needed. Logged the request and findings in TASKS.md.
+Diagnosed and fixed the stuck pull-to-refresh spinner Tj reported (screenshot: spinner still turning on the Portfolio tab). Root cause: loadEtfs() and loadResearch() in PortfolioViewModel hand-cleared manualRefresh/refreshSource to false/PULL_NONE in their finally blocks on force=true, instead of deriving the flag via syncManualIndicator() the way refresh() and refreshFeed() already do. Since manualRefresh/refreshSource is one shared flag across every tab's Refreshable, a pull on the Research/ETFs tab that was still mid-build (10-18 requests) could have its hand-clear race against a pull started on a different tab in the meantime: either stripping that other tab's spinner early, or - the stuck case matching the report - a pull on Portfolio overwriting refreshSource to PULL_PRICES while research was still busy, so syncManualIndicator's derived 'want' stayed true (researchLoading) and never let go of PULL_PRICES until the unrelated, possibly slow/flaky-network research build finished. Fixed both finally blocks to call syncManualIndicator() instead of hand-writing the fields, matching the pattern already documented and used in refresh()/refreshFeed(). Ran light tests: checkinit + full Kotlin unit suite green (BUILD SUCCESSFUL, all tests pass); grepped for other manualRefresh=false/refreshSource=PULL_NONE hand-writes (none remain outside a comment) and other _researchBusy writers (detail lookup, explanations - none touch manualRefresh, unaffected).
 
 ## Do this next
-Nothing pending - await Tj's next request. If he still doubts the numbers after this explanation, the next useful step would be exposing the underlying per-trade log rows on screen (symbol/day/entry/stop/target/outcome) so he can spot-check a few himself against a chart, rather than re-auditing code that 3 separate prior sessions have already reviewed for this exact concern.
+Ship this fix per the auto-ship rule (bump versionCode/versionName, ship.sh, trigger GitHub Actions build, confirm green, record-release.sh, post the Release link).
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Nothing pending - await Tj's next request. If he still doubts the numbers after 
 
 ## Last ten checkpoints
 ```
+  ba64fb7 ckpt 1580: Audited the day-trading success-rate feature per Tj's request (numbers 'seem 
   65750c2 ckpt 1579: gated v7.31 (code 88) and pushed it: checkinit, the full unit suite and the v
   7fc4b13 ckpt 1578: Full-tests audit (4 parallel subsystem agents) reconciled and fixed: HIGH bug
   9694006 ckpt 1577: gated v7.30 (code 87) and pushed it: checkinit, the full unit suite and the v
@@ -23,5 +24,5 @@ Nothing pending - await Tj's next request. If he still doubts the numbers after 
   7ff65c2 ckpt 1575: Fixed Best-Stocks refresh flicker (enrichJob left running as a stray sibling 
 ```
 
-(1 automatic checkpoint(s) since the last deliberate one — the
+(2 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
