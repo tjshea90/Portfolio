@@ -134,6 +134,19 @@ data class ResearchRow(
     val score: Int = 0,
     val reasons: List<String> = emptyList(),
     val why: String = "",
+    /**
+     * WHEN [why] WAS LAST WRITTEN BY CLAUDE - not when this row was last built or cached.
+     *
+     * `why` used to carry forward across every rebuild on nothing but a blank check, so a
+     * paragraph written once could ride along by symbol match indefinitely - weeks past the
+     * point Tj had last run any Claude analysis at all, with nothing on screen distinguishing
+     * it from a paragraph written five minutes ago. This is the clock that carry-forward and
+     * eviction (`carryExplanations`/`carryEtfExplanations` in PortfolioViewModel.kt) now check
+     * before treating [why] as current. 0 means "no timestamp" - either `why` is blank, or
+     * this row predates the field and its age is unknown, which the staleness check treats the
+     * same as "too old": unknown is not evidence of current.
+     */
+    val whyAt: Long = 0L,
     // --- trending only
     val mentions: Int = 0,
     val mentionDelta: Int = 0,
