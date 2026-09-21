@@ -1,5 +1,99 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-21d (his own words)
+
+> Do everything I mentioned in the last few messages, except, only do a
+> full test of the app AFTER everything is finished. No light test is
+> needed anymore. Just do the full test after all work is complete, then
+> ship the apk using GitHub actions.
+
+Overrode the earlier light-tests plan (2026-09-21c below had already run
+light tests and shipped v7.30/code 87 before this arrived - that build
+stands, recorded in BUILDLOG.md, but this full-test pass is the real
+final word before the actual ship).
+
+### Full-test audit, 4 parallel subsystem agents (research-only) + reconcile/fix myself
+
+- [x] **Recommendation/scoring** — 1 HIGH, 2 MEDIUM, 1 disclosed-limitation
+      note. Everything else (round66 ETF fixes, RatingRecency, this
+      session's own v7.30 fixes) confirmed still correct.
+- [x] **Day-trading** — 1 MEDIUM (trade-plan levels have no staleness
+      check, unlike `why`), 1 LOW/note. Log persistence, battery gating,
+      scoring all confirmed correct.
+- [x] **Network/caching** — 1 MEDIUM (the batch-level "Explained via
+      Claude" stamp has no staleness eviction, unlike per-row `why`).
+      Everything else (Http retry/backoff/cancellation, RetryClock,
+      source-order compliance, DayTradingTechnicals memoization) confirmed
+      already correct from prior rounds.
+- [x] **UI/battery/persistence** — clean, no findings. Confirmed the
+      PriceChart.kt anchor fix didn't regress the no-compare zoom-readout
+      feature.
+
+### Findings fixed
+
+1. **HIGH** — `ResearchBridge.merge`/`DayTradingBridge.merge` stamped
+   `whyAt = now` unconditionally on any matched row, even when the reply
+   only updated a catalyst/target/plan and left `why` itself blank
+   (kept via `ifBlank`). That reset a weeks-old paragraph's clock to
+   "now" every time ANYTHING else on the row changed - defeating the
+   14-day eviction shipped in v7.30 for exactly this pattern. Fixed:
+   `whyAt` now only refreshes when the incoming `why` is itself
+   non-blank. Required a matching fix in `carryEtfExplanations`'s
+   Claude-added-fund filter (a category-only fund's `whyAt` is now
+   always 0, so it can't be gated on `whyAt` freshness the way a `why`
+   paragraph is - kept unconditionally, matching pre-v7.30 behavior,
+   since a category isn't time-sensitive advice the way a paragraph is).
+   New tests in ResearchTest.kt, DayTradingTest.kt, ResearchCarryTest.kt.
+2. **MEDIUM** — the batch-level `explained`/`explainedBy`/`notes` and
+   `dtExplained`/`dtExplainedBy`/`dtNotes` fields (the "Explained via
+   Claude" card and its relative-time line) carried forward across every
+   rebuild and cold launch with no age check at all - the same pattern
+   `why`/`whyAt` had before v7.30, one level up. Added
+   `carryExplainedStamp`, gated by the same `WHY_STALE_MS`, wired into
+   `carryExplanations` (both the early-exit and main paths) and
+   `evictStaleWhy`. New tests in ResearchCarryTest.kt.
+3. **MEDIUM** — Day Trading's trade-plan levels (entry/stop/target/setup/
+   trigger/planNote/planExit) have no staleness check on cold launch,
+   unlike `why`. A plan is only ever valid for the trading day it was
+   computed on; if the app is reopened after a prior trading day AND the
+   follow-up rebuild then fails (offline, a provider cooldown - the
+   existing "keep whatever was on screen" rule for an empty rebuild),
+   stale numeric buy/stop/sell levels could sit on screen with nothing
+   marking them stale. Never mislogged - the permanent recommendation log
+   already has its own `sessionDay == today` gate - only misdisplayed.
+   Added `evictStaleDayTradingPlan` (clears the plan, not the row, when
+   the cached set's `generated` day-key differs from today's), called
+   from `loadCachedResearch`. New tests in ResearchCarryTest.kt.
+4. **MEDIUM** — `RecommendationDialog`'s "vs $price at [time]" line used a
+   bare time with no date, so a multi-day-old cached verdict shown while
+   a fresh one recomputes in the background looked identical to one
+   computed a minute ago. Fixed: the date is prepended whenever
+   `dayKey` is not today's. New tests in DetailTabsUiTest.kt.
+5. **MEDIUM/LOW** — `Recommend.build()` stamped `computedAt`/`dayKey` as
+   "now"/"today" regardless of how stale the underlying `Fundamentals`
+   actually was (if its own 6-hour refresh had been failing), with
+   nothing on screen distinguishing a verdict freshly computed from
+   fresh data from one freshly computed from stale data. Added
+   `Recommendation.fundamentalsAt` (from `Fundamentals.fetched`) and a
+   dialog note shown only when it lags the verdict's own day. New tests
+   in DetailTabsUiTest.kt.
+6. **note, not fixed** — `ResearchScore.withAnalyst` (the screener's
+   30%-weighted consensus overlay) has no per-rating age check, unlike
+   `holding()`'s panel - but this is an already-disclosed, deliberate
+   2026-09-18 trade-off (the screener runs over hundreds of candidates;
+   per-analyst dated history for all of them is too heavy to fetch), with
+   its own on-screen reason line saying so. Not a new bug.
+
+### Re-verification and ship
+
+- [x] Full Gradle unit suite green after every fix batch: 1228 tests,
+      0 failures (up from 1212 after the initial three fixes - 16 new
+      tests this round). `checkinit.py` clean throughout.
+- [x] v7.30 (code 87, the pre-full-test light-tests ship) confirmed green
+      and recorded in BUILDLOG.md.
+- [ ] Ship v7.31 (code 88) with the full-test audit fixes, trigger the
+      GitHub Actions build, confirm green, record it, post the link.
+
 ## Tj's request, 2026-09-21c (his own words)
 
 > When this work is complete, review the attached video and screenshot. In
