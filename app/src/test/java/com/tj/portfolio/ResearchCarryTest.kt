@@ -270,4 +270,110 @@ class ResearchCarryTest {
         assertEquals("fresh trending row wrongly touched", "fresh note", out.trending.first().why)
         assertEquals("stale etf row not evicted", "", out.etfs.first().why)
     }
+
+    // ---- full-tests audit, round 79: `whyAt` narrowed to track `why` specifically broke a
+    // pre-existing case unless the ETF-added filter was updated to match (see
+    // `carryEtfExplanations`'s own note)
+
+    @Test fun `a category-only Claude-added fund survives even though it never gets a whyAt`() {
+        // `whyAt` now only stamps when `why` itself is fresh (ResearchBridge.merge's fix for
+        // the HIGH finding), so a category-only row's `whyAt` is always 0 - it must not be
+        // read as "stale" the way a row that once HAD a why and lost it would be.
+        val old = listOf(
+            fund("VOO"),
+            ResearchRow(symbol = "SCHD", score = 70, catalyst = "US dividend equity", whyAt = 0L)
+        )
+        val out = carryEtfExplanations(old, listOf(fund("VOO")))
+        assertTrue("a category-only fund must not be dropped for lacking a whyAt", out.any { it.symbol == "SCHD" })
+    }
+
+    // ---- full-tests audit, round 79: the BATCH-level "explained via Claude" stamp
+    // (`explained`/`explainedBy`/`notes` and their day-trading counterparts) goes stale the
+    // same way a single row's `why` does - it used to carry forward unconditionally too.
+
+    @Test fun `a stale batch explain-pass stamp is evicted on a stock rebuild`() {
+        val old = ResearchSet(
+            best = listOf(stock("NVDA")),
+            notes = "Claude's note about the data",
+            explained = old14Days,
+            explainedBy = "API"
+        )
+        val out = carryExplanations(old, ResearchSet(best = listOf(stock("NVDA"))))
+        assertEquals("", out.notes)
+        assertEquals(0L, out.explained)
+        assertEquals("", out.explainedBy)
+    }
+
+    @Test fun `a recent batch explain-pass stamp survives a stock rebuild`() {
+        val old = ResearchSet(
+            best = listOf(stock("NVDA")),
+            notes = "Claude's note about the data",
+            explained = System.currentTimeMillis(),
+            explainedBy = "API"
+        )
+        val out = carryExplanations(old, ResearchSet(best = listOf(stock("NVDA"))))
+        assertEquals("Claude's note about the data", out.notes)
+    }
+
+    @Test fun `a stale day-trading explain-pass stamp is evicted the same way`() {
+        val old = ResearchSet(
+            best = listOf(stock("NVDA")),
+            dtNotes = "Claude's day-trading note",
+            dtExplained = old14Days,
+            dtExplainedBy = "API"
+        )
+        val out = carryExplanations(old, ResearchSet(best = listOf(stock("NVDA"))))
+        assertEquals("", out.dtNotes)
+        assertEquals(0L, out.dtExplained)
+    }
+
+    @Test fun `a stale batch explain-pass stamp is evicted on a cold launch too`() {
+        val set = ResearchSet(
+            best = listOf(stock("NVDA")),
+            notes = "Claude's note", explained = old14Days, explainedBy = "API",
+            dtNotes = "Claude's day-trading note", dtExplained = old14Days, dtExplainedBy = "API"
+        )
+        val out = com.tj.portfolio.ui.evictStaleWhy(set)
+        assertEquals("", out.notes)
+        assertEquals(0L, out.explained)
+        assertEquals("", out.dtNotes)
+        assertEquals(0L, out.dtExplained)
+    }
+
+    // ---- full-tests audit, round 79: a day-trading PLAN (entry/stop/target) is only ever
+    // valid for the trading day it was computed on - a cold launch after a prior trading day
+    // must not leave it on screen.
+
+    @Test fun `a day-trading plan from a previous trading day is cleared on cold launch`() {
+        val yesterday = System.currentTimeMillis() - 2L * 86_400_000L
+        val row = ResearchRow(
+            symbol = "GME", score = 88, price = 22.5,
+            entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5,
+            setup = "Breakout", trigger = "Buy the break of 22.50", planByClaude = true
+        )
+        val out = com.tj.portfolio.ui.evictStaleDayTradingPlan(listOf(row), generated = yesterday)
+        val gme = out.first()
+        assertEquals(0.0, gme.entryPrice, 0.0)
+        assertEquals(0.0, gme.stopPrice, 0.0)
+        assertEquals(0.0, gme.targetPrice, 0.0)
+        assertEquals("", gme.setup)
+        assertTrue("the row itself (score, price) must survive - only the plan is cleared", out.first().price == 22.5)
+    }
+
+    @Test fun `a same-day day-trading plan is left alone`() {
+        val now = System.currentTimeMillis()
+        val row = ResearchRow(
+            symbol = "GME", score = 88, price = 22.5,
+            entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5, setup = "Breakout"
+        )
+        val out = com.tj.portfolio.ui.evictStaleDayTradingPlan(listOf(row), generated = now)
+        assertEquals(22.5, out.first().entryPrice, 0.0)
+    }
+
+    @Test fun `a row with no plan at all is untouched by the day-trading eviction`() {
+        val yesterday = System.currentTimeMillis() - 2L * 86_400_000L
+        val row = ResearchRow(symbol = "MEH", score = 40, price = 5.0)
+        val out = com.tj.portfolio.ui.evictStaleDayTradingPlan(listOf(row), generated = yesterday)
+        assertEquals(row, out.first())
+    }
 }
