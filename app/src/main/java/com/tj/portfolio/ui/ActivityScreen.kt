@@ -338,10 +338,11 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
     AlertDialog(
         // ---- THE EXTRACTION COST A REAL CLAUDE API CALL. DO NOT DROP IT ON A MISTAP.
         //
-        // `clearImport()` is `_importResult.value = null`, and the extracted rows exist
-        // nowhere else - so one tap outside a dialog that can be a hundred rows tall
-        // permanently discarded a result that only a deliberate button press can produce.
-        // Cancel and Import are now the only ways out, both explicit.
+        // The extracted rows are a deliberate Claude call's only output, so one tap outside
+        // a dialog that can be a hundred rows tall must not silently discard them. Cancel
+        // and Import are the only ways out, both explicit - `clearImport()` is a real
+        // decision to throw the extraction away (it also drops the on-disk copy kept for
+        // process-death recovery, see `Keys.PENDING_IMPORT`), not a stray tap's side effect.
         // Back still cancels - that is a deliberate gesture, and a dialog that swallows it
         // feels broken. Only the accidental outside tap is refused.
         onDismissRequest = { vm.clearImport() },
