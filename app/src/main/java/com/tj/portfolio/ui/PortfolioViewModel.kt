@@ -622,8 +622,12 @@ internal fun carryExplanations(
         val p = prior[r.symbol] ?: return@map r
         // Claude's explanation survives a rebuild; the app's own score and reasons - and,
         // for day trading, the entry/stop/target risk levels - are recomputed from fresh
-        // screener data every time, which is the point of a rebuild.
-        r.copy(why = if (p.why.isNotBlank()) p.why else r.why)
+        // screener data every time, which is the point of a rebuild. BUT ONLY WHILE IT IS
+        // STILL RECENT - see [WHY_STALE_MS]. Past that window this stops carrying `why`
+        // forward at all, which is the actual eviction: the next `cacheResearch` persists
+        // this row with `why` blank again.
+        if (!stillCurrent(p.why, p.whyAt, now)) return@map r
+        r.copy(why = p.why, whyAt = p.whyAt)
     }
     return fresh.copy(
         trending = carry(fresh.trending),
