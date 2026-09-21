@@ -3622,7 +3622,30 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun clearImport() { _importResult.value = null }
+    fun clearImport() = setImportResult(null)
+
+    /**
+     * The one place [_importResult] is written (full-tests audit, 2026-09-21). Also mirrors
+     * a real extraction - one with rows to review - into [Keys.PENDING_IMPORT], so Android
+     * killing the process while the review dialog is open doesn't silently throw away a
+     * billed Claude API call along with it. [loadPendingImport] restores it on the next
+     * launch; every other outcome (no rows, an error message) clears the persisted copy,
+     * since there is nothing there worth a paid call to reproduce.
+     */
+    private fun setImportResult(r: ExtractResult?) {
+        _importResult.value = r
+        db.set(Keys.PENDING_IMPORT, if (r != null && r.transactions.isNotEmpty())
+            pendingImportToJson(r).toString() else "")
+    }
+
+    private fun loadPendingImport() {
+        val cached = runCatching { db.get(Keys.PENDING_IMPORT) }.getOrDefault("")
+        if (cached.isBlank()) return
+        runCatching { pendingImportFromJson(JSONObject(cached)) }
+            .getOrNull()
+            ?.takeIf { it.transactions.isNotEmpty() }
+            ?.let { _importResult.value = it }
+    }
 
     // -------------------------------------------------------------- advice
 
