@@ -6232,7 +6232,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 }
             } finally {
                 _researchBusy.value = ""
-                if (force) _ui.value = _ui.value.copy(manualRefresh = false, refreshSource = PULL_NONE)
+                // DERIVED, NOT HAND-CLEARED - see the note in loadEtfs and syncManualIndicator
+                // itself. Same bug, same fix: this must not blindly turn the indicator off out
+                // from under a pull that is attached to it from a different tab.
+                if (force) syncManualIndicator()
             }
             enrichVisible()
         }
