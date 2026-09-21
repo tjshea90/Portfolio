@@ -6111,7 +6111,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 }
             } finally {
                 _researchBusy.value = ""
-                if (force) _ui.value = _ui.value.copy(manualRefresh = false, refreshSource = PULL_NONE)
+                // DERIVED, NOT HAND-CLEARED - see syncManualIndicator. This used to blank
+                // `manualRefresh` unconditionally whenever this call was the one that set it,
+                // which is exactly the stranded/stolen-spinner bug documented there: a pull on
+                // another tab that borrowed this same shared flag while the ETF build was still
+                // running got its own indicator ripped away the moment THIS build finished, and
+                // a pull that started here while quotes or feed were still loading got the
+                // spinner stopped early instead of handed off to them.
+                if (force) syncManualIndicator()
             }
         }
     }
