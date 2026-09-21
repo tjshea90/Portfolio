@@ -469,6 +469,39 @@ Here is my read on your lists. I searched the web for the latest on each name.
         assertEquals("", merged.first { it.symbol == "MEH" }.why)
     }
 
+    // ---- full-tests audit, round 79: `whyAt` must track `why` specifically, not "any reply"
+
+    @Test
+    fun `a reply that only updates the catalyst does not refresh why's clock`() {
+        val staleAt = System.currentTimeMillis() - 20L * 24 * 3_600_000L
+        val app = listOf(
+            ResearchRow(symbol = "GOOD", price = 100.0, score = 71, why = "Old paragraph.", whyAt = staleAt)
+        )
+        // A plausible reply shape `section()`'s parser still admits: a catalyst update with no
+        // fresh paragraph. The old `why = c.why.ifBlank { row.why }` line keeps "Old paragraph."
+        // - this proves its clock is not reset just because SOMETHING else in the row changed.
+        val claude = listOf(ResearchRow(symbol = "GOOD", catalyst = "Earnings next week"))
+        val merged = ResearchBridge.merge(app, claude)
+        val good = merged.first { it.symbol == "GOOD" }
+        assertEquals("Old paragraph.", good.why)
+        assertEquals("the untouched why's clock must not have been reset", staleAt, good.whyAt)
+        assertEquals("Earnings next week", good.catalyst)
+    }
+
+    @Test
+    fun `a reply with a fresh why does stamp a fresh clock`() {
+        val staleAt = System.currentTimeMillis() - 20L * 24 * 3_600_000L
+        val app = listOf(
+            ResearchRow(symbol = "GOOD", price = 100.0, score = 71, why = "Old paragraph.", whyAt = staleAt)
+        )
+        val claude = listOf(ResearchRow(symbol = "GOOD", why = "New paragraph."))
+        val before = System.currentTimeMillis()
+        val merged = ResearchBridge.merge(app, claude)
+        val good = merged.first { it.symbol == "GOOD" }
+        assertEquals("New paragraph.", good.why)
+        assertTrue("a genuinely fresh why should stamp a fresh clock", good.whyAt >= before)
+    }
+
     // ============================================================== round trip
 
     @Test
