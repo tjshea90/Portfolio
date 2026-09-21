@@ -754,6 +754,40 @@ internal fun dropUnusableClaudeLevels(
 }
 
 /**
+ * CLEAR A DAY-TRADING PLAN THAT BELONGS TO A DIFFERENT TRADING DAY (full-tests audit, round
+ * 79 sweep).
+ *
+ * THE BUG THIS FIXES. A day-trading plan - "buy at $12.40, stop $11.90, target $13.50" - is
+ * computed against TODAY's intraday structure and is not a claim about any other day.
+ * [loadCachedResearch] restores whatever was last persisted verbatim, and if the app has been
+ * closed since a previous trading day AND the follow-up rebuild then fails (offline, a Yahoo
+ * cooldown - `loadResearch`'s own "keep whatever was on screen" rule for an empty rebuild),
+ * those stale numeric levels would sit on screen with nothing marking them as stale - a more
+ * direct "recommendation" than the explanatory `why` paragraph the rest of this sweep fixes.
+ *
+ * NEVER MISLOGGED, ONLY MISDISPLAYED WITHOUT THIS. `captureDayTradingRecommendations`'s own
+ * `it.sessionDay == today` gate already keeps a stale row like this out of the PERMANENT
+ * recommendation log regardless of this fix - this closes the narrower, display-only gap.
+ */
+internal fun evictStaleDayTradingPlan(
+    rows: List<com.tj.portfolio.data.ResearchRow>,
+    generated: Long,
+    now: Long = System.currentTimeMillis()
+): List<com.tj.portfolio.data.ResearchRow> {
+    if (com.tj.portfolio.net.MarketClock.dayKey(generated) == com.tj.portfolio.net.MarketClock.dayKey(now)) {
+        return rows
+    }
+    return rows.map { r ->
+        if (r.entryPrice <= 0.0 && r.stopPrice <= 0.0 && r.targetPrice <= 0.0) r
+        else r.copy(
+            entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
+            setup = "", trigger = "", planNote = "", planExit = "",
+            tooLateToStart = false, planByClaude = false, planDeclineStreak = 0, planReason = ""
+        )
+    }
+}
+
+/**
  * Merges one fresh [DayTradingTechnicals.DayTechnicals] reading into a row - TOP-LEVEL AND
  * PURE, same reason the price fill is, so a test can check it with no network and no
  * ViewModel.
