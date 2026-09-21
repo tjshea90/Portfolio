@@ -1023,6 +1023,13 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     fun clearOverride(symbol: String) =
         writableDatabase.delete("overrides", "symbol=?", arrayOf(symbol.uppercase()))
 
+    /** Is there already a stored override for this symbol? Same read-only pattern as [hasSetting]. */
+    fun hasOverride(symbol: String): Boolean {
+        readableDatabase.rawQuery(
+            "SELECT 1 FROM overrides WHERE symbol=? LIMIT 1", arrayOf(symbol.uppercase())
+        ).use { c -> return c.moveToFirst() }
+    }
+
     // ---------- quote cache ----------
 
     fun cacheQuote(q: Quote) {
