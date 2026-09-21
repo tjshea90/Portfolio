@@ -595,7 +595,8 @@ internal fun carryEtfExplanations(
  */
 internal fun carryExplanations(
     old: com.tj.portfolio.data.ResearchSet,
-    fresh: com.tj.portfolio.data.ResearchSet
+    fresh: com.tj.portfolio.data.ResearchSet,
+    now: Long = System.currentTimeMillis()
 ): com.tj.portfolio.data.ResearchSet {
     // THE EARLY EXITS CARRY THE FUND LIST TOO. `old.isEmpty` asks only about the three
     // STOCK lists, so someone who has opened the ETFs tab and nothing else takes this
