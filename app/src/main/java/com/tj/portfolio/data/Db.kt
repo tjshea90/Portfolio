@@ -2090,6 +2090,17 @@ object Keys {
     const val IN_APP_READER = "in_app_reader"
 
     /**
+     * A Claude screenshot extraction awaiting review, JSON-encoded (full-tests audit,
+     * 2026-09-21). Was held only in the ViewModel's in-memory StateFlow, so Android
+     * killing the process while the review dialog was open (backgrounding to check
+     * something, a low-memory moment) silently lost every extracted row with no warning -
+     * and the extraction is a real, billed Claude API call, not a free re-do. Excluded
+     * from backups: it is this device's own in-flight review, not portable data, and a
+     * restore reviving a stale one on a different device would be confusing, not useful.
+     */
+    const val PENDING_IMPORT = "pending_import"
+
+    /**
      * The price-chart range the user last selected, by [ChartRange] name (Round 58).
      *
      * Remembered so the choice survives closing a stock and the app: someone who reads on a
