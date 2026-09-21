@@ -573,6 +573,29 @@ fun PriceChart(
         // so that is what is asked. `seriesWindow` is the fetched series' own extent.
         val zoomedIn = movedAll
 
+        // ---- THE COMPARISON ANCHOR IS THE SELECTED RANGE'S TRUE START - NEVER THE PANNED
+        // WINDOW'S EDGE (round 79).
+        //
+        // Tj, again, with a second screen recording: *"if I move a stock chart by dragging
+        // left or right when it is zoomed in, the spy baseline sometimes jumps up and down,
+        // making it appear that sometimes the stock outperforms spy but when I move the
+        // chart, suddenly the stock at the same point of time drops below spy."*
+        //
+        // Round 67's `frozenBaseT` (below, now removed) only froze the anchor WITHIN one
+        // continuous drag and let it re-sync to the settled window's own first candle the
+        // moment the finger lifted - which is a different day every time the window is
+        // panned. Two lines each measured from a different day can genuinely swap which is
+        // on top for the SAME calendar date on screen: that is not the same question asked
+        // twice, it is two different questions ("since day A" and "since day B") that happen
+        // to share an axis. "Is this stock beating SPY" only has one honest answer per date
+        // if both lines are always measured from the SAME day - so the anchor is now always
+        // the selected range's own true start, read from `shown` (the whole fetched series,
+        // never re-sliced by a pinch or pan), regardless of how far the window has since
+        // panned or zoomed. `intraday` ranges are untouched: [comparePercents] already
+        // measures both lines from the previous close there, which it only does when the
+        // anchor passed in is null, and that rule was never the bug.
+        val compareAnchorT = if (compare != null && !range.intraday) shown.points.firstOrNull()?.t else null
+
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
         // `remember(shown, compare)` and not `remember(compare)`: `shown` is rebuilt on every
