@@ -74,9 +74,10 @@ This is a fresh standalone deep audit of the whole app, not a diff review.
       — 1207 tests / 0 failures / 0 skipped (1204 + 3 new regression
       tests), checkinit ok.
 - [x] Checkpoint as work completes
-- [ ] Ship per CLAUDE.md's auto-ship policy and post the link — this
-      pass found and fixed a real HIGH bug plus three MEDIUMs, so it
-      qualifies; shipping next.
+- [x] Ship per CLAUDE.md's auto-ship policy and post the link —
+      v7.29 (code 86) shipped, GitHub run 35558277145 green, Release
+      published and recorded in BUILDLOG.md:
+      https://github.com/tjshea90/Portfolio/releases/tag/v7.29
 
 ## Tj's request, 2026-09-19 (his own words)
 
