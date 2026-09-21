@@ -5664,7 +5664,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             msg = "Advice loaded (${r.advice.stocks.size} ratings)"
         }
         if (r.transactions.isNotEmpty()) {
-            _importResult.value = ExtractResult(r.transactions, r.notes, null, "")
+            setImportResult(ExtractResult(r.transactions, r.notes, null, ""))
             msg = if (msg.isBlank()) "Found ${r.transactions.size} transactions - review them"
             else "$msg; ${r.transactions.size} transactions to review"
         }
