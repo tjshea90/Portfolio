@@ -653,57 +653,25 @@ fun PriceChart(
         // too. The colour and the number it colours have to come from the same series.
         val line = signColor(inside.change)
 
-        // ---- THE REBASE ANCHOR IS FROZEN FOR THE LIFE OF A GESTURE.
+        // ---- THE OVERLAY USES THE SAME FIXED ANCHOR AS `inside`, ABOVE.
         //
-        // TJ, with a screen recording: *"when I put a stock chart in full screen and scroll
-        // left to right, the stock chart stays accurate but the spy line jumps up and down
-        // with the dotted line."*
-        //
-        // `insideRange.first` is a CANDLE INDEX, not a continuous position - on a 1Y chart of
-        // daily candles it only advances once a full day of drag has crossed a real candle's
-        // timestamp. Every time it did, `own` (the stock, in comparison mode) and `other`
-        // (the benchmark) below were both re-rebased from a brand-new anchor point in one
-        // discrete step rather than gliding with the finger. That step is mathematically
-        // identical on both lines - but [ComparePair.boundsIn] scales the shared y-axis to
-        // whichever line has the wider range, which on a stock like this is the stock's own
-        // line by a wide margin. The same absolute step is therefore a rounding error against
-        // the stock's scale and a violent jump against the benchmark's, and the dashed zero
-        // line moves with it because its position is read off that same shared axis.
-        //
-        // FROZEN, NOT INTERPOLATED. The stock's own line has the identical discontinuity
-        // today; fixing only the benchmark's anchor would leave that defect in place and could
-        // resurface the moment two similarly-volatile series are compared. Freezing the whole
-        // anchor while `gestureLive` is true - and letting it track the live window again the
-        // instant the finger lifts - removes the mid-drag step from both lines symmetrically,
-        // the same way `held.window` above is seeded once per gesture and held rather than
-        // re-read every frame.
-        //
-        // BY TIMESTAMP, NOT BY INDEX - THE FIRST DRAFT OF THIS FIX GOT THAT WRONG. `drawn` is a
-        // re-sliced VIEW of the fetched series (`clipToWindow`), and its shape changes as the
-        // window pans - index 5 of the slice at the start of a gesture is a different candle
-        // from index 5 of the slice ten pixels later. Freezing an INDEX therefore does not
-        // freeze a candle at all; it freezes a position that quietly points somewhere else on
-        // every subsequent frame, which is worse than the bug being fixed. A timestamp names
-        // the same real moment no matter how the view around it is later re-sliced.
-        val liveBaseT = drawn.points.getOrNull(insideRange.first.coerceIn(0, drawn.points.lastIndex))?.t
-        val frozenBaseT = remember { mutableStateOf(liveBaseT) }
-        if (!gestureLive) frozenBaseT.value = liveBaseT
-        val anchorT = frozenBaseT.value
-
-        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, anchorT, zoomedIn) {
+        // Nothing here needs to freeze for the life of a gesture any more (round 67 used to,
+        // and round 79 removed it): `compareAnchorT` is the selected range's own true start,
+        // read from `shown`, which does not change shape as the window pans - so there is no
+        // "settled window's first candle" for a gesture to jump to in the first place.
+        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, compareAnchorT, zoomedIn) {
             val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
-            // ON THE SAME TERMS AS `inside`, and keyed on the same flag. Short-circuiting to
-            // "the series' own rule" whenever the base index happened to be 0 gave the overlay
-            // the benchmark's PREVIOUS CLOSE while the readout beside it used the first point
-            // on screen - two percentages on one line measured from two different moments.
-            val baseT = if (zoomedIn) anchorT else null
-            val other = comparePercents(drawn, benchmark, tipT, baseT)
+            // ON THE SAME TERMS AS `inside`, and keyed on the same anchor. Short-circuiting to
+            // "the series' own rule" whenever the anchor is null gave the overlay the
+            // benchmark's PREVIOUS CLOSE while the readout beside it used the first point on
+            // screen - two percentages on one line measured from two different moments.
+            val other = comparePercents(drawn, benchmark, tipT, compareAnchorT)
             // THE STOCK'S OWN ANCHOR, LOOKED UP FROM `shown` - the WHOLE fetched series, not
-            // `drawn` - for the same re-slicing reason `anchorT` is a timestamp and not an
-            // index: `shown` keeps every candle regardless of the window, so a frozen timestamp
-            // always finds the same close price in it, however far the window has since panned
-            // away from that candle.
-            val ownFromValue = if (baseT != null) valueAtOrBefore(shown.points, baseT) else null
+            // `drawn`: `shown` keeps every candle regardless of the window, so a fixed
+            // timestamp always finds the same close price in it, however far the window has
+            // since panned away from that candle.
+            val ownFromValue =
+                if (compareAnchorT != null) valueAtOrBefore(shown.points, compareAnchorT) else null
             val own =
                 if (other == null) null
                 else primaryPercents(drawn, fromPoint = zoomedIn, fromValue = ownFromValue)
