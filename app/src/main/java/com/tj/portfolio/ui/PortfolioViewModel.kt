@@ -3423,16 +3423,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun importScreenshots(uris: List<Uri>) {
         val key = claudeKey()
         if (key.isBlank()) {
-            _importResult.value = ExtractResult(emptyList(), "", "Add your Claude API key in Settings first.")
+            setImportResult(ExtractResult(emptyList(), "", "Add your Claude API key in Settings first."))
             return
         }
         viewModelScope.launch {
             _importing.value = true
-            _importResult.value = null
+            setImportResult(null)
             val images = withContext(Dispatchers.IO) { uris.mapNotNull { readImage(it) } }
             if (images.isEmpty()) {
                 _importing.value = false
-                _importResult.value = ExtractResult(emptyList(), "", "Couldn't read the selected images.")
+                setImportResult(ExtractResult(emptyList(), "", "Couldn't read the selected images."))
                 return@launch
             }
             // Never extract from a partial set in silence: a screenshot that was dropped is a
@@ -3440,12 +3440,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val dropped = uris.size - images.size
             if (dropped > 0) {
                 _importing.value = false
-                _importResult.value = ExtractResult(
+                setImportResult(ExtractResult(
                     emptyList(), "",
                     "$dropped of ${uris.size} image(s) couldn't be read - most likely too " +
                         "large even after resizing. Import the rest on their own, or retake " +
                         "those screenshots, so nothing is missed."
-                )
+                ))
                 return@launch
             }
             val chosen = ensureModel()
@@ -3453,7 +3453,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 runCatching { Claude.extractTransactions(key, chosen, images, existingDigest()) }
                     .getOrElse { ExtractResult(emptyList(), "", it.message ?: "Extraction failed") }
             }
-            _importResult.value = res
+            setImportResult(res)
             _importing.value = false
         }
     }
