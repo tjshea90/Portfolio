@@ -59,7 +59,19 @@ data class Recommendation(
     /** True when [targetMean] is the recency-weighted target rather than the feed's flat mean. */
     val targetIsWeighted: Boolean = false,
     /** Weighted mean age in days of the targets behind [targetMean]; -1 when unknown. */
-    val targetAgeDays: Int = -1
+    val targetAgeDays: Int = -1,
+    /**
+     * WHEN THE [Fundamentals] THIS VERDICT WAS SCORED FROM WAS ITSELF LAST FETCHED (full-tests
+     * audit, round 79 sweep) - not when this verdict was computed ([computedAt]. `dayKey`
+     * freezes the verdict for the trading day, but `loadRecommendation` recomputes from
+     * whatever `Fundamentals` is currently cached, which has its own six-hour refresh clock and
+     * can be stale if that refresh has been failing (offline, a provider cooldown). Without
+     * this there is nothing on screen distinguishing "recomputed just now, from data fetched
+     * just now" from "recomputed just now, from data that is days old" - the same class of
+     * unmarked-stale number Tj's original analyst-age complaint was about, one level further
+     * back. 0 for a row cached before this field existed.
+     */
+    val fundamentalsAt: Long = 0L
 ) {
     val hasTarget: Boolean get() = targetMean > 0.0
 
