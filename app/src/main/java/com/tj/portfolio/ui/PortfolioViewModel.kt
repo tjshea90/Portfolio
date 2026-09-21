@@ -535,6 +535,27 @@ private fun stillCurrent(why: String, whyAt: Long, now: Long) =
     why.isNotBlank() && whyAt > 0 && now - whyAt <= WHY_STALE_MS
 
 /**
+ * THE BATCH-LEVEL COUNTERPART TO [stillCurrent] (full-tests audit, round 79 sweep).
+ *
+ * `explained`/`dtExplained` are single timestamps for the WHOLE last "Explain with Claude"
+ * pass - `notes`/`dtNotes` is Claude's own paragraph about the data, `explainedBy`/
+ * `dtExplainedBy` says "API" or "Claude app". Until this fix these three carried forward
+ * across every rebuild and every cold launch exactly the way the per-row `why` text used to:
+ * unconditionally, forever, by nothing but "was it ever set". A pass run months ago left a
+ * "Claude's note on the app's data" card and an "Explained ~X ago via API" line on screen
+ * for the rest of the app's life. Past [WHY_STALE_MS] this drops all three back to blank/0 -
+ * the same eviction `stillCurrent` gives a single row's `why`.
+ */
+private fun carryExplainedStamp(
+    explained: Long,
+    explainedBy: String,
+    notes: String,
+    now: Long
+): Triple<Long, String, String> =
+    if (explained > 0 && now - explained <= WHY_STALE_MS) Triple(explained, explainedBy, notes)
+    else Triple(0L, "", "")
+
+/**
  * BLANK OUT ANY [com.tj.portfolio.data.ResearchRow.why] THAT HAS ALREADY GONE STALE.
  *
  * `carryExplanations`/`carryEtfExplanations` only ever run when a REBUILD happens, which is
