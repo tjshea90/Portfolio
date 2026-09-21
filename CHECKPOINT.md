@@ -1,20 +1,13 @@
-# CHECKPOINT 1577 — read me first, then TASKS.md
+# CHECKPOINT 1578 — read me first, then TASKS.md
 
-**Written:** 2026-09-21T07:18:32Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/stock-etf-refresh-stale-data-mohnpm` · **builds on:** `bebe4ec` (this checkpoint is the commit after it)
+**Written:** 2026-09-21T07:42:54Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/stock-etf-refresh-stale-data-mohnpm` · **builds on:** `f9a473c` (this checkpoint is the commit after it)
 
 ## Just done
-gated v7.30 (code 87) and pushed it: checkinit, the full unit suite and the
-versionCode check all passed here. NOT yet built - GitHub has not been asked.
+Full-tests audit (4 parallel subsystem agents) reconciled and fixed: HIGH bug where whyAt was stamped unconditionally, defeating v7.30's own staleness eviction whenever a reply touched anything but why; MEDIUM bug extending staleness eviction to the batch-level explained/notes/dtExplained/dtNotes fields; MEDIUM bug adding staleness eviction for cold-loaded day-trading trade-plan levels; MEDIUM fix showing the date on a stale cached recommendation's timestamp; MEDIUM/LOW fix surfacing when a recommendation's underlying fundamentals data itself is stale. 1228 tests, 0 failures, checkinit clean. v7.30 (already-shipped light-tests build) confirmed green and recorded in BUILDLOG.md.
 
 ## Do this next
-TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
-android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
-confirm the Release is published (get_release_by_tag is enough) and then run:
-  bash tools/record-release.sh v7.30 "Fixed Best-Stocks refresh flicker (stray analyst-enrich job could splice stale, score-boosted data onto a newer rebuilt list); Claude-analysis cache now expires and evicts why-text past 14 days instead of carrying it forward forever; fixed the SPY-comparison chart's pan/zoom baseline bug (anchor now fixed to the selected range's true start instead of the panned window's edge, closing a repeat of the round-67 'spy line jumps' report)"
-Do NOT try to send Tj the APK - he downloads it himself from the Release page
-(CLAUDE.md, his rule of 2026-09-11), and this container cannot fetch a private
-repo's release asset bytes anyway.
+Bump versionCode/versionName to 88/7.31, run ship.sh, trigger the GitHub Actions build, confirm green, record the release, and post the link
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -23,6 +16,7 @@ repo's release asset bytes anyway.
 
 ## Last ten checkpoints
 ```
+  9694006 ckpt 1577: gated v7.30 (code 87) and pushed it: checkinit, the full unit suite and the v
   28ccdb6 ckpt 1576: Fixed the SPY-comparison chart's pan/zoom baseline bug (comparison anchor now
   7ff65c2 ckpt 1575: Fixed Best-Stocks refresh flicker (enrichJob left running as a stray sibling 
   2c54651 ckpt 1574: Logged Tj's new request (Best Stocks/ETFs/Trending refresh flicker + stale Cl
@@ -32,8 +26,7 @@ repo's release asset bytes anyway.
   5539101 ckpt 1570: Full-tests floor green (1204 tests) + the un-CI'd compiled-class harnesses (S
   d0b0d69 ckpt 1569: Recorded v7.28 release in BUILDLOG.md (build was green, Release already publi
   934d899 ckpt 1568: gated v7.28 (code 85) and pushed it: checkinit, the full unit suite and the v
-  9b9c71c ckpt 1567: Full-tests audit COMPLETE and green: 1204 tests / 0 failures / 0 skipped, che
 ```
 
-(1 automatic checkpoint(s) since the last deliberate one — the
+(24 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
