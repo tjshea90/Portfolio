@@ -433,6 +433,7 @@ data class ResearchRow(
                 score = o.optInt("score", 0),
                 reasons = reasons,
                 why = o.text("why"),
+                whyAt = o.optLong("whyAt", 0L),
                 mentions = o.optInt("mentions", 0),
                 mentionDelta = o.optInt("mentionDelta", 0),
                 rankDelta = o.optInt("rankDelta", 0),
