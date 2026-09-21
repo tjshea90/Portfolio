@@ -5377,7 +5377,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // served an expired certificate since 3 Jan 2026. So one ApeWisdom outage
                 // pinned `socialAt` at zero and re-fired both endpoints on every feed pass
                 // (3 minutes) instead of every 15, which is the opposite of the clock's job.
-                socialAt = System.currentTimeMillis()
+                //
+                // GATED ON `socialDue` (full-tests audit, 2026-09-21): this line ran
+                // unconditionally on every pass regardless of whether `socialJob` actually
+                // attempted a fetch, so the first pass stamped `socialAt`, every later pass
+                // saw `socialDue == false` and skipped the fetch but still re-stamped -
+                // `now - socialAt` could then never exceed one feed interval, `socialDue`
+                // could never become true again, and Social.trending() fired exactly once
+                // per process. Only advance the clock when this pass actually attempted it.
+                if (socialDue) socialAt = System.currentTimeMillis()
                 if (trend.isNotEmpty()) {
                     _trending.value = trend.distinctBy { it.symbol }
                 }
