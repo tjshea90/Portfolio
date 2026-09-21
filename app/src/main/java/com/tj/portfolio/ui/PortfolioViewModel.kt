@@ -512,16 +512,40 @@ private const val SCREENSHOT_PROMPT_FILE = "claude-screenshot-prompt.md"
 // be called. That matters because one of them is the fix for the worst bug of this round:
 // the thirty-minute stock rebuild was silently wiping the six-hour fund list.
 
+/**
+ * HOW LONG CLAUDE'S PARAGRAPH COUNTS AS CURRENT ADVICE, NOT JUST A NON-BLANK STRING.
+ *
+ * Tj: "I haven't run the Claude analysis in weeks... nothing should be recommended on stale
+ * data or stale Claude advice or old cached recommendations... if Claude advice hasn't been
+ * used in a while, the app should remove it from cache." Until this fix, `why`/`catalyst`
+ * carried forward across every rebuild on nothing but a blank check - a paragraph written
+ * once rode along by symbol match for as long as that symbol kept reappearing, with nothing
+ * on screen distinguishing it from one written five minutes ago.
+ *
+ * 14 days is long enough that a normal multi-day gap between sessions never throws away
+ * advice that is still perfectly usable, and short enough that a company's story cannot ride
+ * unchallenged for a month. [com.tj.portfolio.data.ResearchRow.whyAt] of 0 - blank `why`, or a
+ * row cached before this field existed - fails this check unconditionally: unknown age is
+ * never treated as current.
+ */
+internal const val WHY_STALE_MS = 14L * 24 * 3_600_000L
+
+/** True while [why] is both present and recent enough to still count as current advice. */
+private fun stillCurrent(why: String, whyAt: Long, now: Long) =
+    why.isNotBlank() && whyAt > 0 && now - whyAt <= WHY_STALE_MS
+
 /** Keep the imported explanation for any fund that survived into a fresh ranking. */
 internal fun carryEtfExplanations(
     old: List<com.tj.portfolio.data.ResearchRow>,
-    fresh: List<com.tj.portfolio.data.ResearchRow>
+    fresh: List<com.tj.portfolio.data.ResearchRow>,
+    now: Long = System.currentTimeMillis()
 ): List<com.tj.portfolio.data.ResearchRow> {
     if (old.isEmpty()) return fresh
     val prior = old.associateBy { it.symbol }
     val carried = fresh.map { r ->
         val p = prior[r.symbol] ?: return@map r
-        r.copy(why = if (p.why.isNotBlank()) p.why else r.why)
+        if (!stillCurrent(p.why, p.whyAt, now)) return@map r
+        r.copy(why = p.why, whyAt = p.whyAt)
     }
     // FUNDS CLAUDE ADDED SURVIVE A REBUILD TOO.
     //
@@ -530,6 +554,9 @@ internal fun carryEtfExplanations(
     // would silently undo the import six hours later, and the user would have to redo the
     // file round trip to get them back. They are kept, still carrying the app's "not in
     // the app's own screen" marker, and re-ranked into place by their existing score.
+    //
+    // BUT NOT PAST THE STALENESS WINDOW. A fund with nothing on its card but Claude's own
+    // text has no reason to survive once that text goes stale - see [WHY_STALE_MS]'s header.
     val known = carried.map { it.symbol }.toSet()
     // A CATEGORY COUNTS AS SOMETHING CLAUDE SAID. `ResearchBridge.section` admits a row
     // on any of why / catalyst / risk / vehicle, so requiring `why` here meant a fund
@@ -537,7 +564,8 @@ internal fun carryEtfExplanations(
     // hours later - contradicting what the screen tells the user happens to added funds.
     val addedByClaude = old.filter {
         it.symbol !in known && it.etf == null &&
-            (it.why.isNotBlank() || it.catalyst.isNotBlank())
+            (it.why.isNotBlank() || it.catalyst.isNotBlank()) &&
+            it.whyAt > 0 && now - it.whyAt <= WHY_STALE_MS
     }
     if (addedByClaude.isEmpty()) return carried
     // ---- HOW AN ADDED ROW IS PLACED (Round 66 audit, R1).
