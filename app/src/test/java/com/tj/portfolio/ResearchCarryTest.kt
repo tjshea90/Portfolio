@@ -124,11 +124,13 @@ class ResearchCarryTest {
     // thirty-minute rebuild if `carryExplanations` did not carry them forward too.
 
     @Test fun `a stock rebuild keeps the day-trading explanation, its clock and its notes`() {
+        // RECENT, not an arbitrary fixed epoch - see the note on the fund-list test above.
+        val dtExplainedRecent = System.currentTimeMillis()
         val old = ResearchSet(
             best = listOf(stock("NVDA")),
             dayTrading = listOf(stock("GME", why = "old day-trading note")),
             dtNotes = "Claude's note about the day-trading data",
-            dtExplained = 1_650_000_000_000L,
+            dtExplained = dtExplainedRecent,
             dtExplainedBy = "API",
             generated = 1_700_000_000_000L
         )
@@ -139,7 +141,7 @@ class ResearchCarryTest {
         )
         val out = carryExplanations(old, fresh)
         assertEquals("Claude's note about the day-trading data", out.dtNotes)
-        assertEquals(1_650_000_000_000L, out.dtExplained)
+        assertEquals(dtExplainedRecent, out.dtExplained)
         assertEquals("API", out.dtExplainedBy)
         assertEquals("old day-trading note", out.dayTrading.first().why)
         // The two explain states stay apart - carrying Day Trading's forward must not leak
