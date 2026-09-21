@@ -404,18 +404,25 @@ $SHAPE
      */
     fun merge(existing: List<ResearchRow>, incoming: List<ResearchRow>): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
-        // ONE STAMP FOR THE WHOLE MERGE, NOT PER ROW - `whyAt` records when Claude last said
-        // anything about a row, and every row in `incoming` said something just now (`section`
-        // above already refuses to build one with nothing in it). This is what lets
-        // `carryExplanations` tell a paragraph written this call from one that has been
-        // riding along by symbol match for weeks.
+        // STAMPED ONLY WHEN `why` ITSELF IS FRESH (full-tests audit, round 79 sweep) - THE BUG
+        // THIS FIXES.
+        //
+        // The first version of this stamped `whyAt = now` for every row `incoming` matched,
+        // on the reasoning that `section()` above never builds a row with nothing in it. True,
+        // but "something" can be a catalyst/target update with `why` itself left blank - a
+        // perfectly ordinary reply shape - and `why = c.why.ifBlank { row.why }` then keeps the
+        // OLD paragraph while this line reset ITS clock to now. `carryExplanations`'s staleness
+        // check reads that clock to decide whether `why` is still current, so a weeks-old
+        // paragraph could ride forward indefinitely under a fresh-looking timestamp every time
+        // Claude touched anything else on the row - the exact "old cached recommendation
+        // carried forward with no real age check" pattern this whole fix exists to close.
         val now = System.currentTimeMillis()
         val byIncoming = incoming.associateBy { it.symbol }
         val merged = existing.map { row ->
             val c = byIncoming[row.symbol] ?: return@map row
             row.copy(
                 why = c.why.ifBlank { row.why },
-                whyAt = now,
+                whyAt = if (c.why.isNotBlank()) now else row.whyAt,
                 catalyst = c.catalyst.ifBlank { row.catalyst },
                 // The app's own score survives untouched - see [ResearchRow.conviction].
                 conviction = if (c.conviction > 0) c.conviction else row.conviction
@@ -432,7 +439,7 @@ $SHAPE
         // launch. One `distinctBy` is the difference between a duplicated row and an app
         // that cannot open its own screen.
         val added = incoming.filter { it.symbol !in known }.distinctBy { it.symbol }
-            .map { it.copy(whyAt = now) }
+            .map { if (it.why.isNotBlank()) it.copy(whyAt = now) else it }
         return merged + added
     }
 }
