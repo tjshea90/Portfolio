@@ -534,6 +534,32 @@ internal const val WHY_STALE_MS = 14L * 24 * 3_600_000L
 private fun stillCurrent(why: String, whyAt: Long, now: Long) =
     why.isNotBlank() && whyAt > 0 && now - whyAt <= WHY_STALE_MS
 
+/**
+ * BLANK OUT ANY [com.tj.portfolio.data.ResearchRow.why] THAT HAS ALREADY GONE STALE.
+ *
+ * `carryExplanations`/`carryEtfExplanations` only ever run when a REBUILD happens, which is
+ * every 30 minutes for stocks and 6 hours for funds while the app is in active use - but the
+ * whole reason this fix exists is a gap that long between rebuilds: Tj hadn't opened the app
+ * (or at least not this tab) in weeks, so a cold launch restores the persisted cache straight
+ * from disk with no rebuild in between at all, per [loadCachedResearch]. Without this, a
+ * paragraph that was already weeks stale before this feature existed would sit on screen,
+ * looking exactly like current advice, until the next TTL-driven rebuild happened to run.
+ */
+internal fun evictStaleWhy(
+    set: com.tj.portfolio.data.ResearchSet,
+    now: Long = System.currentTimeMillis()
+): com.tj.portfolio.data.ResearchSet {
+    fun scrub(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
+        if (stillCurrent(r.why, r.whyAt, now)) r else r.copy(why = "", whyAt = 0L)
+    }
+    return set.copy(
+        trending = scrub(set.trending),
+        best = scrub(set.best),
+        dayTrading = scrub(set.dayTrading),
+        etfs = scrub(set.etfs)
+    )
+}
+
 /** Keep the imported explanation for any fund that survived into a fresh ranking. */
 internal fun carryEtfExplanations(
     old: List<com.tj.portfolio.data.ResearchRow>,
