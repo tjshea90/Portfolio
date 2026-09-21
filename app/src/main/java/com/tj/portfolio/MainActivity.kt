@@ -521,10 +521,19 @@ internal fun BigTabBar(selected: Int, onSelect: (Int) -> Unit) {
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxSize()
-                        .clickable(
+                        // `selectable`, not `clickable` - a TalkBack user needs to hear this is
+                        // one of a set of tabs and which one is current, not just "button". The
+                        // icon below is marked decorative (contentDescription = null) so its own
+                        // description - identical to the label text - doesn't get read out
+                        // alongside it; `mergeDescendants` folds the Text label into this node's
+                        // single announcement instead.
+                        .selectable(
+                            selected = active,
                             interactionSource = remember { MutableInteractionSource() },
-                            indication = null
+                            indication = null,
+                            role = Role.Tab
                         ) { onSelect(t.index) }
+                        .semantics(mergeDescendants = true) {}
                         .padding(top = 8.dp, bottom = 6.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
@@ -539,7 +548,7 @@ internal fun BigTabBar(selected: Int, onSelect: (Int) -> Unit) {
                             .padding(horizontal = 10.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(t.icon, t.label, Modifier.size(26.dp), tint = tint)
+                        Icon(t.icon, contentDescription = null, Modifier.size(26.dp), tint = tint)
                     }
                     Spacer(Modifier.height(3.dp))
                     Text(
