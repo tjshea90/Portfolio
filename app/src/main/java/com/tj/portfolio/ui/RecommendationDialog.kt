@@ -249,6 +249,31 @@ fun RecommendationDialog(r: Recommendation?, symbol: String, onDismiss: () -> Un
                             modifier = Modifier.testTag("recFreshness")
                         )
                     }
+                    // ---- THE UNDERLYING DATA ITSELF CAN BE STALE, NOT JUST THE RATINGS
+                    // (full-tests audit, round 79 sweep).
+                    //
+                    // `loadRecommendation` recomputes from whatever `Fundamentals` is
+                    // currently cached, which has its own six-hour refresh clock - if that
+                    // refresh has been failing (offline, a provider cooldown), this verdict is
+                    // still stamped `computedAt = now` and looks freshly computed even though
+                    // every number underneath it is however old the last successful fetch was.
+                    // Shown only when it genuinely lags the verdict's own clock by a full day,
+                    // so an ordinary same-day recompute never sees it.
+                    if (r.fundamentalsAt > 0L && r.computedAt > 0L &&
+                        com.tj.portfolio.net.MarketClock.dayKey(r.fundamentalsAt) !=
+                            com.tj.portfolio.net.MarketClock.dayKey(r.computedAt)
+                    ) {
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "The underlying financial data was last refreshed " +
+                                "${Fmt.shortDay(r.fundamentalsAt)}, not today - a stalled " +
+                                "refresh (offline, or a provider pausing this app's requests) " +
+                                "can leave this verdict scored from older numbers.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.testTag("recFundamentalsStale")
+                        )
+                    }
                     if (r.analystCount == 0) {
                         Spacer(Modifier.height(6.dp))
                         Text(
