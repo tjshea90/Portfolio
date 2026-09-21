@@ -102,6 +102,50 @@ Two distinct bugs to chase:
    (c) actually evict/remove old unused Claude-analysis cache entries per
    Tj's explicit ask ("remove it from cache"), not just hide them.
 
+### Progress - DONE
+
+- [x] **Flicker bug, root cause found (via a background investigation
+      agent's trace)**: `enrichJob` (the analyst-consensus pass) was a
+      SIBLING of `researchJob`, not a child of it - cancelling
+      `researchJob` on a new pull-to-refresh never touched a still-in-
+      flight `enrichJob` from the PREVIOUS refresh. That stale pass
+      (awaiting a ~1s Nasdaq round trip) could resolve AFTER a newer
+      rebuild had already replaced the list, and its write matched the
+      CURRENT list purely by symbol, splicing a stale analyst-boosted
+      score onto whatever row now sat at that symbol and re-sorting the
+      window on it - promoting a stock to #1 on data a newer rebuild had
+      already superseded, until the next write reverted it. Fixed with
+      two layers in PortfolioViewModel.kt: (1) `loadResearch(force=true)`
+      now cancels `enrichJob` alongside `researchJob`; (2) `enrichPass()`
+      captures the list's `generated` stamp before its one suspension
+      point and skips its write entirely if a rebuild happened while it
+      was in flight (belt-and-suspenders, for a cancellation that lands
+      too late).
+- [x] **Stale Claude-cache, root cause found (via a second background
+      investigation agent's audit)**: `why` (Claude's paragraph) carried
+      forward across every rebuild - and every cold app launch that
+      restored the persisted cache - on nothing but a blank-string check,
+      forever, with no per-row timestamp anywhere to check against. Fixed:
+      - Added `ResearchRow.whyAt` (when Claude last said anything about
+        this row), serialized in `toJson`/`fromJson`.
+      - `ResearchBridge.merge`/`DayTradingBridge.merge` now stamp it
+        whenever a row is touched by a fresh Claude reply.
+      - Added `WHY_STALE_MS` (14 days) in PortfolioViewModel.kt.
+        `carryExplanations`/`carryEtfExplanations` now only carry `why`
+        forward while it is within that window - past it, the row's own
+        (blank) `why` wins, which is the actual eviction: the next
+        `cacheResearch` persists the row with `why` cleared. A
+        Claude-added ETF fund (nothing else on its card) is dropped
+        outright once stale rather than kept blank.
+      - Added `evictStaleWhy`, run once on `loadCachedResearch`'s cold
+        start - the one path the carry functions never see, since
+        nothing has rebuilt yet.
+      - New tests in ResearchCarryTest.kt covering both the eviction and
+        that a recent explanation is unaffected.
+- [x] Light tests: `checkinit.py` + full Gradle unit suite green - 1207
+      tests at this point (before the 2026-09-21c chart fix added 5 more).
+- [x] Checkpoint
+
 ### Progress
 
 - [ ] Investigate the Best Stocks/Trending refresh flicker bug
