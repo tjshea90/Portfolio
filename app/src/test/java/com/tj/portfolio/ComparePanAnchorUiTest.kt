@@ -42,19 +42,25 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * THE SPY-OVERLAY PAN BUG, PINNED DOWN (round 67).
+ * THE SPY-OVERLAY PAN BUG, PINNED DOWN AGAIN (round 79) - this time with a fixed anchor.
  *
- * TJ, with a screen recording: *"when I put a stock chart in full screen and scroll left to
- * right, the stock chart stays accurate but the spy line jumps up and down with the dotted
- * line."*
+ * Round 67 (git history carries the old version of this file) froze the comparison anchor for
+ * the life of a single continuous drag, then let it re-sync to the settled window's own first
+ * candle the instant the finger lifted. Tj, with a second screen recording, reported the exact
+ * symptom that fix was supposed to have already closed: *"if I move a stock chart by dragging
+ * left or right when it is zoomed in, the spy baseline sometimes jumps up and down, making it
+ * appear that sometimes the stock outperforms spy but when I move the chart, suddenly the stock
+ * at the same point of time drops below spy."* Re-syncing on release IS that bug: two lines each
+ * measured from a different day can swap which is on top for the same calendar date on screen,
+ * and that is confusing regardless of how deliberately it was designed.
  *
- * `CompareChartTest`'s new `fromValue` cases prove the arithmetic is sound in isolation; this
- * proves the THREADING is right - that the anchor `PriceChart` actually draws from stays fixed
- * for as long as a real gesture (finger down, several moves, no lift) is live, and only
- * re-syncs to the settled window once it ends. Both the "if frozen" and "if not frozen"
- * expectations are computed here by calling the exact same pure functions `PriceChart` itself
- * calls, fed the REAL window it reported through `onWindow` at each step - not a hand-predicted
- * one - so this cannot pass by coincidence of the touch-to-pixel math working out.
+ * The fix (`PriceChart.kt`'s `compareAnchorT`): the comparison anchor is now always the
+ * selected range's true start, read from the whole fetched series, never the panned window's
+ * edge - so it no longer matters whether a gesture is live, mid-drag, or long since released.
+ * This test drags across many candles - well past what round 67's own version needed to move
+ * the window at all - and checks the benchmark readout at every stage against the ONE fixed
+ * anchor `PriceChart` now always uses, computed by calling its exact pure functions rather than
+ * re-deriving the arithmetic by hand.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34], qualifiers = "w411dp-h891dp-xhdpi")
@@ -133,35 +139,42 @@ class ComparePanAnchorUiTest {
 
     /**
      * What `PriceChart` itself computes for the benchmark readout given a specific settled
-     * window and a specific rebase anchor - the exact expression `cmp` builds in
-     * `PriceChart.kt`, called directly rather than re-derived by hand.
+     * window, now that the anchor is always the series' own true start (`compareAnchorT`) - the
+     * exact expression `cmp` builds in `PriceChart.kt`, called directly rather than re-derived
+     * by hand.
      */
-    private fun expectedBenchPct(window: ChartWindow, anchorT: Long?): Double? {
+    private fun expectedBenchPct(window: ChartWindow): Double? {
+        val fixedAnchorT = stock().points.first().t
         val drawn = clipToWindow(stock(), window, pad = true) ?: return null
         val inside = insideIndices(drawn, window)
-        val other = comparePercents(drawn, bench(), baseT = anchorT) ?: return null
-        val ownFromValue = anchorT?.let { valueAtOrBefore(stock().points, it) }
-        val own = primaryPercents(drawn, fromPoint = anchorT != null, fromValue = ownFromValue)
-            ?: return null
+        val other = comparePercents(drawn, bench(), baseT = fixedAnchorT) ?: return null
+        val ownFromValue = valueAtOrBefore(stock().points, fixedAnchorT)
+        val own = primaryPercents(drawn, fromPoint = true, fromValue = ownFromValue) ?: return null
         val idx = ComparePair(own, other).pairedIndexIn(inside.first, inside.last) ?: return null
         return other[idx]
     }
 
-    @Test fun `the benchmark anchor is frozen while the gesture is live, and re-syncs once it ends`() {
+    @Test fun `the benchmark anchor never moves - not before, during, or after a drag`() {
         val startWindow = zoomed
-        val drawnAtStart = clipToWindow(stock(), startWindow, pad = true)!!
-        val insideAtStart = insideIndices(drawnAtStart, startWindow)
-        val frozenAnchorT = drawnAtStart.points[insideAtStart.first].t
+        val expectedAtStart = expectedBenchPct(startWindow)
+        assertTrue("test data has no benchmark readout at the start window", expectedAtStart != null)
 
         show { Chart(startWindow) }
         reported.clear()
+
+        assertEquals(
+            "the fixed anchor should already apply before any gesture",
+            expectedAtStart!!, benchReadoutPct()!!, 0.05
+        )
 
         rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { down(centerRight) }
         rule.waitForIdle()
 
         // Several SEPARATE drag steps within ONE continuous gesture - the finger is never
         // lifted between them - each one moving far enough that the cumulative pan crosses
-        // several of the 200 daily candles.
+        // several of the 200 daily candles. Round 67's version of this test only needed this
+        // to distinguish a frozen anchor from a live one; here it exists to prove the anchor
+        // does not move at all, however far the window is dragged.
         repeat(6) { i ->
             rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
                 moveTo(Offset(centerRight.x - (i + 1) * 80f, centerRight.y))
@@ -174,33 +187,25 @@ class ComparePanAnchorUiTest {
             reported.isNotEmpty()
         )
         val midDragWindow = reported.last()
+        val expectedMidDrag = expectedBenchPct(midDragWindow)
         val renderedMidDrag = benchReadoutPct()
         assertTrue("no benchmark readout while dragging", renderedMidDrag != null)
-
-        val ifFrozen = expectedBenchPct(midDragWindow, frozenAnchorT)
-        val liveDrawn = clipToWindow(stock(), midDragWindow, pad = true)!!
-        val liveAnchorT = liveDrawn.points[insideIndices(liveDrawn, midDragWindow).first].t
-        val ifNotFrozen = expectedBenchPct(midDragWindow, liveAnchorT)
-
-        assertTrue(
-            "test data does not distinguish a frozen anchor from a live one at this drag " +
-                "distance (frozen=$ifFrozen, live=$ifNotFrozen) - widen the drag or the candle spacing",
-            ifFrozen != null && ifNotFrozen != null && kotlin.math.abs(ifFrozen - ifNotFrozen) > 0.3
-        )
         assertEquals(
-            "mid-drag the chart should still be using the anchor from when the gesture began, " +
-                "not the live window's own first candle",
-            ifFrozen!!, renderedMidDrag!!, 0.05
+            "mid-drag the anchor must still be the series' own true start, computed the exact " +
+                "same way as before the gesture began",
+            expectedMidDrag!!, renderedMidDrag!!, 0.05
         )
 
-        // End the gesture - the anchor should now re-sync to the settled window.
+        // End the gesture. Nothing should change: the anchor was never tied to the window, so
+        // lifting the finger has nothing to re-sync.
         rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { up() }
         rule.waitForIdle()
         val renderedAfterUp = benchReadoutPct()
         assertTrue("no benchmark readout after the gesture ends", renderedAfterUp != null)
         assertEquals(
-            "after the finger lifts the anchor should re-sync to the settled window",
-            ifNotFrozen!!, renderedAfterUp!!, 0.05
+            "lifting the finger must not move the anchor - this is what closes the 'stock at " +
+                "the same point of time drops below spy' report",
+            renderedMidDrag, renderedAfterUp!!, 0.001
         )
     }
 }
