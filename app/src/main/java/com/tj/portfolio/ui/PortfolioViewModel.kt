@@ -665,16 +665,21 @@ internal fun carryExplanations(
     // path - and returning `fresh` bare here is exactly how their fund list was thrown
     // away by the first stock build that ran behind it.
     val keepEtfs = { f: com.tj.portfolio.data.ResearchSet ->
+        // BOTH "EXPLAINED VIA CLAUDE" STAMPS ARE GATED THE SAME WAY THE PER-ROW `why` IS -
+        // see [carryExplainedStamp]'s own header (full-tests audit, round 79 sweep).
+        val (explainedAt, explainedVia, note) = carryExplainedStamp(old.explained, old.explainedBy, old.notes, now)
+        val (dtExplainedAt, dtExplainedVia, dtNote) =
+            carryExplainedStamp(old.dtExplained, old.dtExplainedBy, old.dtNotes, now)
         f.copy(
             etfs = old.etfs,
             etfGenerated = old.etfGenerated,
             etfWarnings = old.etfWarnings,
-            notes = old.notes,
-            explained = old.explained,
-            explainedBy = old.explainedBy,
-            dtNotes = old.dtNotes,
-            dtExplained = old.dtExplained,
-            dtExplainedBy = old.dtExplainedBy
+            notes = note,
+            explained = explainedAt,
+            explainedBy = explainedVia,
+            dtNotes = dtNote,
+            dtExplained = dtExplainedAt,
+            dtExplainedBy = dtExplainedVia
         )
     }
     if (old.isEmpty) return keepEtfs(fresh)
