@@ -61,10 +61,10 @@ diff; this is a fresh standalone pass over the whole app at v7.27.
       fee resolving on a non-trade row); both were rewritten to the new
       contract rather than worked around.
 - [x] Checkpoint as work completes (ckpt 1562-1568)
-- [ ] Ship the result per CLAUDE.md's auto-ship policy and post the link
-      — v7.28 (code 85) gated and pushed; GitHub run 35457943340 triggered.
-      When green: `bash tools/record-release.sh v7.28 "<ship note>"`, then
-      post the Release link.
+- [x] Ship the result per CLAUDE.md's auto-ship policy and post the link
+      — v7.28 (code 85) shipped, GitHub run 35457943340 green, Release
+      published and recorded in BUILDLOG.md:
+      https://github.com/tjshea90/Portfolio/releases/tag/v7.28
 
 ### What the audits found, and what was done
 
