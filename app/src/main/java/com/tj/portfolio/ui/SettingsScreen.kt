@@ -130,6 +130,12 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             singleLine = true,
             visualTransformation = if (showKey) androidx.compose.ui.text.input.VisualTransformation.None
                 else PasswordVisualTransformation(),
+            // A password-style IME instead of the default text keyboard: no autocorrect
+            // silently mangling a pasted key, and no keyboard dictionary learning it either.
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                autoCorrectEnabled = false
+            ),
             modifier = Modifier.fillMaxWidth()
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
