@@ -877,10 +877,15 @@ internal fun mergeDayTradingTech(
     // for the rest of the afternoon.
     val declineStreak = when {
         plan != null -> 0
+        // A fresh session starts its OWN streak, not a carry-over from yesterday's close - see
+        // `sessionChanged`'s note above. `confirmedDecline` below forces the clear on this exact
+        // tick regardless, so this only governs how the NEXT tick's debounce behaves.
+        sessionChanged -> if (declined) 1 else 0
         declined -> row.planDeclineStreak + 1
         else -> row.planDeclineStreak
     }
-    val confirmedDecline = declined && declineStreak >= DAY_TRADING_DECLINE_CONFIRM_TICKS
+    val confirmedDecline = (declined && declineStreak >= DAY_TRADING_DECLINE_CONFIRM_TICKS) ||
+        (sessionChanged && plan == null)
     return row.copy(
         atr = effective.atr14,
         vwap = effective.vwap,
