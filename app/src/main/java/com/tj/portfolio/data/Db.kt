@@ -1980,9 +1980,30 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
 
             db.setTransactionSuccessful()
 
-            val warning = if (short)
-                "Warning: the file lists $expected transactions but ${n + skipped} were readable."
-            else null
+            // day_trading_log's own short-count check, same manifest-vs-actual comparison as
+            // transactions above but never a refusal: the table is additive-only on BOTH
+            // modes (see the note above `dtl`), so a truncated file cannot delete anything
+            // this device already has - it can only under-restore what a FILE would have
+            // added, which is worth a warning, not the transactions path's hard stop
+            // (full-tests audit, 2026-09-21 - `counts.dayTradingLog` was written on every
+            // export and never once read back).
+            val expectedDtl = root.optJSONObject("counts")?.optInt("dayTradingLog", -1) ?: -1
+            val shortDtl = expectedDtl >= 0 && expectedDtl != dN + dtl.length().let { 0 }.let {
+                // dN counts only rows that passed validation AND were newly inserted (IGNORE
+                // on a duplicate still returns >= 0, so dN already includes "already had it").
+                // The honest comparison is against how many rows the file's array actually
+                // held, not the manifest's own transactions-shaped skip count.
+                dtl.length()
+            } && expectedDtl != dtl.length()
+
+            val warning = when {
+                short ->
+                    "Warning: the file lists $expected transactions but ${n + skipped} were readable."
+                shortDtl ->
+                    "Warning: the file's day-trading history looks incomplete - it lists " +
+                        "$expectedDtl entries but the array only had ${dtl.length()}."
+                else -> null
+            }
 
             return RestoreResult(
                 n, skipped, ovN, wN, sN, iN, dN,
