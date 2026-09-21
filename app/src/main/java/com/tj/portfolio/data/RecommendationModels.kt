@@ -171,7 +171,8 @@ object RecommendationJson {
             // applied. It is corrected the moment the day rolls over and the row is recomputed.
             analystWeight = if (o.has("analystWeight")) d("analystWeight") else 1.0,
             targetIsWeighted = o.optBoolean("targetIsWeighted", false),
-            targetAgeDays = o.optInt("targetAgeDays", -1)
+            targetAgeDays = o.optInt("targetAgeDays", -1),
+            fundamentalsAt = o.optLong("fundamentalsAt", 0L)
         )
     }.getOrNull()
 }
