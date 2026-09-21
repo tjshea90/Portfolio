@@ -5828,7 +5828,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // case where none has for weeks. Evict here too, or a paragraph already stale
             // before the app was ever reopened would sit on screen unchanged until the next
             // TTL rebuild happened to run.
-            val set = evictStaleWhy(loaded)
+            val whyEvicted = evictStaleWhy(loaded)
+            // SAME REASONING, FOR THE DAY-TRADING PLAN ITSELF - see [evictStaleDayTradingPlan].
+            val set = whyEvicted.copy(
+                dayTrading = evictStaleDayTradingPlan(whyEvicted.dayTrading, loaded.generated)
+            )
             withContext(Dispatchers.Main) {
                 // Merged, not assigned: a live build may have landed while this was parsing,
                 // and a cache read must never overwrite something newer.
