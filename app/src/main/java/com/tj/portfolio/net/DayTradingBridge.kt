@@ -418,15 +418,20 @@ $SHAPE
      */
     fun merge(existing: List<ResearchRow>, incoming: List<ResearchRow>): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
+        // See [ResearchBridge.merge]'s own note: one stamp for the whole merge, since every
+        // row in `incoming` said something just now (its own parse already refused a row with
+        // nothing in it).
+        val now = System.currentTimeMillis()
         val byExisting = existing.associateBy { it.symbol }
         // De-duplicated - same reason [ResearchBridge.merge] does it: a keyed LazyColumn
         // crashes on a repeated key, and a model repeating a ticker is not a hypothetical.
         return incoming.distinctBy { it.symbol }.map { c ->
-            val app = byExisting[c.symbol] ?: return@map c
+            val app = byExisting[c.symbol] ?: return@map c.copy(whyAt = now)
             val takeLevels = c.planByClaude &&
                 levelsUsable(app.price, c.entryPrice, c.stopPrice, c.targetPrice)
             app.copy(
                 why = c.why.ifBlank { app.why },
+                whyAt = now,
                 catalyst = c.catalyst.ifBlank { app.catalyst },
                 conviction = if (c.conviction > 0) c.conviction else app.conviction,
                 // ALL SIX MOVE TOGETHER OR NONE DO - the same rule the live technicals pass
