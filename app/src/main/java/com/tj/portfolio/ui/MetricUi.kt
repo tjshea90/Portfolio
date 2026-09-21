@@ -344,11 +344,22 @@ fun bucketColor(bucket: String): Color = when (bucket) {
     else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
-/** Section heading with its own "i", used for whole groups on the analyst tab. */
+/**
+ * Section heading with its own "i", used for whole groups on the analyst tab.
+ *
+ * UNLIKE [MetricRow]/[TopicRow], this row itself used to carry no `clickable` of its own -
+ * [InfoDot]'s 40dp circle was the ONLY hit target for the whole header, not a near-miss backed
+ * by a bigger tappable row the way its KDoc describes. Given that, the row is made clickable
+ * here too, matching the other two call sites instead of enlarging the dot everywhere and
+ * fighting its documented, tested 40dp sizing.
+ */
 @Composable
 fun ExplainedHeader(text: String, topic: String, onInfo: (String) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 4.dp, top = 14.dp, bottom = 2.dp),
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClickLabel = "What does $text mean?") { onInfo(topic) }
+            .padding(start = 4.dp, top = 14.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start
     ) {
