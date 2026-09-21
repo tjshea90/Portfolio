@@ -136,6 +136,7 @@ object RecommendationJson {
         put("analystWeight", r.analystWeight)
         put("targetIsWeighted", r.targetIsWeighted)
         put("targetAgeDays", r.targetAgeDays)
+        put("fundamentalsAt", r.fundamentalsAt)
     }.toString()
 
     /** Total: an unreadable row degrades to "compute it again", never to an exception. */
