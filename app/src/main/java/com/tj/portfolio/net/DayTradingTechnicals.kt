@@ -194,7 +194,15 @@ object DayTradingTechnicals {
          * is 0.0 in that case for the same reason: a finished session's real numbers are not
          * this morning's, however non-zero they are.
          */
-        val sessionDay: String = ""
+        val sessionDay: String = "",
+        /**
+         * The latest print in TODAY's intraday bars (pre-market included) - the close of the
+         * newest 5-minute bar, which Yahoo keeps updating while that bar is still forming.
+         * 0.0 when no bar is dated today. It is what lets the live sweep plan against the
+         * price NOW rather than the one the screener saw when the list was built (full-tests
+         * audit 2026-09-22, D-H1).
+         */
+        val lastPrice: Double = 0.0
     ) {
         /** Classic floor-trader pivot, from the prior completed session. 0.0 without one. */
         val pivot: Double get() =
@@ -311,7 +319,8 @@ object DayTradingTechnicals {
             // Blank, not today's date, when there is no intraday reading for today - so
             // `sameSession` downstream correctly refuses to carry a row's own cached values
             // forward either, rather than agreeing with itself that nothing is today's.
-            sessionDay = if (intradayToday != null) MarketClock.dayKey(now) else ""
+            sessionDay = if (intradayToday != null) MarketClock.dayKey(now) else "",
+            lastPrice = intradayToday?.lastOrNull()?.close?.takeIf { it > 0.0 } ?: 0.0
         )
     }
 

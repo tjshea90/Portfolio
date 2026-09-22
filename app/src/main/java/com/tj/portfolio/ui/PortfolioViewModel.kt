@@ -815,6 +815,18 @@ internal fun mergeDayTradingTech(
     middayLull: Boolean = false
 ): com.tj.portfolio.data.ResearchRow {
     val effective = effectiveTechnicals(row, tech)
+    // ---- PLAN AGAINST THE PRICE NOW, NOT THE SCREENER'S (full-tests audit 2026-09-22, D-H1).
+    //
+    // `row.price` is whatever the screener saw when the list was BUILT - up to a rebuild
+    // interval old - and nothing on this 30-second tick used to move it. So the "live" plan
+    // was computed around a stale price (a stock that had since run up still read as sitting
+    // under its entry; one that had faded still read as extended), the card showed that stale
+    // price beside live levels, and the recommendation log stored it as the price at the
+    // moment of the recommendation - the number `DayTradingEval.entryRises` uses to decide
+    // whether an entry is a breakout or a pullback. A reading from TODAY's bars carries the
+    // latest print; with none (fetch failed, pre-4am, a holiday) the row keeps its own.
+    val livePrice = tech.lastPrice.takeIf { it > 0.0 && tech.sessionDay.isNotBlank() }
+    val price = livePrice ?: row.price
     // A PLAN CLAUDE SET IS NOT RECOMPUTED OVER. The live sweep ticks every 30 seconds, so
     // computing the app's own plan here unconditionally would have silently replaced an
     // imported Claude plan within half a minute of the import - the user taps Import, reads
@@ -840,7 +852,7 @@ internal fun mergeDayTradingTech(
     val claudePlanStands = row.planByClaude && !sessionChanged
     val (plan, declineReason) = if (claudePlanStands) null to ""
     else com.tj.portfolio.net.ResearchScore.planInternal(
-        row.price,
+        price,
         effective,
         minutesLeft = minutesLeft,
         middayLull = middayLull,
@@ -854,7 +866,7 @@ internal fun mergeDayTradingTech(
     // THE ENGINE LOOKED AND SAID NO, as opposed to not being able to look at all - the
     // distinction the level fields below turn on. `tradePlan` bails early only on a missing
     // price or a missing volatility reading, so with both present a null is a decision.
-    val declined = plan == null && !claudePlanStands && row.price > 0.0 &&
+    val declined = plan == null && !claudePlanStands && price > 0.0 &&
         (effective.atrIntraday > 0.0 || effective.atr14 > 0.0)
     // ---- A REAL SESSION ROLLOVER BYPASSES THE DEBOUNCE BELOW ENTIRELY (full-tests audit).
     //
@@ -898,6 +910,11 @@ internal fun mergeDayTradingTech(
     val confirmedDecline = (declined && declineStreak >= DAY_TRADING_DECLINE_CONFIRM_TICKS) ||
         (sessionChanged && plan == null)
     return row.copy(
+        price = price,
+        // Only while the regular session is open is "vs the previous close" today's move;
+        // outside it, the screener's figure stands.
+        changePct = if (livePrice != null && tech.sessionLive && tech.prevClose > 0.0)
+            (livePrice / tech.prevClose - 1.0) * 100.0 else row.changePct,
         atr = effective.atr14,
         vwap = effective.vwap,
         openingRangeHigh = effective.openingRangeHigh,
