@@ -8,11 +8,20 @@
 (Video: /root/.claude/uploads/34749cd7-19b8-5019-804b-79604d744816/85f0a87e-screen-20260922-154823.mp4
 - session upload, not in git.)
 
-- [ ] Extract frames from the video; identify the exact gesture (hold-and-drag = SCRUB, not pan?)
-      and what the SPY line does
-- [ ] Find the cause in PriceChart.kt (compare/rebase logic under scrub vs pan)
-- [ ] Decide what is correct (accuracy), fix, regression test
-- [ ] Suite green, ship, post link
+- [x] Extract frames from the video (imageio-ffmpeg via pip): zoomed 1D SNDC vs SPY, a one-finger
+      PAN of a 4-hour window from 11:04-2:48 back to 10:30-2:14; SNDC's zero moved with the
+      window's left edge every frame, y-axis range swung -0.10..+5.85 -> -4.80..+0.77
+- [x] Cause: round 79's fixed anchor (`compareAnchorT`) exempted every `range.intraday` range. On
+      1D the stock was measured from the first on-screen candle (`fromPoint = zoomedIn`) while
+      SPY stayed on its previous close - two different zeros; on 5D both re-zeroed at the window
+      edge each frame. Either way the same timestamp could read above SPY, then below it.
+- [x] Fix: `compareAnchorFor` + `compareLines` (pure, PriceChart draws from them): 1D/Overnight
+      -> both lines from their own previous close, zoomed or not; every other range incl. 5D ->
+      the range's first candle. Readout while zoomed+comparing says what it counts from
+      ("since yesterday's close" / "since <date>") instead of "over 4 hr". Test:
+      CompareAnchorTest (3) - every timestamp reads identically through every window for 1D, 5D,
+      1Y; MUTATION-CHECKED: with the old rule restored all 3 fail.
+- [ ] Suite green (1295/0), ship v7.36, post link
 
 
 ## Tj's request, 2026-09-22b (his own words)
