@@ -517,4 +517,21 @@ class FundamentalsTest {
         assertEquals("Sell", Consensus(mean = 4.0).meanLabel)
         assertEquals("", Consensus(mean = 0.0).meanLabel)
     }
+    // ---- A RATINGS FALLBACK BRINGS RATINGS, NOT A SCRAPED VALUATION (full-tests audit S-L9).
+    @Test fun `the ratings path keeps only the analyst half of a fallback provider`() {
+        val scraped = com.tj.portfolio.data.Fundamentals(
+            symbol = "ABC",
+            values = mapOf("peForward" to 99.0),
+            texts = mapOf("sector" to "Scraped"),
+            ratings = listOf(com.tj.portfolio.data.AnalystRating(firm = "F", date = 1L, toGrade = "Buy"))
+        )
+        val kept = com.tj.portfolio.net.FundamentalsFeed.ratingsOnly(scraped)
+        assertEquals(1, kept.ratings.size)
+        assertTrue(kept.values.isEmpty())
+        assertTrue(kept.texts.isEmpty())
+        // And merged over the core numbers, as mergeFundamentals does, the API value survives.
+        val core = com.tj.portfolio.data.Fundamentals(symbol = "ABC", values = mapOf("peForward" to 21.0))
+        val merged = com.tj.portfolio.data.Fundamentals.merge(kept, core)
+        assertEquals(21.0, merged.values["peForward"]!!, 0.0)
+    }
 }
