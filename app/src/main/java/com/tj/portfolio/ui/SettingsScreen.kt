@@ -1073,6 +1073,5 @@ internal const val MAX_SAVED_BACKUP_CHARS = 50_000
  */
 internal fun <T : String?> boundedText(empty: T): Saver<MutableState<T>, String> = Saver(
     save = { st -> st.value?.takeIf { it.length <= MAX_SAVED_BACKUP_CHARS } },
-    @Suppress("UNCHECKED_CAST")
-    restore = { saved -> mutableStateOf(saved as T) }
+    restore = @Suppress("UNCHECKED_CAST") { saved -> mutableStateOf(saved as T) }
 )
