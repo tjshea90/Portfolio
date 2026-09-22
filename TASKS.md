@@ -1,5 +1,24 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-22b (his own words)
+
+> I want the app to be as snappy and fast as possible without losing any accuracy. Accuracy
+> and logic always come before speed. See if this app is well coded and very efficient,
+> optimized for the moto g 2026 and its specs. Make sure it uses the most out of the moto g
+> 2026 specs to be fast and snappy
+
+- [ ] Establish the Moto G 2026's real specs (SoC/cores, RAM, display refresh rate, Android 16)
+- [ ] Audit build config for runtime speed (R8/minify, baseline profiles / profileinstaller,
+      release-only debug overhead, Compose compiler settings) - accuracy-neutral changes only
+- [ ] Audit startup path (cold launch work on main thread, init-time DB/JSON reads)
+- [ ] Audit Compose rendering (recomposition hot spots, unstable params, per-frame allocation,
+      lazy list keys/contentType, charts drawing) for 120Hz smoothness
+- [ ] Audit threading/IO (main-thread SQLite/JSON, dispatcher use, parallelism vs 8 cores)
+- [ ] Fix everything verified, with tests where logic is touched; accuracy never traded for speed
+- [ ] Full suite green, re-check touched code
+- [ ] Ship per the auto-ship rule, post the link
+
+
 ## Tj's request, 2026-09-22 (his own words)
 
 > Run full tests on this app. See what can improve.
