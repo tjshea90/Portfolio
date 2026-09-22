@@ -1,5 +1,23 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-22 (his own words)
+
+> Run full tests on this app. See what can improve.
+
+(Resumed state: v7.33/code 90 was already built, published and recorded -
+the "interrupted mid-change" warning at session start was only
+record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
+
+### Full-test protocol (CLAUDE.md), 4 parallel subsystem audits + reconcile/fix
+- [ ] Floor: `checkinit.py` + full Gradle unit suite
+- [ ] Audit: recommendation/scoring
+- [ ] Audit: day-trading
+- [ ] Audit: network/caching
+- [ ] Audit: UI / battery / persistence
+- [ ] Fix every verified finding, with regression tests
+- [ ] Re-run suite, re-check touched code
+- [ ] Ship per the 2026-09-19 auto-ship rule if the fixes are release-worthy, post the link
+
 ## Tj's request, 2026-09-21e (his own words)
 
 > This app day trading section success rate is claiming numbers that seem
