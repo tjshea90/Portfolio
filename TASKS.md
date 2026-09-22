@@ -9,7 +9,9 @@ the "interrupted mid-change" warning at session start was only
 record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
 
 ### Full-test protocol (CLAUDE.md), 4 parallel subsystem audits + reconcile/fix
-- [ ] Floor: `checkinit.py` + full Gradle unit suite
+- [x] Floor: `checkinit.py` + full Gradle unit suite (2026-09-22: 1261 tests, 0 failures, after
+      Maven 429s - container-local ~/.gradle/init.d/central-mirror.gradle swaps Central, and
+      Robolectric's runtime-jar download, for Google's Central mirror)
 - [x] Audit: recommendation/scoring (S-*)
 - [x] Audit: day-trading (D-*)
 - [x] Audit: network/caching (N-*)
@@ -32,27 +34,31 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           stored value; a BUY/SELL/SPLIT on an overridden symbol now toasts a warning (routed via
           VM `savedMsg` so the caller's "saved" toast can't overwrite it). Tests: 7 in
           PositionEditorTest (untouchedSaveWritesNothing ... whitespaceAround...)
-    - [ ] A-H2 same-day trades replayed in insert order; screenshot imports come newest-first ->
+    - [x] A-H2 same-day trades replayed in insert order; screenshot imports come newest-first ->
           phantom shares / wrong realized (Ledger sort date,id; commitImportAsync; prompts)
-          WRITTEN, awaiting suite: `Ledger.replayOrder` (reverses a same-date group only when the
+          DONE (suite green, 1261/0): `Ledger.replayOrder` (reverses a same-date group only when the
           stored order oversells and the reverse oversells less - repairs rows already on file),
           `domain/ImportOrder.chronological` (new imports inserted oldest-first), both prompts ask
           for screen order. Also covers A-M3 (SPLIT first on an exact date tie), A-M4
           (`ImportDupes.classify`: one-to-one ON_FILE, in-batch REPEAT shown unticked, force
           commit writes exactly what was ticked; prompts: "each line accounts for ONE row"),
-          A-L7 (parseDate rejects years < 1900 -> "09/15/26" = 2026). Tests: ReplayOrderTest (15).
-    - [ ] A-M3 SPLIT on the same day as trades applied after them (sort SPLIT first within a day)
-    - [ ] A-M4 identical same-day rows (partial fills) collapsed on import even with force=true;
+          A-L7 (parseDate rejects years < 1900 -> "09/15/26" = 2026). Tests: ReplayOrderTest (14).
+    - [x] A-M3 SPLIT on the same day as trades applied after them (sort SPLIT first within a day)
+    - [x] A-M4 identical same-day rows (partial fills) collapsed on import even with force=true;
           duplicateFlags not one-to-one; prompts drop second fills
     - [ ] A-M5 sessionInstant() max quoteTime includes crypto -> "today" window follows calendar
     - [ ] A-L6 import parse: $/comma strings -> 0 price BUY; negative SELL qty; unparseable date
-    - [ ] A-L7 Fmt.parseDate "09/15/26" -> year 26 AD
+    - [x] A-L7 Fmt.parseDate "09/15/26" -> year 26 AD
     - [ ] A-L9 no snapshot before Replace-all / wipe / delete symbol
     - [ ] A-L10 cash-type txn keeps a stock symbol; deleteSymbol silently drops watchlist entry
     - [ ] A-L11 Merge restore re-inserts import-history rows every time
   - Day trading (D):
-    - [ ] D-H1 day-trading row price frozen at screener-build time; live plans/log use stale price
+    - [x] D-H1 day-trading row price frozen at screener-build time; live plans/log use stale price
+          -> DayTechnicals.lastPrice (newest 5m bar today); mergeDayTradingTech plans against it,
+          updates row.price (+ changePct while OPEN). Tests: 4 in ResearchPriceFillTest (D-H1 block)
     - [ ] D-H2 "Your portfolio, trading this system" = totalR x 1% ignores the 25% position cap
+          WRITTEN, awaiting suite: ResearchScore.dayTradeSharesPerEquity; stats sums per-trade
+          account effect w/ cap; DayTradingStats.cappedTrades; card text. Tests: 3 in DayTradingEvalTest
     - [ ] D-M3 too-late / pending-decline plans still logged as recommendations
     - [ ] D-M4 early-close half days treated as open to 16:00 (and D-L9 holidays)
     - [ ] D-L5 rows past INTRADAY_RETENTION_DAYS stay "in progress" forever
@@ -61,7 +67,9 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [ ] D-L8 research cache JSON rewritten every 30s tick
     - [ ] D-L10 profitableRate gross vs headline net; PositionSizeLine wording when price-capped
   - Scoring (S):
-    - [ ] S-H1 all dated analyst ratings stale (>8mo) -> falls back to undated consensus at
+    - [ ] S-H1 [WRITTEN, awaiting suite: RatingRecency.allStaleFirms; undatedTrust/Note(allStale);
+          scorer skips 0-trust consensus+target lines; Recommendation.allRatingsStale + note.
+          Tests: 4 in AnalystRecencyTest] all dated analyst ratings stale (>8mo) -> falls back to undated consensus at
           45-90% trust -> stale coverage UPGRADES a stock; false "no publication dates" line
     - [ ] S-M2 carryExplanations uses one symbol map across trending/best/dayTrading
     - [ ] S-M3 enrichVisible clobbers the shared busy flag; enrichPass write-back reverts rows
