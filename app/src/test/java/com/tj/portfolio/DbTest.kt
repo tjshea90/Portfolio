@@ -883,4 +883,15 @@ class DbTest {
         db.purgeFundamentals(olderThanMs = 1000L)
         assertNull(db.cachedRecommendation("OLD"))
     }
+    // ---- DELETING A SYMBOL NEVER TAKES ACCOUNT-LEVEL CASH WITH IT (full-tests audit, A-L10).
+    @Test fun `deleting a symbol spares a deposit that was tagged with it by mistake`() {
+        val d = day(2026, 3, 2)
+        db.insertTxn(Txn(type = TxnType.BUY, symbol = "NVDA", quantity = 1.0, price = 100.0, amount = -100.0, date = d))
+        db.insertTxn(Txn(type = TxnType.DIVIDEND, symbol = "NVDA", amount = 1.0, date = d))
+        db.insertTxn(Txn(type = TxnType.DEPOSIT, symbol = "NVDA", amount = 5000.0, date = d))
+        assertEquals("the trade and its dividend go", 2, db.deleteTxnsForSymbol("NVDA"))
+        val left = db.allTxns()
+        assertEquals(1, left.size)
+        assertEquals(TxnType.DEPOSIT, left.single().type)
+    }
 }
