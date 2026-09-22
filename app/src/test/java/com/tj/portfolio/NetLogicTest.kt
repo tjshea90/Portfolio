@@ -224,6 +224,51 @@ class NetLogicTest {
         }
     }
 
+    // ---- THE EXCHANGE CALENDAR (full-tests audit 2026-09-22, D-M4/D-L9): computed from
+    // NYSE's own rules, checked against dates the exchange actually published.
+
+    @Test fun `NYSE full-day holidays are closed at what would be market hours`() {
+        val holidays = listOf(
+            Triple(2026, 1, 1), Triple(2026, 1, 19), Triple(2026, 2, 16),
+            Triple(2026, 4, 3),                    // Good Friday 2026 (Easter 5 April)
+            Triple(2025, 4, 18),                   // Good Friday 2025
+            Triple(2026, 5, 25), Triple(2026, 6, 19),
+            Triple(2026, 7, 3),                    // 4 July on a Saturday -> Friday
+            Triple(2026, 9, 7), Triple(2026, 11, 26), Triple(2026, 12, 25),
+            Triple(2021, 12, 24),                  // Christmas on a Saturday -> Friday
+            Triple(2023, 1, 2),                    // New Year's on a Sunday -> Monday
+            Triple(2027, 6, 18)                    // Juneteenth on a Saturday -> Friday
+        )
+        for ((y, m, d) in holidays) {
+            assertEquals("$y-$m-$d", MarketClock.Phase.CLOSED, MarketClock.phase(et(y, m, d, 11, 0)))
+        }
+    }
+
+    @Test fun `ordinary sessions next to the holidays stay open`() {
+        val open = listOf(
+            Triple(2021, 12, 31),                  // New Year's on a Saturday is NOT moved back
+            Triple(2026, 4, 2), Triple(2026, 11, 25), Triple(2026, 7, 2),
+            Triple(2026, 9, 8), Triple(2026, 5, 18)
+        )
+        for ((y, m, d) in open) {
+            assertEquals("$y-$m-$d", MarketClock.Phase.OPEN, MarketClock.phase(et(y, m, d, 11, 0)))
+        }
+    }
+
+    @Test fun `the half days close at 1pm and the clock knows it`() {
+        // Day after Thanksgiving 2026, Christmas Eve 2026 (a Thursday), 3 July 2025 (Thursday).
+        for ((y, m, d) in listOf(Triple(2026, 11, 27), Triple(2026, 12, 24), Triple(2025, 7, 3))) {
+            assertEquals(MarketClock.Phase.OPEN, MarketClock.phase(et(y, m, d, 12, 59)))
+            assertEquals(MarketClock.Phase.EXTENDED, MarketClock.phase(et(y, m, d, 13, 0)))
+            assertEquals(MarketClock.Phase.EXTENDED, MarketClock.phase(et(y, m, d, 16, 59)))
+            assertEquals(MarketClock.Phase.CLOSED, MarketClock.phase(et(y, m, d, 17, 0)))
+            assertEquals(30, MarketClock.minutesLeftInSession(et(y, m, d, 12, 30)))
+            assertEquals(0.5, MarketClock.sessionElapsedFraction(et(y, m, d, 11, 15)), 1e-9)
+        }
+        // 3 July 2022 was a Sunday; the Friday before it is a full day.
+        assertEquals(390, MarketClock.minutesLeftInSession(et(2022, 7, 1, 9, 30)))
+    }
+
     @Test fun `the weekend is closed even at what would be market hours`() {
         assertEquals(MarketClock.Phase.CLOSED, MarketClock.phase(et(2026, 9, 5, 11, 0)))  // Sat
         assertEquals(MarketClock.Phase.CLOSED, MarketClock.phase(et(2026, 9, 6, 11, 0)))  // Sun
