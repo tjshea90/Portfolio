@@ -371,10 +371,11 @@ Import the file (or your saved reply) in the app's Activity tab.
             // IMPORTABLE, not ALL - an imported reply may never carry a SPLIT. See its note.
             if (type !in TxnType.IMPORTABLE) continue
             val sym = o.optString("symbol").takeIf { it.isNotBlank() && it != "null" }?.uppercase()
-            val qty = o.optDouble("quantity", 0.0).nz()
-            var px = o.optDouble("price", 0.0).nz()
-            var amt = o.optDouble("amount", 0.0).nz()
-            val fees = o.optDouble("fees", 0.0).nz()
+            // Lenient and unsigned, exactly as the API path reads them - see [Claude.importNumber].
+            val qty = Claude.importNumber(o, "quantity")
+            var px = Claude.importNumber(o, "price")
+            var amt = Claude.importNumber(o, "amount")
+            val fees = Claude.importNumber(o, "fees")
             // The prompt says a fee is already inside the net amount, so it has to come back
             // out before the total becomes a price per share - or cashEffect charges it
             // twice. Same helper the transaction editor and the API path use.
@@ -388,14 +389,15 @@ Import the file (or your saved reply) in the app's Activity tab.
             if ((type == TxnType.BUY || type == TxnType.SELL) && qty < 1e-9) {
                 unusable++; continue
             }
-            val date = Fmt.parseDate(dateStr) ?: Fmt.todayMs()
+            val parsedDate = Fmt.parseDate(dateStr)
+            val date = parsedDate ?: Fmt.todayMs()
             val note = o.optString("note").ifBlank { null }
             txns.add(
                 Txn(
                     type = type, symbol = sym, quantity = qty, price = px,
                     amount = Txn.cashEffect(type, qty, px, amt, fees),
                     fees = fees, date = date,
-                    note = if (dateStr.isBlank() || dateStr == "null")
+                    note = if (parsedDate == null)
                         listOfNotNull(note, "date estimated").joinToString(" - ") else note,
                     source = "CLAUDE_FILE"
                 )

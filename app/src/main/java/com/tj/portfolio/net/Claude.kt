@@ -206,10 +206,11 @@ say so in notes. Numbers must not contain commas or currency symbols."""
             // IMPORTABLE, not ALL - a model reply may never carry a SPLIT. See its note.
             if (type !in TxnType.IMPORTABLE) continue
             val sym = o.optString("symbol").takeIf { it.isNotBlank() && it != "null" }?.uppercase()
-            val qty = o.optDouble("quantity", 0.0).let { if (it.isNaN()) 0.0 else it }
-            var px = o.optDouble("price", 0.0).let { if (it.isNaN()) 0.0 else it }
-            var amt = o.optDouble("amount", 0.0).let { if (it.isNaN()) 0.0 else it }
-            val fees = o.optDouble("fees", 0.0).let { if (it.isNaN()) 0.0 else it }
+            // LENIENT AND UNSIGNED - see [importNumber].
+            val qty = importNumber(o, "quantity")
+            var px = importNumber(o, "price")
+            var amt = importNumber(o, "amount")
+            val fees = importNumber(o, "fees")
             // The prompt tells Claude that a fee already sits inside the net amount, so the
             // fee has to come back out before the total is turned into a price per share -
             // otherwise cashEffect subtracts it a second time. See Txn.unitPriceFromTotal.
@@ -226,20 +227,43 @@ say so in notes. Numbers must not contain commas or currency symbols."""
             if ((type == TxnType.BUY || type == TxnType.SELL) && qty < 1e-9) {
                 unusable++; continue
             }
-            val date = Fmt.parseDate(dateStr) ?: Fmt.todayMs()
+            // ANY date that does not parse is estimated, not only a missing one (A-L6): "Sep 15"
+            // with no year used to become today with no "date estimated" note, which is also
+            // what routes a re-import through the date-independent duplicate check.
+            val parsedDate = Fmt.parseDate(dateStr)
+            val date = parsedDate ?: Fmt.todayMs()
             val note = o.optString("note").ifBlank { null }
             out.add(
                 Txn(
                     type = type, symbol = sym, quantity = qty, price = px,
                     amount = Txn.cashEffect(type, qty, px, amt, fees),
                     fees = fees, date = date,
-                    note = if (dateStr.isBlank() || dateStr == "null")
+                    note = if (parsedDate == null)
                         listOfNotNull(note, "date estimated").joinToString(" - ") else note,
                     source = "SCREENSHOT"
                 )
             )
         }
         return ExtractResult(out, appendUnusable(obj.optString("notes"), unusable), null, text)
+    }
+
+    /**
+     * A number from an imported row, read the way a person would read it (full-tests audit
+     * 2026-09-22, A-L6). `optDouble` accepts only a bare number: a model that wrote
+     * `"price": "$227.44"` or `"amount": "1,364.64"` - despite the prompt - got 0.0, and a BUY
+     * with a share count but no price or amount went in as a ZERO-COST position. The sign is
+     * dropped too: every figure here is a magnitude (the app applies the sign from the type),
+     * and a SELL sent as `"quantity": -10` used to fail the "has a share count" check and be
+     * thrown away as unusable.
+     */
+    internal fun importNumber(o: JSONObject, key: String): Double {
+        val v = o.opt(key)
+        val d = when (v) {
+            is Number -> v.toDouble()
+            is String -> v.filter { it.isDigit() || it == '.' }.toDoubleOrNull()
+            else -> null
+        } ?: return 0.0
+        return if (d.isNaN() || d.isInfinite()) 0.0 else kotlin.math.abs(d)
     }
 
     /** Says so on screen when a row had to be left out, rather than quietly shipping fewer. */
