@@ -1908,7 +1908,12 @@ object Explain {
      * beginner questions the numbers do - what a price target actually is, whether an
      * upgrade means buy, and how much any of it is worth.
      */
-    fun analystTopic(topic: String, f: Fundamentals, price: Double = 0.0): Explanation =
+    fun analystTopic(
+        topic: String,
+        f: Fundamentals,
+        price: Double = 0.0,
+        now: Long = System.currentTimeMillis()
+    ): Explanation =
         when (topic) {
             TOPIC_CONSENSUS -> {
                 val c = f.consensus
@@ -2080,8 +2085,11 @@ object Explain {
                     // floorDiv, not `/` - see daysFromNow. Plain Long division made a
                     // report released last night read as "expected ... in 0 days" for the
                     // whole following day, promising a price move that had already happened.
-                    val days = Math.floorDiv(f.earningsDate - System.currentTimeMillis(), 86_400_000L)
-                    if (days > 0) "The next report is expected ${Fmt.day(f.earningsDate)}, " +
+                    // New York calendar days (U-L3) - see MarketClock.daysUntil.
+                    val days = com.tj.portfolio.net.MarketClock.daysUntil(f.earningsDate, now)
+                    if (days == 1L) "The next report is expected ${Fmt.day(f.earningsDate)} " +
+                        "- tomorrow. Expect a larger-than-usual price move that day."
+                    else if (days > 0) "The next report is expected ${Fmt.day(f.earningsDate)}, " +
                         "in $days days. Expect a larger-than-usual price move that day."
                     else if (days == 0L) "The next report is expected ${Fmt.day(f.earningsDate)} " +
                         "- today. Expect a larger-than-usual price move."

@@ -760,13 +760,15 @@ object Research {
      * function.
      */
     internal fun daysUntilEarnings(earningsAt: Long, now: Long = System.currentTimeMillis()): Long =
-        Math.floorDiv(earningsAt - now, 86_400_000L)
+        // New York calendar days now, not 24-hour blocks - see [MarketClock.daysUntil] (U-L3).
+        // It keeps the floor rule above: anything already past is at least -1.
+        MarketClock.daysUntil(earningsAt, now)
 
     /** The nearest dated event the screener knows about - almost always the next earnings.
      * `internal` (not `private`) so a test can pin the day-boundary math directly. */
-    internal fun catalystFor(r: ScreenRow?): String {
+    internal fun catalystFor(r: ScreenRow?, now: Long = System.currentTimeMillis()): String {
         if (r == null || r.earningsAt <= 0) return ""
-        val days = daysUntilEarnings(r.earningsAt)
+        val days = daysUntilEarnings(r.earningsAt, now)
         if (days < -2 || days > 120) return ""
         val est = if (r.earningsEstimated) " (estimated)" else ""
         return when {

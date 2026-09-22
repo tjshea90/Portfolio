@@ -130,6 +130,22 @@ object MarketClock {
         return c.timeInMillis
     }
 
+    /**
+     * Whole NEW YORK calendar days from [now] until [t]: 0 later today, 1 tomorrow, and so on
+     * (full-tests audit 2026-09-22, U-L3). Counting 24-hour blocks instead called a report due
+     * at 09:00 "today" when it was asked about at 20:00 the night before, and one two mornings
+     * away "tomorrow". A moment already PAST is always at least -1, so a release earlier today
+     * reads as done rather than as still to come - the rule the floor division it replaces was
+     * written to guarantee.
+     */
+    fun daysUntil(t: Long, now: Long = System.currentTimeMillis()): Long {
+        val zone = java.time.ZoneId.of("America/New_York")
+        val from = java.time.Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val to = java.time.Instant.ofEpochMilli(t).atZone(zone).toLocalDate()
+        val d = java.time.temporal.ChronoUnit.DAYS.between(from, to)
+        return if (t < now) minOf(d, -1L) else d
+    }
+
     /** Easter Sunday by the anonymous Gregorian algorithm; Good Friday is two days before. */
     private fun isGoodFriday(y: Int, m: Int, d: Int): Boolean {
         val a = y % 19; val b = y / 100; val cc = y % 100

@@ -440,7 +440,9 @@ fun EarningsTab(
                         // hours away read "In 0 days" and one twenty-five hours away read
                         // "In 1 days", while the popup for the same date said "today" and
                         // "in 1 day". Two screens, one field, two answers.
-                        val days = Math.floorDiv(f.earningsDate - now, 86_400_000L)
+                        // Calendar days in New York, not 24-hour blocks (U-L3) - the same
+                        // count the popup and the Research card use.
+                        val days = com.tj.portfolio.net.MarketClock.daysUntil(f.earningsDate, now)
                         Text(
                             if (f.earningsDate >= now)
                                 when (days) {
