@@ -445,7 +445,6 @@ object DayTradingTechnicals {
     private const val PREMARKET_START_MIN = 4 * 60
     private const val OR_START_MIN = 9 * 60 + 30
     private const val OR_END_MIN = 10 * 60
-    private const val SESSION_END_MIN = 16 * 60
 
     /**
      * Just the most recent trading day's bars.
@@ -482,7 +481,7 @@ object DayTradingTechnicals {
         intraday.filter { etMinutes(it.t) in PREMARKET_START_MIN until OR_START_MIN }
             .maxOfOrNull { it.high } ?: 0.0
 
-    /** True once 16:00 ET has passed on the given instant's own New York date. */
+    /** True once the close (16:00 ET, 13:00 on a half day) has passed on [nowMs]'s New York date. */
     private fun afterClose(nowMs: Long): Boolean = etMinutes(nowMs / 1000) >= MarketClock.closeMinuteAt(nowMs)
 
     /**
@@ -538,7 +537,8 @@ object DayTradingTechnicals {
     internal fun completedSessions(daily: List<Bar>, now: Long): List<Bar> {
         val nowSec = now / 1000L
         val today = etDateKey(nowSec)
-        val closed = etMinutes(nowSec) >= SESSION_END_MIN
+        // The day's own close - 13:00 on a half day (see [regularSession]).
+        val closed = etMinutes(nowSec) >= MarketClock.closeMinuteAt(now)
         return daily.sortedBy { it.t }.filter { etDateKey(it.t) != today || closed }
     }
 
