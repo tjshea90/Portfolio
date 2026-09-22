@@ -100,9 +100,16 @@ object ResearchScore {
             // A turnaround is a forward earnings improvement, so the valuation line may say
             // "for that growth" - it is the same claim the 14 points were awarded for.
             grewThisRound = true
+            // "A TRAILING LOSS" ONLY WHEN THERE WAS ONE (full-tests audit 2026-09-22, S-L8). This
+            // branch also takes breakeven - trailing EPS from 0 up to a cent - which is not a
+            // loss, and the line said it was.
             why.add(
-                "Turning profitable: forward EPS ${Fmt.priceBare(r.epsForward)} against a " +
-                    "trailing loss"
+                if (r.epsTtm < 0.0)
+                    "Turning profitable: forward EPS ${Fmt.priceBare(r.epsForward)} against a " +
+                        "trailing loss"
+                else
+                    "Growing from breakeven: forward EPS ${Fmt.priceBare(r.epsForward)} against " +
+                        "about ${Fmt.priceBare(r.epsTtm)} trailing"
             )
         }
 
