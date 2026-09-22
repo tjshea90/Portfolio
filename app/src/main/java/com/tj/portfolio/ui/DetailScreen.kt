@@ -416,8 +416,11 @@ fun DetailScreen(
     // ARRIVED (not on the object itself, which would re-fire this every 6-hour refresh) so it
     // fires once they show up; `loadRecommendation`'s own once-a-trading-day gate makes that
     // firing a no-op on every day but the first.
-    LaunchedEffect(symbol, fundamentals != null) {
-        if (fundamentals != null) vm.loadRecommendation(symbol, price)
+    // AND ON WHETHER A PRICE HAS ARRIVED (full-tests audit 2026-09-22, U-L4). A verdict needs
+    // both; when the fundamentals landed first this fired at price 0, `Recommend.build` refused
+    // it, and nothing ever fired again - the badge sat on "..." for the rest of the session.
+    LaunchedEffect(symbol, fundamentals != null, price > 0.0) {
+        if (fundamentals != null && price > 0.0) vm.loadRecommendation(symbol, price)
     }
 
     /**

@@ -87,8 +87,14 @@ fun PortfolioScreen(
     // `loadRecommendation` is a local read-and-compute with no network cost of its own and a
     // once-a-trading-day cache, so calling it again for a row that already has today's answer
     // is a guard check, not a repeated fetch.
-    LaunchedEffect(heldSymbols, fundMap) {
-        rows.forEach { r -> if (fundMap[r.symbol] != null) vm.loadRecommendation(r.symbol, r.price) }
+    // ...and when a row first gets a PRICE (U-L4): fundamentals that land before the first quote
+    // were scored at price 0, refused, and never retried. The priced set changes only when a
+    // symbol gains or loses a price - not on every tick.
+    val pricedSymbols = rows.filter { it.price > 0.0 }.map { it.symbol }
+    LaunchedEffect(heldSymbols, fundMap, pricedSymbols) {
+        rows.forEach { r ->
+            if (fundMap[r.symbol] != null && r.price > 0.0) vm.loadRecommendation(r.symbol, r.price)
+        }
     }
 
     Column(Modifier.fillMaxSize()) {
