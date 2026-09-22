@@ -2655,7 +2655,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // AUTOMATIC rate; it must never make a deliberate pull-to-refresh do less
                 // than it used to. Without this, pulling down on the Activity or Advice tab
                 // - where the scope is None - would silently refresh nothing at all.
-                val symbols = if (manual) allTrackedSymbols() else symbolsToQuote()
+                // ...AND WHAT IS ON SCREEN, which "everything tracked" is not (full-tests audit
+                // 2026-09-22, N-L5): a stock opened from Search or Research is neither held nor
+                // watched, so pulling down on its own detail screen refreshed every price in the
+                // app except the one being looked at.
+                val onScreen = symbolsToQuote()
+                val symbols = if (manual) (allTrackedSymbols() + onScreen).distinct() else onScreen
                 if (symbols.isEmpty()) return@launch
 
                 // ROUND 58: STARTED HERE, NOT AFTER THE QUOTE PASS.
@@ -2671,7 +2676,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // the CURRENT `_quotes` rather than a snapshot, precisely so a sparkline
                 // landing mid-pass is not overwritten. Starting them together also takes the
                 // series off the end of the critical path.
-                refreshSparklines(symbols)
+                // VISIBLE rows only, on a pull too (N-L5) - see [refreshSparklines]: a sparkline
+                // that is not on screen is not worth a request, and a pull on the Portfolio tab
+                // used to fetch every watched symbol's line as well.
+                refreshSparklines(onScreen)
 
                 val fk = finnhubKey()
                 // ONE REQUEST FOR THE WHOLE PORTFOLIO, not one per symbol - see the long note
