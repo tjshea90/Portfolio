@@ -366,4 +366,41 @@ class AnalystRecencyTest {
         // undated consensus AT A DISCOUNT rather than to full-strength face value.
         assertTrue(sc.reasons.any { it.contains("no publication dates") })
     }
+    // ---- DATED BUT ALL PAST THE CUTOFF IS NOT "UNDATED" (full-tests audit 2026-09-22, S-H1).
+
+    @Test fun `every dated firm past the cutoff is counted as all-stale`() {
+        val rows = (1..4).map { rating("F$it", 300.0) }
+        assertNull(RatingRecency.panel(rows, now))
+        assertEquals(4, RatingRecency.allStaleFirms(rows, now))
+    }
+
+    @Test fun `one surviving firm, or no dates at all, is not all-stale`() {
+        assertEquals(0, RatingRecency.allStaleFirms(listOf(rating("A", 300.0), rating("B", 20.0)), now))
+        assertEquals(0, RatingRecency.allStaleFirms(listOf(AnalystRating(firm = "A", date = 0L, toGrade = "Buy")), now))
+        assertEquals(0, RatingRecency.allStaleFirms(emptyList(), now))
+    }
+
+    @Test fun `all-stale coverage counts for nothing unless the consensus visibly moved`() {
+        assertEquals(0.0, RatingRecency.undatedTrust(trend(7, 7, 7, 7), allStale = 3), 1e-9)
+        assertEquals(0.0, RatingRecency.undatedTrust(emptyList(), allStale = 3), 1e-9)
+        assertEquals(RatingRecency.MIN_PANEL_CURRENCY,
+            RatingRecency.undatedTrust(trend(9, 7, 7, 7), allStale = 3), 1e-9)
+    }
+
+    @Test fun `THE AUDIT CASE - stale coverage can no longer upgrade a stock`() {
+        val c = Consensus(strongBuy = 12, buy = 6, hold = 1, sell = 0, targetMean = 130.0)
+        val stale = (1..6).map { rating("F$it", 300.0, "Buy", target = 130.0) }
+        val oneSurvivor = stale.dropLast(1) + rating("F6", 230.0, "Buy", target = 130.0)
+        fun score(r: List<AnalystRating>) = ResearchScore.holding(ResearchScore.HoldingInput(
+            price = 100.0, consensus = c, ratings = r, trend = trend(7, 7, 7, 7), now = now))
+        val allStale = score(stale)
+        val nothing = ResearchScore.holding(ResearchScore.HoldingInput(price = 100.0, now = now))
+        assertEquals("all-stale coverage adds nothing over no coverage at all",
+            nothing.score, allStale.score)
+        assertTrue("and never outscores a single surviving eight-month-old note",
+            allStale.score <= score(oneSurvivor).score)
+        assertTrue("the reason says why - not that dates were missing: ${allStale.reasons}",
+            allStale.reasons.any { it.contains("over 8 months old") } &&
+                allStale.reasons.none { it.contains("no publication dates") })
+    }
 }
