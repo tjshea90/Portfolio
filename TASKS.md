@@ -15,6 +15,16 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
 - [ ] Audit: network/caching
 - [ ] Audit: UI / battery / persistence
 - [ ] Fix every verified finding, with regression tests
+  - [x] (own review of v7.33's diff) Session rollover cleared a Claude day-trading
+        plan's levels but left `planByClaude` set, so the row was never re-planned
+        by the engine - blank and unlogged for the whole new session until a
+        rebuild. Also: a Claude import made before the new session's first live
+        tick (cold-launch rows still carry yesterday's `sessionDay`) would be
+        thrown away by that first tick. Fixed in `mergeDayTradingTech`
+        (`claudePlanStands`) + `DayTradingBridge.merge` (blank a stale
+        `sessionDay` when importing levels). Tests: 5 in ResearchPriceFillTest
+        (rollover block), 3 in DayTradingTest (import-session block). Suite run
+        pending (Maven 429 on cold container, retrying).
 - [ ] Re-run suite, re-check touched code
 - [ ] Ship per the 2026-09-19 auto-ship rule if the fixes are release-worthy, post the link
 
