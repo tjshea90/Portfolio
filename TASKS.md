@@ -34,6 +34,13 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           PositionEditorTest (untouchedSaveWritesNothing ... whitespaceAround...)
     - [ ] A-H2 same-day trades replayed in insert order; screenshot imports come newest-first ->
           phantom shares / wrong realized (Ledger sort date,id; commitImportAsync; prompts)
+          WRITTEN, awaiting suite: `Ledger.replayOrder` (reverses a same-date group only when the
+          stored order oversells and the reverse oversells less - repairs rows already on file),
+          `domain/ImportOrder.chronological` (new imports inserted oldest-first), both prompts ask
+          for screen order. Also covers A-M3 (SPLIT first on an exact date tie), A-M4
+          (`ImportDupes.classify`: one-to-one ON_FILE, in-batch REPEAT shown unticked, force
+          commit writes exactly what was ticked; prompts: "each line accounts for ONE row"),
+          A-L7 (parseDate rejects years < 1900 -> "09/15/26" = 2026). Tests: ReplayOrderTest (15).
     - [ ] A-M3 SPLIT on the same day as trades applied after them (sort SPLIT first within a day)
     - [ ] A-M4 identical same-day rows (partial fills) collapsed on import even with force=true;
           duplicateFlags not one-to-one; prompts drop second fills
