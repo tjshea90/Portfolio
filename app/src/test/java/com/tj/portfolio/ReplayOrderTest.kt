@@ -172,7 +172,7 @@ class ReplayOrderTest {
 
     @Test fun `one stored row absorbs one extracted row, not every identical copy`() {
         val fill = buy(0, 50.0, 10.0, d1)
-        val stored = mapOf(fill.copy(id = 7))
+        val stored = listOf(fill.copy(id = 7))
         // Two identical rows extracted, one of them already on file.
         val kinds = ImportDupes.classify(listOf(fill, fill, buy(0, 1.0, 3.0, d1))) { t, claimed ->
             stored.firstOrNull { it.id !in claimed && ImportDupes.fingerprint(it) == ImportDupes.fingerprint(t) }?.id
@@ -194,8 +194,6 @@ class ReplayOrderTest {
         }
         assertEquals(listOf(ImportDup.ON_FILE, ImportDup.ON_FILE), kinds)
     }
-
-    private fun mapOf(t: Txn) = listOf(t)
 
     // ---------------------------------------------------------------- A-L7, 2-digit years
 
