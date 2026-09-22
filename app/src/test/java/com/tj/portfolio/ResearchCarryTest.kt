@@ -5,6 +5,7 @@ import com.tj.portfolio.data.ResearchRow
 import com.tj.portfolio.data.ResearchSet
 import com.tj.portfolio.ui.carryEtfExplanations
 import com.tj.portfolio.ui.carryExplanations
+import com.tj.portfolio.ui.applyAnalystEnrichment
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -402,5 +403,26 @@ class ResearchCarryTest {
         val row = ResearchRow(symbol = "MEH", score = 40, price = 5.0)
         val out = com.tj.portfolio.ui.evictStaleDayTradingPlan(listOf(row), generated = yesterday)
         assertEquals(row, out.first())
+    }
+    // ---- AN ANALYST PASS UPDATES ROWS, IT DOES NOT PUT OLD ONES BACK (full-tests audit, S-M3)
+
+    @Test fun `a Claude paragraph imported during an analyst pass survives its write-back`() {
+        val before = stock("AAA").copy(score = 60)
+        val enriched = listOf(before.copy(score = 75, reasons = listOf("analysts"),
+            consensus = com.tj.portfolio.data.Consensus2(buy = 9, target = 120.0)))
+        // While the pass was suspended, an import wrote Claude's paragraph onto the row.
+        val now = listOf(before.copy(why = "Claude's case", price = 101.0))
+        val out = applyAnalystEnrichment(now, enriched, window = 10).single()
+        assertEquals("Claude's case", out.why)
+        assertEquals(101.0, out.price, 0.0)
+        assertEquals("the pass's own result still lands", 75, out.score)
+        assertEquals(9, out.consensus?.buy)
+    }
+
+    @Test fun `the enriched window is re-ranked and the tail is left alone`() {
+        val rows = listOf(stock("A").copy(score = 50), stock("B").copy(score = 40), stock("C").copy(score = 99))
+        val enriched = listOf(rows[1].copy(score = 80, consensus = com.tj.portfolio.data.Consensus2(buy = 5)))
+        val out = applyAnalystEnrichment(rows, enriched, window = 2)
+        assertEquals(listOf("B", "A", "C"), out.map { it.symbol })
     }
 }
