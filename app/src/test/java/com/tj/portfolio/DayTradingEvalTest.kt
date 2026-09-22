@@ -599,4 +599,37 @@ class DayTradingEvalTest {
         assertEquals(0.0, s.accountReturnPct, 1e-9)
         assertEquals(0, s.sessions)
     }
+    // ---- THE 25% POSITION CAP IS IN THE ACCOUNT FIGURE (full-tests audit 2026-09-22, D-H2).
+
+    @Test fun aTightStopIsSizedByTheCapNotTheRiskBudget() {
+        // entry 100, stop 99.50: a 1% risk budget would buy 2x the account; the cap holds it to
+        // 25%. A +0.95/share winner (after the 5bp entry cost) is then +0.2375% of the account,
+        // not the 1.9% "total R x 1%" reported.
+        val s = DayTradingEval.stats(
+            listOf(entry(outcome = DayTradingOutcome.WIN, entry = 100.0, stop = 99.5,
+                target = 101.0, exitPrice = 101.0))
+        )
+        assertEquals(0.25 * (101.0 - 100.05), s.accountReturnPct, 1e-9)
+        assertEquals(1, s.cappedTrades)
+        assertTrue("R is still measured against the plan's own risk", s.totalR > 1.8)
+    }
+
+    @Test fun aWideStopIsSizedByTheRiskBudgetAndNotCounted() {
+        val s = DayTradingEval.stats(
+            listOf(entry(outcome = DayTradingOutcome.WIN, entry = 10.0, stop = 8.0,
+                target = 14.0, exitPrice = 14.0))
+        )
+        assertEquals(0, s.cappedTrades)
+        assertEquals(s.totalR, s.accountReturnPct, 1e-9)
+    }
+
+    @Test fun aCappedLoserShrinksTowardZeroToo() {
+        val s = DayTradingEval.stats(
+            listOf(entry(outcome = DayTradingOutcome.LOSS, entry = 50.0, stop = 49.5,
+                target = 52.0, exitPrice = 49.5))
+        )
+        assertTrue("a loss", s.accountReturnPct < 0.0)
+        assertTrue("but at most the 1% budget plus costs", s.accountReturnPct > -1.1)
+        assertTrue("and here the cap made it far smaller", s.accountReturnPct > -0.5)
+    }
 }
