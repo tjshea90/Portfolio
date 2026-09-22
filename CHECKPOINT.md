@@ -1,22 +1,24 @@
-# CHECKPOINT 1602 — read me first, then TASKS.md
+# CHECKPOINT 1603 — read me first, then TASKS.md
 
-**Written:** 2026-09-22T19:19:44Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/resume-app-testing-i6cfun` · **builds on:** `457cc68` (this checkpoint is the commit after it)
+**Written:** 2026-09-22T19:25:17Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/resume-app-testing-i6cfun` · **builds on:** `b30a23a` (this checkpoint is the commit after it)
 
 ## Just done
-Logged Tj's 2026-09-22b request (make the app as snappy as possible on the Moto G 2026 without losing accuracy) into TASKS.md.
+Perf pass: R8 enabled for release (-dontobfuscate), app baseline profile, CI emulator smoke test (monkey) gating publish. Local R8 + ART profile tasks green.
 
 ## Do this next
-Research Moto G 2026 specs; audit build config (R8, baseline profiles), startup, Compose rendering, threading.
+Runtime audit: lazy list contentType, startup main-thread work, composition hot spots; then suite, ship (first run of the smoke gate).
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
+     M .github/workflows/android.yml
      M CHECKPOINT.md
      M TASKS.md
 
 ## Last ten checkpoints
 ```
+  173e5c2 ckpt 1602: Logged Tj's 2026-09-22b request (make the app as snappy as possible on the Mo
   457cc68 ckpt 1601: SHIPPED v7.34 (code 91): Actions run 35771678004 green, Release published, BU
   f1dbd3a ckpt 1600: Triggered GitHub Actions android.yml on main (run 35771678004, full_build=tru
   09d15bb ckpt 1599: gated v7.34 (code 91) and pushed it: checkinit, the full unit suite and the v
@@ -26,5 +28,7 @@ Research Moto G 2026 specs; audit build config (R8, baseline profiles), startup,
   61de483 ckpt 1595: All MEDIUMs done (suite 1281/0). LOWs: A-L6 done; A-L9 (pre-destructive snaps
   14c0bdb ckpt 1594: N-M3 done (suite green). Wrote N-M4 (post-close live loop at 5min), U-M1/U-M2
   05a7ab9 ckpt 1593: Suite 1277/0: S-M4 (reasons toggle + red flag first), N-M1 (blank crumb while
-  dc799f8 ckpt 1592: Suite green 1272/0 incl D-H2, S-H1, D-M3, D-M4(+D-L9 NYSE rules calendar). Wr
 ```
+
+(5 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)

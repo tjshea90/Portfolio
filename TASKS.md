@@ -7,9 +7,18 @@
 > optimized for the moto g 2026 and its specs. Make sure it uses the most out of the moto g
 > 2026 specs to be fast and snappy
 
-- [ ] Establish the Moto G 2026's real specs (SoC/cores, RAM, display refresh rate, Android 16)
+- [x] Establish the Moto G 2026's real specs: MediaTek Dimensity 6300 (2x Cortex-A76 2.4GHz +
+      6x A55), 4 GB RAM, 6.7" 720x1604 LCD at 120 Hz, Android 16 (fi.google.com / motorola.com)
 - [ ] Audit build config for runtime speed (R8/minify, baseline profiles / profileinstaller,
       release-only debug overhead, Compose compiler settings) - accuracy-neutral changes only
+      WRITTEN: release `isMinifyEnabled = true` + proguard-rules.pro (-dontobfuscate, line
+      numbers; app has zero reflection - grep-verified); app/src/main/baseline-prof.txt
+      (whole app package, HSP) - verified: local :app:minifyReleaseWithR8 +
+      :app:compileReleaseArtProfile green, 2736 app entries in the compiled profile;
+      profileinstaller 1.4.0 already transitive so it installs on a sideload. SAFETY GATE:
+      tools/smoke-test.sh + android.yml emulator step (API 35) installs the minified APK,
+      launches it and runs 3000 monkey events BEFORE publish; any crash blocks the release.
+      Not yet proven on Actions - the next full build is its first run.
 - [ ] Audit startup path (cold launch work on main thread, init-time DB/JSON reads)
 - [ ] Audit Compose rendering (recomposition hot spots, unstable params, per-frame allocation,
       lazy list keys/contentType, charts drawing) for 120Hz smoothness
