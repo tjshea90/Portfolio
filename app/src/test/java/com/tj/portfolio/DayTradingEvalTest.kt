@@ -639,4 +639,14 @@ class DayTradingEvalTest {
         assertTrue(DayTradingEval.sessionSettled("20260911", close + DayTradingEval.SETTLE_GRACE_MS))
         assertTrue("an unreadable day has nothing to wait for", DayTradingEval.sessionSettled("junk", 0L))
     }
+    // ---- "PROFITABLE" MEANS AFTER COSTS, LIKE THE HEADLINE (full-tests audit, D-L10).
+    @Test fun aCloseACentAboveTheEntryIsNotProfitableAfterCosts() {
+        val s = DayTradingEval.stats(listOf(
+            entry(outcome = DayTradingOutcome.CLOSED_PROFIT, entry = 10.0, exitPrice = 10.001),
+            entry(outcome = DayTradingOutcome.WIN, entry = 10.0, target = 14.0, exitPrice = 14.0)
+        ))
+        assertEquals(1, s.closedProfit)
+        assertEquals("only the target hit made money after costs", 1, s.profitableCount)
+        assertEquals(50.0, s.profitableRate, 1e-9)
+    }
 }
