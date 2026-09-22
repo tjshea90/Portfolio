@@ -416,6 +416,9 @@ private const val DAY_TRADING_LIVE_INTERVAL_MS = 30_000L
  */
 private const val DAY_TRADING_LIVE_CLOSED_INTERVAL_MS = 300_000L
 
+/** The live Day Trading loop writes the research cache at most this often - see cacheResearch. */
+private const val DAY_TRADING_PERSIST_MS = 5 * 60_000L
+
 /**
  * How many Form 4 filings the Insider tab holds.
  *
@@ -2047,6 +2050,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** When set, the live loop sweeps ONLY this symbol - a detail screen showing its plan,
      *  not the Day Trading list. See [startDayTradingLive]'s `only`. */
     private var dayTradingLiveOnly: String? = null
+    /** When [cacheResearch] last wrote the research set to disk, and whether a throttled
+     *  write is still owed - see its `throttleMs`. */
+    private var researchPersistedAt = 0L
+    @Volatile private var researchPersistOwed = false
     /** Every symbol already given its one-time technicals score bonus this rebuild - see
      *  [enrichDayTradingVisible] for why this must be "once", not "every refresh". */
     private val dayTradingTechScored = HashSet<String>()
@@ -3166,6 +3173,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             researchJob = null
             enrichJob = null
             searchJob = null
+            // The live loop's last few levels, if a throttled write was skipped - see D-L8.
+            flushResearchCache()
         }
     }
 
@@ -6054,7 +6063,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * on every "Load more" tap. The screen gets the new state at once; the disk copy catches
      * up a few milliseconds later, and losing it would cost one rebuild.
      */
-    private fun cacheResearch(set: com.tj.portfolio.data.ResearchSet) {
+    private fun cacheResearch(set: com.tj.portfolio.data.ResearchSet, throttleMs: Long = 0L) {
         _research.value = set
         // EVERY PATH THAT CAN CHANGE THE DAY TRADING SECTION GOES THROUGH HERE - the live
         // 30-second enrich loop, a Claude import, a full rebuild - so this is the one place
@@ -6064,9 +6073,31 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // every publish rather than only on a change: the DB's own uniqueness constraint is
         // what actually decides whether anything gets written.
         captureDayTradingRecommendations(set.dayTrading)
+        // ---- THE LIVE TICK DOES NOT REWRITE THE WHOLE CACHE EVERY 30 SECONDS (full-tests
+        // audit 2026-09-22, D-L8). This serialises every list - up to a few hundred KB - and
+        // writes it to SQLite; the Day Trading loop called it on every tick that moved a level,
+        // i.e. constantly, for figures the next tick recomputes anyway. A throttled caller
+        // writes at most once per [throttleMs]; what it skips is owed, and paid when the app
+        // goes to the background ([flushResearchCache]) or by the next unthrottled write.
+        val now = System.currentTimeMillis()
+        if (throttleMs > 0L && now - researchPersistedAt < throttleMs) {
+            researchPersistOwed = true
+            return
+        }
+        persistResearch(set, now)
+    }
+
+    private fun persistResearch(set: com.tj.portfolio.data.ResearchSet, now: Long) {
+        researchPersistedAt = now
+        researchPersistOwed = false
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { db.set(Keys.RESEARCH_CACHE, set.toJson().toString()) }
         }
+    }
+
+    /** Writes a throttled research change that is still owed - see [cacheResearch]. */
+    private fun flushResearchCache() {
+        if (researchPersistOwed) persistResearch(_research.value, System.currentTimeMillis())
     }
 
     /**
@@ -7175,7 +7206,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         } else updated
         if (changed || sweeping) {
             _research.value = _research.value.withSection(name, finalRows)
-            cacheResearch(_research.value)
+            // A completed sweep re-sorted the list - worth writing now; an ordinary tick is not.
+            cacheResearch(_research.value, throttleMs = if (sweeping) 0L else DAY_TRADING_PERSIST_MS)
         }
     }
 
