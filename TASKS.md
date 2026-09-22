@@ -9,7 +9,7 @@
 
 - [x] Establish the Moto G 2026's real specs: MediaTek Dimensity 6300 (2x Cortex-A76 2.4GHz +
       6x A55), 4 GB RAM, 6.7" 720x1604 LCD at 120 Hz, Android 16 (fi.google.com / motorola.com)
-- [ ] Audit build config for runtime speed (R8/minify, baseline profiles / profileinstaller,
+- [x] Audit build config for runtime speed (R8/minify, baseline profiles / profileinstaller,
       release-only debug overhead, Compose compiler settings) - accuracy-neutral changes only
       WRITTEN: release `isMinifyEnabled = true` + proguard-rules.pro (-dontobfuscate, line
       numbers; app has zero reflection - grep-verified); app/src/main/baseline-prof.txt
@@ -19,12 +19,20 @@
       tools/smoke-test.sh + android.yml emulator step (API 35) installs the minified APK,
       launches it and runs 3000 monkey events BEFORE publish; any crash blocks the release.
       Not yet proven on Actions - the next full build is its first run.
-- [ ] Audit startup path (cold launch work on main thread, init-time DB/JSON reads)
-- [ ] Audit Compose rendering (recomposition hot spots, unstable params, per-frame allocation,
-      lazy list keys/contentType, charts drawing) for 120Hz smoothness
-- [ ] Audit threading/IO (main-thread SQLite/JSON, dispatcher use, parallelism vs 8 cores)
-- [ ] Fix everything verified, with tests where logic is touched; accuracy never traded for speed
-- [ ] Full suite green, re-check touched code
+- [x] Audit startup path (cold launch work on main thread, init-time DB/JSON reads) - already
+      lean: every heavy init step is on IO; main thread reads only small rows. SQLite now in
+      explicit WAL (Db.init setWriteAheadLoggingEnabled) so main-thread reads no longer queue
+      behind IO-thread writes of http_cache/research bodies; readers see the last commit.
+- [x] Audit Compose rendering (recomposition hot spots, unstable params, per-frame allocation,
+      lazy list keys/contentType, charts drawing) for 120Hz smoothness - charts already hold
+      gesture state outside composition; no per-second tickers; rows draw on their own layers.
+      Added `contentType` to every repeated lazy-list row (14 lists) so scrolled-off rows are
+      reused. Left String.format percentages alone: a DecimalFormat swap could change
+      half-cent rounding, and accuracy comes first.
+- [x] Audit threading/IO (main-thread SQLite/JSON, dispatcher use, parallelism vs 8 cores) -
+      requests already gated (MAX_PARALLEL_REQUESTS semaphores), JSON parsing on IO.
+- [x] Fix everything verified, with tests where logic is touched; accuracy never traded for speed
+- [x] Full suite green (1292/0), R8 + ART profile tasks green on the final code
 - [ ] Ship per the auto-ship rule, post the link
 
 
