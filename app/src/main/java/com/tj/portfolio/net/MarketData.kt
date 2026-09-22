@@ -230,10 +230,22 @@ object MarketData {
         val crumb = YahooAuth.crumb()
         // No crumb means the handshake could not complete - a throttled mint, no signal.
         // Nothing has been learned about the batch endpoint itself.
-        if (crumb.isBlank()) return Batch.INCONCLUSIVE to emptyList()
+        //
+        // ---- BUT A BLANK CRUMB BECAUSE BOTH HOSTS ARE COOLING IS [Batch.COOLING] (full-tests
+        // audit 2026-09-22, N-M1). The mint goes through the same two hosts, so while both are
+        // in a cooldown it cannot succeed - and returning INCONCLUSIVE from here skipped the
+        // COOLING verdict below entirely, which is the one that stops the per-symbol fallback.
+        // Every holding then went to Finnhub and Stooq every tick for the whole cooldown: the
+        // storm Round 66's H1 fix exists to prevent, walked around by the step before it.
+        if (crumb.isBlank()) {
+            val bothCooling = YAHOO_HOSTS.all {
+                Http.cooldownRemaining("https://$it.finance.yahoo.com/") > 0L
+            }
+            return (if (bothCooling) Batch.COOLING else Batch.INCONCLUSIVE) to emptyList()
+        }
         val list = symbols.joinToString(",")
         var throttled = 0
-        for (host in listOf("query1", "query2")) {
+        for (host in YAHOO_HOSTS) {
             val url = "https://$host.finance.yahoo.com/v7/finance/quote?symbols=" +
                 enc(list) + "&crumb=" + enc(crumb)
             val r = Http.get(url, mapOf("Accept" to "application/json"))
@@ -242,7 +254,7 @@ object MarketData {
             // Falling out of the loop with nothing but throttles is INCONCLUSIVE below, not
             // FAILED: no request was sent, so nothing was learned about the endpoint, and
             // counting it would arm the batch-disable that Round 56 already had to undo.
-            if (r.throttledLocally) { throttled++; continue }
+            if (heldOff(r.code)) { throttled++; continue }
             if (r.code == 401) {
                 // Stale crumb, or one minted against a cookie we no longer hold. Exactly the
                 // recovery quoteSummary does: invalidate and let the next pass re-mint. Not a
@@ -255,12 +267,25 @@ object MarketData {
             val parsed = runCatching { parseBatch(r.body) }.getOrDefault(emptyList())
             if (parsed.isNotEmpty()) return Batch.OK to parsed
         }
-        // Every host was in a local cooldown, so nothing was actually sent. Not a verdict -
-        // and, since Round 66, not a reason to fall back either. See [Batch.COOLING].
-        if (throttled >= 2) return Batch.COOLING to emptyList()
+        // Every host was cooling or rate-limited us (see [heldOff]). Not a verdict - and, since
+        // Round 66, not a reason to fall back either. See [Batch.COOLING].
+        if (throttled >= YAHOO_HOSTS.size) return Batch.COOLING to emptyList()
         // Both hosts answered and neither gave anything usable. That IS a verdict.
         return Batch.FAILED to emptyList()
     }
+
+    private val YAHOO_HOSTS = listOf("query1", "query2")
+
+    /**
+     * The host did not give the batch endpoint a hearing: one of OUR cooldowns stopped the
+     * request, or the server rate-limited it (429/503/403 - which [Http] turns into exactly such
+     * a cooldown on the spot). Neither says the endpoint is broken (full-tests audit 2026-09-22,
+     * N-M2): counting a Yahoo 429 on both hosts as [Batch.FAILED] meant three busy moments
+     * disabled the batch for the session, and every tick after ran one request per symbol - the
+     * traffic shape the batch exists to remove, made permanent by being throttled once.
+     */
+    internal fun heldOff(code: Int): Boolean =
+        code == Http.CODE_COOLDOWN || code == 429 || code == 503 || code == 403
 
     private fun parseBatch(body: String): List<Quote> {
         val arr = JSONObject(body).optJSONObject("quoteResponse")
