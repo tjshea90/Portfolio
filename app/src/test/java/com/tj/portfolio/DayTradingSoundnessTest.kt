@@ -224,6 +224,28 @@ class DayTradingSoundnessTest {
         assertTrue(plan.note.contains("did not close up"))
     }
 
+    // ---- AN EVENING PLAN DOES NOT TRADE AGAINST A PREMARKET THAT HAS COME AND GONE (D-L7).
+
+    @Test fun `after the close, today's premarket high is not tomorrow's trigger`() {
+        // Premarket high 101.0 sits nearest overhead; the day's own high 104 is next.
+        val evening = ResearchScore.tradePlan(
+            100.0,
+            tech(atr = 10.0, premarketHigh = 101.0, prevHigh = 104.0, sessionHigh = 104.0,
+                sessionLow = 98.0, live = false)
+        )!!
+        assertTrue("entry ${evening.entry} must not key off the spent premarket high",
+            evening.entry > 103.9)
+        assertTrue(!evening.trigger.contains("premarket"))
+    }
+
+    @Test fun `before the open, this morning's premarket high still is the trigger`() {
+        val morning = ResearchScore.tradePlan(
+            100.0,
+            tech(atr = 10.0, premarketHigh = 101.0, prevHigh = 104.0, live = false)
+        )!!
+        assertTrue(morning.trigger.contains("premarket"))
+    }
+
     // ================================================================= the clock, in the plan
 
     @Test fun `too little session left flags the plan and says so in plain sight`() {
