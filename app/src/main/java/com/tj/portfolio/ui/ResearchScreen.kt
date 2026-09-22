@@ -1363,14 +1363,17 @@ internal fun DayTradingSuccessRate(
                             " across ${stats.sessions} session" +
                             (if (stats.sessions == 1) "" else "s") +
                             ", each sized the way this app sizes them - 1% of the portfolio " +
-                            "risked per trade. The 25%-of-portfolio cap on one position means " +
-                            "some trades risk less than the full 1%, never more, so the real " +
-                            // "An upper bound" was only true while the number was POSITIVE.
-                            // The same "some trades risked less than 1%" reasoning shrinks a
-                            // loss toward zero as well, which makes a negative figure a LOWER
-                            // bound - the wrong way round for the one case a reader most needs
-                            // stated honestly. Phrased once, correctly, for both signs.
-                            "figure sits between this and zero.",
+                            "risked per trade, and never more than 25% of it in one position" +
+                            // THE CAP IS NOW IN THE NUMBER, not a caveat under it (full-tests
+                            // audit 2026-09-22, D-H2). Day-trade stops are tight, so the cap is
+                            // usually what sizes the trade - saying so, with the count, is what
+                            // stops a small figure reading like a broken one.
+                            (if (stats.cappedTrades > 0)
+                                " (the cap sized ${stats.cappedTrades} of them - a tight stop " +
+                                    "would otherwise have meant a bigger position)"
+                            else "") +
+                            ". Trades on the same day are each sized against the whole " +
+                            "portfolio, and profits are not reinvested.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

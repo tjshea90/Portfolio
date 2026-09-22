@@ -323,6 +323,10 @@ object DayTradingEval {
         val returns = ArrayList<Double>()
         val netReturns = ArrayList<Double>()
         val rMultiples = ArrayList<Double>()
+        // Each trade's result as a fraction of the account, sized exactly as positionSize sizes
+        // it - see [ResearchScore.dayTradeSharesPerEquity].
+        var account = 0.0
+        var capped = 0
 
         fun pctReturn(entry: Double, exit: Double): Double =
             if (entry > 1e-9) (exit - entry) / entry * 100.0 else 0.0
@@ -343,7 +347,12 @@ object DayTradingEval {
             // the order went in; re-deriving it from the slipped fill would be measuring the
             // result against a risk budget that was never actually set.
             val risk = e.entry - e.stop
-            if (risk > 1e-9) rMultiples.add((got - paid) / risk)
+            if (risk > 1e-9) {
+                rMultiples.add((got - paid) / risk)
+                val perEquity = ResearchScore.dayTradeSharesPerEquity(e.entry, e.stop)
+                account += perEquity * (got - paid)
+                if (perEquity < ResearchScore.dayTradeRiskFraction() / risk - 1e-12) capped++
+            }
         }
 
         for (e in entries) {
@@ -377,7 +386,8 @@ object DayTradingEval {
             netTotalReturnPct = netReturns.sum(),
             totalR = totalR,
             avgR = if (rMultiples.isNotEmpty()) totalR / rMultiples.size else 0.0,
-            accountReturnPct = totalR * ResearchScore.dayTradeRiskFraction() * 100.0,
+            accountReturnPct = account * 100.0,
+            cappedTrades = capped,
             // EVERY row's session, not just the decided ones - "42 picks across 9 sessions" is
             // the context an average per trade needs, and a day whose picks all expired without
             // triggering is still a day the system was followed.

@@ -1195,6 +1195,19 @@ object ResearchScore {
     fun dayTradeRiskFraction(): Double = RISK_FRACTION
 
     /**
+     * Shares [positionSize] buys per dollar of equity for a plan - the smaller of the risk rule
+     * and the [MAX_POSITION_FRACTION] cap, before whole-share rounding. 0.0 for a plan with no
+     * valid risk. [DayTradingEval.stats] multiplies a trade's per-share result by this to get
+     * its effect on the account (full-tests audit 2026-09-22, D-H2): a day trade's stop is
+     * usually well under 4% below the entry, and at that width the CAP is what sizes the
+     * position, not the 1% risk - so "total R x 1%" overstated the account figure several-fold.
+     */
+    fun dayTradeSharesPerEquity(entry: Double, stop: Double): Double {
+        if (entry <= 0.0 || stop <= 0.0 || stop >= entry) return 0.0
+        return minOf(RISK_FRACTION / (entry - stop), MAX_POSITION_FRACTION / entry)
+    }
+
+    /**
      * And the share of equity ONE position may be worth, whatever that risk maths says.
      * See [positionSize] for why this cap is the load-bearing half rather than a formality.
      */

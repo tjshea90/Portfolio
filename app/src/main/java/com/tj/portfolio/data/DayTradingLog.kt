@@ -151,11 +151,16 @@ data class DayTradingStats(
     /** [totalR] divided by [entriesTriggered] - expectancy per trade, in R. */
     val avgR: Double = 0.0,
     /**
-     * [totalR] converted to account terms at the app's own 1%-per-trade sizing rule. An UPPER
-     * BOUND, and labelled as one on screen: `positionSize`'s 25%-of-equity notional cap makes
-     * some trades risk less than the full 1%, never more.
+     * Every decided trade's net result as a share of the account, each sized exactly as
+     * `ResearchScore.positionSize` sizes it: 1% of equity at risk, but never more than 25% of
+     * equity in one position (full-tests audit 2026-09-22, D-H2). This used to be [totalR] x 1%,
+     * which ignores the cap - and a day trade's stop is usually so close to the entry that the
+     * cap, not the 1%, is what sets the size, so that figure ran several times too high.
+     * Whole-share rounding is the only thing left out. Not compounded.
      */
     val accountReturnPct: Double = 0.0,
+    /** How many of the decided trades the 25% position cap sized below the full 1% risk. */
+    val cappedTrades: Int = 0,
     /** Distinct trading days the log covers - the context an average per trade needs. */
     val sessions: Int = 0,
     val evaluatedAt: Long = 0L
