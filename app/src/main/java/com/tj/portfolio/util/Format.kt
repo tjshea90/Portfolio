@@ -231,6 +231,11 @@ object Fmt {
                 val d = f.parse(t) ?: continue
                 val c = Calendar.getInstance()
                 c.time = d
+                // A `yyyy` pattern takes "26" LITERALLY - year 26 AD - so "09/15/26" matched
+                // "MM/dd/yyyy" and never reached "MM/dd/yy" (full-tests audit 2026-09-22,
+                // A-L7). A trade dated in antiquity is a mis-parse, not a date: try the next
+                // pattern, where the two-digit form resolves to this century.
+                if (c.get(Calendar.YEAR) < 1900) continue
                 c.set(Calendar.HOUR_OF_DAY, 12)
                 c.set(Calendar.MINUTE, 0); c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
                 return c.timeInMillis
