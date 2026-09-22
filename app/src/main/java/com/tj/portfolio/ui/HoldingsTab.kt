@@ -126,7 +126,7 @@ fun HoldingsTab(
             // a provider can simply repeat a row; neither is worth a crash. The index makes
             // the key unique by construction, and the symbol keeps it meaningful for a list
             // that is only ever replaced wholesale.
-            itemsIndexed(h.holdings, key = { i, it -> "$i:${it.symbol}:${it.name}" }) { _, row ->
+            itemsIndexed(h.holdings, key = { i, it -> "$i:${it.symbol}:${it.name}" }, contentType = { _, _ -> "holding" }) { _, row ->
                 HoldingRow(row, topWeight, onOpenSymbol)
                 RowSeparator()
             }

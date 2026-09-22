@@ -1485,7 +1485,7 @@ private fun OverviewTab(
             }
         }
 
-        items(txns, key = { it.id }) { t ->
+        items(txns, key = { it.id }, contentType = { "txn" }) { t ->
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -1549,7 +1549,7 @@ private fun NewsTab(
             // Same row as the Feed's Insider tab, deliberately - the two used to render
             // filings differently and this one showed only EDGAR's boilerplate form name.
             // The symbol badge is dropped because every row here is this stock.
-            items(filings, key = { it.accession }) { f ->
+            items(filings, key = { it.accession }, contentType = { "filing" }) { f ->
                 InsiderRow(f, showSymbol = false) {
                     if (f.url.isNotBlank()) onOpenUrl(f.url, f.headline())
                 }
@@ -1582,7 +1582,7 @@ private fun NewsTab(
             }
         }
 
-        items(items, key = { newsKey(it) }) { n ->
+        items(items, key = { newsKey(it) }, contentType = { "news" }) { n ->
             // A headline with no link had a click target that silently did nothing: an
             // empty URI throws inside the Intent and runCatching swallowed it, so the row
             // just felt broken. Only linked headlines are tappable now.

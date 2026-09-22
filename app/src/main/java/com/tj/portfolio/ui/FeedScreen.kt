@@ -211,7 +211,7 @@ fun FeedScreen(
                             modifier = Modifier.padding(16.dp)
                         )
                     }
-                    items(trending, key = { it.symbol }) { t ->
+                    items(trending, key = { it.symbol }, contentType = { "trending" }) { t ->
                         TrendingRow(t, owned.contains(t.symbol)) { onOpen(t.symbol) }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     }
@@ -280,7 +280,7 @@ fun FeedScreen(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                         }
                     }
-                    items(activeFilings, key = { it.accession }) { f ->
+                    items(activeFilings, key = { it.accession }, contentType = { "filing" }) { f ->
                         InsiderRow(f, owned = owned.contains(f.symbol)) {
                             if (f.url.isNotBlank()) onOpenUrl(f.url, f.headline())
                             else onOpen(f.symbol)
@@ -355,7 +355,7 @@ fun FeedScreen(
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     }
-                    items(shown, key = { it.id }) { f ->
+                    items(shown, key = { it.id }, contentType = { "feed" }) { f ->
                         // A market headline with neither a link nor a ticker has nowhere to go -
                         // a requested audit found the row was clickable anyway, a dead target
                         // that silently did nothing. Mirrors DetailScreen's NewsTab fix for the

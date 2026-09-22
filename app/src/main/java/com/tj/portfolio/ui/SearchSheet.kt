@@ -124,7 +124,7 @@ fun SearchSheet(
             val heldSet = remember(hits, version) { vm.heldSymbols() }
 
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
-                items(hits, key = { it.symbol }) { hit ->
+                items(hits, key = { it.symbol }, contentType = { "hit" }) { hit ->
                     val watched = hit.symbol in watchedSet
                     val held = hit.symbol in heldSet
                     Row(

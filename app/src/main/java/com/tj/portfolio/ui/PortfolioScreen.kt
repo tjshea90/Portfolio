@@ -160,7 +160,7 @@ fun PortfolioScreen(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             }
 
-            items(rows, key = { it.symbol }) { row ->
+            items(rows, key = { it.symbol }, contentType = { "stock" }) { row ->
                 // PER-ROW DERIVED READ, NOT A DIRECT MAP INDEX. Reading `recommendations[symbol]`
                 // straight from the captured map made every visible row recompose whenever ANY
                 // symbol's recommendation resolved, because the map itself is a new instance on

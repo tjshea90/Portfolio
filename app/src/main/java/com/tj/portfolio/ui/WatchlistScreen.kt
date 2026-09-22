@@ -184,7 +184,7 @@ fun WatchlistScreen(
 
         Refreshable(refreshing = state.pulling(PULL_PRICES), onRefresh = { vm.refresh(manual = true) }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
-            items(rows, key = { it.symbol }) { row ->
+            items(rows, key = { it.symbol }, contentType = { "stock" }) { row ->
                 StockRowItem(
                     row,
                     onClick = { onOpen(row.symbol) },

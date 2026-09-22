@@ -78,7 +78,7 @@ fun StatsTab(
             item(key = "h_$group") {
                 Column(Modifier.padding(horizontal = 12.dp)) { SectionHeader(group) }
             }
-            items(defs, key = { "m_${it.key}" }) { def ->
+            items(defs, key = { "m_${it.key}" }, contentType = { "metric" }) { def ->
                 MetricRow(def, f, price, onInfo)
             }
         }
@@ -315,7 +315,7 @@ fun AnalystsTab(
             }
         }
 
-        items(ratings, key = { it.id }) { r -> RatingRow(r, price) }
+        items(ratings, key = { it.id }, contentType = { "rating" }) { r -> RatingRow(r, price) }
 
         if (!loading && ratings.isEmpty()) {
             item {
@@ -470,7 +470,7 @@ fun EarningsTab(
             // three times - and nothing upstream guarantees a provider will not repeat a
             // period. `Fundamentals.merge` takes estimates wholesale from one side with
             // `ifEmpty`, so it never gets the chance to dedupe them either.
-            items(f.estimates.distinctBy { it.period }, key = { "e_${it.period}" }) { e ->
+            items(f.estimates.distinctBy { it.period }, key = { "e_${it.period}" }, contentType = { "estimate" }) { e ->
                 Column(Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
                     StatCard {
                         Row(verticalAlignment = Alignment.CenterVertically) {

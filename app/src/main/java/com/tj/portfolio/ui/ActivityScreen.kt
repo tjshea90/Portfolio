@@ -235,7 +235,7 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
                     )
                 }
             }
-            items(state.txns, key = { it.id }) { t ->
+            items(state.txns, key = { it.id }, contentType = { "txn" }) { t ->
                 TxnRow(t, onEdit = { editingId = t.id }, onDelete = { confirmDelete = t.id })
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline)
             }
