@@ -4301,8 +4301,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         //
         // The clock is the right guard and it always was: `insiderAt` stamps only a pass that
         // RESOLVED, so an unreachable EDGAR still retries at once, and the request count for
-        // followed symbols is unchanged because `publishInsiders` now stamps every symbol the
-        // feed pass covered - see there.
+        // followed symbols is unchanged because `refreshInsiders` stamps every symbol the feed
+        // pass covered (full-tests audit 2026-09-22, N-L6 - `publishInsiders` alone stamped
+        // only the ones that had filings, which this note used to claim covered them all).
         if (!force) {
             val since = System.currentTimeMillis() - (insiderAt[symbol] ?: 0L)
             if (since < INSIDER_SYMBOL_TTL_MS) return
