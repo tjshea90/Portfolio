@@ -354,4 +354,24 @@ class LedgerTest {
         assertTrue("the two methods should split it differently here",
             kotlin.math.abs(f.realized - a.realized) > 1e-6)
     }
+    // ---- IMPORTED NUMBERS ARE READ THE WAY A PERSON READS THEM (full-tests audit, A-L6).
+    @Test fun `an imported row with currency strings, a signed sell and a yearless date`() {
+        val reply = """
+            {"transactions":[
+              {"type":"BUY","symbol":"ABC","quantity":"10","price":"${'$'}1,227.44",
+               "amount":"${'$'}12,274.40","fees":0,"date":"2026-06-11"},
+              {"type":"SELL","symbol":"ABC","quantity":-4,"price":1300,"amount":5200,
+               "fees":0,"date":"Sep 15"}
+            ]}
+        """.trimIndent()
+        val t = com.tj.portfolio.net.ClaudeBridge.parse(reply).transactions
+        assertEquals("both rows survive", 2, t.size)
+        val buy = t.first { it.type == TxnType.BUY }
+        assertEquals("not a zero-cost buy", 1227.44, buy.price, 1e-9)
+        assertEquals(-12_274.40, buy.amount, 1e-6)
+        val sell = t.first { it.type == TxnType.SELL }
+        assertEquals("a negative share count is still four shares", 4.0, sell.quantity, 1e-9)
+        assertTrue("a date that does not parse is flagged: ${sell.note}",
+            sell.note?.contains("date estimated") == true)
+    }
 }

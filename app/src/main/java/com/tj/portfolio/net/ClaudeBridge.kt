@@ -422,8 +422,6 @@ Import the file (or your saved reply) in the app's Activity tab.
         return BridgeResult(advice, txns, allNotes)
     }
 
-    private fun Double.nz(): Double = if (isNaN() || isInfinite()) 0.0 else this
-
     /**
      * Finds the JSON object that actually carries the payload: scans every balanced
      * `{...}` in the text and keeps the first one with a key we recognise, preferring
