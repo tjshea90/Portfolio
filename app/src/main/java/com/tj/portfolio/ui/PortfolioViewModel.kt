@@ -6356,6 +6356,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                             etfWarnings = built.etfWarnings
                         )
                     )
+                    // ---- AND THE FUNDS CLAUDE ADDED GET TODAY'S PRICE (full-tests audit
+                    // 2026-09-22, S-L5). The screener re-prices every fund it finds; the ones
+                    // only Claude found are carried across by `carryEtfExplanations` with the
+                    // price and day change filled in on the day they were imported - so a
+                    // three-week-old "+2.1% today" sat on the card as if it were live. One
+                    // batched quote per six-hour rebuild, only for those rows.
+                    val added = _research.value.etfs.filter { it.etf == null }.map { it.symbol }
+                    if (added.isNotEmpty()) fillResearchPrices(added.take(MAX_PRICE_FILL))
                 }
             } finally {
                 _researchBusy.value = ""
