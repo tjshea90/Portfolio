@@ -60,6 +60,7 @@ object Recommend {
         // verdict that had actually counted them at 60%. Same fault as the target above, and
         // the same fix: report from the branch the score was computed from.
         val voting = panel?.takeIf { it.hasVotes }
+        val allStale = if (panel == null) RatingRecency.allStaleFirms(fundamentals.ratings, now) else 0
         return Recommendation(
             symbol = symbol.uppercase(),
             verdict = ResearchScore.verdictFor(sc.score),
@@ -82,7 +83,8 @@ object Recommend {
             effectiveAnalysts = voting?.effectiveAnalysts ?: 0.0,
             newestRatingDays = voting?.newestAgeDays ?: -1,
             analystWeight = voting?.strength
-                ?: (if (c?.hasVotes == true) RatingRecency.undatedTrust(fundamentals.trend) else 0.0),
+                ?: (if (c?.hasVotes == true) RatingRecency.undatedTrust(fundamentals.trend, allStale) else 0.0),
+            allRatingsStale = allStale,
             targetIsWeighted = weighted != null,
             targetAgeDays = weighted?.targetAgeDays ?: -1,
             fundamentalsAt = fundamentals.fetched

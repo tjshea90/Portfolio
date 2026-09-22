@@ -278,6 +278,34 @@ object RatingRecency {
         )
     }
 
+    /**
+     * HOW MANY DATED FIRMS THERE ARE WHEN EVERY ONE OF THEM IS PAST [CUTOFF_DAYS] - 0 when
+     * there are no dated ratings at all, or when at least one firm survives (then there is a
+     * [panel] and this question does not arise).
+     *
+     * THE HOLE THIS CLOSES (full-tests audit 2026-09-22, S-H1). [panel] returns null in two
+     * situations that used to be treated identically: the feed gave NO dates, and the feed gave
+     * dates that are ALL over eight months old. Both fell through to the undated [Consensus] at
+     * [undatedTrust] - 45% to 90% of full weight - and printed "no publication dates from the
+     * feed". In the second case that is false, and backwards: the standing consensus IS those
+     * stale opinions, so a name whose whole coverage had gone quiet was scored more generously
+     * than one with a single surviving eight-month-old note (the panel's own floor) - stale
+     * coverage upgrading a stock, the exact thing Tj asked the app never to do.
+     */
+    fun allStaleFirms(ratings: List<AnalystRating>, now: Long): Int {
+        if (now <= 0L) return 0
+        val latest = HashMap<String, Long>()
+        for (r in ratings) {
+            if (r.date <= 0L) continue
+            val key = r.firm.lowercase().trim()
+            if (key.isEmpty()) continue
+            if (r.date > (latest[key] ?: 0L)) latest[key] = r.date
+        }
+        if (latest.isEmpty()) return 0
+        if (latest.values.any { weightAt(it, now) > 0.0 }) return 0
+        return latest.size
+    }
+
     // ============================================================ THE UNDATED FALLBACK
 
     /**
@@ -321,8 +349,12 @@ object RatingRecency {
      * while one that has not visibly moved in three months keeps under half. [UNKNOWN_TRUST] is
      * the middle when even the snapshots are absent - a judgment call, documented as one.
      */
-    fun undatedTrust(trend: List<RatingTrend>): Double =
-        when (monthsWithoutObservedChange(trend)) {
+    fun undatedTrust(trend: List<RatingTrend>, allStale: Int = 0): Double =
+        // DATED, AND ALL PAST THE CUTOFF - see [allStaleFirms]. The consensus is only worth
+        // anything if it visibly MOVED last month (some desk acted that the dated history
+        // missed), and then no more than the panel's own floor for old-but-live coverage.
+        if (allStale > 0) { if (monthsWithoutObservedChange(trend) == 0) MIN_PANEL_CURRENCY else 0.0 }
+        else when (monthsWithoutObservedChange(trend)) {
             0 -> 0.90
             1 -> 0.75
             2 -> 0.60
@@ -333,7 +365,14 @@ object RatingRecency {
     const val UNKNOWN_TRUST = 0.60
 
     /** Plain-English "why is the analyst term discounted", for the reason list and the popup. */
-    fun undatedNote(trend: List<RatingTrend>): String = when (monthsWithoutObservedChange(trend)) {
+    fun undatedNote(trend: List<RatingTrend>, allStale: Int = 0): String =
+        if (allStale > 0) {
+            val all = if (allStale == 1) "The only analyst rating on file is" else "All $allStale analyst ratings on file are"
+            if (undatedTrust(trend, allStale) > 0.0)
+                "$all over 8 months old, but the consensus moved within the last month - counted at " +
+                    "${(MIN_PANEL_CURRENCY * 100).roundToInt()}%"
+            else "$all over 8 months old and the consensus has not moved since - not counted"
+        } else when (monthsWithoutObservedChange(trend)) {
         0 -> "Analyst ratings have no publication dates from the feed, but the consensus moved " +
             "within the last month - counted at 90%"
         1 -> "Analyst ratings have no publication dates from the feed and the consensus has not " +

@@ -71,7 +71,13 @@ data class Recommendation(
      * unmarked-stale number Tj's original analyst-age complaint was about, one level further
      * back. 0 for a row cached before this field existed.
      */
-    val fundamentalsAt: Long = 0L
+    val fundamentalsAt: Long = 0L,
+    /**
+     * Dated analyst firms on file when EVERY one is past the 8-month cutoff; 0 otherwise (see
+     * `RatingRecency.allStaleFirms`). Lets the popup say "all N ratings are over 8 months old"
+     * instead of the false "came back with no publication dates" (full-tests audit, S-H1).
+     */
+    val allRatingsStale: Int = 0
 ) {
     val hasTarget: Boolean get() = targetMean > 0.0
 
@@ -99,6 +105,10 @@ data class Recommendation(
                     else "") +
                     ". " + (if (analystDiscounted) "$cut." else "Counted in full.")
             }
+            allRatingsStale > 0 -> (if (allRatingsStale == 1) "The only analyst rating on file is"
+                else "All $allRatingsStale analyst ratings on file are") + " over 8 months old - " +
+                (if (analystWeight > 0.0) "the consensus only counts because it moved last month. $cut."
+                else "not counted.")
             analystCount > 0 -> "Analyst ratings came back with no publication dates, so their " +
                 "age could not be checked. $cut."
             else -> ""
@@ -137,6 +147,7 @@ object RecommendationJson {
         put("targetIsWeighted", r.targetIsWeighted)
         put("targetAgeDays", r.targetAgeDays)
         put("fundamentalsAt", r.fundamentalsAt)
+        put("allRatingsStale", r.allRatingsStale)
     }.toString()
 
     /** Total: an unreadable row degrades to "compute it again", never to an exception. */

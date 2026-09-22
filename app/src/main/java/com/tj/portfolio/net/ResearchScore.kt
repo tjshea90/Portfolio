@@ -1731,6 +1731,8 @@ object ResearchScore {
         // been weighted by its age, dropped past [RatingRecency.CUTOFF_DAYS], and the panel as
         // a whole checked for whether anyone is still actively covering the name.
         val panel = RatingRecency.panel(input.ratings, now = input.now)
+        // Dated coverage that has ALL gone past the cutoff - see [RatingRecency.allStaleFirms].
+        val allStale = if (panel == null) RatingRecency.allStaleFirms(input.ratings, input.now) else 0
 
         // --- analyst verdict (+-30): three-way already, from professional coverage.
         want++
@@ -1751,8 +1753,8 @@ object ResearchScore {
             // NO DATED RATINGS AT ALL - a symbol the history feed does not cover, or a fetch
             // that failed. The consensus is still real; its AGE is what is unknown, and an
             // unknown age on this app's heaviest input cannot be read as "today".
-            have++
-            val trust = RatingRecency.undatedTrust(input.trend)
+            val trust = RatingRecency.undatedTrust(input.trend, allStale)
+            if (trust > 0.0) have++
             s += RatingRecency.undatedLean(c) * 30.0 * trust
             val buyVotes = c.strongBuy + c.buy
             val sellVotes = c.sell + c.strongSell
@@ -1765,11 +1767,13 @@ object ResearchScore {
             // a term that had just added the full +27. That is precisely the "reason line the
             // arithmetic does not support" this file's header exists to prevent.
             val lab = leanLabel(RatingRecency.undatedLean(c))
-            why.add(
+            // A consensus that counted for nothing gets no line of its own - "Buy consensus"
+            // above a note saying it was not counted reads like a contradiction.
+            if (trust > 0.0) why.add(
                 "$lab consensus - $buyVotes buy / ${c.hold} hold / $sellVotes sell across " +
                     "${c.votes} analysts"
             )
-            why.add(RatingRecency.undatedNote(input.trend))
+            why.add(RatingRecency.undatedNote(input.trend, allStale))
         }
 
         // --- price vs. target (+-12.5): "for how much", the number TJ asked for by name.
@@ -1796,7 +1800,12 @@ object ResearchScore {
             )
         } else if (c != null && c.hasTarget && price > 0.0) {
             val up = c.upsidePct(price)
-            if (up != null) {
+            // Coverage that is dated and entirely past the cutoff sets no target either.
+            val targetTrust = minOf(
+                panel?.currency ?: 1.0,
+                RatingRecency.undatedTrust(input.trend, allStale)
+            )
+            if (up != null && targetTrust > 0.0) {
                 have++
                 // THE WORSE OF THE TWO SIGNALS, NOT WHICHEVER HAPPENS TO BE AVAILABLE. Yahoo's
                 // `targetMeanPrice` averages every covering firm's CURRENT target with no
@@ -1804,11 +1813,7 @@ object ResearchScore {
                 // nothing about how current THIS number is. Taking the minimum means a fresh
                 // panel cannot vouch for a target that carries no date of its own, and a stale
                 // panel still drags it down; either discount alone could be talked past.
-                val trust = minOf(
-                    panel?.currency ?: 1.0,
-                    RatingRecency.undatedTrust(input.trend)
-                )
-                s += (ramp(up, -30.0, 30.0, 25.0) - 12.5) * trust
+                s += (ramp(up, -30.0, 30.0, 25.0) - 12.5) * targetTrust
                 why.add(
                     if (up >= 0)
                         "Average analyst target ${Fmt.price(c.targetMean)} - ${pct(up)} above today"
