@@ -90,4 +90,47 @@ class PositionEditorTest {
             0.0001, 0.42355, 1.5595, 12.345678, 87.33, 199.999, 1234.5678, 98765.4321
         ).forEach { roundTripsCost(it); roundTripsShares(it) }
     }
+    // ---- ONLY AN EDITED BOX BECOMES AN OVERRIDE (full-tests audit 2026-09-22, A-H1)
+    //
+    // Save used to write both pre-filled boxes back verbatim, so opening the dialog and
+    // pressing Save pinned the share count against every later BUY/SELL/SPLIT.
+
+    @Test fun untouchedSaveWritesNothing() {
+        val s = PositionFields.shares(100.0); val c = PositionFields.cost(12.5)
+        assertEquals(null, PositionFields.toSave(s, s, c, c, null))
+    }
+
+    @Test fun untouchedSaveKeepsAnExistingOverrideAsIs() {
+        val ov = com.tj.portfolio.data.Override("ABC", avgCost = 9.0, shares = null)
+        val s = PositionFields.shares(100.0); val c = PositionFields.cost(9.0)
+        assertEquals(null, PositionFields.toSave(s, s, c, c, ov))
+    }
+
+    @Test fun editingOnlyTheCostDoesNotPinTheShares() {
+        val s = PositionFields.shares(100.0); val c = PositionFields.cost(12.5)
+        assertEquals(11.0 to null, PositionFields.toSave(s, s, "11", c, null))
+    }
+
+    @Test fun editingOnlyTheSharesDoesNotPinTheCost() {
+        val s = PositionFields.shares(100.0); val c = PositionFields.cost(12.5)
+        assertEquals(null to 90.0, PositionFields.toSave("90", s, c, c, null))
+    }
+
+    @Test fun anEditedFieldKeepsTheOtherFieldsExistingOverride() {
+        val ov = com.tj.portfolio.data.Override("ABC", avgCost = 9.0, shares = null)
+        val s = PositionFields.shares(100.0); val c = PositionFields.cost(9.0)
+        assertEquals(9.0 to 50.0, PositionFields.toSave("50", s, c, c, ov))
+    }
+
+    @Test fun emptyingABoxClearsThatFieldsOverride() {
+        val ov = com.tj.portfolio.data.Override("ABC", avgCost = 9.0, shares = 40.0)
+        val s = PositionFields.shares(40.0); val c = PositionFields.cost(9.0)
+        assertEquals(9.0 to null, PositionFields.toSave("", s, c, c, ov))
+        assertEquals(null to null, PositionFields.toSave("", s, " ", c, ov))
+    }
+
+    @Test fun whitespaceAroundAnUntouchedSeedIsStillUntouched() {
+        val s = PositionFields.shares(100.0); val c = PositionFields.cost(12.5)
+        assertEquals(null, PositionFields.toSave(" $s ", s, "$c ", c, null))
+    }
 }
