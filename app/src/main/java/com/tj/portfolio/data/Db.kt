@@ -12,6 +12,24 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
 
     private val ctx: Context = context.applicationContext
 
+    /**
+     * WRITE-AHEAD LOGGING, WITH ITS CONNECTION POOL (2026-09-22b speed pass).
+     *
+     * Android 9+ already runs an unconfigured database in "compatibility WAL" - which is why
+     * the backup rules already name `portfolio.db-wal` - but that mode keeps ONE connection, so
+     * every reader queues behind whichever thread is writing. Here the IO threads write big
+     * rows constantly (a 100 KB `http_cache` body, the research cache, chart series) while the
+     * main thread reads the ledger, and on the phone's storage a large write is long enough to
+     * stall a frame. Asking for WAL explicitly gives the database a small pool of read
+     * connections, so a read proceeds from the last committed state while a write is in
+     * flight. Nothing about what is stored or read changes: WAL is the same transactional
+     * SQLite, with the platform's own durable sync mode, and a transaction still sees its own
+     * writes because a session is bound to its thread.
+     */
+    init {
+        setWriteAheadLoggingEnabled(true)
+    }
+
     companion object {
         const val DB_NAME = "portfolio.db"
         /** Bump only alongside an additive block in onUpgrade. */
