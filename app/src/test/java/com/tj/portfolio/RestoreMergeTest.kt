@@ -192,4 +192,13 @@ class RestoreMergeTest {
         assertEquals(2, db.allTxns().size)
         assertTrue("replace must drop rows not in the file", db.allTxns().none { it.symbol == "JUNK" })
     }
+    // ---- RESTORING THE SAME FILE AGAIN ADDS NO IMPORT RECORDS (full-tests audit, A-L11).
+    @Test fun `import history is not duplicated by repeated merge restores`() {
+        db.insertTxn(deposit(500.0))
+        db.recordImport(3, 0, day, day, "SCREENSHOT")
+        val json = db.exportJson()
+        db.restoreJson(json, replace = false)
+        db.restoreJson(json, replace = false)
+        assertEquals(1, db.importCount())
+    }
 }
