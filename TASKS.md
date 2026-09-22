@@ -80,9 +80,9 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           -> DayTradingEval.SETTLE_GRACE_MS (20 min) / sessionSettled. Test: aSessionSettlesOnlyAfterTheGrace
     - [x] D-L7 evening plans use today's premarket high as next session's trigger
           -> non-live overhead drops premarketHigh once sessionHigh > 0. 2 DayTradingSoundnessTest tests
-    - [ ] D-L8 [WRITTEN: cacheResearch(throttleMs) - live tick persists at most every 5 min, owed
+    - [x] D-L8 [DONE (suite green): cacheResearch(throttleMs) - live tick persists at most every 5 min, owed
           write flushed on background] research cache JSON rewritten every 30s tick
-    - [ ] D-L10 [WRITTEN: profitableRate/profitableCount net of costs, card "Profitable after costs";
+    - [x] D-L10 [DONE, test aCloseACentAboveTheEntry...: profitableRate/profitableCount net of costs, card "Profitable after costs";
           size line says stop-too-wide vs share-too-expensive; DayTradingEvalTest] profitableRate gross vs headline net; PositionSizeLine wording when price-capped
   - Scoring (S):
     - [x] S-H1 [DONE, suite 1272/0: RatingRecency.allStaleFirms; undatedTrust/Note(allStale);
@@ -96,13 +96,15 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [x] S-M4 ResearchCard reasons.take(6) hides analyst lines / negative-book warning
           -> card opens on 6 with a "N more reasons" / "Show fewer" toggle; negative-book red flag
           now the FIRST reason in ResearchScore.best (UI change, compile-verified; suite 1277/0)
-    - [ ] S-L5 [WRITTEN: after an ETF rebuild, fillResearchPrices for etf==null (Claude-added) funds]
+    - [x] S-L5 [DONE (compile+suite): after an ETF rebuild, fillResearchPrices for etf==null (Claude-added) funds]
           Claude-added ETF rows keep import-day price/change
-    - [ ] S-L6 [WRITTEN: enrichAnalyst skips score<=0 && no reasons rows] Claude-added Best row gets analyst-only score ~22
-    - [ ] S-L7 [WRITTEN: PEG "reasonably priced" only to 1.5; fwd P/E "rich" only above 25]
+    - [x] S-L6 [DONE (compile+suite; guard precedes any network call): enrichAnalyst skips score<=0 && no reasons rows] Claude-added Best row gets analyst-only score ~22
+    - [x] S-L7 [DONE (suite green): PEG "reasonably priced" only to 1.5; fwd P/E "rich" only above 25]
           PEG / fwd P/E reason labels disagree with points sign
-    - [ ] S-L8 "turning profitable ... trailing loss" wording for 0 <= eps <= 0.01
-    - [ ] S-L9 Finviz whole value map overrides Yahoo core values via ratings()
+    - [ ] S-L8 [WRITTEN: "Growing from breakeven" when 0 <= epsTtm; ResearchTest (+ S-M4 red-flag-first test)]
+          "turning profitable ... trailing loss" wording for 0 <= eps <= 0.01
+    - [ ] S-L9 [WRITTEN: FundamentalsFeed.ratingsOnly() for the Finviz/Nasdaq fallback in ratings();
+          FundamentalsTest] Finviz whole value map overrides Yahoo core values via ratings()
   - Network (N):
     - [x] N-M1 blank crumb (both hosts cooling) skips COOLING -> per-symbol Finnhub/Stooq storm
           -> batchYahoo: blank crumb + both hosts cooling = Batch.COOLING (no fallback)
@@ -113,10 +115,12 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           cached rows saved outside the session; NetLogicTest test] sparklines re-downloaded after close / on night resume
     - [x] N-M4 [DONE, suite 1281/0: dayTradingLiveDelay - 30s OPEN/pre-market, 5min after close; NetLogicTest]
           day-trading live loop sweeps every 30s 16:00-20:00 for unchanging data
-    - [ ] N-L5 manual refresh quotes allTracked (misses detail symbol), sparks all tracked
-    - [ ] N-L6 insider freshness stamp misses followed symbols with no filings
-    - [ ] N-L7 advice news freshness ignores feed pass
-    - [ ] N-L8 social trending not gated on Feed tab visibility
+    - [ ] N-L5 [WRITTEN: manual = allTracked + on-screen; sparklines only for on-screen]
+          manual refresh quotes allTracked (misses detail symbol), sparks all tracked
+    - [ ] N-L6 [WRITTEN: refreshInsiders stamps every covered symbol after a non-empty pass]
+          insider freshness stamp misses followed symbols with no filings
+    - [ ] N-L7 [WRITTEN: feed pass stamps adviceNewsAt; preload also honours deepNewsAt] advice news freshness ignores feed pass
+    - [ ] N-L8 [WRITTEN: socialDue requires feedDue] social trending not gated on Feed tab visibility
   - UI (U):
     - [x] U-M1 [DONE (compile + suite 1281/0; UI, no emulator here): MainActivity rememberSaveableStateHolder, "tab:N" / "detail:depth:SYM"
           providers, states removed on pop/goToTab/search; DetailScreen tab + Overview list
@@ -125,10 +129,13 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           tabHistory all rememberSaveable (readerSaver, list savers)] nav state (detail/reader/search) not saveable -> process death drops open editor
     - [x] U-M5 [DONE (compile + suite 1281/0): startDayTradingLive(only=symbol) from DetailScreen DisposableEffect while it
           is a pick; enrichDayTradingVisible sweeps only that row, no sort] detail screen day-trading plan frozen (live loop stopped when ResearchScreen leaves)
-    - [ ] U-L1 search flashes "No matches / Add anyway" before first search runs
-    - [ ] U-L2 held stock with no price shows $0.00 / +$0.00 instead of "--"
-    - [ ] U-L3 earnings Today/Tomorrow counts 24h blocks not ET calendar days
-    - [ ] U-L4 Buy/Hold/Sell badge stays "..." if fundamentals arrive before first quote
+    - [ ] U-L1 [WRITTEN: _searching set at keystroke inside launch; finally clears only for the
+          current job] search flashes "No matches / Add anyway" before first search runs
+    - [ ] U-L2 [WRITTEN: StockRow "--" for value and day when price <= 0] held stock with no price shows $0.00 / +$0.00 instead of "--"
+    - [ ] U-L3 [WRITTEN: MarketClock.daysUntil (ET calendar days, past >= -1) in Research, DetailTabs,
+          Explain (+ "tomorrow" wording); catalystFor/analystTopic take `now`; tests pinned to
+          fixed ET moments] earnings Today/Tomorrow counts 24h blocks not ET calendar days
+    - [ ] U-L4 [WRITTEN: Detail + Portfolio effects keyed on price > 0] Buy/Hold/Sell badge stays "..." if fundamentals arrive before first quote
   - [x] (own review of v7.33's diff) Session rollover cleared a Claude day-trading
         plan's levels but left `planByClaude` set, so the row was never re-planned
         by the engine - blank and unlogged for the whole new session until a
