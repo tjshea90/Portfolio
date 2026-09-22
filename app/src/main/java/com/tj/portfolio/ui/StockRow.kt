@@ -109,6 +109,10 @@ fun StockRowItem(
     val q = row.quote
     // the price/session numbers all live in PriceBlock now; this is only for the money half
     val hasDay = row.price > 0 && (q?.prevClose ?: 0.0) > 0.0
+    // NO PRICE, NO MONEY FIGURES (full-tests audit 2026-09-22, U-L2). A holding whose quote has
+    // not arrived yet - a new ticker, a first launch offline - showed "$0.00" for the position
+    // and "+$0.00" for a same-day buy: confident zeros standing in for "not known yet".
+    val showDay = row.price > 0 && (hasDay || row.boughtToday)
 
     Box {
         Column(
@@ -227,8 +231,9 @@ fun StockRowItem(
                     MoneyCell(
                         modifier = Modifier.weight(1f),
                         label = "YOUR SHARES",
-                        value = Fmt.usd(row.value),
-                        color = MaterialTheme.colorScheme.onSurface
+                        value = if (row.price > 0) Fmt.usd(row.value) else "--",
+                        color = if (row.price > 0) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyCell(
                         modifier = Modifier.weight(1f),
@@ -236,11 +241,11 @@ fun StockRowItem(
                             if (row.sessionLabel.isBlank()) "YOU MADE TODAY"
                             else "YOU MADE ${row.sessionLabel.uppercase()}"
                         ) + if (row.boughtToday) "*" else "",
-                        value = if (hasDay || row.boughtToday)
+                        value = if (showDay)
                             plLead(plMode, row.dayPnl, row.dayPnlPct) else "--",
-                        sub = if (hasDay || row.boughtToday)
+                        sub = if (showDay)
                             plSub(plMode, row.dayPnl, row.dayPnlPct) else null,
-                        color = if (hasDay || row.boughtToday) signColor(row.dayPnl)
+                        color = if (showDay) signColor(row.dayPnl)
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     MoneyCell(
