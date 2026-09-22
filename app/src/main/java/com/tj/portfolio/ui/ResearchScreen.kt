@@ -1353,9 +1353,9 @@ internal fun DayTradingSuccessRate(
                             "(${stats.targetHit} of ${stats.entriesTriggered})"
                     )
                     KeyValue(
-                        "Closed profitable overall",
+                        "Profitable after costs",
                         "${Fmt.pctSigned(stats.profitableRate).removePrefix("+")} " +
-                            "(${stats.targetHit + stats.closedProfit} of ${stats.entriesTriggered})"
+                            "(${stats.profitableCount} of ${stats.entriesTriggered})"
                     )
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline)

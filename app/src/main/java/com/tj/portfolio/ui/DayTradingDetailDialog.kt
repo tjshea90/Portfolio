@@ -337,8 +337,14 @@ private fun PositionSizeLine(r: ResearchRow, equity: Double) {
             fontWeight = FontWeight.SemiBold
         )
     } else {
+        // WHICH LIMIT SAID NO (full-tests audit 2026-09-22, D-L10). A share can be unaffordable
+        // under the 25% position cap with a perfectly tight stop - "too wide" blamed the stop
+        // for what was the share price. The note below still gives the numbers either way.
+        val stopTooWide = r.entryPrice - r.stopPrice >
+            equity * com.tj.portfolio.net.ResearchScore.dayTradeRiskFraction()
         Text(
-            "Size: too wide to take at this account size.",
+            if (stopTooWide) "Size: the stop is too wide to take at this account size."
+            else "Size: one share costs more than a single position may at this account size.",
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold
         )

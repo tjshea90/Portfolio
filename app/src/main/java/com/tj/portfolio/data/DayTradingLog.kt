@@ -118,9 +118,11 @@ data class DayTradingStats(
     /** % of [entriesTriggered] where TARGET was reached before the stop - the strict reading
      *  of "did the plan work exactly as stated." */
     val targetHitRate: Double = 0.0,
-    /** % of [entriesTriggered] that closed profitable overall, including a trade that never
-     *  reached target but was still up when the session ended. */
+    /** % of [entriesTriggered] that made money AFTER modelled costs - a target hit, or a trade
+     *  still up by more than its costs when the session ended. Net, like the account figure. */
     val profitableRate: Double = 0.0,
+    /** The count behind [profitableRate]. */
+    val profitableCount: Int = 0,
     val avgReturnPct: Double = 0.0,
 
     // ---- CUMULATIVE, AND AFTER MODELLED COSTS (2026-09-18). See this class's header.

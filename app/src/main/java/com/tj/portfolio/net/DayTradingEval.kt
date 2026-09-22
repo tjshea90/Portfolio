@@ -342,6 +342,8 @@ object DayTradingEval {
         // it - see [ResearchScore.dayTradeSharesPerEquity].
         var account = 0.0
         var capped = 0
+        // Trades that made money AFTER the modelled costs - see `profitableRate`.
+        var netProfitable = 0
 
         fun pctReturn(entry: Double, exit: Double): Double =
             if (entry > 1e-9) (exit - entry) / entry * 100.0 else 0.0
@@ -357,6 +359,7 @@ object DayTradingEval {
             val paid = Costs.entryFill(e.entry)
             val got = Costs.exitFill(e.outcome, exit)
             netReturns.add(pctReturn(paid, got))
+            if (got > paid) netProfitable++
             // RISK IS MEASURED FROM THE PLAN'S OWN LEVELS, NOT FROM THE FILLED PRICES. `entry -
             // stop` is what the position was SIZED against by `ResearchScore.positionSize` when
             // the order went in; re-deriving it from the slipped fill would be measuring the
@@ -394,7 +397,11 @@ object DayTradingEval {
             pending = pending,
             dataUnavailable = dataUnavailable,
             targetHitRate = if (decided > 0) targetHit.toDouble() / decided * 100.0 else 0.0,
-            profitableRate = if (decided > 0) (targetHit + closedProfit).toDouble() / decided * 100.0 else 0.0,
+            // NET, like the headline beside it (full-tests audit 2026-09-22, D-L10). Counting
+            // every CLOSED_PROFIT - a close a cent above the entry included - called a trade
+            // profitable that the account figure, after costs, counted as a loss.
+            profitableRate = if (decided > 0) netProfitable.toDouble() / decided * 100.0 else 0.0,
+            profitableCount = netProfitable,
             avgReturnPct = if (returns.isNotEmpty()) returns.average() else 0.0,
             totalReturnPct = returns.sum(),
             netAvgReturnPct = if (netReturns.isNotEmpty()) netReturns.average() else 0.0,
