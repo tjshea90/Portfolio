@@ -5872,15 +5872,24 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         searchJob = fgScope.launch {
-            delay(220)
+            // BUSY FROM THE KEYSTROKE, NOT FROM THE END OF THE DEBOUNCE (full-tests audit
+            // 2026-09-22, U-L1). For the 220ms before the request, the sheet saw "not busy, no
+            // hits" and drew "No matches for ... - Add anyway" under every letter typed. Set
+            // inside the launch - which runs to the `delay` at once on Main.immediate - so a
+            // cancelled scope that never runs the body cannot leave a spinner stuck on.
             _searching.value = true
+            val me = coroutineContext[Job]
             try {
+                delay(220)
                 val hits = withContext(Dispatchers.IO) {
                     runCatching { com.tj.portfolio.net.SymbolSearch.query(term, finnhubKey()) }
                         .getOrDefault(emptyList())
                 }
                 _search.value = hits
             } finally {
+                // A search replaced by the next keystroke must not switch off the NEW one's
+                // spinner on its way out.
+                if (searchJob !== me) return@launch
                 // A `finally`, not a trailing statement. Every other loading flag in this
                 // file has one; this was the exception, and it is the one attached to a
                 // spinner the user is watching. Leaving the app with a search in flight
