@@ -3918,7 +3918,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val res = withContext(Dispatchers.IO) {
                 runCatching {
                     var n = 0
-                    var skipped = 0
                     var minD = Long.MAX_VALUE
                     var maxD = 0L
                     // Without [force], exactly what the review dialog would have left unticked
@@ -3930,7 +3929,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     else com.tj.portfolio.domain.ImportDupes.classify(list) { t, c -> duplicateOf(t, c) }
                     val keep = if (flags == null) list
                     else list.filterIndexed { i, _ -> flags[i] == com.tj.portfolio.domain.ImportDup.NEW }
-                    skipped = list.size - keep.size
+                    val skipped = list.size - keep.size
                     val database = db.writableDatabase
                     database.beginTransaction()
                     try {
