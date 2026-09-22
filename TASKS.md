@@ -21,7 +21,7 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
       reported", and every area has findings below with contiguous IDs. The boxes simply
       weren't ticked before usage ran out. The agents' full write-ups were NOT saved - only
       these one-liners - so every finding is re-verified against the code before fixing.)
-- [ ] Fix every verified finding, with regression tests (IDs below; each must be
+- [x] Fix every verified finding, with regression tests (IDs below; each must be
       VERIFIED against the code before fixing - agents are research-only and can be wrong)
   - [x] U-M4 (=A-L8) TxnEditor's Delete deleted with no confirmation -> routed through ConfirmDialog
         (ActivityScreen + DetailScreen)
@@ -101,9 +101,9 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [x] S-L6 [DONE (compile+suite; guard precedes any network call): enrichAnalyst skips score<=0 && no reasons rows] Claude-added Best row gets analyst-only score ~22
     - [x] S-L7 [DONE (suite green): PEG "reasonably priced" only to 1.5; fwd P/E "rich" only above 25]
           PEG / fwd P/E reason labels disagree with points sign
-    - [ ] S-L8 [WRITTEN: "Growing from breakeven" when 0 <= epsTtm; ResearchTest (+ S-M4 red-flag-first test)]
+    - [x] S-L8 [DONE, suite 1292/0: "Growing from breakeven" when 0 <= epsTtm; ResearchTest (+ S-M4 red-flag-first test)]
           "turning profitable ... trailing loss" wording for 0 <= eps <= 0.01
-    - [ ] S-L9 [WRITTEN: FundamentalsFeed.ratingsOnly() for the Finviz/Nasdaq fallback in ratings();
+    - [x] S-L9 [DONE, suite 1292/0: FundamentalsFeed.ratingsOnly() for the Finviz/Nasdaq fallback in ratings();
           FundamentalsTest] Finviz whole value map overrides Yahoo core values via ratings()
   - Network (N):
     - [x] N-M1 blank crumb (both hosts cooling) skips COOLING -> per-symbol Finnhub/Stooq storm
@@ -115,12 +115,12 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           cached rows saved outside the session; NetLogicTest test] sparklines re-downloaded after close / on night resume
     - [x] N-M4 [DONE, suite 1281/0: dayTradingLiveDelay - 30s OPEN/pre-market, 5min after close; NetLogicTest]
           day-trading live loop sweeps every 30s 16:00-20:00 for unchanging data
-    - [ ] N-L5 [WRITTEN: manual = allTracked + on-screen; sparklines only for on-screen]
+    - [x] N-L5 [DONE, suite 1292/0: manual = allTracked + on-screen; sparklines only for on-screen]
           manual refresh quotes allTracked (misses detail symbol), sparks all tracked
-    - [ ] N-L6 [WRITTEN: refreshInsiders stamps every covered symbol after a non-empty pass]
+    - [x] N-L6 [DONE, suite 1292/0: refreshInsiders stamps every covered symbol after a non-empty pass]
           insider freshness stamp misses followed symbols with no filings
-    - [ ] N-L7 [WRITTEN: feed pass stamps adviceNewsAt; preload also honours deepNewsAt] advice news freshness ignores feed pass
-    - [ ] N-L8 [WRITTEN: socialDue requires feedDue] social trending not gated on Feed tab visibility
+    - [x] N-L7 [DONE, suite 1292/0: feed pass stamps adviceNewsAt; preload also honours deepNewsAt] advice news freshness ignores feed pass
+    - [x] N-L8 [DONE, suite 1292/0: socialDue requires feedDue] social trending not gated on Feed tab visibility
   - UI (U):
     - [x] U-M1 [DONE (compile + suite 1281/0; UI, no emulator here): MainActivity rememberSaveableStateHolder, "tab:N" / "detail:depth:SYM"
           providers, states removed on pop/goToTab/search; DetailScreen tab + Overview list
@@ -129,13 +129,13 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           tabHistory all rememberSaveable (readerSaver, list savers)] nav state (detail/reader/search) not saveable -> process death drops open editor
     - [x] U-M5 [DONE (compile + suite 1281/0): startDayTradingLive(only=symbol) from DetailScreen DisposableEffect while it
           is a pick; enrichDayTradingVisible sweeps only that row, no sort] detail screen day-trading plan frozen (live loop stopped when ResearchScreen leaves)
-    - [ ] U-L1 [WRITTEN: _searching set at keystroke inside launch; finally clears only for the
+    - [x] U-L1 [DONE, suite 1292/0: _searching set at keystroke inside launch; finally clears only for the
           current job] search flashes "No matches / Add anyway" before first search runs
-    - [ ] U-L2 [WRITTEN: StockRow "--" for value and day when price <= 0] held stock with no price shows $0.00 / +$0.00 instead of "--"
-    - [ ] U-L3 [WRITTEN: MarketClock.daysUntil (ET calendar days, past >= -1) in Research, DetailTabs,
+    - [x] U-L2 [DONE, suite 1292/0: StockRow "--" for value and day when price <= 0] held stock with no price shows $0.00 / +$0.00 instead of "--"
+    - [x] U-L3 [DONE, suite 1292/0: MarketClock.daysUntil (ET calendar days, past >= -1) in Research, DetailTabs,
           Explain (+ "tomorrow" wording); catalystFor/analystTopic take `now`; tests pinned to
           fixed ET moments] earnings Today/Tomorrow counts 24h blocks not ET calendar days
-    - [ ] U-L4 [WRITTEN: Detail + Portfolio effects keyed on price > 0] Buy/Hold/Sell badge stays "..." if fundamentals arrive before first quote
+    - [x] U-L4 [DONE, suite 1292/0: Detail + Portfolio effects keyed on price > 0] Buy/Hold/Sell badge stays "..." if fundamentals arrive before first quote
   - [x] (own review of v7.33's diff) Session rollover cleared a Claude day-trading
         plan's levels but left `planByClaude` set, so the row was never re-planned
         by the engine - blank and unlogged for the whole new session until a
