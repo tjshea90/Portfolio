@@ -234,6 +234,20 @@ class NetLogicTest {
         }
     }
 
+    // ---- A SPARKLINE PULLED AFTER THE CLOSE IS FINAL UNTIL THE NEXT OPEN (audit N-M3).
+    @Test fun `an after-close sparkline is not re-downloaded before the next opening bell`() {
+        val fri1630 = et(2026, 9, 11, 16, 30)
+        assertTrue(com.tj.portfolio.ui.sparkIsFinal(fri1630, et(2026, 9, 11, 19, 0)))
+        assertTrue("all weekend", com.tj.portfolio.ui.sparkIsFinal(fri1630, et(2026, 9, 14, 8, 0)))
+        assertFalse("once Monday opens", com.tj.portfolio.ui.sparkIsFinal(fri1630, et(2026, 9, 14, 9, 31)))
+        assertFalse("a mid-session pull is not final",
+            com.tj.portfolio.ui.sparkIsFinal(et(2026, 9, 11, 15, 58), et(2026, 9, 11, 17, 0)))
+        assertFalse("never fetched", com.tj.portfolio.ui.sparkIsFinal(0L, et(2026, 9, 11, 17, 0)))
+        // Labor Day 2026 is 7 September: Friday's line holds through the long weekend.
+        assertTrue(com.tj.portfolio.ui.sparkIsFinal(et(2026, 9, 4, 17, 0), et(2026, 9, 7, 11, 0)))
+        assertEquals(et(2026, 9, 8, 9, 30), MarketClock.nextOpenAfter(et(2026, 9, 4, 17, 0)))
+    }
+
     // ---- THE EXCHANGE CALENDAR (full-tests audit 2026-09-22, D-M4/D-L9): computed from
     // NYSE's own rules, checked against dates the exchange actually published.
 

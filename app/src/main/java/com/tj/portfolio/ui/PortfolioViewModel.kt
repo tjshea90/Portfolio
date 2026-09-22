@@ -748,9 +748,9 @@ internal fun applyAnalystEnrichment(
  */
 internal fun sparkIsFinal(fetchedAt: Long, now: Long): Boolean {
     if (fetchedAt <= 0L) return false
-    val closed = com.tj.portfolio.net.MarketClock.Phase.OPEN
-    if (com.tj.portfolio.net.MarketClock.phase(fetchedAt) == closed) return false
-    if (com.tj.portfolio.net.MarketClock.phase(now) == closed) return false
+    val open = com.tj.portfolio.net.MarketClock.Phase.OPEN
+    if (com.tj.portfolio.net.MarketClock.phase(fetchedAt) == open) return false
+    if (com.tj.portfolio.net.MarketClock.phase(now) == open) return false
     return now < com.tj.portfolio.net.MarketClock.nextOpenAfter(fetchedAt)
 }
 
