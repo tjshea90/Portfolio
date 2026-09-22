@@ -63,7 +63,8 @@ class CompareAnchorTest {
     private fun readings(c: Case, w: ChartWindow?): Map<Long, Triple<Double, Double, Double>> {
         val shown = stock(c)
         val drawn = if (w == null) shown else clipToWindow(shown, w, pad = true)!!
-        val pair = compareLines(drawn, bench(c), shown, c.range, zoomedIn = w != null)!!
+        // tipT as PriceChart passes it: the whole series' own newest candle.
+        val pair = compareLines(drawn, bench(c), shown, c.range, shown.points.last().t, zoomedIn = w != null)!!
         val inside = if (w == null) drawn.points.indices else insideIndices(drawn, w)
         return inside.associate { i ->
             drawn.points[i].t to Triple(pair.own[i], pair.other[i], pair.own[i] - pair.other[i])
