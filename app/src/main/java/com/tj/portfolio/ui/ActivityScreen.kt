@@ -254,7 +254,10 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
         TxnEditorDialog(
             existing = t,
             onDismiss = { editingId = null },
-            onDelete = { vm.deleteTxn(t.id); editingId = null; vm.toast("Transaction deleted") },
+            // THROUGH THE SAME CONFIRMATION AS THE ROW'S TRASH ICON (full-tests audit,
+            // 2026-09-22). "Delete" sits right beside "Cancel" in this dialog, and a delete is an
+            // immediate, un-undoable ledger write - a near-miss on Cancel used to erase the trade.
+            onDelete = { editingId = null; confirmDelete = t.id },
             onSave = { updated -> vm.updateTxn(updated); editingId = null; vm.toast("Transaction updated") }
         )
     }
@@ -265,7 +268,7 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
             message = "This recalculates your positions and cash.",
             confirmText = "Delete",
             onDismiss = { confirmDelete = null },
-            onConfirm = { vm.deleteTxn(id); confirmDelete = null }
+            onConfirm = { vm.deleteTxn(id); confirmDelete = null; vm.toast("Transaction deleted") }
         )
     }
 

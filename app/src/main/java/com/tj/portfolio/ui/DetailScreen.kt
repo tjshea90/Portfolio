@@ -957,7 +957,8 @@ fun DetailScreen(
         TxnEditorDialog(
             existing = t,
             onDismiss = { editingTxnId = null },
-            onDelete = { vm.deleteTxn(t.id); editingTxnId = null; vm.toast("Transaction deleted") },
+            // Confirmed first, same as the list's trash icon - see ActivityScreen's matching note.
+            onDelete = { editingTxnId = null; confirmDelete = t.id },
             onSave = { u -> vm.updateTxn(u); editingTxnId = null; vm.toast("Transaction updated") }
         )
     }
