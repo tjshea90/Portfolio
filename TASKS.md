@@ -52,12 +52,14 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           -> Claude.importNumber (lenient, unsigned) in both parsers; any unparsed date noted
           "date estimated". Test: LedgerTest "an imported row with currency strings..." (suite 1281/0)
     - [x] A-L7 Fmt.parseDate "09/15/26" -> year 26 AD
-    - [ ] A-L9 [WRITTEN: VM.snapshotBefore() in deleteSymbol / wipeTransactions / Replace restore;
+    - [x] A-L9 [DONE (suite 1286/0): VM.snapshotBefore() in deleteSymbol / wipeTransactions / Replace restore;
           dialogs say how to undo] no snapshot before Replace-all / wipe / delete symbol
-    - [ ] A-L10 [WRITTEN: TxnType.ACCOUNT_LEVEL (DEPOSIT/WITHDRAWAL/INTEREST) never carry a symbol
+    - [x] A-L10 [DONE, DbTest "spares a deposit": TxnType.ACCOUNT_LEVEL (DEPOSIT/WITHDRAWAL/INTEREST) never carry a symbol
           (editor + both import parsers); deleteTxnsForSymbol spares them; dialog names the
           watchlist removal] cash-type txn keeps a stock symbol; deleteSymbol silently drops watchlist entry
-    - [ ] A-L11 Merge restore re-inserts import-history rows every time
+    - [x] A-L11 Merge restore re-inserts import-history rows every time
+          -> restoreJson skips an import record already present (at, source, count).
+          Test: RestoreMergeTest "import history is not duplicated"
   - Day trading (D):
     - [x] D-H1 day-trading row price frozen at screener-build time; live plans/log use stale price
           -> DayTechnicals.lastPrice (newest 5m bar today); mergeDayTradingTech plans against it,
@@ -72,11 +74,16 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           -> MarketClock.isHoliday/closeMinute from NYSE RULES (not hard-coded dates): holidays
           CLOSED; 13:00 close + 17:00 after-hours on day-after-Thanksgiving, Jul 3, Dec 24
           (Mon-Thu). Tests: 3 in NetLogicTest (holidays, adjacent sessions, half days)
-    - [ ] D-L5 rows past INTRADAY_RETENTION_DAYS stay "in progress" forever
-    - [ ] D-L6 no grace after 16:00 before settling CLOSED_* from possibly incomplete bars
-    - [ ] D-L7 evening plans use today's premarket high as next session's trigger
-    - [ ] D-L8 research cache JSON rewritten every 30s tick
-    - [ ] D-L10 profitableRate gross vs headline net; PositionSizeLine wording when price-capped
+    - [x] D-L5 rows past INTRADAY_RETENTION_DAYS stay "in progress" forever
+          -> evaluateDayTradingLog marks aged-out null/PENDING rows DATA_UNAVAILABLE (compile+suite)
+    - [x] D-L6 no grace after 16:00 before settling CLOSED_* from possibly incomplete bars
+          -> DayTradingEval.SETTLE_GRACE_MS (20 min) / sessionSettled. Test: aSessionSettlesOnlyAfterTheGrace
+    - [x] D-L7 evening plans use today's premarket high as next session's trigger
+          -> non-live overhead drops premarketHigh once sessionHigh > 0. 2 DayTradingSoundnessTest tests
+    - [ ] D-L8 [WRITTEN: cacheResearch(throttleMs) - live tick persists at most every 5 min, owed
+          write flushed on background] research cache JSON rewritten every 30s tick
+    - [ ] D-L10 [WRITTEN: profitableRate/profitableCount net of costs, card "Profitable after costs";
+          size line says stop-too-wide vs share-too-expensive; DayTradingEvalTest] profitableRate gross vs headline net; PositionSizeLine wording when price-capped
   - Scoring (S):
     - [x] S-H1 [DONE, suite 1272/0: RatingRecency.allStaleFirms; undatedTrust/Note(allStale);
           scorer skips 0-trust consensus+target lines; Recommendation.allRatingsStale + note.
@@ -89,9 +96,11 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [x] S-M4 ResearchCard reasons.take(6) hides analyst lines / negative-book warning
           -> card opens on 6 with a "N more reasons" / "Show fewer" toggle; negative-book red flag
           now the FIRST reason in ResearchScore.best (UI change, compile-verified; suite 1277/0)
-    - [ ] S-L5 Claude-added ETF rows keep import-day price/change
-    - [ ] S-L6 Claude-added Best row gets analyst-only score ~22
-    - [ ] S-L7 PEG / fwd P/E reason labels disagree with points sign
+    - [ ] S-L5 [WRITTEN: after an ETF rebuild, fillResearchPrices for etf==null (Claude-added) funds]
+          Claude-added ETF rows keep import-day price/change
+    - [ ] S-L6 [WRITTEN: enrichAnalyst skips score<=0 && no reasons rows] Claude-added Best row gets analyst-only score ~22
+    - [ ] S-L7 [WRITTEN: PEG "reasonably priced" only to 1.5; fwd P/E "rich" only above 25]
+          PEG / fwd P/E reason labels disagree with points sign
     - [ ] S-L8 "turning profitable ... trailing loss" wording for 0 <= eps <= 0.01
     - [ ] S-L9 Finviz whole value map overrides Yahoo core values via ratings()
   - Network (N):
