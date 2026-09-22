@@ -224,6 +224,15 @@ fun DetailScreen(
      */
     val researchSet by vm.research.collectAsState()
     val dayTradingRow = researchSet.dayTrading.firstOrNull { it.symbol == symbol }
+    // KEEP THAT ROW LIVE WHILE THIS SCREEN SHOWS IT (full-tests audit 2026-09-22, U-M5). The
+    // comment above assumed the Day Trading tab's loop keeps refining the row - but opening this
+    // screen from that tab disposes it, and its `onDispose` stopped the loop. For this symbol
+    // only, and only while it is a pick: a stock that is not one fetches nothing extra here.
+    val isDayTradingPick = dayTradingRow != null
+    androidx.compose.runtime.DisposableEffect(symbol, isDayTradingPick) {
+        if (isDayTradingPick) vm.startDayTradingLive(only = symbol)
+        onDispose { if (isDayTradingPick) vm.stopDayTradingLive() }
+    }
     /**
      * A stock opened from SEARCH that is neither held nor watched has no [Row] - the lists
      * are built from positions and the watchlist, and it is in neither. Before this the
