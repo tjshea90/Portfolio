@@ -741,7 +741,13 @@ object ResearchScore {
             tech.r1 to "pivot R1",
             tech.r2 to "pivot R2"
         ) else levelsOf(
-            tech.premarketHigh to "the premarket high",
+            // BEFORE THE OPEN ONLY (full-tests audit 2026-09-22, D-L7). Outside the session this
+            // reading can be one of two premarkets: THIS morning's, while it is still forming,
+            // or - once today's regular session has printed (`sessionHigh` > 0 with the market
+            // shut means the day is over) - a premarket that has already been and gone. An
+            // evening plan is for TOMORROW, and today's premarket high is not a level tomorrow's
+            // gap-and-go trades against.
+            (if (tech.sessionHigh > 0.0) 0.0 else tech.premarketHigh) to "the premarket high",
             tech.prevHigh to "the last session's high",
             tech.r1 to "pivot R1",
             tech.r2 to "pivot R2"
