@@ -4200,8 +4200,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // feed pass had usually fetched minutes earlier. `loadNews` has had a TTL for
                 // versions; this path never got one.
                 val cutoff = System.currentTimeMillis() - ADVICE_NEWS_TTL_MS
+                // Fresh from ANY pass counts (N-L7): this one's own, the feed pass (which stamps
+                // `adviceNewsAt` too), or a detail screen's deep pull. The note above said the
+                // feed pass had "usually fetched minutes earlier" - and then ignored it.
                 val syms = _ui.value.rows.filter { !it.watchOnly }.map { it.symbol }
-                    .filter { (adviceNewsAt[it] ?: 0L) < cutoff }
+                    .filter { maxOf(adviceNewsAt[it] ?: 0L, deepNewsAt[it] ?: 0L) < cutoff }
                 if (syms.isNotEmpty()) {
                     val fk = finnhubKey()
                     withContext(Dispatchers.IO) {
@@ -5726,6 +5729,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // simply assigning them would throw away the wider multi-source list the
                 // detail screen had already built for any stock the user had opened.
                 if (freshNews.isNotEmpty()) _news.value = mergeNews(_news.value, freshNews)
+                // These ARE fresh headlines for those holdings - the advice preload may use
+                // them rather than fetch its own (full-tests audit 2026-09-22, N-L7).
+                val newsNow = System.currentTimeMillis()
+                freshNews.forEach { (sym, items) -> if (items.isNotEmpty()) adviceNewsAt[sym] = newsNow }
                 val marketItems = marketFirst
                 // `+ _feed.value` is what makes a refresh ADDITIVE. Before v6.3 this
                 // assigned only what this pass fetched, so everything the user already had -
