@@ -123,12 +123,25 @@ object FundamentalsFeed {
     suspend fun ratings(symbol: String): Fundamentals {
         val sym = symbol.uppercase()
         var out = yahoo(sym, RATINGS_MODULES)?.let { parseYahoo(sym, it) } ?: empty(sym)
-        if (out.ratings.isEmpty()) out = Fundamentals.merge(out, finviz(sym))
+        if (out.ratings.isEmpty()) out = Fundamentals.merge(out, ratingsOnly(finviz(sym)))
         if (out.consensus?.hasTarget != true) {
-            out = Fundamentals.merge(out, nasdaq(sym))
+            out = Fundamentals.merge(out, ratingsOnly(nasdaq(sym)))
         }
         return out.copy(fetched = System.currentTimeMillis())
     }
+
+    /**
+     * Only the ANALYST half of a fallback provider's answer (full-tests audit 2026-09-22, S-L9).
+     * The Finviz scrape and the Nasdaq call return a whole value map - P/E, margins, debt - and
+     * this path merged all of it in. A ratings result is newer than the core numbers, so
+     * `mergeFundamentals` lays it OVER them: whenever Yahoo had no analyst history, Finviz's
+     * scraped valuation replaced Yahoo's API figures on the Stats tab and in the scorer - the
+     * provider [core] only ever uses as a last resort, promoted to first by a different fetch.
+     */
+    internal fun ratingsOnly(f: Fundamentals): Fundamentals =
+        empty(f.symbol).copy(
+            ratings = f.ratings, consensus = f.consensus, trend = f.trend, sources = f.sources
+        )
 
     /**
      * Below this many numbers the page reads as broken rather than sparse, so the next
