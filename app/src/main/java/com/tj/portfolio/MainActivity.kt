@@ -176,9 +176,23 @@ fun App() {
     val ctx = LocalContext.current
 
     // the last tab is persisted, so a force-stop reopens where you were
-    var tab by remember { mutableIntStateOf(vm.lastTab().coerceIn(0, TABS.lastIndex)) }
-    var detail by remember { mutableStateOf<String?>(null) }
-    var detailToNews by remember { mutableStateOf(false) }
+    //
+    // ---- EVERY PIECE OF NAVIGATION STATE IS SAVEABLE (full-tests audit 2026-09-22, U-M2).
+    // These were plain `remember`, so when Android reclaimed the process in the background -
+    // routine on a phone, with no warning - the app came back on the tab list with the stock
+    // Tj had open, the article he was reading and any half-typed trade in that stock's editor
+    // all gone. The editors themselves were already `rememberSaveable`; the screen they live on
+    // was not, so there was nothing for them to be restored into.
+    var tab by rememberSaveable { mutableIntStateOf(vm.lastTab().coerceIn(0, TABS.lastIndex)) }
+    var detail by rememberSaveable { mutableStateOf<String?>(null) }
+    var detailToNews by rememberSaveable { mutableStateOf(false) }
+    // ---- AND EACH LAYER KEEPS ITS OWN STATE WHILE SOMETHING COVERS IT (U-M1). The layers are
+    // branches of one `when` below, so opening a stock or an article takes the list underneath
+    // OUT of composition - and its scroll position, and a detail screen's selected tab, went
+    // with it: back from an article read from halfway down the Feed landed at the top. The
+    // holder keeps each layer's saveable state under its own key until that layer is gone for
+    // good (see `forgetDetail`).
+    val layers = rememberSaveableStateHolder()
 
     /**
      * Detail screens opened FROM another detail screen, oldest first (Round 58).
@@ -191,14 +205,14 @@ fun App() {
      * and their holdings should not be able to grow it without bound. Cleared by
      * `goToTab`, which is the one action that means "I am done with this screen entirely".
      */
-    val detailStack = remember { mutableStateListOf<String>() }
-    var searching by remember { mutableStateOf(false) }
+    val detailStack = rememberSaveable(saver = stringListSaver) { mutableStateListOf<String>() }
+    var searching by rememberSaveable { mutableStateOf(false) }
     // Which half of the Watch tab is showing. Hoisted here - not held inside WatchTab -
     // because the visible-scope calculation and the back handler below both depend on it.
-    var watchSubTab by remember { mutableIntStateOf(vm.watchSubTab()) }
+    var watchSubTab by rememberSaveable { mutableIntStateOf(vm.watchSubTab()) }
     // The in-app article reader sits on top of whatever is showing, so closing it returns
     // to exactly the list the headline was tapped in.
-    var reader by remember { mutableStateOf<ReaderTarget?>(null) }
+    var reader by rememberSaveable(stateSaver = readerSaver) { mutableStateOf<ReaderTarget?>(null) }
 
     /**
      * Open an article. Honours the Settings switch: with the in-app reader turned off this
@@ -228,11 +242,23 @@ fun App() {
     // the real path - Portfolio -> Feed -> Advice walks back to Feed, then to Portfolio -
     // rather than always jumping home. Consecutive duplicates are never pushed, and the
     // stack is capped so a long session cannot grow it without bound.
-    val tabHistory = remember { mutableStateListOf<Int>() }
+    val tabHistory = rememberSaveable(saver = intListSaver) { mutableStateListOf<Int>() }
     var lastBackAt by remember { mutableLongStateOf(0L) }
     val ctxActivity = remember(ctx) { ctx.findActivity() }
 
+    // The key a detail screen's saved state lives under: its depth in the stack as well as its
+    // symbol, so SPY -> NVDA -> SPY keeps two separate SPY screens, as the stack does.
+    fun detailKey(depth: Int, sym: String) = "detail:$depth:$sym"
+
+    // A detail screen that is gone for good takes its saved state with it - otherwise
+    // reopening that stock next week would land on whatever tab and scroll it was left at.
+    fun forgetDetails() {
+        detailStack.forEachIndexed { i, sym -> layers.removeState(detailKey(i, sym)) }
+        detail?.let { layers.removeState(detailKey(detailStack.size, it)) }
+    }
+
     fun goToTab(i: Int) {
+        forgetDetails()
         if (i != tab) {
             if (tabHistory.lastOrNull() != tab) tabHistory.add(tab)
             if (tabHistory.size > 16) tabHistory.removeAt(0)
@@ -252,6 +278,7 @@ fun App() {
     // A fix to one path but not the other is exactly the class of back-stack bug this file's
     // own comments say has already been fixed more than once (Round 58/63).
     fun popDetail() {
+        detail?.let { layers.removeState(detailKey(detailStack.size, it)) }
         detailToNews = false
         detail = if (detailStack.isEmpty()) null else detailStack.removeAt(detailStack.lastIndex)
     }
@@ -419,13 +446,14 @@ fun App() {
                         // A search result is a fresh destination, not a step deeper into a
                         // fund - so it starts a new stack rather than pushing onto one that
                         // a Holdings tap may have left behind.
+                        forgetDetails()
                         detailStack.clear()
                         detail = it
                         detailToNews = false
                     }
                 )
 
-                open != null -> DetailScreen(
+                open != null -> layers.SaveableStateProvider(detailKey(detailStack.size, open)) { DetailScreen(
                     vm, state, open, detailToNews,
                     onBack = { popDetail() },
                     onOpenUrl = { url, title -> openArticle(url, title) },
@@ -435,19 +463,22 @@ fun App() {
                         // push a duplicate and cost two back presses to undo one action.
                         if (!sym.equals(open, true)) {
                             detailStack.add(open)
-                            if (detailStack.size > 12) detailStack.removeAt(0)
+                            if (detailStack.size > 12) {
+                                layers.removeState(detailKey(0, detailStack[0]))
+                                detailStack.removeAt(0)
+                            }
                             detail = sym.uppercase()
                             detailToNews = false
                         }
                     }
-                )
+                ) }
 
                 // ONE TAB AT A TIME, still - `TabSlide` renders the outgoing screen for
                 // the length of the animation and then drops it, rather than keeping
                 // neighbours composed the way a pager would. `VisibleScope` therefore still
                 // describes exactly one screen. See `SwipeTabs.kt`.
                 else -> TabSlide(tab, Modifier.fillMaxSize()) { t ->
-                    when (t) {
+                    layers.SaveableStateProvider("tab:$t") { when (t) {
                         TAB_PORTFOLIO -> PortfolioScreen(
                             vm, state,
                             onOpen = { detail = it; detailToNews = false },
@@ -473,7 +504,7 @@ fun App() {
                         TAB_ACTIVITY -> ActivityScreen(vm, state)
                         TAB_ADVICE -> AdviceScreen(vm, state)
                         else -> SettingsScreen(vm)
-                    }
+                    } }
                 }
             }
         }
@@ -572,3 +603,21 @@ internal fun BigTabBar(selected: Int, onSelect: (Int) -> Unit) {
         }
     }
 }
+
+/** [ReaderTarget] as two strings, for `rememberSaveable` - see App's U-M2 note. */
+private val readerSaver = androidx.compose.runtime.saveable.Saver<ReaderTarget?, ArrayList<String>>(
+    save = { it?.let { r -> arrayListOf(r.url, r.title) } },
+    restore = { ReaderTarget(it[0], it.getOrElse(1) { "" }) }
+)
+
+private val stringListSaver = androidx.compose.runtime.saveable.listSaver<
+    androidx.compose.runtime.snapshots.SnapshotStateList<String>, String>(
+    save = { it.toList() },
+    restore = { it.toMutableStateList() }
+)
+
+private val intListSaver = androidx.compose.runtime.saveable.listSaver<
+    androidx.compose.runtime.snapshots.SnapshotStateList<Int>, Int>(
+    save = { it.toList() },
+    restore = { it.toMutableStateList() }
+)
