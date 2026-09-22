@@ -33,7 +33,12 @@
       requests already gated (MAX_PARALLEL_REQUESTS semaphores), JSON parsing on IO.
 - [x] Fix everything verified, with tests where logic is touched; accuracy never traded for speed
 - [x] Full suite green (1292/0), R8 + ART profile tasks green on the final code
-- [ ] Ship per the auto-ship rule, post the link
+- [x] Ship per the auto-ship rule, post the link - v7.35 (code 92), Actions run 35774377550 green
+      INCLUDING the new emulator gate (minified APK installed, cold start OK, 3000 monkey events,
+      no crash); https://github.com/tjshea90/Portfolio/releases/tag/v7.35; BUILDLOG recorded.
+      Gap found in that run: the emulator had no network (monkey: 100% "not connected"), so
+      only offline/cached paths were fuzzed - smoke-test.sh now enables wifi/data and waits for
+      connectivity first (applies from the next release).
 
 
 ## Tj's request, 2026-09-22 (his own words)

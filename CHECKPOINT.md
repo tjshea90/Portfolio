@@ -1,21 +1,24 @@
-# CHECKPOINT 1606 — read me first, then TASKS.md
+# CHECKPOINT 1607 — read me first, then TASKS.md
 
-**Written:** 2026-09-22T19:32:51Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/resume-app-testing-i6cfun` · **builds on:** `bc8b165` (this checkpoint is the commit after it)
+**Written:** 2026-09-22T19:40:38Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/resume-app-testing-i6cfun` · **builds on:** `057e9e7` (this checkpoint is the commit after it)
 
 ## Just done
-Triggered android.yml run 35774377550 for v7.35 code 92 (first run with the emulator smoke gate).
+SHIPPED v7.35 (code 92): R8 + app baseline profile + SQLite WAL + list contentType. Emulator smoke gate passed on its first run (3000 monkey events, no crash). smoke-test.sh now turns the emulator network on first (the first run was offline).
 
 ## Do this next
-Watch run 35774377550; if the smoke step fails, read smoke-logs/job logs, fix, re-run; when green: get_release_by_tag v7.35, record-release.sh v7.35 with the ship note (in the ckpt 1605 commit message), post link.
+Nothing pending for this request.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
+     M TASKS.md
+     M tools/smoke-test.sh
 
 ## Last ten checkpoints
 ```
+  01877da ckpt 1606: Triggered android.yml run 35774377550 for v7.35 code 92 (first run with the e
   bc8b165 ckpt 1605: gated v7.35 (code 92) and pushed it: checkinit, the full unit suite and the v
   18f45fb ckpt 1604: Speed pass complete: R8 (no rename), app baseline profile, SQLite WAL pool, l
   0a7d47b ckpt 1603: Perf pass: R8 enabled for release (-dontobfuscate), app baseline profile, CI 
@@ -25,5 +28,4 @@ Watch run 35774377550; if the smoke step fails, read smoke-logs/job logs, fix, r
   09d15bb ckpt 1599: gated v7.34 (code 91) and pushed it: checkinit, the full unit suite and the v
   a95bcbb ckpt 1598: All ~45 audit findings fixed and verified: suite 1292/0. Review found + fixed
   d9b8453 ckpt 1597: Every audit finding now written. LOWs done: D-L8, D-L10, S-L5, S-L6, S-L7 (su
-  57d9cc1 ckpt 1596: Suite 1286/0: A-L9/A-L10/A-L11, D-L5/D-L6/D-L7 done. Wrote D-L8 (throttled re
 ```

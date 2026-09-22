@@ -28,6 +28,15 @@ fail() {
 }
 
 adb wait-for-device
+# ONLINE, so the fuzz reaches the live-data paths too. The first run (v7.35) found the emulator
+# with no network at all - the monkey reported 100% "not connected" - which exercised only the
+# cached/offline paths. Best-effort: a runner with no egress still gets the offline test.
+adb shell svc wifi enable > /dev/null 2>&1 || true
+adb shell svc data enable > /dev/null 2>&1 || true
+for i in $(seq 1 15); do
+  adb shell ping -c 1 -W 2 8.8.8.8 > /dev/null 2>&1 && { echo "emulator is online"; break; }
+  sleep 2
+done
 adb install -r "$APK" > "$OUT/install.txt" 2>&1 || { cat "$OUT/install.txt"; fail "install failed"; }
 adb logcat -c || true
 
