@@ -258,6 +258,22 @@ class NetLogicTest {
         assertEquals(delayAt(et(2026, 9, 11, 23, 0)), delayAt(et(2026, 9, 11, 17, 0)))
     }
 
+    // ---- A CRYPTO PAIR DOES NOT DRAG THE LEDGER'S "TODAY" ONTO THE CALENDAR (audit A-M5).
+    @Test fun `round-the-clock symbols are left out of the session clock`() {
+        assertTrue(com.tj.portfolio.ui.tradesAroundTheClock("BTC-USD"))
+        assertTrue(com.tj.portfolio.ui.tradesAroundTheClock("EURUSD=X"))
+        assertTrue(com.tj.portfolio.ui.tradesAroundTheClock("ES=F"))
+        assertFalse(com.tj.portfolio.ui.tradesAroundTheClock("BRK-B"))
+        assertFalse(com.tj.portfolio.ui.tradesAroundTheClock("SMH"))
+        val close = et(2026, 9, 3, 16, 0)
+        val oneAm = et(2026, 9, 4, 1, 0)
+        fun q(sym: String, t: Long) = com.tj.portfolio.data.Quote(symbol = sym, price = 1.0, quoteTime = t)
+        assertEquals("the equity close, not the crypto print",
+            close, com.tj.portfolio.ui.sessionInstantFrom(listOf(q("SMH", close), q("BTC-USD", oneAm)), oneAm))
+        assertEquals("nothing but crypto falls back to now",
+            oneAm, com.tj.portfolio.ui.sessionInstantFrom(listOf(q("BTC-USD", oneAm - 60_000)), oneAm))
+    }
+
     // ---- THE EXCHANGE CALENDAR (full-tests audit 2026-09-22, D-M4/D-L9): computed from
     // NYSE's own rules, checked against dates the exchange actually published.
 
