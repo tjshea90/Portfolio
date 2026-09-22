@@ -1,2 +1,2 @@
 HSPLcom/tj/portfolio/**;->**(**)**
-HSPLcom/tj/portfolio/**;
+Lcom/tj/portfolio/**;
