@@ -607,4 +607,42 @@ class ResearchPriceFillTest {
         val out = sortDayTradingForActionability(listOf(appDeclined, claudePlan))
         assertEquals(listOf("CLAUDE", "DECLINED"), out.map { it.symbol })
     }
+    // ---- THE LIVE TICK PLANS AGAINST THE PRICE NOW (full-tests audit 2026-09-22, D-H1).
+    // `row.price` used to stay at whatever the screener saw when the list was built.
+
+    @Test fun `a reading from today's bars moves the row's price to the latest print`() {
+        val row = leveled(atr = 1.0)
+        val out = mergeDayTradingTech(row, tech(atr = 1.0).copy(lastPrice = 24.1))
+        assertEquals(24.1, out.price, 1e-9)
+    }
+
+    @Test fun `with no bars dated today the row keeps its own price`() {
+        val row = leveled(atr = 1.0)
+        val out = mergeDayTradingTech(row, tech(atr = 1.0, day = "").copy(lastPrice = 24.1))
+        assertEquals("a last print from a finished session is not today's price", 22.5, out.price, 1e-9)
+    }
+
+    @Test fun `the day's change follows the live price only while the session is open`() {
+        val row = leveled(atr = 1.0).copy(changePct = 3.0)
+        val open = mergeDayTradingTech(row, tech(atr = 1.0, prevClose = 20.0)
+            .copy(lastPrice = 22.0, sessionLive = true))
+        assertEquals(10.0, open.changePct, 1e-9)
+        val pre = mergeDayTradingTech(row, tech(atr = 1.0, prevClose = 20.0)
+            .copy(lastPrice = 22.0, sessionLive = false))
+        assertEquals("pre-market keeps the screener's figure", 3.0, pre.changePct, 1e-9)
+        assertEquals("but the price itself is still the latest print", 22.0, pre.price, 1e-9)
+    }
+
+    @Test fun `the plan is computed from the live price, not the build-time one`() {
+        // Same structure, two prices: if the live price were ignored both would plan alike.
+        val base = newSessionPlannable()
+        val stale = mergeDayTradingTech(extended().copy(sessionDay = TODAY, price = 110.0),
+            base.copy(lastPrice = 0.0), minutesLeft = 300)
+        val live = mergeDayTradingTech(extended().copy(sessionDay = TODAY, price = 110.0),
+            base.copy(lastPrice = 112.0), minutesLeft = 300)
+        assertEquals(112.0, live.price, 1e-9)
+        assertTrue("the plan moved with the price",
+            stale.entryPrice != live.entryPrice || stale.stopPrice != live.stopPrice ||
+                stale.planReason != live.planReason)
+    }
 }
