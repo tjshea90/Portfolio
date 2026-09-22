@@ -3351,6 +3351,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         )
         recompute()
         refresh()
+        warnIfOverridden(type, symbol)
     }
 
     /** Insert an already-built Txn (its amount is already signed by the editor). */
@@ -3358,9 +3359,29 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         db.insertTxn(t)
         recompute()
         refresh()
+        warnIfOverridden(t.type, t.symbol)
     }
 
-    fun updateTxn(t: Txn) { db.updateTxn(t); recompute(); refresh() }
+    fun updateTxn(t: Txn) { db.updateTxn(t); recompute(); refresh(); warnIfOverridden(t.type, t.symbol) }
+
+    /**
+     * SAY SO WHEN A NEW TRADE CANNOT MOVE THE POSITION (full-tests audit, 2026-09-22). A manual
+     * override replaces what the ledger works out - that is its job - so a BUY, SELL or SPLIT
+     * entered for an overridden symbol changes the cash but not the shares or cost the app
+     * shows. That is easy to have forgotten by the time the next trade is entered, and nothing
+     * on the Portfolio list marks an overridden row, so the trade looks like it was ignored.
+     */
+    private fun warnIfOverridden(type: String, symbol: String?) {
+        if (symbol.isNullOrBlank()) return
+        if (type != TxnType.BUY && type != TxnType.SELL && type != TxnType.SPLIT) return
+        val ov = overrideFor(symbol) ?: return
+        val what = when {
+            ov.shares != null && ov.avgCost != null -> "shares and average cost"
+            ov.shares != null -> "share count"
+            else -> "average cost"
+        }
+        toast("${symbol.uppercase()} has a manual $what override - clear it (Edit shares / cost) for this trade to count")
+    }
 
     fun deleteTxn(id: Long) { db.deleteTxn(id); recompute() }
 

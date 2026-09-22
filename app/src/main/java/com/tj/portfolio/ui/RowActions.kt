@@ -139,6 +139,33 @@ internal object PositionFields {
      */
     fun cost(avgCost: Double): String =
         if (avgCost > 0) Fmt.exact(avgCost) else ""
+
+    /**
+     * What Save should write as `(avgCost, shares)`, or null when nothing changed and nothing
+     * should be written at all.
+     *
+     * ONLY A FIELD THE USER ACTUALLY EDITED BECOMES AN OVERRIDE (full-tests audit, 2026-09-22).
+     * Both boxes are pre-filled with the position's current numbers, and Save used to write
+     * both straight back - so opening this dialog and pressing Save without typing anything
+     * pinned the share count, and `Ledger.applyOverride` then held it there against every
+     * later BUY, SELL and SPLIT: sell the whole position next week and it still showed the
+     * shares (and their market value, on top of the sale's cash). A box left exactly as it was
+     * seeded keeps whatever the store already had for that field (usually nothing - the
+     * calculated value); an edited box sets it; an emptied box clears it, as the dialog's own
+     * text says.
+     */
+    fun toSave(
+        sharesText: String, seededShares: String,
+        costText: String, seededCost: String,
+        existing: com.tj.portfolio.data.Override?
+    ): Pair<Double?, Double?>? {
+        val shares = if (sharesText.trim() == seededShares.trim()) existing?.shares
+        else sharesText.toNum().takeIf { it > 0 }
+        val cost = if (costText.trim() == seededCost.trim()) existing?.avgCost
+        else costText.toNum().takeIf { it > 0 }
+        if (shares == existing?.shares && cost == existing?.avgCost) return null
+        return cost to shares
+    }
 }
 
 /** Direct edit of the computed position: share count and average cost. */
@@ -164,12 +191,13 @@ private fun EditPositionDialog(
     // This is the identical bug the transaction editor had and fixed in this same round -
     // `Fmt.exact` was written for it, and the KDoc at [Fmt.exact] tells the story. The other
     // editor that writes to the ledger was missed.
-    var shares by rememberSaveable(symbol) {
-        mutableStateOf(PositionFields.shares(row?.shares ?: 0.0))
-    }
-    var cost by rememberSaveable(symbol) {
-        mutableStateOf(PositionFields.cost(row?.avgCost ?: 0.0))
-    }
+    // The seeds are kept too, so Save can tell an edited box from an untouched one - see
+    // [PositionFields.toSave]. Saveable for the same reason the boxes are: after a process
+    // death the comparison must still be against what was ORIGINALLY shown.
+    val seededShares = rememberSaveable(symbol) { PositionFields.shares(row?.shares ?: 0.0) }
+    val seededCost = rememberSaveable(symbol) { PositionFields.cost(row?.avgCost ?: 0.0) }
+    var shares by rememberSaveable(symbol) { mutableStateOf(seededShares) }
+    var cost by rememberSaveable(symbol) { mutableStateOf(seededCost) }
     val hasOverride = remember(symbol) { vm.overrideFor(symbol) != null }
 
     AlertDialog(
@@ -219,8 +247,12 @@ private fun EditPositionDialog(
         },
         confirmButton = {
             TextButton(onClick = {
-                vm.setOverride(symbol, cost.toNum().takeIf { it > 0 }, shares.toNum().takeIf { it > 0 })
-                vm.toast("$symbol updated")
+                val change = PositionFields.toSave(shares, seededShares, cost, seededCost, vm.overrideFor(symbol))
+                if (change == null) vm.toast("No changes")
+                else {
+                    vm.setOverride(symbol, change.first, change.second)
+                    vm.toast("$symbol updated")
+                }
                 onDone()
             }) { Text("Save") }
         },
