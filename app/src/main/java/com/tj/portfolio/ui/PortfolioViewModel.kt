@@ -6188,6 +6188,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // [com.tj.portfolio.net.DayTradingEval.INTRADAY_RETENTION_DAYS].
                         com.tj.portfolio.net.DayTradingEval.intradayStillAvailable(it.tradingDay)
                 }
+                // ---- AND A ROW THAT AGED OUT BEFORE IT WAS EVER DECIDED IS SAID TO BE SO
+                // (full-tests audit 2026-09-22, D-L5). The gate above rightly stops fetching it,
+                // but it was left null/PENDING - so the card counted it "still in progress" for
+                // ever, a recommendation from two months ago described as live. Its bars are gone
+                // for good, which is exactly what DATA_UNAVAILABLE ("no price history") means.
+                val expired = all.filter {
+                    (it.outcome == null || it.outcome == com.tj.portfolio.data.DayTradingOutcome.PENDING) &&
+                        !com.tj.portfolio.net.DayTradingEval.intradayStillAvailable(it.tradingDay)
+                }
+                if (expired.isNotEmpty()) withContext(Dispatchers.IO) {
+                    expired.forEach {
+                        db.setDayTradingOutcome(it.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
+                    }
+                }
                 if (needsEval.isNotEmpty()) {
                     withContext(Dispatchers.IO) {
                         val gate = Semaphore(MAX_PARALLEL_REQUESTS)
