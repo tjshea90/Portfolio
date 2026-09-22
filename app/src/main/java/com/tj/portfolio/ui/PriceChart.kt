@@ -613,7 +613,7 @@ fun PriceChart(
         // The principle, for every range: zooming and dragging change WHICH PART of the chart is
         // on screen, never WHAT the lines measure.
         val prevCloseRange = range == ChartRange.D1 || range == ChartRange.OVERNIGHT
-        val compareAnchorT = if (compare != null && !prevCloseRange) shown.points.firstOrNull()?.t else null
+        val compareAnchorT = if (compare != null) compareAnchorFor(shown, range) else null
 
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
@@ -690,22 +690,7 @@ fun PriceChart(
             // "the series' own rule" whenever the anchor is null gave the overlay the
             // benchmark's PREVIOUS CLOSE while the readout beside it used the first point on
             // screen - two percentages on one line measured from two different moments.
-            val other = comparePercents(drawn, benchmark, tipT, compareAnchorT)
-            // THE STOCK'S OWN ANCHOR, LOOKED UP FROM `shown` - the WHOLE fetched series, not
-            // `drawn`: `shown` keeps every candle regardless of the window, so a fixed
-            // timestamp always finds the same close price in it, however far the window has
-            // since panned away from that candle.
-            // On a previous-close range the stock keeps ITS previous close, zoomed or not - the
-            // same fixed zero `comparePercents` gives SPY there (2026-09-22c).
-            val ownFromValue = when {
-                compareAnchorT != null -> valueAtOrBefore(shown.points, compareAnchorT)
-                prevCloseRange -> shown.from
-                else -> null
-            }
-            val own =
-                if (other == null) null
-                else primaryPercents(drawn, fromPoint = zoomedIn, fromValue = ownFromValue)
-            if (other == null || own == null) null else ComparePair(own, other)
+            compareLines(drawn, benchmark, shown, range, tipT, zoomedIn)
         }
 
         // ---- the readout: what the line did over this window, or what it did at your finger
@@ -2439,6 +2424,41 @@ const val BENCHMARK_SYMBOL = "SPY"
  * drawn. A missing overlay is a small disappointment; a wrong one is a false claim about
  * performance.
  */
+/**
+ * THE COMPARISON'S ZERO: the moment both lines are measured from, or null for the previous-close
+ * rule. FIXED FOR THE RANGE - it depends on the whole fetched series and the range, never on the
+ * zoom window, which is what keeps "stock above SPY at 11:30" the same answer however the chart
+ * is dragged (2026-09-22c; round 79 had exempted every intraday range, see [PriceChart]).
+ *
+ *  - 1D and Overnight: null - each line from its own previous close, as the unzoomed chart and
+ *    the 1D chip measure them.
+ *  - Every other range, 5D included: the first candle of the fetched series.
+ */
+internal fun compareAnchorFor(shown: ChartSeries, range: ChartRange): Long? =
+    if (range == ChartRange.D1 || range == ChartRange.OVERNIGHT) null
+    else shown.points.firstOrNull()?.t
+
+/**
+ * Both comparison lines over [drawn] (the on-screen slice of [shown]), measured from the ONE fixed
+ * zero [compareAnchorFor] names: the benchmark through [comparePercents], the stock from its own
+ * price at that same zero, looked up in [shown] - the whole series, so a fixed timestamp finds
+ * the same price however far the window has panned. Null when the comparison cannot be made.
+ */
+internal fun compareLines(
+    drawn: ChartSeries,
+    benchmark: ChartSeries?,
+    shown: ChartSeries,
+    range: ChartRange,
+    tipT: Long = Long.MAX_VALUE,
+    zoomedIn: Boolean = false
+): ComparePair? {
+    val anchorT = compareAnchorFor(shown, range)
+    val other = comparePercents(drawn, benchmark, tipT, anchorT) ?: return null
+    val ownFrom = if (anchorT != null) valueAtOrBefore(shown.points, anchorT) else shown.from
+    val own = primaryPercents(drawn, fromPoint = zoomedIn, fromValue = ownFrom) ?: return null
+    return ComparePair(own, other)
+}
+
 internal fun comparePercents(
     primary: ChartSeries?,
     compare: ChartSeries?,
