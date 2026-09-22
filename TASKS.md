@@ -152,7 +152,9 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
       so on a half day the 13:00-16:00 after-hours prints fed VWAP/session range/intraday ATR
       (now MarketClock.closeMinuteAt); (2) MainActivity detail-stack overflow shifted the
       depth-keyed saved states (now forgotten before the shift). Final suite: green (1292+).
-- [ ] Ship v7.34 (code 91) per the 2026-09-19 auto-ship rule, post the link
+- [x] Ship v7.34 (code 91) per the 2026-09-19 auto-ship rule, post the link - GitHub Actions
+      run 35771678004 green, Release published with Portfolio-v7.34.apk
+      (https://github.com/tjshea90/Portfolio/releases/tag/v7.34), recorded in BUILDLOG.md.
 
 ## Tj's request, 2026-09-21e (his own words)
 
