@@ -996,9 +996,9 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         ConfirmDialog(
             title = "Delete all transactions?",
             // A snapshot is taken first now (full-tests audit, A-L9) - see `snapshotBefore`.
-            message = "A snapshot is saved first, so \"Restore the latest automatic snapshot\" " +
-                "above can put everything back. Snapshots are erased with the app - export a " +
-                "backup too if you want a copy that outlives it.",
+            message = "A snapshot is saved first, so until the next daily snapshot \"Restore " +
+                "the latest automatic snapshot\" above can put everything back. Snapshots are " +
+                "erased with the app - export a backup too if you want a copy that outlives it.",
             confirmText = "Delete everything",
             onDismiss = { confirmWipe = false },
             onConfirm = { vm.wipeTransactions(); confirmWipe = false; vm.toast("All transactions deleted") }
