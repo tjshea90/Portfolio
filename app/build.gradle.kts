@@ -27,7 +27,20 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            /*
+             * R8 ON FOR THE RELEASE BUILD (2026-09-22b - "as snappy and fast as possible" on
+             * the Moto G 2026). It was off, so every release shipped Compose and the app
+             * exactly as javac/kotlinc left them: no inlining, no dead-code removal, and
+             * Compose's own debug/tracing paths still live - the single largest runtime cost a
+             * Compose app can carry, and it lands hardest on a budget SoC like the phone's
+             * Dimensity 6300. Accuracy is untouched: R8 changes how the code runs, never what
+             * it computes. It does NOT rename anything (`-dontobfuscate` in
+             * proguard-rules.pro), so crash-log stack traces stay readable. Safe because the
+             * app has no reflection at all - see that file. The Actions workflow launches the
+             * minified APK on an emulator and fuzzes it before anything is published.
+             */
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("sideload")
         }
         debug {
