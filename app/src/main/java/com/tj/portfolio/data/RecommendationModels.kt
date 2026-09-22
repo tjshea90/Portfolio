@@ -183,7 +183,8 @@ object RecommendationJson {
             analystWeight = if (o.has("analystWeight")) d("analystWeight") else 1.0,
             targetIsWeighted = o.optBoolean("targetIsWeighted", false),
             targetAgeDays = o.optInt("targetAgeDays", -1),
-            fundamentalsAt = o.optLong("fundamentalsAt", 0L)
+            fundamentalsAt = o.optLong("fundamentalsAt", 0L),
+            allRatingsStale = o.optInt("allRatingsStale", 0)
         )
     }.getOrNull()
 }
