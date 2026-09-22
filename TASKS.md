@@ -14,7 +14,64 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
 - [ ] Audit: day-trading
 - [ ] Audit: network/caching
 - [ ] Audit: UI / battery / persistence
-- [ ] Fix every verified finding, with regression tests
+- [ ] Fix every verified finding, with regression tests (IDs below; each must be
+      VERIFIED against the code before fixing - agents are research-only and can be wrong)
+  - [x] U-M4 (=A-L8) TxnEditor's Delete deleted with no confirmation -> routed through ConfirmDialog
+        (ActivityScreen + DetailScreen)
+  - [x] U-M3 Settings held whole backup JSON in rememberSaveable -> TransactionTooLargeException
+        once backup > ~500K chars; bounded saver `boundedText` (SettingsScreen.kt)
+  - Accounting/persistence (A):
+    - [ ] A-H1 EditPositionDialog untouched Save writes a full override that freezes shares/basis
+          against every later trade (RowActions.kt:222, Ledger.applyOverride)
+    - [ ] A-H2 same-day trades replayed in insert order; screenshot imports come newest-first ->
+          phantom shares / wrong realized (Ledger sort date,id; commitImportAsync; prompts)
+    - [ ] A-M3 SPLIT on the same day as trades applied after them (sort SPLIT first within a day)
+    - [ ] A-M4 identical same-day rows (partial fills) collapsed on import even with force=true;
+          duplicateFlags not one-to-one; prompts drop second fills
+    - [ ] A-M5 sessionInstant() max quoteTime includes crypto -> "today" window follows calendar
+    - [ ] A-L6 import parse: $/comma strings -> 0 price BUY; negative SELL qty; unparseable date
+    - [ ] A-L7 Fmt.parseDate "09/15/26" -> year 26 AD
+    - [ ] A-L9 no snapshot before Replace-all / wipe / delete symbol
+    - [ ] A-L10 cash-type txn keeps a stock symbol; deleteSymbol silently drops watchlist entry
+    - [ ] A-L11 Merge restore re-inserts import-history rows every time
+  - Day trading (D):
+    - [ ] D-H1 day-trading row price frozen at screener-build time; live plans/log use stale price
+    - [ ] D-H2 "Your portfolio, trading this system" = totalR x 1% ignores the 25% position cap
+    - [ ] D-M3 too-late / pending-decline plans still logged as recommendations
+    - [ ] D-M4 early-close half days treated as open to 16:00 (and D-L9 holidays)
+    - [ ] D-L5 rows past INTRADAY_RETENTION_DAYS stay "in progress" forever
+    - [ ] D-L6 no grace after 16:00 before settling CLOSED_* from possibly incomplete bars
+    - [ ] D-L7 evening plans use today's premarket high as next session's trigger
+    - [ ] D-L8 research cache JSON rewritten every 30s tick
+    - [ ] D-L10 profitableRate gross vs headline net; PositionSizeLine wording when price-capped
+  - Scoring (S):
+    - [ ] S-H1 all dated analyst ratings stale (>8mo) -> falls back to undated consensus at
+          45-90% trust -> stale coverage UPGRADES a stock; false "no publication dates" line
+    - [ ] S-M2 carryExplanations uses one symbol map across trending/best/dayTrading
+    - [ ] S-M3 enrichVisible clobbers the shared busy flag; enrichPass write-back reverts rows
+    - [ ] S-M4 ResearchCard reasons.take(6) hides analyst lines / negative-book warning
+    - [ ] S-L5 Claude-added ETF rows keep import-day price/change
+    - [ ] S-L6 Claude-added Best row gets analyst-only score ~22
+    - [ ] S-L7 PEG / fwd P/E reason labels disagree with points sign
+    - [ ] S-L8 "turning profitable ... trailing loss" wording for 0 <= eps <= 0.01
+    - [ ] S-L9 Finviz whole value map overrides Yahoo core values via ratings()
+  - Network (N):
+    - [ ] N-M1 blank crumb (both hosts cooling) skips COOLING -> per-symbol Finnhub/Stooq storm
+    - [ ] N-M2 Yahoo 429/503 counted as batch failures -> batchDisabled for session
+    - [ ] N-M3 sparklines re-downloaded after close / on night resume
+    - [ ] N-M4 day-trading live loop sweeps every 30s 16:00-20:00 for unchanging data
+    - [ ] N-L5 manual refresh quotes allTracked (misses detail symbol), sparks all tracked
+    - [ ] N-L6 insider freshness stamp misses followed symbols with no filings
+    - [ ] N-L7 advice news freshness ignores feed pass
+    - [ ] N-L8 social trending not gated on Feed tab visibility
+  - UI (U):
+    - [ ] U-M1 back from reader/detail loses list scroll + detail tab (no SaveableStateHolder)
+    - [ ] U-M2 nav state (detail/reader/search) not saveable -> process death drops open editor
+    - [ ] U-M5 detail screen day-trading plan frozen (live loop stopped when ResearchScreen leaves)
+    - [ ] U-L1 search flashes "No matches / Add anyway" before first search runs
+    - [ ] U-L2 held stock with no price shows $0.00 / +$0.00 instead of "--"
+    - [ ] U-L3 earnings Today/Tomorrow counts 24h blocks not ET calendar days
+    - [ ] U-L4 Buy/Hold/Sell badge stays "..." if fundamentals arrive before first quote
   - [x] (own review of v7.33's diff) Session rollover cleared a Claude day-trading
         plan's levels but left `planByClaude` set, so the row was never re-planned
         by the engine - blank and unlogged for the whole new session until a
