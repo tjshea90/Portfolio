@@ -194,7 +194,7 @@ fun App() {
     // OUT of composition - and its scroll position, and a detail screen's selected tab, went
     // with it: back from an article read from halfway down the Feed landed at the top. The
     // holder keeps each layer's saveable state under its own key until that layer is gone for
-    // good (see `forgetDetail`).
+    // good (see `forgetDetails`).
     val layers = rememberSaveableStateHolder()
 
     /**
@@ -465,11 +465,12 @@ fun App() {
                         // fund that lists itself, or a double tap - which would otherwise
                         // push a duplicate and cost two back presses to undo one action.
                         if (!sym.equals(open, true)) {
+                            // Dropping the oldest screen shifts every depth by one, so the
+                            // saved states' keys would no longer match - forget them all in
+                            // this (rare, twelve-hops-deep) case rather than orphan them.
+                            if (detailStack.size >= 12) forgetDetails()
                             detailStack.add(open)
-                            if (detailStack.size > 12) {
-                                layers.removeState(detailKey(0, detailStack[0]))
-                                detailStack.removeAt(0)
-                            }
+                            if (detailStack.size > 12) detailStack.removeAt(0)
                             detail = sym.uppercase()
                             detailToNews = false
                         }
