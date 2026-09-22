@@ -40,7 +40,7 @@ on:
   workflow_dispatch:
     inputs:
       full_build:
-        description: 'Build and publish a signed APK (~12 min of Actions minutes). Leave OFF for a ~1 min check that the setup still works.'
+        description: 'Build, smoke-test on an emulator and publish a signed APK (~20 min of Actions minutes). Leave OFF for a ~1 min check that the setup still works.'
         type: boolean
         default: false
 
@@ -182,6 +182,37 @@ jobs:
       - name: Verify the APK signature
         if: steps.mode.outputs.full == 'true'
         run: bash tools/verify-apk.sh app/build/outputs/apk/release/app-release.apk
+
+      # ---- THE RELEASE APK ITSELF IS RUN BEFORE ANYTHING IS PUBLISHED (2026-09-22b).
+      # The release build is minified by R8 now, the one step that can break an app every unit
+      # test passes on. tools/smoke-test.sh installs THIS APK on an emulator, launches it and
+      # fuzzes it; a crash fails the run here, so the Publish step below never runs.
+      - name: Smoke test — enable KVM for the emulator
+        if: steps.mode.outputs.full == 'true'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Smoke test — launch and fuzz the release APK on an emulator
+        if: steps.mode.outputs.full == 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: bash tools/smoke-test.sh app/build/outputs/apk/release/app-release.apk
+
+      - name: Keep the smoke-test logs (failed runs only)
+        if: failure() && steps.mode.outputs.full == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs
+          path: smoke/
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Name the APK
         id: v
