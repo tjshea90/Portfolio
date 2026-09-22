@@ -10,10 +10,15 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
 
 ### Full-test protocol (CLAUDE.md), 4 parallel subsystem audits + reconcile/fix
 - [ ] Floor: `checkinit.py` + full Gradle unit suite
-- [ ] Audit: recommendation/scoring
-- [ ] Audit: day-trading
-- [ ] Audit: network/caching
-- [ ] Audit: UI / battery / persistence
+- [x] Audit: recommendation/scoring (S-*)
+- [x] Audit: day-trading (D-*)
+- [x] Audit: network/caching (N-*)
+- [x] Audit: UI / battery / persistence (U-*)
+- [x] Audit: accounting / ledger / persistence (A-*) - the 5th agent
+      (ticked 2026-09-22 by the resuming session: ckpt 1588 records "All 5 audit agents
+      reported", and every area has findings below with contiguous IDs. The boxes simply
+      weren't ticked before usage ran out. The agents' full write-ups were NOT saved - only
+      these one-liners - so every finding is re-verified against the code before fixing.)
 - [ ] Fix every verified finding, with regression tests (IDs below; each must be
       VERIFIED against the code before fixing - agents are research-only and can be wrong)
   - [x] U-M4 (=A-L8) TxnEditor's Delete deleted with no confirmation -> routed through ConfirmDialog
