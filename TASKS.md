@@ -77,8 +77,8 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           Tests: 4 in AnalystRecencyTest + updated "dated ratings take precedence" which had
           pinned the old false "no publication dates" line] all dated analyst ratings stale (>8mo) -> falls back to undated consensus at
           45-90% trust -> stale coverage UPGRADES a stock; false "no publication dates" line
-    - [ ] S-M2 [WRITTEN: per-list carry; 2 ResearchCarryTest tests] carryExplanations uses one symbol map across trending/best/dayTrading
-    - [ ] S-M3 [WRITTEN: busy flag only taken when empty; applyAnalystEnrichment merges only
+    - [x] S-M2 [DONE, suite 1276/0: per-list carry; 2 ResearchCarryTest tests] carryExplanations uses one symbol map across trending/best/dayTrading
+    - [x] S-M3 [DONE, suite 1276/0: busy flag only taken when empty; applyAnalystEnrichment merges only
           score/reasons/consensus onto the CURRENT row; 2 ResearchCarryTest tests] enrichVisible clobbers the shared busy flag; enrichPass write-back reverts rows
     - [ ] S-M4 ResearchCard reasons.take(6) hides analyst lines / negative-book warning
     - [ ] S-L5 Claude-added ETF rows keep import-day price/change
