@@ -21,7 +21,7 @@
       ("since yesterday's close" / "since <date>") instead of "over 4 hr". Test:
       CompareAnchorTest (3) - every timestamp reads identically through every window for 1D, 5D,
       1Y; MUTATION-CHECKED: with the old rule restored all 3 fail.
-- [ ] Suite green (1295/0), ship v7.36, post link
+- [x] Suite green (1295/0), ship v7.36, post link (released + recorded 2026-09-22, Actions run 35777332834 green incl. emulator smoke test)
 
 
 ## Tj's request, 2026-09-22b (his own words)
