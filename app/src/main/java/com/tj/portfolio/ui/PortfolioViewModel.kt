@@ -697,6 +697,10 @@ internal fun carryExplanations(
         val prior = from.associateBy { it.symbol }
         return list.map { r -> carryWhy(r, prior[r.symbol], now) }
     }
+    // `keepEtfs` also carries the fund list and its clock: `fresh` comes from `Research.build`,
+    // which never touches `etfs`, and returning it as-is would wipe the six-hour fund list on
+    // every thirty-minute stock rebuild - TJ's rule for it is "keep the current list in cache
+    // until each update".
     return fresh.copy(
         trending = carry(fresh.trending, old.trending),
         best = carry(fresh.best, old.best),
@@ -710,17 +714,13 @@ private fun carryWhy(
     p: com.tj.portfolio.data.ResearchRow?,
     now: Long
 ): com.tj.portfolio.data.ResearchRow {
-    if (p == null) return r
-    run {
-        // Claude's explanation survives a rebuild; the app's own score and reasons - and,
-        // for day trading, the entry/stop/target risk levels - are recomputed from fresh
-        // screener data every time, which is the point of a rebuild. BUT ONLY WHILE IT IS
-        // STILL RECENT - see [WHY_STALE_MS]. Past that window this stops carrying `why`
-        // forward at all, which is the actual eviction: the next `cacheResearch` persists
-        // this row with `why` blank again.
-        if (!stillCurrent(p.why, p.whyAt, now)) return r
-        return r.copy(why = p.why, whyAt = p.whyAt)
-    }
+    // Claude's explanation survives a rebuild; the app's own score and reasons - and, for day
+    // trading, the entry/stop/target risk levels - are recomputed from fresh screener data
+    // every time, which is the point of a rebuild. BUT ONLY WHILE IT IS STILL RECENT - see
+    // [WHY_STALE_MS]. Past that window this stops carrying `why` forward at all, which is the
+    // actual eviction: the next `cacheResearch` persists this row with `why` blank again.
+    if (p == null || !stillCurrent(p.why, p.whyAt, now)) return r
+    return r.copy(why = p.why, whyAt = p.whyAt)
 }
 
 /**
