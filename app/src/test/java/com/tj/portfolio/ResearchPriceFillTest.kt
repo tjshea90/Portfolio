@@ -513,6 +513,59 @@ class ResearchPriceFillTest {
         assertFalse("and it clears again on a row imported earlier", early.tooLateToStart)
     }
 
+    // ---- A REAL SESSION ROLLOVER (v7.33's fix, which shipped with no test of its own, and the
+    // Claude-plan half of it found by the 2026-09-22 full-tests audit).
+
+    /** A reading from the NEW session with enough structure for the engine to plan a breakout
+     *  at this row's $110 price - the same shape `a real plan returning...` uses. */
+    private fun newSessionPlannable() = DayTradingTechnicals.DayTechnicals(
+        atr14 = 1.0, prevHigh = 115.0, prevLow = 105.0, prevClose = 108.0, sessionDay = TODAY
+    )
+
+    @Test fun `yesterday's app plan is cleared on the new session's first declining tick, no debounce`() {
+        val yesterday = extended().copy(sessionDay = "2026-09-10")
+        val out = mergeDayTradingTech(yesterday, spentDay(), minutesLeft = 120)
+        assertEquals("a level from another session must not wait a tick under today's date", 0.0, out.entryPrice, 0.0)
+        assertEquals(0.0, out.stopPrice, 0.0)
+        assertEquals(0.0, out.targetPrice, 0.0)
+        assertEquals("the new session's streak starts at this one decline", 1, out.planDeclineStreak)
+        assertEquals(TODAY, out.sessionDay)
+    }
+
+    @Test fun `yesterday's Claude plan is handed back to the engine, not left blank all session`() {
+        val yesterday = extended(planByClaude = true).copy(sessionDay = "2026-09-10")
+        val out = mergeDayTradingTech(yesterday, newSessionPlannable(), minutesLeft = 300)
+        assertFalse("a rollover ends the Claude plan's claim on the row", out.planByClaude)
+        assertTrue("the engine plans the new session straight away", out.entryPrice > 0.0)
+        assertTrue("and it is not yesterday's Claude entry", kotlin.math.abs(out.entryPrice - 105.1) > 0.001)
+    }
+
+    @Test fun `yesterday's Claude plan with nothing to plan today is cleared and stays the engine's`() {
+        val yesterday = extended(planByClaude = true).copy(sessionDay = "2026-09-10")
+        val out = mergeDayTradingTech(yesterday, spentDay(), minutesLeft = 120)
+        assertFalse(out.planByClaude)
+        assertEquals(0.0, out.entryPrice, 0.0)
+        assertEquals(0.0, out.targetPrice, 0.0)
+        // And the NEXT tick is an ordinary engine tick, not a frozen Claude row.
+        val next = mergeDayTradingTech(out, newSessionPlannable(), minutesLeft = 290)
+        assertTrue("the engine keeps re-planning the row on later ticks", next.entryPrice > 0.0)
+    }
+
+    @Test fun `a Claude plan within its own session still stands and keeps its label`() {
+        val out = mergeDayTradingTech(extended(planByClaude = true), newSessionPlannable(), minutesLeft = 300)
+        assertTrue(out.planByClaude)
+        assertEquals("Claude's own entry is never overwritten mid-session", 105.1, out.entryPrice, 0.001)
+    }
+
+    @Test fun `a Claude plan on a row with no session reading yet still stands`() {
+        // What `DayTradingBridge.merge` leaves after a morning import onto yesterday's row.
+        val justImported = extended(planByClaude = true).copy(sessionDay = "")
+        val out = mergeDayTradingTech(justImported, newSessionPlannable(), minutesLeft = 300)
+        assertTrue(out.planByClaude)
+        assertEquals(105.1, out.entryPrice, 0.001)
+        assertEquals(TODAY, out.sessionDay)
+    }
+
     // ==================================== sortDayTradingForActionability (Round 75)
     //
     // Tj: "try to find and show the actual stocks that I can act on currently at the top of

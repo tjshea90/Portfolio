@@ -918,6 +918,43 @@ Here is my read on today's list. I searched the web for what is actually moving.
         assertEquals("the app's own score is still not Claude's to set", 88, gme.score)
     }
 
+    // ---- A PLAN IMPORTED BEFORE THE NEW SESSION'S FIRST TICK (full-tests audit, 2026-09-22).
+    // `mergeDayTradingTech` drops a Claude plan when the row's `sessionDay` rolls over; a row
+    // restored on a cold launch still carries yesterday's day, so without this the first live
+    // tick after a morning import would throw the just-imported plan away.
+
+    private fun nineOClockEt(): Long {
+        val c = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("America/New_York"))
+        c.clear()
+        c.set(2026, java.util.Calendar.SEPTEMBER, 11, 9, 0)
+        return c.timeInMillis
+    }
+
+    private val gmeLevels = """{"dayTrading":{"picks":[{"symbol":"GME","entry":23.10,"stop":22.40,
+               "target":25.00,"trigger":"Buy the break of the premarket high at 23.10."}]}}"""
+
+    @Test fun `a plan imported onto a row stamped with an earlier session starts that session fresh`() {
+        val app = listOf(ResearchRow(symbol = "GME", price = 22.5, score = 88, sessionDay = "20260910"))
+        val gme = DayTradingBridge.merge(app, DayTradingBridge.parse(gmeLevels).picks, now = nineOClockEt()).first()
+        assertTrue(gme.planByClaude)
+        assertEquals("yesterday's day must not survive onto today's imported plan", "", gme.sessionDay)
+    }
+
+    @Test fun `a plan imported within the row's own session keeps its day`() {
+        val app = listOf(ResearchRow(symbol = "GME", price = 22.5, score = 88, sessionDay = "20260911"))
+        val gme = DayTradingBridge.merge(app, DayTradingBridge.parse(gmeLevels).picks, now = nineOClockEt()).first()
+        assertTrue(gme.planByClaude)
+        assertEquals("20260911", gme.sessionDay)
+    }
+
+    @Test fun `a reply that brings no levels leaves the row's session alone`() {
+        val app = listOf(ResearchRow(symbol = "GME", price = 22.5, score = 88, sessionDay = "20260910"))
+        val claude = listOf(ResearchRow(symbol = "GME", why = "Squeeze note."))
+        val gme = DayTradingBridge.merge(app, claude, now = nineOClockEt()).first()
+        assertFalse(gme.planByClaude)
+        assertEquals("only an imported PLAN is a claim about today", "20260910", gme.sessionDay)
+    }
+
     @Test fun `a mangled level set is refused and the app's own plan survives`() {
         val app = listOf(
             ResearchRow(
