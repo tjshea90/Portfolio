@@ -754,6 +754,28 @@ internal fun sparkIsFinal(fetchedAt: Long, now: Long): Boolean {
     return now < com.tj.portfolio.net.MarketClock.nextOpenAfter(fetchedAt)
 }
 
+/**
+ * How long the Day Trading live loop waits before its next sweep.
+ *
+ * AFTER THE CLOSE IS NOT PRE-MARKET (full-tests audit 2026-09-22, N-M4). Both are EXTENDED, and
+ * both used to sweep every 30 seconds. Before the open that is right: pre-market prints move the
+ * premarket high, a real trigger level. After 16:00 nothing a plan is built from can move - the
+ * session high/low, VWAP and opening range are regular-session figures, and the daily bars have
+ * settled - so four hours of 30-second sweeps re-fetched every visible row's intraday bars about
+ * 480 times for the same answer. After the close it runs at the closed-market pace instead.
+ *
+ * @param elapsed [com.tj.portfolio.net.MarketClock.sessionElapsedFraction] - 1.0 once the
+ *   regular session has finished, 0.0 before it starts.
+ */
+internal fun dayTradingLiveDelay(
+    phase: com.tj.portfolio.net.MarketClock.Phase,
+    elapsed: Double
+): Long = when {
+    phase == com.tj.portfolio.net.MarketClock.Phase.OPEN -> DAY_TRADING_LIVE_INTERVAL_MS
+    phase == com.tj.portfolio.net.MarketClock.Phase.EXTENDED && elapsed < 1.0 -> DAY_TRADING_LIVE_INTERVAL_MS
+    else -> DAY_TRADING_LIVE_CLOSED_INTERVAL_MS
+}
+
 /** One row of [carryExplanations]: [p]'s `why` onto [r], while it is still current. */
 private fun carryWhy(
     r: com.tj.portfolio.data.ResearchRow,
@@ -6956,11 +6978,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 if (phase != com.tj.portfolio.net.MarketClock.Phase.CLOSED && online()) {
                     enrichDayTradingVisible()
                 }
-                delay(
-                    if (phase == com.tj.portfolio.net.MarketClock.Phase.CLOSED)
-                        DAY_TRADING_LIVE_CLOSED_INTERVAL_MS
-                    else DAY_TRADING_LIVE_INTERVAL_MS
-                )
+                delay(dayTradingLiveDelay(phase, com.tj.portfolio.net.MarketClock.sessionElapsedFraction()))
             }
         }
     }

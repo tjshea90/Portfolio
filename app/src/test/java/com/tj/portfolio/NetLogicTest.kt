@@ -248,6 +248,16 @@ class NetLogicTest {
         assertEquals(et(2026, 9, 8, 9, 30), MarketClock.nextOpenAfter(et(2026, 9, 4, 17, 0)))
     }
 
+    // ---- THE DAY TRADING LOOP SLOWS DOWN AFTER THE CLOSE (full-tests audit, N-M4).
+    @Test fun `the live day-trading loop is fast pre-market and slow after the close`() {
+        fun delayAt(ms: Long) = com.tj.portfolio.ui.dayTradingLiveDelay(
+            MarketClock.phase(ms), MarketClock.sessionElapsedFraction(ms))
+        val fast = delayAt(et(2026, 9, 11, 10, 0))
+        assertEquals("pre-market keeps the live pace", fast, delayAt(et(2026, 9, 11, 8, 0)))
+        assertTrue("after the close is slower", delayAt(et(2026, 9, 11, 17, 0)) > fast)
+        assertEquals(delayAt(et(2026, 9, 11, 23, 0)), delayAt(et(2026, 9, 11, 17, 0)))
+    }
+
     // ---- THE EXCHANGE CALENDAR (full-tests audit 2026-09-22, D-M4/D-L9): computed from
     // NYSE's own rules, checked against dates the exchange actually published.
 
