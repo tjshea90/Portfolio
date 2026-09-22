@@ -1854,10 +1854,13 @@ object ResearchScore {
             have++
             val pts = ((1.5 - peg) * 10.0).coerceIn(-20.0, 15.0)
             s += pts
+            // THE WORDS CHANGE WHERE THE POINTS DO (full-tests audit 2026-09-22, S-L7). The
+            // term turns negative above PEG 1.5, but 1.5-2.0 was labelled "reasonably priced" -
+            // a reason line praising the stock beside points taken off it.
             why.add(
                 "PEG ratio ${Fmt.priceBare(peg)} - " + when {
                     peg <= 1.0 -> "cheap for its growth"
-                    peg <= 2.0 -> "reasonably priced for its growth"
+                    peg <= 1.5 -> "reasonably priced for its growth"
                     else -> "expensive relative to its growth"
                 }
             )
@@ -1865,9 +1868,10 @@ object ResearchScore {
             have++
             val pts = ((25.0 - fwdPe) * (20.0 / 25.0)).coerceIn(-20.0, 20.0)
             s += pts
+            // Same rule (S-L7): points are positive below 25x, so 20-25x is not "rich".
             why.add(
                 "Forward P/E ${Fmt.priceBare(fwdPe)}" +
-                    if (fwdPe <= 20.0) " - reasonable" else " - rich, priced for continued strength"
+                    if (fwdPe <= 25.0) " - reasonable" else " - rich, priced for continued strength"
             )
         }
 
