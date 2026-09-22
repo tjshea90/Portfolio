@@ -88,8 +88,7 @@ fun RowActionHost(
             presetSymbol = symbol,
             onDismiss = onDone,
             onSave = { t ->
-                vm.addTxnRecord(t)
-                vm.toast("${t.type} $symbol saved")
+                vm.addTxnRecord(t, "${t.type} $symbol saved")
                 onDone()
             }
         )

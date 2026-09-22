@@ -3354,15 +3354,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         warnIfOverridden(type, symbol)
     }
 
-    /** Insert an already-built Txn (its amount is already signed by the editor). */
-    fun addTxnRecord(t: Txn) {
+    /**
+     * Insert an already-built Txn (its amount is already signed by the editor). [savedMsg] is
+     * the caller's "saved" toast - passed in rather than shown after this returns, because a
+     * toast set afterwards would overwrite the override warning below before anyone saw it.
+     */
+    fun addTxnRecord(t: Txn, savedMsg: String? = null) {
         db.insertTxn(t)
         recompute()
         refresh()
-        warnIfOverridden(t.type, t.symbol)
+        warnIfOverridden(t.type, t.symbol, savedMsg)
     }
 
-    fun updateTxn(t: Txn) { db.updateTxn(t); recompute(); refresh(); warnIfOverridden(t.type, t.symbol) }
+    fun updateTxn(t: Txn, savedMsg: String? = null) {
+        db.updateTxn(t); recompute(); refresh(); warnIfOverridden(t.type, t.symbol, savedMsg)
+    }
 
     /**
      * SAY SO WHEN A NEW TRADE CANNOT MOVE THE POSITION (full-tests audit, 2026-09-22). A manual
@@ -3371,16 +3377,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * shows. That is easy to have forgotten by the time the next trade is entered, and nothing
      * on the Portfolio list marks an overridden row, so the trade looks like it was ignored.
      */
-    private fun warnIfOverridden(type: String, symbol: String?) {
-        if (symbol.isNullOrBlank()) return
-        if (type != TxnType.BUY && type != TxnType.SELL && type != TxnType.SPLIT) return
-        val ov = overrideFor(symbol) ?: return
+    private fun warnIfOverridden(type: String, symbol: String?, otherwise: String? = null) {
+        val ov = symbol?.takeIf { it.isNotBlank() }
+            ?.takeIf { type == TxnType.BUY || type == TxnType.SELL || type == TxnType.SPLIT }
+            ?.let { overrideFor(it) }
+        if (ov == null) { if (otherwise != null) toast(otherwise); return }
         val what = when {
             ov.shares != null && ov.avgCost != null -> "shares and average cost"
             ov.shares != null -> "share count"
             else -> "average cost"
         }
-        toast("${symbol.uppercase()} has a manual $what override - clear it (Edit shares / cost) for this trade to count")
+        toast("${ov.symbol.uppercase()} has a manual $what override - clear it (Edit shares / cost) for this trade to count")
     }
 
     fun deleteTxn(id: Long) { db.deleteTxn(id); recompute() }

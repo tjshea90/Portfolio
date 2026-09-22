@@ -258,7 +258,7 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
             // 2026-09-22). "Delete" sits right beside "Cancel" in this dialog, and a delete is an
             // immediate, un-undoable ledger write - a near-miss on Cancel used to erase the trade.
             onDelete = { editingId = null; confirmDelete = t.id },
-            onSave = { updated -> vm.updateTxn(updated); editingId = null; vm.toast("Transaction updated") }
+            onSave = { updated -> vm.updateTxn(updated, "Transaction updated"); editingId = null }
         )
     }
 

@@ -937,7 +937,7 @@ fun DetailScreen(
         TxnEditorDialog(
             presetSymbol = symbol,
             onDismiss = { addingTxn = false },
-            onSave = { t -> vm.addTxnRecord(t); addingTxn = false; vm.toast("${t.type} $symbol saved") }
+            onSave = { t -> vm.addTxnRecord(t, "${t.type} $symbol saved"); addingTxn = false }
         )
     }
 
@@ -959,7 +959,7 @@ fun DetailScreen(
             onDismiss = { editingTxnId = null },
             // Confirmed first, same as the list's trash icon - see ActivityScreen's matching note.
             onDelete = { editingTxnId = null; confirmDelete = t.id },
-            onSave = { u -> vm.updateTxn(u); editingTxnId = null; vm.toast("Transaction updated") }
+            onSave = { u -> vm.updateTxn(u, "Transaction updated"); editingTxnId = null }
         )
     }
 
