@@ -1,13 +1,13 @@
-# CHECKPOINT 1594 — read me first, then TASKS.md
+# CHECKPOINT 1595 — read me first, then TASKS.md
 
-**Written:** 2026-09-22T18:46:04Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/resume-app-testing-i6cfun` · **builds on:** `f7836b5` (this checkpoint is the commit after it)
+**Written:** 2026-09-22T18:49:17Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/resume-app-testing-i6cfun` · **builds on:** `ac29e78` (this checkpoint is the commit after it)
 
 ## Just done
-N-M3 done (suite green). Wrote N-M4 (post-close live loop at 5min), U-M1/U-M2 (SaveableStateHolder per layer + all nav state saveable), U-M5 (single-symbol live loop from DetailScreen), A-M5 (crypto/FX/futures excluded from sessionInstant). run7 running (scratchpad run7.log) - it predates A-M5 + DetailScreen saveable edits, so run8 needed.
+All MEDIUMs done (suite 1281/0). LOWs: A-L6 done; A-L9 (pre-destructive snapshots) + A-L10 (account-level cash rows never carry a symbol; delete-symbol spares them; dialog wording) written. run9 running.
 
 ## Do this next
-Run suite, tick MEDIUMs, then LOWs: A-L6, A-L9, A-L10, A-L11, D-L5..D-L10, S-L5..S-L9, N-L5..N-L8, U-L1..U-L4.
+Tests for A-L9/A-L10 (DbTest deleteTxnsForSymbol), then A-L11, D-L5..D-L10, S-L5..S-L9, N-L5..N-L8, U-L1..U-L4.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Run suite, tick MEDIUMs, then LOWs: A-L6, A-L9, A-L10, A-L11, D-L5..D-L10, S-L5.
 
 ## Last ten checkpoints
 ```
+  14c0bdb ckpt 1594: N-M3 done (suite green). Wrote N-M4 (post-close live loop at 5min), U-M1/U-M2
   05a7ab9 ckpt 1593: Suite 1277/0: S-M4 (reasons toggle + red flag first), N-M1 (blank crumb while
   dc799f8 ckpt 1592: Suite green 1272/0 incl D-H2, S-H1, D-M3, D-M4(+D-L9 NYSE rules calendar). Wr
   4561126 ckpt 1591: Floor green (1261/0). A-H2/A-M3/A-M4/A-L7/D-H1 ticked. Wrote D-H2 (account fi
@@ -26,8 +27,7 @@ Run suite, tick MEDIUMs, then LOWs: A-L6, A-L9, A-L10, A-L11, D-L5..D-L10, S-L5.
   d816196 ckpt 1587: Found and fixed (own review of v7.33 diff): session rollover left planByClaud
   24b6fc9 ckpt 1586: Resumed: confirmed v7.33 (code 90) is published (get_release_by_tag) and alre
   ec4e6d1 ckpt 1585: gated v7.33 (code 90) and pushed it: checkinit, the full unit suite and the v
-  fba8e12 ckpt 1584: Ran the CLAUDE.md 'Full tests' protocol Tj asked for after the APK-report UI 
 ```
 
-(8 automatic checkpoint(s) since the last deliberate one — the
+(5 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)

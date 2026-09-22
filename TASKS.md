@@ -46,12 +46,17 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [x] A-M3 SPLIT on the same day as trades applied after them (sort SPLIT first within a day)
     - [x] A-M4 identical same-day rows (partial fills) collapsed on import even with force=true;
           duplicateFlags not one-to-one; prompts drop second fills
-    - [ ] A-M5 [WRITTEN: sessionInstantFrom excludes tradesAroundTheClock (-XXX, =X, =F); NetLogicTest]
+    - [x] A-M5 [DONE, suite 1281/0: sessionInstantFrom excludes tradesAroundTheClock (-XXX, =X, =F); NetLogicTest]
           sessionInstant() max quoteTime includes crypto -> "today" window follows calendar
-    - [ ] A-L6 import parse: $/comma strings -> 0 price BUY; negative SELL qty; unparseable date
+    - [x] A-L6 import parse: $/comma strings -> 0 price BUY; negative SELL qty; unparseable date
+          -> Claude.importNumber (lenient, unsigned) in both parsers; any unparsed date noted
+          "date estimated". Test: LedgerTest "an imported row with currency strings..." (suite 1281/0)
     - [x] A-L7 Fmt.parseDate "09/15/26" -> year 26 AD
-    - [ ] A-L9 no snapshot before Replace-all / wipe / delete symbol
-    - [ ] A-L10 cash-type txn keeps a stock symbol; deleteSymbol silently drops watchlist entry
+    - [ ] A-L9 [WRITTEN: VM.snapshotBefore() in deleteSymbol / wipeTransactions / Replace restore;
+          dialogs say how to undo] no snapshot before Replace-all / wipe / delete symbol
+    - [ ] A-L10 [WRITTEN: TxnType.ACCOUNT_LEVEL (DEPOSIT/WITHDRAWAL/INTEREST) never carry a symbol
+          (editor + both import parsers); deleteTxnsForSymbol spares them; dialog names the
+          watchlist removal] cash-type txn keeps a stock symbol; deleteSymbol silently drops watchlist entry
     - [ ] A-L11 Merge restore re-inserts import-history rows every time
   - Day trading (D):
     - [x] D-H1 day-trading row price frozen at screener-build time; live plans/log use stale price
@@ -97,19 +102,19 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
           Test: NetLogicTest "a throttle or rate-limit holds the batch off"
     - [x] N-M3 [DONE, suite green: sparkIsFinal + MarketClock.nextOpenAfter; cold start seeds sparkAt from
           cached rows saved outside the session; NetLogicTest test] sparklines re-downloaded after close / on night resume
-    - [ ] N-M4 [WRITTEN: dayTradingLiveDelay - 30s OPEN/pre-market, 5min after close; NetLogicTest]
+    - [x] N-M4 [DONE, suite 1281/0: dayTradingLiveDelay - 30s OPEN/pre-market, 5min after close; NetLogicTest]
           day-trading live loop sweeps every 30s 16:00-20:00 for unchanging data
     - [ ] N-L5 manual refresh quotes allTracked (misses detail symbol), sparks all tracked
     - [ ] N-L6 insider freshness stamp misses followed symbols with no filings
     - [ ] N-L7 advice news freshness ignores feed pass
     - [ ] N-L8 social trending not gated on Feed tab visibility
   - UI (U):
-    - [ ] U-M1 [WRITTEN: MainActivity rememberSaveableStateHolder, "tab:N" / "detail:depth:SYM"
+    - [x] U-M1 [DONE (compile + suite 1281/0; UI, no emulator here): MainActivity rememberSaveableStateHolder, "tab:N" / "detail:depth:SYM"
           providers, states removed on pop/goToTab/search; DetailScreen tab + Overview list
           rememberSaveable] back from reader/detail loses list scroll + detail tab (no SaveableStateHolder)
-    - [ ] U-M2 [WRITTEN: tab/detail/detailToNews/searching/watchSubTab/reader/detailStack/
+    - [x] U-M2 [DONE (compile + suite 1281/0): tab/detail/detailToNews/searching/watchSubTab/reader/detailStack/
           tabHistory all rememberSaveable (readerSaver, list savers)] nav state (detail/reader/search) not saveable -> process death drops open editor
-    - [ ] U-M5 [WRITTEN: startDayTradingLive(only=symbol) from DetailScreen DisposableEffect while it
+    - [x] U-M5 [DONE (compile + suite 1281/0): startDayTradingLive(only=symbol) from DetailScreen DisposableEffect while it
           is a pick; enrichDayTradingVisible sweeps only that row, no sort] detail screen day-trading plan frozen (live loop stopped when ResearchScreen leaves)
     - [ ] U-L1 search flashes "No matches / Add anyway" before first search runs
     - [ ] U-L2 held stock with no price shows $0.00 / +$0.00 instead of "--"
