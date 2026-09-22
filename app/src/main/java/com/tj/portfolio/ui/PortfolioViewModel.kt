@@ -5589,7 +5589,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     openSymbol != null && openSymbol in symbols -> listOf(openSymbol)
                     else -> emptyList()
                 }
-                val socialDue = System.currentTimeMillis() - socialAt > SOCIAL_REFRESH_MS
+                // AND ONLY WHEN A HEADLINE SCREEN IS UP (full-tests audit 2026-09-22, N-L8) - the
+                // same `feedDue` the seven market-wide feeds below are gated on. Trending
+                // chatter is drawn on the Feed tab and nowhere else, and its own 15-minute clock
+                // alone kept both Reddit aggregators polled from Portfolio, Activity or Settings.
+                val socialDue = feedDue && System.currentTimeMillis() - socialAt > SOCIAL_REFRESH_MS
                 val socialJob = async(Dispatchers.IO) {
                     if (!socialDue) emptyList()
                     else runCatching { Social.trending(25) }.getOrDefault(emptyList())
