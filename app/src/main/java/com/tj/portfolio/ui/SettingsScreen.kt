@@ -33,6 +33,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,12 +70,19 @@ fun SettingsScreen(vm: PortfolioViewModel) {
     // rememberSaveable below: these hold pasted/picked backup JSON that isn't written
     // anywhere until the user confirms, and process death would otherwise drop it silently -
     // see the "full tests" audit that found this class of bug in the txn editor too.
-    var importText by rememberSaveable { mutableStateOf("") }
+    //
+    // BOUNDED, NOT WHOLE (full-tests audit, 2026-09-22). Saved state goes into the Activity's
+    // Bundle on every app switch, and a Bundle past Android's ~1 MB binder limit throws
+    // TransactionTooLargeException - a crash, in the background, with the restore dialog open.
+    // A backup grows every trading day (the day-trading log is in it and is never purged), so
+    // an unbounded save here was a crash with a date on it. Small texts still survive process
+    // death; a large one is simply not saved (re-picking the file, or re-pasting, gets it back).
+    var importText by rememberSaveable(saver = boundedText("")) { mutableStateOf("") }
     var showImport by rememberSaveable { mutableStateOf(false) }
     var confirmWipe by remember { mutableStateOf(false) }
-    var pendingRestore by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingRestore by rememberSaveable(saver = boundedText<String?>(null)) { mutableStateOf<String?>(null) }
     /** The backup text waiting on the second confirmation for a destructive "Replace all". */
-    var confirmReplace by rememberSaveable { mutableStateOf<String?>(null) }
+    var confirmReplace by rememberSaveable(saver = boundedText<String?>(null)) { mutableStateOf<String?>(null) }
     var lastBackup by remember { mutableStateOf(vm.lastBackup()) }
     var autoBackup by remember { mutableStateOf(vm.autoBackupOn()) }
     var costMethod by remember { mutableStateOf(vm.costMethod()) }
@@ -1052,3 +1061,18 @@ private fun FeeLine(item: com.tj.portfolio.domain.Fees.Item) {
         )
     }
 }
+
+/** Largest backup text [boundedText] will put in saved state: ~100 KB as UTF-16, well clear of
+ *  the ~1 MB Bundle limit that the rest of the screen's saved state shares. */
+internal const val MAX_SAVED_BACKUP_CHARS = 50_000
+
+/**
+ * A `rememberSaveable` saver for a text that can be arbitrarily large: saved as-is while it is at
+ * most [MAX_SAVED_BACKUP_CHARS], otherwise not saved at all (a `null` from `save` means "nothing
+ * to restore", so the state comes back as its initial value, [empty]).
+ */
+internal fun <T : String?> boundedText(empty: T): Saver<MutableState<T>, String> = Saver(
+    save = { st -> st.value?.takeIf { it.length <= MAX_SAVED_BACKUP_CHARS } },
+    @Suppress("UNCHECKED_CAST")
+    restore = { saved -> mutableStateOf(saved as T) }
+)
