@@ -634,15 +634,15 @@ class ResearchPriceFillTest {
     }
 
     @Test fun `the plan is computed from the live price, not the build-time one`() {
-        // Same structure, two prices: if the live price were ignored both would plan alike.
+        // Pivot R1 is ~113.67 and the prior high 115. Built at 110, the next level overhead is
+        // R1; the stock has since traded up to 114, past R1, so the breakout is now over 115.
         val base = newSessionPlannable()
         val stale = mergeDayTradingTech(extended().copy(sessionDay = TODAY, price = 110.0),
-            base.copy(lastPrice = 0.0), minutesLeft = 300)
+            base, minutesLeft = 300)
         val live = mergeDayTradingTech(extended().copy(sessionDay = TODAY, price = 110.0),
-            base.copy(lastPrice = 112.0), minutesLeft = 300)
-        assertEquals(112.0, live.price, 1e-9)
-        assertTrue("the plan moved with the price",
-            stale.entryPrice != live.entryPrice || stale.stopPrice != live.stopPrice ||
-                stale.planReason != live.planReason)
+            base.copy(lastPrice = 114.0), minutesLeft = 300)
+        assertEquals(114.0, live.price, 1e-9)
+        assertTrue("built-time plan breaks out over R1", stale.entryPrice in 113.6..114.0)
+        assertTrue("live plan breaks out over the prior high", live.entryPrice > 115.0)
     }
 }
