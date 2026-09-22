@@ -371,7 +371,9 @@ fun DetailScreen(
     // The "News" chip on a holding row used to open this screen and then try to SCROLL to
     // the news section, which was fragile arithmetic over a list whose length changed as
     // headlines arrived. With tabs it just opens the right tab.
-    var tab by remember(symbol) {
+    // SAVEABLE (full-tests audit 2026-09-22, U-M1): the app keeps this screen's saved state
+    // while an article opened from it is on top, so Back returns to the tab it was opened from.
+    var tab by rememberSaveable(symbol) {
         mutableStateOf(if (scrollToNews) DetailTab.NEWS else DetailTab.OVERVIEW)
     }
 
@@ -1093,7 +1095,8 @@ private fun OverviewTab(
     // scroll state therefore survived the change. Open SPY, tap through to NVDA, scroll, press
     // Back, and SPY's Overview opened part-way down its own page, past its chart and price
     // header, at NVDA's offset.
-    val listState = androidx.compose.runtime.remember(symbol) {
+    // Saveable for the same reason as the tab above (U-M1), still keyed on the symbol.
+    val listState = rememberSaveable(symbol, saver = androidx.compose.foundation.lazy.LazyListState.Saver) {
         androidx.compose.foundation.lazy.LazyListState()
     }
     val q = row?.quote
