@@ -632,4 +632,11 @@ class DayTradingEvalTest {
         assertTrue("but at most the 1% budget plus costs", s.accountReturnPct > -1.1)
         assertTrue("and here the cap made it far smaller", s.accountReturnPct > -0.5)
     }
+    // ---- A SESSION IS NOT SETTLED THE MINUTE IT CLOSES (full-tests audit 2026-09-22, D-L6).
+    @Test fun aSessionSettlesOnlyAfterTheGrace() {
+        val close = DayTradingEval.sessionBoundsMs("20260911")!!.second
+        assertTrue(!DayTradingEval.sessionSettled("20260911", close + 60_000L))
+        assertTrue(DayTradingEval.sessionSettled("20260911", close + DayTradingEval.SETTLE_GRACE_MS))
+        assertTrue("an unreadable day has nothing to wait for", DayTradingEval.sessionSettled("junk", 0L))
+    }
 }

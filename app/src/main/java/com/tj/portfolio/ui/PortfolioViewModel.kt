@@ -6232,7 +6232,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             db.setDayTradingOutcome(entry.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
             return
         }
-        val stillOpen = System.currentTimeMillis() < bounds.second
+        // Open until the bars are trustworthy, not merely until the bell - see SETTLE_GRACE_MS.
+        val stillOpen = !com.tj.portfolio.net.DayTradingEval.sessionSettled(entry.tradingDay)
         val bars = runCatching {
             com.tj.portfolio.net.DayTradingEval.fetchDaySeries(entry.symbol, entry.tradingDay)
         }.getOrNull()

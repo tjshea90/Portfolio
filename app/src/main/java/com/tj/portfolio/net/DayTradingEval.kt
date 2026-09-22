@@ -120,6 +120,21 @@ object DayTradingEval {
     }
 
     /**
+     * HOW LONG AFTER 16:00 A SESSION'S BARS ARE TRUSTED TO BE COMPLETE (full-tests audit
+     * 2026-09-22, D-L6). The 15:55 bar is published a few minutes after the bell, and a closed
+     * session's outcome is FINAL - never re-evaluated. Settling at 16:01 could therefore decide
+     * "closed at the bell" from the 15:50 bar, for good. Until this has passed the day is still
+     * treated as open: an undecided trade stays PENDING and the next press looks again.
+     */
+    const val SETTLE_GRACE_MS = 20L * 60_000L
+
+    /** Has [tradingDay]'s session been over long enough for its bars to be final? */
+    fun sessionSettled(tradingDay: String, now: Long = System.currentTimeMillis()): Boolean {
+        val bounds = sessionBoundsMs(tradingDay) ?: return true
+        return now >= bounds.second + SETTLE_GRACE_MS
+    }
+
+    /**
      * HOW FAR BACK YAHOO ACTUALLY KEEPS 5-MINUTE BARS, and why this app has to know.
      *
      * [fetchDaySeries] asks for `interval=5m` over one past session. Yahoo serves minute-level
