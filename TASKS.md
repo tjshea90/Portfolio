@@ -46,7 +46,8 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [x] A-M3 SPLIT on the same day as trades applied after them (sort SPLIT first within a day)
     - [x] A-M4 identical same-day rows (partial fills) collapsed on import even with force=true;
           duplicateFlags not one-to-one; prompts drop second fills
-    - [ ] A-M5 sessionInstant() max quoteTime includes crypto -> "today" window follows calendar
+    - [ ] A-M5 [WRITTEN: sessionInstantFrom excludes tradesAroundTheClock (-XXX, =X, =F); NetLogicTest]
+          sessionInstant() max quoteTime includes crypto -> "today" window follows calendar
     - [ ] A-L6 import parse: $/comma strings -> 0 price BUY; negative SELL qty; unparseable date
     - [x] A-L7 Fmt.parseDate "09/15/26" -> year 26 AD
     - [ ] A-L9 no snapshot before Replace-all / wipe / delete symbol
@@ -94,17 +95,22 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [x] N-M2 Yahoo 429/503 counted as batch failures -> batchDisabled for session
           -> MarketData.heldOff(code): local cooldown/429/503/403 = held off, not FAILED.
           Test: NetLogicTest "a throttle or rate-limit holds the batch off"
-    - [ ] N-M3 [WRITTEN: sparkIsFinal + MarketClock.nextOpenAfter; cold start seeds sparkAt from
+    - [x] N-M3 [DONE, suite green: sparkIsFinal + MarketClock.nextOpenAfter; cold start seeds sparkAt from
           cached rows saved outside the session; NetLogicTest test] sparklines re-downloaded after close / on night resume
-    - [ ] N-M4 day-trading live loop sweeps every 30s 16:00-20:00 for unchanging data
+    - [ ] N-M4 [WRITTEN: dayTradingLiveDelay - 30s OPEN/pre-market, 5min after close; NetLogicTest]
+          day-trading live loop sweeps every 30s 16:00-20:00 for unchanging data
     - [ ] N-L5 manual refresh quotes allTracked (misses detail symbol), sparks all tracked
     - [ ] N-L6 insider freshness stamp misses followed symbols with no filings
     - [ ] N-L7 advice news freshness ignores feed pass
     - [ ] N-L8 social trending not gated on Feed tab visibility
   - UI (U):
-    - [ ] U-M1 back from reader/detail loses list scroll + detail tab (no SaveableStateHolder)
-    - [ ] U-M2 nav state (detail/reader/search) not saveable -> process death drops open editor
-    - [ ] U-M5 detail screen day-trading plan frozen (live loop stopped when ResearchScreen leaves)
+    - [ ] U-M1 [WRITTEN: MainActivity rememberSaveableStateHolder, "tab:N" / "detail:depth:SYM"
+          providers, states removed on pop/goToTab/search; DetailScreen tab + Overview list
+          rememberSaveable] back from reader/detail loses list scroll + detail tab (no SaveableStateHolder)
+    - [ ] U-M2 [WRITTEN: tab/detail/detailToNews/searching/watchSubTab/reader/detailStack/
+          tabHistory all rememberSaveable (readerSaver, list savers)] nav state (detail/reader/search) not saveable -> process death drops open editor
+    - [ ] U-M5 [WRITTEN: startDayTradingLive(only=symbol) from DetailScreen DisposableEffect while it
+          is a pick; enrichDayTradingVisible sweeps only that row, no sort] detail screen day-trading plan frozen (live loop stopped when ResearchScreen leaves)
     - [ ] U-L1 search flashes "No matches / Add anyway" before first search runs
     - [ ] U-L2 held stock with no price shows $0.00 / +$0.00 instead of "--"
     - [ ] U-L3 earnings Today/Tomorrow counts 24h blocks not ET calendar days
