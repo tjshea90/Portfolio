@@ -793,6 +793,13 @@ object Research {
         rows.map { row ->
             async {
                 if (row.symbol in alreadyDone || row.consensus != null) return@async row
+                // A ROW THE APP NEVER SCORED HAS NOTHING TO BLEND INTO (full-tests audit
+                // 2026-09-22, S-L6). A pick Claude added to Best arrives with score 0 and no
+                // reasons; `withAnalyst` blended the consensus into that zero and produced a
+                // small "SCORE 22" made of nothing but analysts - replacing the card's honest
+                // "CLAUDE 8/10" badge (`fromClaude` is `score <= 0`). The same rule the Day
+                // Trading loop follows for `dtLikelihood`. No request is spent on it either.
+                if (row.score <= 0 && row.reasons.isEmpty()) return@async row
                 gate.withPermit {
                     val c = runCatching { consensus(row.symbol) }.getOrNull() ?: return@withPermit row
                     val base = ResearchScore.Scored(row.score, row.reasons, 100)
