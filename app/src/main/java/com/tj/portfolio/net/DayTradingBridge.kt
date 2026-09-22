@@ -416,13 +416,19 @@ $SHAPE
      * lines, the price, the technicals - everything the app measured. Only the explanation and,
      * when they pass [levelsUsable], the trade plan come from Claude.
      */
-    fun merge(existing: List<ResearchRow>, incoming: List<ResearchRow>): List<ResearchRow> {
+    fun merge(
+        existing: List<ResearchRow>,
+        incoming: List<ResearchRow>,
+        // A parameter with a default, not a bare clock read, so the session rule on `sessionDay`
+        // below can be tested on a day a test chooses. Every caller in the app omits it.
+        now: Long = System.currentTimeMillis()
+    ): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
         // STAMPED ONLY WHEN `why` ITSELF IS FRESH - see [ResearchBridge.merge]'s own note
         // (full-tests audit, round 79 sweep: the first version stamped this unconditionally,
         // which let an old `why` paragraph ride forward under a fresh clock any time Claude's
         // reply only touched the trade levels or catalyst, not the explanation).
-        val now = System.currentTimeMillis()
+        val today = MarketClock.dayKey(now)
         val byExisting = existing.associateBy { it.symbol }
         // De-duplicated - same reason [ResearchBridge.merge] does it: a keyed LazyColumn
         // crashes on a repeated key, and a model repeating a ticker is not a hypothetical.
@@ -471,7 +477,18 @@ $SHAPE
                 // here would never clear). `mergeDayTradingTech` now recomputes it from the
                 // session clock on every tick for every row, Claude's included, so an import at
                 // 15:45 correctly carries the late-session badge the app would give its own.
-                planByClaude = takeLevels
+                planByClaude = takeLevels,
+                // A PLAN IMPORTED ONTO A ROW STILL STAMPED WITH AN EARLIER SESSION starts that
+                // row's session fresh (full-tests audit, 2026-09-22). `mergeDayTradingTech`
+                // drops a Claude plan the moment it sees the row's `sessionDay` roll over - right
+                // for a plan imported yesterday, wrong for one imported this morning before the
+                // live sweep had ticked once since midnight (a cold launch restores rows with
+                // yesterday's day on them): the first tick would read "new session" and throw
+                // away the plan the user had just imported. Blank means "no reading for today
+                // yet", which is exactly true - and it is also what keeps yesterday's VWAP and
+                // session range from being carried into today by `effectiveTechnicals`.
+                sessionDay = if (takeLevels && app.sessionDay.isNotBlank() && app.sessionDay != today) ""
+                else app.sessionDay
             )
         }
     }

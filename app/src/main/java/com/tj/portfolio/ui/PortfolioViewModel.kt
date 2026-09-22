@@ -826,7 +826,19 @@ internal fun mergeDayTradingTech(
     // PLAN AND REASON, FROM ONE CALL (Round 75) - `planInternal` is what `tradePlan` and
     // `tradePlanDeclineReason` each individually wrap; calling it directly here computes the
     // decision exactly once per tick instead of twice.
-    val (plan, declineReason) = if (row.planByClaude) null to ""
+    // Computed up here, ahead of the plan, because a rollover also decides WHOSE plan this tick
+    // is - see `claudePlanStands` below and `sessionChanged`'s own note further down.
+    val sessionChanged = row.sessionDay.isNotBlank() && row.sessionDay != effective.sessionDay
+    // A CLAUDE PLAN IS FOR THE SESSION IT WAS IMPORTED INTO, NOT FOREVER. Before this, a session
+    // rollover cleared a Claude plan's levels (below) but left `planByClaude` set - and since a
+    // `planByClaude` row is never re-planned, the row then sat blank for the whole new session,
+    // with neither Claude's levels nor the app's, and nothing logged for it, until the next full
+    // rebuild. `dropUnusableClaudeLevels` and `evictStaleDayTradingPlan` both already hand the
+    // row back to the engine when they clear a Claude plan; this is the same rule. (An import
+    // made BEFORE the new session's first tick is not caught by this - `DayTradingBridge.merge`
+    // starts such a row's session fresh, so there is no rollover left here to see.)
+    val claudePlanStands = row.planByClaude && !sessionChanged
+    val (plan, declineReason) = if (claudePlanStands) null to ""
     else com.tj.portfolio.net.ResearchScore.planInternal(
         row.price,
         effective,
@@ -842,7 +854,7 @@ internal fun mergeDayTradingTech(
     // THE ENGINE LOOKED AND SAID NO, as opposed to not being able to look at all - the
     // distinction the level fields below turn on. `tradePlan` bails early only on a missing
     // price or a missing volatility reading, so with both present a null is a decision.
-    val declined = plan == null && !row.planByClaude && row.price > 0.0 &&
+    val declined = plan == null && !claudePlanStands && row.price > 0.0 &&
         (effective.atrIntraday > 0.0 || effective.atr14 > 0.0)
     // ---- A REAL SESSION ROLLOVER BYPASSES THE DEBOUNCE BELOW ENTIRELY (full-tests audit).
     //
@@ -857,8 +869,7 @@ internal fun mergeDayTradingTech(
     // meant up to one extra tick (30s) of showing YESTERDAY'S numeric entry/stop/target under
     // TODAY'S date, since `sessionDay` itself updates immediately below while the levels lagged
     // behind it. A stale dollar figure with today's date on it is worse than the flicker this
-    // debounce was built to prevent.
-    val sessionChanged = row.sessionDay.isNotBlank() && row.sessionDay != effective.sessionDay
+    // debounce was built to prevent. (`sessionChanged` itself is computed above, before the plan.)
     // ---- A DECLINE HAS TO REPEAT BEFORE IT CLEARS THE SCREEN (Round 74).
     //
     // THE BUG. Several of `tradePlan`'s "no trade" verdicts - no room left in the day, the
@@ -924,6 +935,7 @@ internal fun mergeDayTradingTech(
         planNote = plan?.note ?: keepOrClear(row.planNote, confirmedDecline),
         planExit = plan?.exit ?: keepOrClear(row.planExit, confirmedDecline),
         planDeclineStreak = declineStreak,
+        planByClaude = claudePlanStands,
         // SAME RULE AS THE LEVELS ABOVE, one tick later than `declined` alone. A real plan
         // clears it immediately; an UNCONFIRMED decline keeps whatever was already there
         // (blank, on a row that has never shown a reason yet) so the reason cannot flash in
