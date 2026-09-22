@@ -362,10 +362,15 @@ class AnalystRecencyTest {
             "a panel whose every note is ten months old must not read as a live BUY consensus",
             sc.reasons.any { it.contains("weighted by how recent") }
         )
-        // Every dated row is past the cutoff, so there is no panel - it falls back to the
-        // undated consensus AT A DISCOUNT rather than to full-strength face value.
-        assertTrue(sc.reasons.any { it.contains("no publication dates") })
+        // Every dated row is past the cutoff, so there is no panel. This used to assert a fall
+        // back to the undated consensus at 45-90% under a "no publication dates" line - false
+        // (the dates are right there) and backwards (the consensus IS those stale notes). Since
+        // the 2026-09-22 audit (S-H1) it says what is true and the consensus counts for nothing
+        // unless it visibly moved last month (here there is no trend at all).
+        assertTrue(sc.reasons.any { it.contains("over 8 months old") })
+        assertFalse(sc.reasons.any { it.contains("no publication dates") })
     }
+
     // ---- DATED BUT ALL PAST THE CUTOFF IS NOT "UNDATED" (full-tests audit 2026-09-22, S-H1).
 
     @Test fun `every dated firm past the cutoff is counted as all-stale`() {
