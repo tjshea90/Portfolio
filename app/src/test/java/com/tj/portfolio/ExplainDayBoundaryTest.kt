@@ -29,10 +29,18 @@ class ExplainDayBoundaryTest {
     private fun divRead(key: String, at: Long): String =
         Explain.of(key, Fundamentals("TEST", values = mapOf(key to at.toDouble()))).read
 
-    private fun earningsRead(at: Long): String =
+    // Earnings count New York CALENDAR days since 2026-09-22 (U-L3), so these cases are pinned
+    // to a fixed moment - 11:00 ET on a Wednesday - rather than the real clock, which made
+    // "+5 hours" tomorrow whenever the suite happened to run after 19:00 ET.
+    private val fixedNow: Long = java.util.Calendar.getInstance(
+        java.util.TimeZone.getTimeZone("America/New_York")
+    ).apply { clear(); set(2026, 8, 9, 11, 0, 0) }.timeInMillis
+
+    private fun earningsRead(offset: Long): String =
         Explain.analystTopic(
             Explain.TOPIC_EARNINGS_DATE,
-            Fundamentals("TEST", earningsDate = at)
+            Fundamentals("TEST", earningsDate = fixedNow + offset),
+            now = fixedNow
         ).read
 
     // ------------------------------------------------------------ ex-dividend
@@ -89,20 +97,25 @@ class ExplainDayBoundaryTest {
     // -------------------------------------------------------------- earnings
 
     @Test fun `earnings released last night is reported as past, not still expected`() {
-        val s = earningsRead(now - 17 * hour)
+        val s = earningsRead(-17 * hour)
         assertFalse("a released report must not promise a coming move: $s",
             s.contains("The next report is expected"))
         assertTrue("expected the past-tense branch: $s", s.contains("The most recent report was"))
     }
 
     @Test fun `earnings due later today says today`() {
-        val s = earningsRead(now + 5 * hour)
+        val s = earningsRead(5 * hour)
         assertFalse("'in 0 days' is not how a person says today: $s", s.contains("in 0 days"))
         assertTrue("expected today's wording: $s", s.contains("today"))
     }
 
     @Test fun `earnings several days out still counts the days`() {
-        val s = earningsRead(now + 4 * 24 * hour + 6 * hour)
+        val s = earningsRead(4 * 24 * hour + 6 * hour)
         assertTrue("expected a forward count: $s", s.contains("in 4 days"))
+    }
+    @Test fun `earnings tomorrow says tomorrow, not 'in 1 days'`() {
+        val s = earningsRead(24 * hour)
+        assertTrue("expected tomorrow's wording: $s", s.contains("tomorrow"))
+        assertFalse(s.contains("in 1 days"))
     }
 }

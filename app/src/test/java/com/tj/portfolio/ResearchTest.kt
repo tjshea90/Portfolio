@@ -96,11 +96,10 @@ class ResearchTest {
         val seventeenHoursAgo = now - 17 * 3_600_000L
         assertEquals(-1L, Research.daysUntilEarnings(seventeenHoursAgo, now))
 
-        // catalystFor has no `now` parameter (it reads the real clock), so pin it against the
-        // real current time rather than the fixed [now] above used for the pure day-math check.
-        val realNow = System.currentTimeMillis()
-        val r = ScreenRow(symbol = "OLD", price = 10.0, earningsAt = realNow - 17 * 3_600_000L)
-        val catalyst = Research.catalystFor(r)
+        // catalystFor takes `now` too since the calendar-day change (U-L3), so it is pinned to
+        // the same fixed moment - the real clock made this depend on the time of day it ran.
+        val r = ScreenRow(symbol = "OLD", price = 10.0, earningsAt = now - 17 * 3_600_000L)
+        val catalyst = Research.catalystFor(r, now)
         assertTrue("expected a 'reported' catalyst, got: $catalyst", catalyst.startsWith("Reported earnings"))
         assertFalse("must not read as today's earnings: $catalyst", catalyst.contains(Research.CATALYST_EARNINGS_TODAY))
     }
@@ -111,9 +110,23 @@ class ResearchTest {
         val inThreeHours = now + 3 * 3_600_000L
         assertEquals(0L, Research.daysUntilEarnings(inThreeHours, now))
 
-        val realNow = System.currentTimeMillis()
-        val r = ScreenRow(symbol = "SOON", price = 10.0, earningsAt = realNow + 3 * 3_600_000L)
-        assertEquals(Research.CATALYST_EARNINGS_TODAY, Research.catalystFor(r))
+        val r = ScreenRow(symbol = "SOON", price = 10.0, earningsAt = now + 3 * 3_600_000L)
+        assertEquals(Research.CATALYST_EARNINGS_TODAY, Research.catalystFor(r, now))
+    }
+
+    /** Full-tests audit 2026-09-22, U-L3: New York calendar days, not 24-hour blocks. */
+    @Test
+    fun `a report at 9am asked about at 8pm the night before is tomorrow, not today`() {
+        val et = java.util.TimeZone.getTimeZone("America/New_York")
+        fun at(d: Int, h: Int) = java.util.Calendar.getInstance(et).apply {
+            clear(); set(2026, 8, d, h, 0, 0)
+        }.timeInMillis
+        val evening = at(21, 20)
+        assertEquals("13 hours away, but tomorrow", 1L, Research.daysUntilEarnings(at(22, 9), evening))
+        assertEquals("34 hours away, but two days", 2L, Research.daysUntilEarnings(at(23, 6), evening))
+        assertEquals("Earnings tomorrow", Research.catalystFor(
+            ScreenRow(symbol = "T", price = 10.0, earningsAt = at(22, 9)), evening))
+        assertEquals("earlier today is past", -1L, Research.daysUntilEarnings(at(21, 7), evening))
     }
 
     @Test
