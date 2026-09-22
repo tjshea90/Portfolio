@@ -285,7 +285,7 @@ object MarketData {
      * traffic shape the batch exists to remove, made permanent by being throttled once.
      */
     internal fun heldOff(code: Int): Boolean =
-        code == Http.CODE_COOLDOWN || code == 429 || code == 503 || code == 403
+        code == HttpResult.CODE_COOLDOWN || code == 429 || code == 503 || code == 403
 
     private fun parseBatch(body: String): List<Quote> {
         val arr = JSONObject(body).optJSONObject("quoteResponse")

@@ -224,6 +224,16 @@ class NetLogicTest {
         }
     }
 
+    // ---- A RATE-LIMITED BATCH IS NOT A BROKEN ONE (full-tests audit 2026-09-22, N-M2).
+    @Test fun `a throttle or rate-limit holds the batch off, a real error does not`() {
+        for (c in listOf(com.tj.portfolio.net.HttpResult.CODE_COOLDOWN, 429, 503, 403)) {
+            assertTrue("$c", com.tj.portfolio.net.MarketData.heldOff(c))
+        }
+        for (c in listOf(200, 404, 500, 502, -1)) {
+            assertFalse("$c", com.tj.portfolio.net.MarketData.heldOff(c))
+        }
+    }
+
     // ---- THE EXCHANGE CALENDAR (full-tests audit 2026-09-22, D-M4/D-L9): computed from
     // NYSE's own rules, checked against dates the exchange actually published.
 
