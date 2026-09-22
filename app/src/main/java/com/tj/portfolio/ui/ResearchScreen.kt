@@ -740,6 +740,9 @@ fun ResearchScreen(
 
 // `internal`, not private, so `DayTradingUiTest` can render it directly - the same reasoning
 // [EtfFactsGrid] and [TradeLevelsGrid] already document for this file.
+/** Reason lines a Research card opens on; the rest sit behind a "N more" toggle. */
+private const val REASONS_SHOWN = 6
+
 @Composable
 internal fun ResearchCard(
     r: ResearchRow,
@@ -943,7 +946,13 @@ internal fun ResearchCard(
             // --- the app's own reasons
             if (r.reasons.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                r.reasons.take(6).forEach { line ->
+                // ---- SIX TO START, THE REST ONE TAP AWAY (full-tests audit 2026-09-22, S-M4).
+                // A hard `take(6)` silently dropped everything past it - and the analyst
+                // overlay (`ResearchScore.withAnalyst`) APPENDS its lines, so on a well-scored
+                // stock the consensus that had just moved the score was never on the card.
+                var allReasons by rememberSaveable(r.symbol) { mutableStateOf(false) }
+                val hidden = r.reasons.size - REASONS_SHOWN
+                (if (allReasons) r.reasons else r.reasons.take(REASONS_SHOWN)).forEach { line ->
                     Row(Modifier.padding(vertical = 1.dp)) {
                         Text(
                             "-",
@@ -955,6 +964,16 @@ internal fun ResearchCard(
                         )
                         Text(line, style = MaterialTheme.typography.bodyMedium)
                     }
+                }
+                if (hidden > 0) {
+                    Text(
+                        if (allReasons) "Show fewer" else "$hidden more reason${if (hidden == 1) "" else "s"}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = accentText,
+                        modifier = Modifier
+                            .clickable { allReasons = !allReasons }
+                            .padding(vertical = 4.dp)
+                    )
                 }
             }
 

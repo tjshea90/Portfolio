@@ -198,7 +198,10 @@ object ResearchScore {
         // --- book value sanity: a negative one is a red flag even in the BEST list
         if (r.priceToBook < 0) {
             s -= 8.0
-            why.add("Negative book value - liabilities exceed assets on the balance sheet")
+            // FIRST, NOT LAST (full-tests audit 2026-09-22, S-M4): the card opens on its first
+            // six reason lines, and a well-scored stock already has seven ahead of this one - so
+            // the only red flag in this scorer was the line most reliably left off the screen.
+            why.add(0, "Negative book value - liabilities exceed assets on the balance sheet")
         }
 
         return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
