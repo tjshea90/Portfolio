@@ -21,8 +21,12 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
   - [x] U-M3 Settings held whole backup JSON in rememberSaveable -> TransactionTooLargeException
         once backup > ~500K chars; bounded saver `boundedText` (SettingsScreen.kt)
   - Accounting/persistence (A):
-    - [ ] A-H1 EditPositionDialog untouched Save writes a full override that freezes shares/basis
+    - [x] A-H1 EditPositionDialog untouched Save writes a full override that freezes shares/basis
           against every later trade (RowActions.kt:222, Ledger.applyOverride)
+          -> `PositionFields.toSave`: only an edited box becomes an override; untouched keeps the
+          stored value; a BUY/SELL/SPLIT on an overridden symbol now toasts a warning (routed via
+          VM `savedMsg` so the caller's "saved" toast can't overwrite it). Tests: 7 in
+          PositionEditorTest (untouchedSaveWritesNothing ... whitespaceAround...)
     - [ ] A-H2 same-day trades replayed in insert order; screenshot imports come newest-first ->
           phantom shares / wrong realized (Ledger sort date,id; commitImportAsync; prompts)
     - [ ] A-M3 SPLIT on the same day as trades applied after them (sort SPLIT first within a day)
