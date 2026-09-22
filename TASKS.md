@@ -56,23 +56,30 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [x] D-H1 day-trading row price frozen at screener-build time; live plans/log use stale price
           -> DayTechnicals.lastPrice (newest 5m bar today); mergeDayTradingTech plans against it,
           updates row.price (+ changePct while OPEN). Tests: 4 in ResearchPriceFillTest (D-H1 block)
-    - [ ] D-H2 "Your portfolio, trading this system" = totalR x 1% ignores the 25% position cap
-          WRITTEN, awaiting suite: ResearchScore.dayTradeSharesPerEquity; stats sums per-trade
+    - [x] D-H2 "Your portfolio, trading this system" = totalR x 1% ignores the 25% position cap
+          DONE (suite 1272/0): ResearchScore.dayTradeSharesPerEquity; stats sums per-trade
           account effect w/ cap; DayTradingStats.cappedTrades; card text. Tests: 3 in DayTradingEvalTest
-    - [ ] D-M3 too-late / pending-decline plans still logged as recommendations
-    - [ ] D-M4 early-close half days treated as open to 16:00 (and D-L9 holidays)
+    - [x] D-M3 too-late / pending-decline plans still logged as recommendations
+          -> loggableDayTradingRows (pure) excludes tooLateToStart / planDeclineStreak>0.
+          Test: ResearchPriceFillTest "a too-late or pending-decline plan is not logged"
+    - [x] D-M4 early-close half days treated as open to 16:00 (and D-L9 holidays)
+          -> MarketClock.isHoliday/closeMinute from NYSE RULES (not hard-coded dates): holidays
+          CLOSED; 13:00 close + 17:00 after-hours on day-after-Thanksgiving, Jul 3, Dec 24
+          (Mon-Thu). Tests: 3 in NetLogicTest (holidays, adjacent sessions, half days)
     - [ ] D-L5 rows past INTRADAY_RETENTION_DAYS stay "in progress" forever
     - [ ] D-L6 no grace after 16:00 before settling CLOSED_* from possibly incomplete bars
     - [ ] D-L7 evening plans use today's premarket high as next session's trigger
     - [ ] D-L8 research cache JSON rewritten every 30s tick
     - [ ] D-L10 profitableRate gross vs headline net; PositionSizeLine wording when price-capped
   - Scoring (S):
-    - [ ] S-H1 [WRITTEN, awaiting suite: RatingRecency.allStaleFirms; undatedTrust/Note(allStale);
+    - [x] S-H1 [DONE, suite 1272/0: RatingRecency.allStaleFirms; undatedTrust/Note(allStale);
           scorer skips 0-trust consensus+target lines; Recommendation.allRatingsStale + note.
-          Tests: 4 in AnalystRecencyTest] all dated analyst ratings stale (>8mo) -> falls back to undated consensus at
+          Tests: 4 in AnalystRecencyTest + updated "dated ratings take precedence" which had
+          pinned the old false "no publication dates" line] all dated analyst ratings stale (>8mo) -> falls back to undated consensus at
           45-90% trust -> stale coverage UPGRADES a stock; false "no publication dates" line
-    - [ ] S-M2 carryExplanations uses one symbol map across trending/best/dayTrading
-    - [ ] S-M3 enrichVisible clobbers the shared busy flag; enrichPass write-back reverts rows
+    - [ ] S-M2 [WRITTEN: per-list carry; 2 ResearchCarryTest tests] carryExplanations uses one symbol map across trending/best/dayTrading
+    - [ ] S-M3 [WRITTEN: busy flag only taken when empty; applyAnalystEnrichment merges only
+          score/reasons/consensus onto the CURRENT row; 2 ResearchCarryTest tests] enrichVisible clobbers the shared busy flag; enrichPass write-back reverts rows
     - [ ] S-M4 ResearchCard reasons.take(6) hides analyst lines / negative-book warning
     - [ ] S-L5 Claude-added ETF rows keep import-day price/change
     - [ ] S-L6 Claude-added Best row gets analyst-only score ~22
