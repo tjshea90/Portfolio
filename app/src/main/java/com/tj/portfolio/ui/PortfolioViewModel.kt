@@ -776,6 +776,32 @@ internal fun dayTradingLiveDelay(
     else -> DAY_TRADING_LIVE_CLOSED_INTERVAL_MS
 }
 
+/**
+ * Yahoo symbols that print around the clock: crypto pairs ("BTC-USD" - a dash and a three-letter
+ * currency, where a share class is one letter: "BRK-B"), currencies ("EURUSD=X"), futures ("ES=F").
+ */
+internal fun tradesAroundTheClock(symbol: String): Boolean {
+    val s = symbol.uppercase()
+    return s.endsWith("=X") || s.endsWith("=F") || Regex("-[A-Z]{3}$").containsMatchIn(s)
+}
+
+/**
+ * The instant of the SESSION the quotes describe - PortfolioViewModel.sessionInstant's rule,
+ * pure for the test: the newest exchange print, unless nothing printed in a week.
+ *
+ * ONLY EXCHANGE-HOURS PRINTS COUNT (full-tests audit 2026-09-22, A-M5). A crypto pair on the
+ * watchlist prints every minute of every day, so its time WAS the newest print - at 1am, and all
+ * weekend - and the ledger's "today" followed the calendar again: exactly the bug this rule was
+ * written to fix (a mid-session buy looked at after midnight credited with the whole session's
+ * move). Round-the-clock symbols are left out; a watchlist of nothing else falls back to `now`.
+ */
+internal fun sessionInstantFrom(quotes: Collection<Quote>, now: Long): Long {
+    val newestPrint = quotes.filterNot { tradesAroundTheClock(it.symbol) }
+        .maxOfOrNull { it.quoteTime } ?: 0L
+    val aWeek = 7L * 86_400_000L
+    return if (newestPrint > 0 && now - newestPrint < aWeek) newestPrint else now
+}
+
 /** One row of [carryExplanations]: [p]'s `why` onto [r], while it is still current. */
 private fun carryWhy(
     r: com.tj.portfolio.data.ResearchRow,
@@ -2415,12 +2441,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * when the quotes are stale, where being consistent with what is on screen is exactly
      * what is wanted. Only a cache old enough to be meaningless falls back to the clock.
      */
-    private fun sessionInstant(): Long {
-        val now = System.currentTimeMillis()
-        val newestPrint = _quotes.value.values.maxOfOrNull { it.quoteTime } ?: 0L
-        val aWeek = 7L * 86_400_000L
-        return if (newestPrint > 0 && now - newestPrint < aWeek) newestPrint else now
-    }
+    private fun sessionInstant(): Long =
+        sessionInstantFrom(_quotes.value.values, System.currentTimeMillis())
 
     fun recompute() {
         val txns = db.allTxns()
