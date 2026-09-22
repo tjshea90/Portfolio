@@ -389,7 +389,8 @@ fun TxnEditorDialog(
                     Txn(
                         id = existing?.id ?: 0L,
                         type = type,
-                        symbol = symbol.trim().uppercase().ifBlank { null },
+                        symbol = if (type in TxnType.ACCOUNT_LEVEL) null
+                        else symbol.trim().uppercase().ifBlank { null },
                         quantity = r.quantity,
                         price = r.price,
                         amount = TxnFields.cashOf(type, r),

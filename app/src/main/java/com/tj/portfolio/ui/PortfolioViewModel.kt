@@ -3535,6 +3535,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Wipe a symbol entirely: every transaction plus any manual override. */
     fun deleteSymbol(symbol: String): Int {
         val sym = symbol.uppercase()
+        snapshotBefore("delete-$sym")
         val n = db.deleteTxnsForSymbol(sym)
         db.clearOverride(sym)
         db.removeWatch(sym)
@@ -7573,6 +7574,27 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun lastAutosave(): Long = db.get(Keys.AUTOSAVE_AT).toLongOrNull() ?: 0L
 
+    /**
+     * A PRIVATE SNAPSHOT OF THE LEDGER JUST BEFORE SOMETHING DESTROYS PART OF IT (full-tests
+     * audit 2026-09-22, A-L9). Deleting a symbol, deleting every transaction and a Replace-all
+     * restore all said "cannot be undone" - and the newest snapshot could be a day old, so a
+     * mistap there lost everything entered since. Written synchronously, BEFORE the change, into
+     * the same private folder the daily snapshots use, so Settings' "Restore the latest
+     * automatic snapshot" is the undo. Best-effort: a failed write never blocks the action the
+     * user confirmed. Nothing to save means nothing written.
+     */
+    private fun snapshotBefore(what: String) {
+        runCatching {
+            if (db.txnCount() == 0) return
+            val json = db.exportJson()
+            com.tj.portfolio.util.Storage.saveToAppFolder(
+                getApplication(),
+                "portfolio-before-$what-" + com.tj.portfolio.util.Storage.stamp() + ".json",
+                json
+            )
+        }
+    }
+
     /** Read the uninstall-proof copy back, for the recovery banner's one-tap restore. */
     fun readAutosave(onDone: (String?) -> Unit) {
         viewModelScope.launch {
@@ -7596,6 +7618,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun restoreAsync(json: String, replace: Boolean, onDone: (Db.RestoreResult) -> Unit) {
         viewModelScope.launch {
             val r = withContext(Dispatchers.IO) {
+                // A Replace throws the current ledger away wholesale - see [snapshotBefore].
+                if (replace) snapshotBefore("replace")
                 runCatching { db.restoreJson(json, replace) }
                     .getOrElse { Db.RestoreResult(error = "Restore failed: ${it.message}") }
             }
@@ -7654,6 +7678,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun wipeTransactions() {
+        snapshotBefore("wipe")
         db.deleteAllTxns()
         // An intentional wipe resets the high-water mark, otherwise the app would then
         // insist for ever that data had gone missing.

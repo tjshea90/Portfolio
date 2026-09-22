@@ -97,8 +97,12 @@ fun RowActionHost(
 
         RowAction.DELETE -> ConfirmDialog(
             title = "Delete $symbol?",
-            message = "Removes every transaction for $symbol and any manual override. " +
-                "Cash and realized P/L are recalculated. This cannot be undone.",
+            // Says everything it does (A-L10): the watchlist entry goes too, which it never
+            // mentioned. And it CAN be undone now (A-L9) - a snapshot is taken first.
+            message = "Removes every transaction for $symbol, any manual override, and " +
+                "$symbol from your watchlist. Cash and realized P/L are recalculated. A " +
+                "snapshot is saved first - Settings > Restore the latest automatic snapshot " +
+                "puts it back.",
             confirmText = "Delete $symbol",
             onDismiss = onDone,
             onConfirm = {

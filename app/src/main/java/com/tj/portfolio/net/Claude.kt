@@ -205,7 +205,9 @@ say so in notes. Numbers must not contain commas or currency symbols."""
             val type = o.optString("type").uppercase()
             // IMPORTABLE, not ALL - a model reply may never carry a SPLIT. See its note.
             if (type !in TxnType.IMPORTABLE) continue
+            // An account-level cash row never carries a ticker - see [TxnType.ACCOUNT_LEVEL].
             val sym = o.optString("symbol").takeIf { it.isNotBlank() && it != "null" }?.uppercase()
+                ?.takeUnless { type in TxnType.ACCOUNT_LEVEL }
             // LENIENT AND UNSIGNED - see [importNumber].
             val qty = importNumber(o, "quantity")
             var px = importNumber(o, "price")

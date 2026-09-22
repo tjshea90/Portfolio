@@ -42,6 +42,16 @@ object TxnType {
     val CASH_ONLY = setOf(DEPOSIT, WITHDRAWAL, INTEREST, FEE)
 
     /**
+     * Money in or out of the ACCOUNT, never about one stock (full-tests audit 2026-09-22,
+     * A-L10). A symbol on one of these is always a leftover - switching the editor's type from
+     * BUY to DEPOSIT kept the box's ticker, and a model's reply can carry one despite the
+     * prompt - and it was not harmless: "Delete NVDA" removes every row carrying NVDA, so a
+     * $5,000 deposit that happened to be tagged NVDA vanished from cash with the position.
+     * FEE is not here: an ADR custody fee genuinely belongs to one stock.
+     */
+    val ACCOUNT_LEVEL = setOf(DEPOSIT, WITHDRAWAL, INTEREST)
+
+    /**
      * WHAT A MODEL'S REPLY IS ALLOWED TO CONTAIN - deliberately NOT [ALL].
      *
      * [ALL] is the accept-list in three places, and they do not all want the same answer:

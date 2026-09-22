@@ -756,8 +756,18 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      * ([insertTxn], [updateTxn], and restore through them) stores the symbol uppercased, so
      * there is nothing in the column for a case-insensitive comparison to catch.
      */
-    fun deleteTxnsForSymbol(symbol: String): Int =
-        writableDatabase.delete("txns", "symbol=?", arrayOf(symbol.uppercase()))
+    /**
+     * Every row for [symbol] EXCEPT account-level cash movements, which only ever carry a
+     * symbol by mistake and whose money is real - see [TxnType.ACCOUNT_LEVEL].
+     */
+    fun deleteTxnsForSymbol(symbol: String): Int {
+        val keep = TxnType.ACCOUNT_LEVEL.toList()
+        return writableDatabase.delete(
+            "txns",
+            "symbol=? AND type NOT IN (${keep.joinToString(",") { "?" }})",
+            arrayOf(symbol.uppercase()) + keep.toTypedArray()
+        )
+    }
 
     /** Cheap existence/size check - allTxns() materialises every row. */
     fun txnCount(): Int {

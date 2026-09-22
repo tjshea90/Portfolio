@@ -370,7 +370,9 @@ Import the file (or your saved reply) in the app's Activity tab.
             val type = o.optString("type").uppercase()
             // IMPORTABLE, not ALL - an imported reply may never carry a SPLIT. See its note.
             if (type !in TxnType.IMPORTABLE) continue
+            // An account-level cash row never carries a ticker - see [TxnType.ACCOUNT_LEVEL].
             val sym = o.optString("symbol").takeIf { it.isNotBlank() && it != "null" }?.uppercase()
+                ?.takeUnless { type in TxnType.ACCOUNT_LEVEL }
             // Lenient and unsigned, exactly as the API path reads them - see [Claude.importNumber].
             val qty = Claude.importNumber(o, "quantity")
             var px = Claude.importNumber(o, "price")
