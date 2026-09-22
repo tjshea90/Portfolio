@@ -80,16 +80,22 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
     - [x] S-M2 [DONE, suite 1276/0: per-list carry; 2 ResearchCarryTest tests] carryExplanations uses one symbol map across trending/best/dayTrading
     - [x] S-M3 [DONE, suite 1276/0: busy flag only taken when empty; applyAnalystEnrichment merges only
           score/reasons/consensus onto the CURRENT row; 2 ResearchCarryTest tests] enrichVisible clobbers the shared busy flag; enrichPass write-back reverts rows
-    - [ ] S-M4 ResearchCard reasons.take(6) hides analyst lines / negative-book warning
+    - [x] S-M4 ResearchCard reasons.take(6) hides analyst lines / negative-book warning
+          -> card opens on 6 with a "N more reasons" / "Show fewer" toggle; negative-book red flag
+          now the FIRST reason in ResearchScore.best (UI change, compile-verified; suite 1277/0)
     - [ ] S-L5 Claude-added ETF rows keep import-day price/change
     - [ ] S-L6 Claude-added Best row gets analyst-only score ~22
     - [ ] S-L7 PEG / fwd P/E reason labels disagree with points sign
     - [ ] S-L8 "turning profitable ... trailing loss" wording for 0 <= eps <= 0.01
     - [ ] S-L9 Finviz whole value map overrides Yahoo core values via ratings()
   - Network (N):
-    - [ ] N-M1 blank crumb (both hosts cooling) skips COOLING -> per-symbol Finnhub/Stooq storm
-    - [ ] N-M2 Yahoo 429/503 counted as batch failures -> batchDisabled for session
-    - [ ] N-M3 sparklines re-downloaded after close / on night resume
+    - [x] N-M1 blank crumb (both hosts cooling) skips COOLING -> per-symbol Finnhub/Stooq storm
+          -> batchYahoo: blank crumb + both hosts cooling = Batch.COOLING (no fallback)
+    - [x] N-M2 Yahoo 429/503 counted as batch failures -> batchDisabled for session
+          -> MarketData.heldOff(code): local cooldown/429/503/403 = held off, not FAILED.
+          Test: NetLogicTest "a throttle or rate-limit holds the batch off"
+    - [ ] N-M3 [WRITTEN: sparkIsFinal + MarketClock.nextOpenAfter; cold start seeds sparkAt from
+          cached rows saved outside the session; NetLogicTest test] sparklines re-downloaded after close / on night resume
     - [ ] N-M4 day-trading live loop sweeps every 30s 16:00-20:00 for unchanging data
     - [ ] N-L5 manual refresh quotes allTracked (misses detail symbol), sparks all tracked
     - [ ] N-L6 insider freshness stamp misses followed symbols with no filings
