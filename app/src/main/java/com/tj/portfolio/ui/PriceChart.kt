@@ -594,7 +594,26 @@ fun PriceChart(
         // panned or zoomed. `intraday` ranges are untouched: [comparePercents] already
         // measures both lines from the previous close there, which it only does when the
         // anchor passed in is null, and that rule was never the bug.
-        val compareAnchorT = if (compare != null && !range.intraday) shown.points.firstOrNull()?.t else null
+        //
+        // ---- AND THE INTRADAY RANGES TOO (2026-09-22c). Tj, a THIRD recording - "why is the spy
+        // baseline still jumping up and down when I hold and drag left and right on the stock
+        // chart?" - on a zoomed 1D chart. The exemption above was wrong in two ways:
+        //
+        //  * 1D and Overnight. `comparePercents` does measure SPY from its previous close there,
+        //    and never moves it - but the STOCK line was still measured from the first candle on
+        //    screen (`fromPoint = zoomedIn`), so as the window slid, SNDC's zero slid with it
+        //    while SPY's stayed put: the same 11:30 candle read above SPY in one frame and below
+        //    it the next. Both lines now keep the range's own rule when zoomed - each from its
+        //    own previous close, exactly what the unzoomed chart and the 1D chip show.
+        //  * 5D. `intraday` (30-minute candles) but not a previous-close range, so neither rule
+        //    applied and BOTH lines were re-zeroed at the window's left edge on every frame of a
+        //    drag - one shared zero, but a moving one, which flips the order just the same. It
+        //    now anchors at the range's first candle like every other multi-day range.
+        //
+        // The principle, for every range: zooming and dragging change WHICH PART of the chart is
+        // on screen, never WHAT the lines measure.
+        val prevCloseRange = range == ChartRange.D1 || range == ChartRange.OVERNIGHT
+        val compareAnchorT = if (compare != null && !prevCloseRange) shown.points.firstOrNull()?.t else null
 
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
@@ -630,12 +649,18 @@ fun PriceChart(
         // beside "SPY +15.44%" would be two different starting days wearing one "over 6m"
         // caption - the exact "two moments" bug this file has already fixed once, just
         // between the two readouts instead of between a readout and the line under it.
-        val inside = remember(drawn, insideRange, zoomedIn, compareAnchorT, shown) {
+        val inside = remember(drawn, insideRange, zoomedIn, compareAnchorT, shown, compare != null) {
             val whole = insideRange.first == 0 && insideRange.last == drawn.points.lastIndex
             when {
                 compareAnchorT != null -> drawn.copy(
                     points = drawn.points.subList(insideRange.first, insideRange.last + 1),
                     baseline = valueAtOrBefore(shown.points, compareAnchorT) ?: 0.0
+                )
+                // Comparing on a previous-close range: the summary keeps the previous close too,
+                // zoomed or not - the same zero as both lines (2026-09-22c, see above).
+                compare != null && prevCloseRange -> drawn.copy(
+                    points = drawn.points.subList(insideRange.first, insideRange.last + 1),
+                    baseline = shown.from
                 )
                 whole && !zoomedIn -> drawn
                 else -> drawn.copy(
@@ -659,7 +684,7 @@ fun PriceChart(
         // and round 79 removed it): `compareAnchorT` is the selected range's own true start,
         // read from `shown`, which does not change shape as the window pans - so there is no
         // "settled window's first candle" for a gesture to jump to in the first place.
-        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, compareAnchorT, zoomedIn) {
+        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, compareAnchorT, zoomedIn, shown) {
             val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
             // ON THE SAME TERMS AS `inside`, and keyed on the same anchor. Short-circuiting to
             // "the series' own rule" whenever the anchor is null gave the overlay the
@@ -670,8 +695,13 @@ fun PriceChart(
             // `drawn`: `shown` keeps every candle regardless of the window, so a fixed
             // timestamp always finds the same close price in it, however far the window has
             // since panned away from that candle.
-            val ownFromValue =
-                if (compareAnchorT != null) valueAtOrBefore(shown.points, compareAnchorT) else null
+            // On a previous-close range the stock keeps ITS previous close, zoomed or not - the
+            // same fixed zero `comparePercents` gives SPY there (2026-09-22c).
+            val ownFromValue = when {
+                compareAnchorT != null -> valueAtOrBefore(shown.points, compareAnchorT)
+                prevCloseRange -> shown.from
+                else -> null
+            }
             val own =
                 if (other == null) null
                 else primaryPercents(drawn, fromPoint = zoomedIn, fromValue = ownFromValue)
@@ -690,7 +720,21 @@ fun PriceChart(
             summary = inside, summaryCmpIndex = cmp?.pairedIndexIn(
                 insideRange.first, insideRange.last
             ),
-            windowLabel = if (zoomedIn) spanLabel(axis.spanMs) else null
+            windowLabel = if (zoomedIn) spanLabel(axis.spanMs) else null,
+            // A COMPARED figure is measured from the fixed anchor, not from the window's left
+            // edge, so "over 4 hr" would misname it (2026-09-22c). A previous-close range keeps
+            // its own "since yesterday's close"; any other range says which day it counts from.
+            sinceLabel = when {
+                !zoomedIn || compare == null -> null
+                prevCloseRange -> if (range == ChartRange.OVERNIGHT) "since today's close"
+                else "since yesterday's close"
+                compareAnchorT != null -> "since " + (
+                    if (range == ChartRange.D5 || range == ChartRange.M1 || range == ChartRange.M6)
+                        Fmt.shortDay(compareAnchorT * 1000L)
+                    else Fmt.day(compareAnchorT * 1000L)
+                )
+                else -> null
+            }
         )
 
         Spacer(Modifier.height(8.dp))
@@ -1045,7 +1089,10 @@ private fun ChartReadout(
      * the range chip above is still showing the whole month's figure, so the two disagree in
      * public. Naming the actual span settles it.
      */
-    windowLabel: String? = null
+    windowLabel: String? = null,
+    /** What a COMPARED figure counts from, when zoomed - see where [PriceChart] sets it. Takes
+     *  precedence over [windowLabel], which would describe the window rather than the zero. */
+    sinceLabel: String? = null
 ) {
     val i = scrub.intValue
     val point = if (i in s.points.indices) s.points[i] else null
@@ -1074,6 +1121,7 @@ private fun ChartReadout(
                 // NAMES THE BASELINE. The same omission the price block was corrected for in
                 // Round 51: a percentage with nothing saying what it is a percentage OF.
                 when {
+                    sinceLabel != null -> sinceLabel
                     windowLabel != null -> "over $windowLabel"
                     range == ChartRange.D1 -> "since yesterday's close"
                     range == ChartRange.OVERNIGHT -> "since today's close"
