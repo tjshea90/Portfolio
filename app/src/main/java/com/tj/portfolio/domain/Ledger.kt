@@ -150,6 +150,85 @@ object Ledger {
     }
 
     /**
+     * The order both replays walk the history in. Every entry point stamps a trade with a DATE
+     * only (local noon), so all of one day's trades tie on `date` and used to fall back to the
+     * row id - i.e. the order they happened to be inserted in. Two things that gets wrong:
+     *
+     * 1. A SPLIT RECORDED ON A DAY THAT ALSO HAS TRADES (full-tests audit 2026-09-22, A-M3).
+     *    A split takes effect at the open of its ex-date, so that day's fills are already in
+     *    post-split shares. Replayed after them, the split multiplied shares that were bought
+     *    at the new price - a 10-for-1 turned a same-day 50-share buy into 500. The split now
+     *    always goes first within its day.
+     *
+     * 2. A SAME-DAY GROUP INSERTED BACKWARDS (A-H2). A brokerage activity screen lists newest
+     *    first, and screenshot imports used to insert in screen order - so "bought 100 in the
+     *    morning, sold 100 at lunch" landed as SELL-then-BUY: the sale found nothing to sell
+     *    (reported as oversold, realized wrong) and the buy then opened 100 phantom shares.
+     *    New imports are now inserted oldest-first ([ImportOrder.chronological]); this repairs
+     *    rows already on file. For each symbol, a day's BUY/SELL rows are reversed ONLY when
+     *    the order on file sells shares the books do not hold and the reverse order sells
+     *    fewer - an order that is internally consistent is never touched, so a hand-entered
+     *    history keeps exactly the order it was entered in.
+     */
+    internal fun replayOrder(txns: List<Txn>): List<Txn> {
+        val sorted = txns.sortedWith(
+            compareBy<Txn>({ localDay(it.date) }, { if (it.type == TxnType.SPLIT) 0 else 1 },
+                { it.date }, { it.id })
+        ).toMutableList()
+        // Slots of each symbol's rows, in replay order. Symbols never interact in a replay,
+        // so a group is reordered within its own slots and every other row stays put.
+        val bySym = LinkedHashMap<String, MutableList<Int>>()
+        sorted.forEachIndexed { i, t -> t.symbol?.uppercase()?.let { bySym.getOrPut(it) { ArrayList() }.add(i) } }
+        for (slots in bySym.values) {
+            var held = 0.0
+            var k = 0
+            while (k < slots.size) {
+                val t = sorted[slots[k]]
+                if (t.type != TxnType.BUY && t.type != TxnType.SELL) {
+                    if (t.type == TxnType.SPLIT) TxnType.splitRatio(t).takeIf { it > 0.0 }?.let { held *= it }
+                    k++; continue
+                }
+                val day = localDay(t.date)
+                var end = k
+                while (end + 1 < slots.size && localDay(sorted[slots[end + 1]].date) == day &&
+                    sorted[slots[end + 1]].type.let { it == TxnType.BUY || it == TxnType.SELL }
+                ) end++
+                val group = (k..end).map { sorted[slots[it]] }
+                val forward = simulate(held, group)
+                var chosen = group
+                if (group.size > 1 && forward.second > 1e-9) {
+                    val reversed = group.asReversed()
+                    if (simulate(held, reversed).second < forward.second - 1e-9) {
+                        chosen = reversed.toList()
+                        (k..end).forEachIndexed { j, slot -> sorted[slots[slot]] = chosen[j] }
+                    }
+                }
+                held = simulate(held, chosen).first
+                k = end + 1
+            }
+        }
+        return sorted
+    }
+
+    /** Shares held after [group], starting from [held], and how many were sold without cover. */
+    private fun simulate(held: Double, group: List<Txn>): Pair<Double, Double> {
+        var h = held
+        var over = 0.0
+        for (t in group) {
+            val q = abs(t.quantity)
+            if (t.type == TxnType.BUY) h += q
+            else { if (q > h + 1e-9) over += q - h; h = (h - q).coerceAtLeast(0.0) }
+        }
+        return h to over
+    }
+
+    private fun localDay(ms: Long): Long {
+        val c = java.util.Calendar.getInstance()
+        c.timeInMillis = ms
+        return c.get(java.util.Calendar.YEAR) * 1000L + c.get(java.util.Calendar.DAY_OF_YEAR)
+    }
+
+    /**
      * The day window that counts as "this session".
      *
      * THIS IS NOT THE DEVICE'S CALENDAR DAY, and the difference is a real bug that shipped.
@@ -240,7 +319,7 @@ object Ledger {
         /** Shares sold with nothing on the books to cover them - see [Position.oversold]. */
         val oversold = LinkedHashMap<String, Double>()
 
-        for (t in txns.sortedWith(compareBy({ it.date }, { it.id }))) {
+        for (t in replayOrder(txns)) {
             val sym = t.symbol?.uppercase() ?: continue
             if (t.type == TxnType.DIVIDEND) { lots.getOrPut(sym) { ArrayDeque() }; continue }
             // A SPLIT rewrites every open lot in place: more shares, proportionally cheaper,
@@ -351,7 +430,7 @@ object Ledger {
                        var beforeShares: Double = 0.0, var oversold: Double = 0.0)
 
         val acc = LinkedHashMap<String, Acc>()
-        for (t in txns.sortedWith(compareBy({ it.date }, { it.id }))) {
+        for (t in replayOrder(txns)) {
             val sym = t.symbol?.uppercase() ?: continue
             if (t.type !in setOf(TxnType.BUY, TxnType.SELL)) {
                 if (t.type == TxnType.DIVIDEND) acc.getOrPut(sym) { Acc() }
