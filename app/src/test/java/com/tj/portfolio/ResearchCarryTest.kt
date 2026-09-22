@@ -114,6 +114,25 @@ class ResearchCarryTest {
         assertEquals("w", out.best.first().why)
     }
 
+    /** Full-tests audit 2026-09-22, S-M2: one symbol, two lists, two different paragraphs. */
+    @Test fun `each list keeps its own paragraph for a symbol that is in two lists`() {
+        val old = ResearchSet(
+            best = listOf(stock("XYZ", why = "long-term case")),
+            dayTrading = listOf(stock("XYZ", why = "day-trade setup"))
+        )
+        val out = carryExplanations(old, ResearchSet(
+            best = listOf(stock("XYZ")), dayTrading = listOf(stock("XYZ"))
+        ))
+        assertEquals("long-term case", out.best.first().why)
+        assertEquals("day-trade setup", out.dayTrading.first().why)
+    }
+
+    @Test fun `a paragraph written for one list does not jump to another`() {
+        val old = ResearchSet(dayTrading = listOf(stock("XYZ", why = "day-trade setup")))
+        val out = carryExplanations(old, ResearchSet(best = listOf(stock("XYZ"))))
+        assertEquals("", out.best.first().why)
+    }
+
     // ---------------------------------------- Day Trading's own explain state (Round 67)
     //
     // Same bug shape as the fund list above, on a newer section: `dtExplained`/
