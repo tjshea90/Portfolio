@@ -1910,11 +1910,24 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             val im = root.optJSONArray("imports") ?: JSONArray()
             for (i in 0 until im.length()) {
                 val o = im.optJSONObject(i) ?: continue
+                val at = o.optLong("at")
+                val source = o.optString("source", "RESTORE")
+                val count = o.optInt("count")
+                // ONE RECORD PER IMPORT, HOWEVER OFTEN THE FILE IS RESTORED (full-tests audit
+                // 2026-09-22, A-L11). A Merge keeps the records already here and this used to
+                // add the file's on top every time - restore the same backup three times and
+                // every import in it was listed three times. Replace has just emptied the
+                // table, so there this only guards against a file that repeats itself.
+                val already = db.rawQuery(
+                    "SELECT 1 FROM imports WHERE at=? AND source=? AND count=? LIMIT 1",
+                    arrayOf(at.toString(), source, count.toString())
+                ).use { it.moveToFirst() }
+                if (already) continue
                 val cv = ContentValues().apply {
-                    put("at", o.optLong("at")); put("count", o.optInt("count"))
+                    put("at", at); put("count", count)
                     put("skipped", o.optInt("skipped"))
                     put("min_date", o.optLong("minDate")); put("max_date", o.optLong("maxDate"))
-                    put("source", o.optString("source", "RESTORE"))
+                    put("source", source)
                 }
                 db.insert("imports", null, cv); iN++
             }
