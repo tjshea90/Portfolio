@@ -119,6 +119,10 @@ RULES
   back-calculate a fee from the totals - a fee that was charged is already inside the net
   amount, and adding it again overstates the cost basis.
 - Symbols are uppercase tickers only (NVDA, not "NVIDIA Corporation").
+- List rows in the order they appear: screenshot by screenshot, top to bottom. Do not re-sort
+  them - the app works out the trading order from it.
+- Two identical rows (same date, symbol, shares and price) are two separate fills when they are
+  separate lines on the statement. Return both.
 
 IMPORTANT — a HOLDINGS or POSITIONS screen is NOT a transaction list. If a screenshot shows current
 positions (columns like Symbol/Qty, Market Value, Total G/L, Last Price), convert each row into a
@@ -160,7 +164,10 @@ say so in notes. Numbers must not contain commas or currency symbols."""
                 else EXTRACT_PROMPT +
                     "\n\nTRANSACTIONS ALREADY RECORDED - do not return any of these again. " +
                     "A row matches if date + symbol + quantity are the same. Only report rows " +
-                    "that are NOT listed here. If everything visible is already listed, return " +
+                    "that are NOT listed here. Each line below accounts for ONE row: if the " +
+                    "screenshots show more identical rows than are listed (two fills of the " +
+                    "same size on the same day), return the extra ones. " +
+                    "If everything visible is already listed, return " +
                     "an empty transactions array and say so in notes.\n\n" + alreadyHave
             )
         })

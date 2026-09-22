@@ -164,8 +164,10 @@ Known symbols already in the app: ${if (knownSymbols.isEmpty()) "(none yet)" els
 
 Every line below is already recorded. If a row in the screenshots matches one of these on
 date + symbol + quantity, **leave it out entirely**. Only send rows that are not in this
-list. If a screenshot is entirely made up of rows I already have, return an empty
-"transactions" array and say so in "notes".
+list. Each line accounts for ONE row: if the screenshots show more identical rows than are
+listed (two fills of the same size on the same day), send the extra ones. If a screenshot is
+entirely made up of rows I already have, return an empty "transactions" array and say so in
+"notes".
 
 $alreadyHave
 
@@ -183,6 +185,8 @@ $alreadyHave
 - Numbers must not contain commas, currency symbols, or `%`.
 - Never invent a row you cannot actually see. If a value is unreadable, omit that row
   and explain in `notes`.
+- List rows in the order they appear: screenshot by screenshot, top to bottom. Do not
+  re-sort them - my app works out the trading order from it.
 - Include EVERY new row you can see, even from the same day as rows I already have -
   I may have traded the same stock more than once in a day. The test is the whole line
   (date + symbol + quantity + amount), not just the date.
