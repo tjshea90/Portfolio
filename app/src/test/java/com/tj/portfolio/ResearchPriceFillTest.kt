@@ -9,6 +9,7 @@ import com.tj.portfolio.net.DayTradingTechnicals
 import com.tj.portfolio.net.ResearchScore
 import com.tj.portfolio.ui.PortfolioViewModel
 import com.tj.portfolio.ui.dropUnusableClaudeLevels
+import com.tj.portfolio.ui.loggableDayTradingRows
 import com.tj.portfolio.ui.mergeDayTradingTech
 import com.tj.portfolio.ui.scoreDayTradingRow
 import com.tj.portfolio.ui.sortDayTradingForActionability
@@ -644,5 +645,15 @@ class ResearchPriceFillTest {
         assertEquals(114.0, live.price, 1e-9)
         assertTrue("built-time plan breaks out over R1", stale.entryPrice in 113.6..114.0)
         assertTrue("live plan breaks out over the prior high", live.entryPrice > 115.0)
+    }
+    // ---- ONLY A LIVE INSTRUCTION IS LOGGED AS A RECOMMENDATION (full-tests audit, D-M3).
+
+    @Test fun `a too-late or pending-decline plan is not logged, a live one is`() {
+        val live = extended()
+        val tooLate = extended().copy(symbol = "LATE", tooLateToStart = true)
+        val declining = extended().copy(symbol = "DECL", planDeclineStreak = 1)
+        val yesterday = extended().copy(symbol = "OLD", sessionDay = "2026-09-10")
+        assertEquals(listOf("GME"),
+            loggableDayTradingRows(listOf(live, tooLate, declining, yesterday), TODAY).map { it.symbol })
     }
 }

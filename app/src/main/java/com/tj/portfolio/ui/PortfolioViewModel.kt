@@ -970,6 +970,28 @@ internal fun mergeDayTradingTech(
     )
 }
 
+/**
+ * The Day Trading rows that count as a RECOMMENDATION right now - what
+ * `captureDayTradingRecommendations` may write to the permanent log. Pure, for the test.
+ *
+ * Levels on screen are not always an instruction (full-tests audit 2026-09-22, D-M3):
+ *  - [ResearchRow.tooLateToStart] - under 30 minutes of session left, the card keeps the levels
+ *    but badges them "too late to start today". Logging one of those - the first time a plan was
+ *    ever seen, say, at 15:45 - scored the system on a trade it explicitly told Tj not to take.
+ *  - [ResearchRow.planDeclineStreak] > 0 - the engine has already said "no trade" and the levels
+ *    are only still drawn to ride out a possible one-tick wobble (see [mergeDayTradingTech]).
+ * The log keeps a symbol's FIRST recommendation of the day (`INSERT OR IGNORE`), so this only
+ * decides whether a plan's first appearance is logged, never removes one already recorded.
+ */
+internal fun loggableDayTradingRows(
+    rows: List<com.tj.portfolio.data.ResearchRow>,
+    today: String
+): List<com.tj.portfolio.data.ResearchRow> = rows.filter {
+    it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 &&
+        it.price > 0.0 && it.sessionDay == today &&
+        !it.tooLateToStart && it.planDeclineStreak == 0
+}
+
 /** How many consecutive live ticks [ResearchScore.tradePlan] must decline before
  *  [mergeDayTradingTech] actually withdraws a level - see its own note on why. */
 private const val DAY_TRADING_DECLINE_CONFIRM_TICKS = 2
@@ -6011,10 +6033,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         //    literal word "Pullback", and Claude's setup text is free-form ("Support bounce"),
         //    so a genuine limit entry is read as a stop entry and "triggers" on the first bar
         //    that trades anywhere near it - crediting or blaming a fill that never happened.
-        val priced = rows.filter {
-            it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 &&
-                it.price > 0.0 && it.sessionDay == today
-        }
+        val priced = loggableDayTradingRows(rows, today)
         if (priced.isEmpty()) return
         val recordedAt = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
