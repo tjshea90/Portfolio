@@ -16,8 +16,16 @@ import java.util.TimeZone
  * often to ASK before it has anything to look at, and on a night when every request fails
  * there is no quote to read a market state from.
  *
- * Holidays are not in here - there is no free calendar for them and hard-coding dates rots.
- * [PortfolioViewModel] covers that case from the other end: when the exchange timestamp on
+ * HOLIDAYS AND EARLY CLOSES ARE COMPUTED FROM THE EXCHANGE'S OWN RULES (full-tests audit
+ * 2026-09-22, D-M4/D-L9) - see [isHoliday] and [closeMinute]. This header used to say there was
+ * no free calendar and hard-coded dates rot, both true and neither the point: NYSE's calendar
+ * is RULES ("the fourth Thursday of November", "a Saturday holiday is observed on the Friday"),
+ * which work out any year's dates with nothing to maintain. Before this, 10am on Thanksgiving
+ * was OPEN - polling every holding at the user's market-hours rate all day - and the 1pm half
+ * days after Thanksgiving and on Christmas Eve / July 3 ran the Day Trading clock to 16:00, so
+ * a plan made at 12:45 was told it had three and a quarter hours when it had fifteen minutes.
+ * One-off closures (a national day of mourning) cannot be predicted by any rule;
+ * [PortfolioViewModel] still covers those from the other end - when the exchange timestamp on
  * the quotes stops advancing during what this class calls open hours, it backs off anyway.
  */
 object MarketClock {
@@ -43,13 +51,79 @@ object MarketClock {
         c.timeInMillis = now
         val dow = c.get(Calendar.DAY_OF_WEEK)
         if (dow == Calendar.SATURDAY || dow == Calendar.SUNDAY) return Phase.CLOSED
+        if (isHoliday(c)) return Phase.CLOSED
         val m = etMinutes(c)
+        val close = closeMinute(c)
+        // After-hours runs four hours past the close: to 20:00 on a normal day, 17:00 on a half day.
         return when {
-            m >= 9 * 60 + 30 && m < 16 * 60 -> Phase.OPEN
-            m >= 4 * 60 && m < 9 * 60 + 30 -> Phase.EXTENDED
-            m >= 16 * 60 && m < 20 * 60 -> Phase.EXTENDED
+            m >= OPEN_MINUTE && m < close -> Phase.OPEN
+            m >= 4 * 60 && m < OPEN_MINUTE -> Phase.EXTENDED
+            m >= close && m < close + 4 * 60 -> Phase.EXTENDED
             else -> Phase.CLOSED
         }
+    }
+
+    // ------------------------------------------------------------------ the exchange calendar
+
+    /** A full-day NYSE closure, on the ET calendar date [c] holds. Weekends are not asked. */
+    internal fun isHoliday(c: Calendar): Boolean {
+        val y = c.get(Calendar.YEAR)
+        val m = c.get(Calendar.MONTH) + 1
+        val d = c.get(Calendar.DAY_OF_MONTH)
+        val dow = c.get(Calendar.DAY_OF_WEEK)
+        val mon = dow == Calendar.MONDAY
+        fun observed(month: Int, day: Int): Boolean =
+            (m == month && d == day) ||
+                // Saturday's holiday is taken on the Friday before, Sunday's on the Monday after.
+                (m == month && d == day - 1 && dow == Calendar.FRIDAY) ||
+                (m == month && d == day + 1 && mon)
+        return when {
+            // New Year's: a Sunday one is taken on Monday the 2nd. A SATURDAY one is not taken
+            // at all - NYSE Rule 7.2 keeps 31 December open for year-end accounting.
+            m == 1 && (d == 1 || (d == 2 && mon)) -> true
+            m == 1 && mon && d in 15..21 -> true                 // Martin Luther King Jr. Day
+            m == 2 && mon && d in 15..21 -> true                 // Washington's Birthday
+            isGoodFriday(y, m, d) -> true
+            m == 5 && mon && d >= 25 -> true                     // Memorial Day, last Monday
+            y >= 2022 && observed(6, 19) -> true                 // Juneteenth
+            observed(7, 4) -> true                               // Independence Day
+            m == 9 && mon && d <= 7 -> true                      // Labor Day
+            m == 11 && dow == Calendar.THURSDAY && d in 22..28 -> true   // Thanksgiving
+            observed(12, 25) -> true                             // Christmas
+            else -> false
+        }
+    }
+
+    /**
+     * The regular session's closing minute (ET) on [c]'s date: 13:00 on NYSE's three standing
+     * early-close days, 16:00 otherwise. The early closes are the day after Thanksgiving, and
+     * July 3 and December 24 whenever they fall Monday-Thursday - on a Friday the next day's
+     * holiday is itself observed on it, and on a weekend there is no session to shorten.
+     */
+    internal fun closeMinute(c: Calendar): Int {
+        val m = c.get(Calendar.MONTH) + 1
+        val d = c.get(Calendar.DAY_OF_MONTH)
+        val dow = c.get(Calendar.DAY_OF_WEEK)
+        val monToThu = dow in Calendar.MONDAY..Calendar.THURSDAY
+        val early = (m == 11 && dow == Calendar.FRIDAY && d in 23..29) ||
+            (m == 7 && d == 3 && monToThu) ||
+            (m == 12 && d == 24 && monToThu)
+        return if (early) EARLY_CLOSE_MINUTE else CLOSE_MINUTE
+    }
+
+    /** Easter Sunday by the anonymous Gregorian algorithm; Good Friday is two days before. */
+    private fun isGoodFriday(y: Int, m: Int, d: Int): Boolean {
+        val a = y % 19; val b = y / 100; val cc = y % 100
+        val dd = b / 4; val e = b % 4; val f = (b + 8) / 25; val g = (b - f + 1) / 3
+        val h = (19 * a + b - dd - g + 15) % 30
+        val i = cc / 4; val k = cc % 4
+        val l = (32 + 2 * e + 2 * i - h - k) % 7
+        val mm = (a + 11 * h + 22 * l) / 451
+        val month = (h + l - 7 * mm + 114) / 31
+        val day = (h + l - 7 * mm + 114) % 31 + 1
+        val easter = Calendar.getInstance(ET).apply { clear(); set(y, month - 1, day) }
+        easter.add(Calendar.DAY_OF_MONTH, -2)
+        return easter.get(Calendar.MONTH) + 1 == m && easter.get(Calendar.DAY_OF_MONTH) == d
     }
 
     /**
@@ -84,6 +158,7 @@ object MarketClock {
 
     /** 16:00 ET, as minutes since New York midnight - the close, and the day trade's deadline. */
     private const val CLOSE_MINUTE = 16 * 60
+    private const val EARLY_CLOSE_MINUTE = 13 * 60
 
     /** 09:30 ET. */
     private const val OPEN_MINUTE = 9 * 60 + 30
@@ -112,7 +187,8 @@ object MarketClock {
         if (phase(now) != Phase.OPEN) return 0
         val c = Calendar.getInstance(ET)
         c.timeInMillis = now
-        return (CLOSE_MINUTE - etMinutes(c)).coerceIn(0, CLOSE_MINUTE - OPEN_MINUTE)
+        val close = closeMinute(c)
+        return (close - etMinutes(c)).coerceIn(0, close - OPEN_MINUTE)
     }
 
     /**
@@ -150,7 +226,7 @@ object MarketClock {
         c.timeInMillis = now
         return when (phase(now)) {
             Phase.OPEN -> {
-                val total = (CLOSE_MINUTE - OPEN_MINUTE).toDouble()
+                val total = (closeMinute(c) - OPEN_MINUTE).toDouble()
                 ((etMinutes(c) - OPEN_MINUTE) / total).coerceIn(0.0, 1.0)
             }
             // Before the opening bell nothing of today has traded yet, so no comparison against
