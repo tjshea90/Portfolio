@@ -4425,6 +4425,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             if (filings.isEmpty()) return
             rememberInsiderDocs(filings)
             publishInsiders(filings)
+            // EVERY SYMBOL THIS PASS COVERED IS FRESH, filings or not (full-tests audit
+            // 2026-09-22, N-L6). `publishInsiders` stamps only symbols that HAD filings, so a
+            // followed stock with a quiet month looked unchecked, and opening it spent an EDGAR
+            // listing request this pass had just made. SEC.gov is the one host here with a
+            // published fair-use policy. (An empty pass returned above: that one may be an
+            // outage, so nothing is stamped for it.)
+            val now = System.currentTimeMillis()
+            symbols.forEach { insiderAt[it.uppercase()] = now }
             // Real open-market trades also belong in the All and My-stocks lists, where a
             // headline-shaped row saying "CEO bought 40,000 shares" reads as news - because
             // it is. The machinery (grants, tax withholding, option exercises) stays in the
