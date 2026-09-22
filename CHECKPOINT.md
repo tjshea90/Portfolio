@@ -1,23 +1,23 @@
-# CHECKPOINT 1607 — read me first, then TASKS.md
+# CHECKPOINT 1608 — read me first, then TASKS.md
 
-**Written:** 2026-09-22T19:40:38Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/resume-app-testing-i6cfun` · **builds on:** `057e9e7` (this checkpoint is the commit after it)
+**Written:** 2026-09-22T19:50:12Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/resume-app-testing-i6cfun` · **builds on:** `dfa6002` (this checkpoint is the commit after it)
 
 ## Just done
-SHIPPED v7.35 (code 92): R8 + app baseline profile + SQLite WAL + list contentType. Emulator smoke gate passed on its first run (3000 monkey events, no crash). smoke-test.sh now turns the emulator network on first (the first run was offline).
+Logged Tj's 2026-09-22c request (SPY baseline still jumps when holding and dragging on the stock chart - video attached).
 
 ## Do this next
-Nothing pending for this request.
+Extract video frames, find the cause in PriceChart.kt, fix, test, ship.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
      M TASKS.md
-     M tools/smoke-test.sh
 
 ## Last ten checkpoints
 ```
+  dfa6002 ckpt 1607: SHIPPED v7.35 (code 92): R8 + app baseline profile + SQLite WAL + list conten
   01877da ckpt 1606: Triggered android.yml run 35774377550 for v7.35 code 92 (first run with the e
   bc8b165 ckpt 1605: gated v7.35 (code 92) and pushed it: checkinit, the full unit suite and the v
   18f45fb ckpt 1604: Speed pass complete: R8 (no rename), app baseline profile, SQLite WAL pool, l
@@ -27,5 +27,4 @@ Nothing pending for this request.
   f1dbd3a ckpt 1600: Triggered GitHub Actions android.yml on main (run 35771678004, full_build=tru
   09d15bb ckpt 1599: gated v7.34 (code 91) and pushed it: checkinit, the full unit suite and the v
   a95bcbb ckpt 1598: All ~45 audit findings fixed and verified: suite 1292/0. Review found + fixed
-  d9b8453 ckpt 1597: Every audit finding now written. LOWs done: D-L8, D-L10, S-L5, S-L6, S-L7 (su
 ```

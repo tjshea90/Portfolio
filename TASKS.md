@@ -1,5 +1,20 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-22c (his own words)
+
+> Review the attached video. Why is the spy baseline still jumping up and down when I hold and
+> drag left and right on the stock chart? This isn't accurate right?
+
+(Video: /root/.claude/uploads/34749cd7-19b8-5019-804b-79604d744816/85f0a87e-screen-20260922-154823.mp4
+- session upload, not in git.)
+
+- [ ] Extract frames from the video; identify the exact gesture (hold-and-drag = SCRUB, not pan?)
+      and what the SPY line does
+- [ ] Find the cause in PriceChart.kt (compare/rebase logic under scrub vs pan)
+- [ ] Decide what is correct (accuracy), fix, regression test
+- [ ] Suite green, ship, post link
+
+
 ## Tj's request, 2026-09-22b (his own words)
 
 > I want the app to be as snappy and fast as possible without losing any accuracy. Accuracy
