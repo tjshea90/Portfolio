@@ -5887,9 +5887,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _search.value = hits
             } finally {
-                // A search replaced by the next keystroke must not switch off the NEW one's
-                // spinner on its way out.
-                if (searchJob !== me) return@launch
                 // A `finally`, not a trailing statement. Every other loading flag in this
                 // file has one; this was the exception, and it is the one attached to a
                 // spinner the user is watching. Leaving the app with a search in flight
@@ -5897,7 +5894,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // sheet showed a spinner that never stopped and suppressed its own "no
                 // results" text, until the user typed another character. Exactly the
                 // invariant `SpinnerTest` exists to pin.
-                _searching.value = false
+                // BUT ONLY FOR THE CURRENT SEARCH: one replaced by the next keystroke must not
+                // switch off the new one's spinner on its way out (U-L1).
+                if (searchJob === me) _searching.value = false
             }
         }
     }
