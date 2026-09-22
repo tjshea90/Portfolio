@@ -683,46 +683,44 @@ internal fun carryExplanations(
         )
     }
     if (old.isEmpty) return keepEtfs(fresh)
-    val prior = (old.trending + old.best + old.dayTrading).associateBy { it.symbol }
-    if (prior.isEmpty()) return keepEtfs(fresh)
-    fun carry(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
-        val p = prior[r.symbol] ?: return@map r
+    // ---- EACH LIST CARRIES FROM ITS OWN OLD LIST (full-tests audit 2026-09-22, S-M2).
+    //
+    // This was one map across all three lists, and `associateBy` keeps the LAST row per symbol
+    // - so a stock in both Best and Day Trading had Best's rebuilt row handed the DAY-TRADE
+    // paragraph ("breaking out over the premarket high...") as its long-term case. Claude
+    // explains each list separately (`ResearchBridge.merge` and `DayTradingBridge.merge` are
+    // applied per list), so a paragraph belongs to the list it was written for.
+    fun carry(
+        list: List<com.tj.portfolio.data.ResearchRow>,
+        from: List<com.tj.portfolio.data.ResearchRow>
+    ): List<com.tj.portfolio.data.ResearchRow> {
+        val prior = from.associateBy { it.symbol }
+        return list.map { r -> carryWhy(r, prior[r.symbol], now) }
+    }
+    return fresh.copy(
+        trending = carry(fresh.trending, old.trending),
+        best = carry(fresh.best, old.best),
+        dayTrading = carry(fresh.dayTrading, old.dayTrading)
+    ).let(keepEtfs)
+}
+
+/** One row of [carryExplanations]: [p]'s `why` onto [r], while it is still current. */
+private fun carryWhy(
+    r: com.tj.portfolio.data.ResearchRow,
+    p: com.tj.portfolio.data.ResearchRow?,
+    now: Long
+): com.tj.portfolio.data.ResearchRow {
+    if (p == null) return r
+    run {
         // Claude's explanation survives a rebuild; the app's own score and reasons - and,
         // for day trading, the entry/stop/target risk levels - are recomputed from fresh
         // screener data every time, which is the point of a rebuild. BUT ONLY WHILE IT IS
         // STILL RECENT - see [WHY_STALE_MS]. Past that window this stops carrying `why`
         // forward at all, which is the actual eviction: the next `cacheResearch` persists
         // this row with `why` blank again.
-        if (!stillCurrent(p.why, p.whyAt, now)) return@map r
-        r.copy(why = p.why, whyAt = p.whyAt)
+        if (!stillCurrent(p.why, p.whyAt, now)) return r
+        return r.copy(why = p.why, whyAt = p.whyAt)
     }
-    // ---- THE FUND LIST'S OWN CLOCK, CARRIED ACROSS EXPLICITLY - and both "explained via
-    // Claude" stamps, gated by [carryExplainedStamp] the same way a single row's `why` is
-    // (full-tests audit, round 79 sweep: these used to carry forward unconditionally too).
-    //
-    // `fresh` comes from `Research.build`, which builds both STOCK lists and never touches
-    // `etfs`. Returning it as-is would wipe the fund list - and its timestamp, and its
-    // warnings - on every thirty-minute stock rebuild, in memory and on disk, and the ETFs
-    // tab would then spend ten Yahoo requests rebuilding something it had already paid for.
-    // That is the precise opposite of TJ's rule for this list: "keep the current list in
-    // cache until each update".
-    val (explainedAt, explainedVia, note) = carryExplainedStamp(old.explained, old.explainedBy, old.notes, now)
-    val (dtExplainedAt, dtExplainedVia, dtNote) =
-        carryExplainedStamp(old.dtExplained, old.dtExplainedBy, old.dtNotes, now)
-    return fresh.copy(
-        trending = carry(fresh.trending),
-        best = carry(fresh.best),
-        dayTrading = carry(fresh.dayTrading),
-        etfs = old.etfs,
-        etfGenerated = old.etfGenerated,
-        etfWarnings = old.etfWarnings,
-        notes = note,
-        explained = explainedAt,
-        explainedBy = explainedVia,
-        dtNotes = dtNote,
-        dtExplained = dtExplainedAt,
-        dtExplainedBy = dtExplainedVia
-    )
 }
 
 /**
