@@ -3708,10 +3708,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * on two different days lands twice. Both the "ALREADY HAVE" badge in the review dialog
      * and the skip in [commitImportAsync] go through here, so they can never disagree.
      */
-    private fun duplicateOf(t: Txn): Long? {
-        db.findDuplicateId(t)?.let { return it }
+    private fun duplicateOf(t: Txn, claimed: Set<Long> = emptySet()): Long? {
+        db.findDuplicateId(t, claimed)?.let { return it }
         val dateWasGuessed = t.note?.contains("date estimated", true) == true
-        return if (dateWasGuessed) db.findDuplicateIdAnyDate(t) else null
+        return if (dateWasGuessed) db.findDuplicateIdAnyDate(t, claimed) else null
     }
 
     /**
@@ -3723,9 +3723,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * in the dialog and the skip in [commitImportAsync] must never disagree about what counts
      * as a duplicate, which is why this is not a faster reimplementation of the rules.
      */
-    suspend fun duplicateFlags(list: List<Txn>): List<Boolean> = withContext(Dispatchers.IO) {
-        list.map { duplicateOf(it) != null }
-    }
+    suspend fun duplicateFlags(list: List<Txn>): List<com.tj.portfolio.domain.ImportDup> =
+        withContext(Dispatchers.IO) {
+            com.tj.portfolio.domain.ImportDupes.classify(list) { t, claimed -> duplicateOf(t, claimed) }
+        }
 
     /**
      * Commit the reviewed set: off the main thread, as ONE database transaction.
@@ -3762,18 +3763,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     var skipped = 0
                     var minD = Long.MAX_VALUE
                     var maxD = 0L
-                    val seen = HashSet<String>()
+                    // Without [force], exactly what the review dialog would have left unticked
+                    // is skipped - the same [ImportDupes.classify], so the two cannot disagree.
+                    // WITH it (the dialog's own commit), the user ticked every row being passed,
+                    // identical partial fills included, and every one of them is written - see
+                    // [ImportDupes] for the second fill this used to drop silently.
+                    val flags = if (force) null
+                    else com.tj.portfolio.domain.ImportDupes.classify(list) { t, c -> duplicateOf(t, c) }
+                    val keep = if (flags == null) list
+                    else list.filterIndexed { i, _ -> flags[i] == com.tj.portfolio.domain.ImportDup.NEW }
+                    skipped = list.size - keep.size
                     val database = db.writableDatabase
                     database.beginTransaction()
                     try {
-                        for (t in list) {
-                            val fingerprint = listOf(
-                                t.type, (t.symbol ?: ""), Fmt.iso(t.date),
-                                Math.round(kotlin.math.abs(t.quantity) * 10000),
-                                Math.round(kotlin.math.abs(t.amount) * 100)
-                            ).joinToString("|")
-                            if (!seen.add(fingerprint)) { skipped++; continue }
-                            if (!force && duplicateOf(t) != null) { skipped++; continue }
+                        // OLDEST FIRST - see [com.tj.portfolio.domain.ImportOrder].
+                        for (t in com.tj.portfolio.domain.ImportOrder.chronological(keep)) {
                             db.insertTxn(t); n++
                             if (t.date in 1 until minD) minD = t.date
                             if (t.date > maxD) maxD = t.date

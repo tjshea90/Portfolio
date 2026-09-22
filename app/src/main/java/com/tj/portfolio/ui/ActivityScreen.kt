@@ -324,19 +324,24 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
     // import that is a visibly hung app. It now runs on IO and the rows appear immediately,
     // with everything ticked until the answer lands.
     val dupes = remember(r) { mutableStateListOf<Boolean>() }
+    // Which kind of "already have" each flagged row is - see [com.tj.portfolio.domain.ImportDup].
+    val dupKinds = remember(r) { mutableStateListOf<com.tj.portfolio.domain.ImportDup>() }
     var checked by remember(r) { mutableStateOf(false) }
     val checks = remember(r) {
         mutableStateListOf<Boolean>().apply { r.transactions.forEach { add(true) } }
     }
     LaunchedEffect(r) {
-        val flags = vm.duplicateFlags(r.transactions)
+        val kinds = vm.duplicateFlags(r.transactions)
+        dupKinds.clear(); dupKinds.addAll(kinds)
+        val flags = kinds.map { it != com.tj.portfolio.domain.ImportDup.NEW }
         dupes.clear(); dupes.addAll(flags)
         // Default the selection to "new rows only", which is what the user wants nine times
         // out of ten - they can still tick a genuine repeat trade back on.
         flags.forEachIndexed { i, d -> if (i < checks.size) checks[i] = !d }
         checked = true
     }
-    val dupCount = dupes.count { it }
+    val onFileCount = dupKinds.count { it == com.tj.portfolio.domain.ImportDup.ON_FILE }
+    val repeatCount = dupKinds.count { it == com.tj.portfolio.domain.ImportDup.REPEAT }
 
     AlertDialog(
         // ---- THE EXTRACTION COST A REAL CLAUDE API CALL. DO NOT DROP IT ON A MISTAP.
@@ -367,10 +372,22 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else if (dupCount > 0) {
+                    } else if (onFileCount + repeatCount > 0) {
                         Text(
-                            "$dupCount already in your records - unchecked so nothing is " +
-                                "counted twice.",
+                            buildString {
+                                if (onFileCount > 0) append(
+                                    "$onFileCount already in your records - unchecked so " +
+                                        "nothing is counted twice."
+                                )
+                                if (repeatCount > 0) {
+                                    if (isNotEmpty()) append(" ")
+                                    append(
+                                        "$repeatCount appear twice in these screenshots - " +
+                                            "unchecked in case the screenshots overlap. Tick " +
+                                            "them if they were separate fills."
+                                    )
+                                }
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = accentText
                         )
@@ -425,7 +442,8 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
                                             if (dupes.getOrElse(i) { false }) {
                                                 Spacer(Modifier.width(6.dp))
                                                 Text(
-                                                    "ALREADY HAVE",
+                                                    if (dupKinds.getOrNull(i) == com.tj.portfolio.domain.ImportDup.REPEAT)
+                                                        "REPEAT?" else "ALREADY HAVE",
                                                     style = MaterialTheme.typography.labelSmall,
                                                     color = accentText
                                                 )

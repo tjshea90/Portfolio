@@ -864,7 +864,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      * the share count and the money have to line up. There is no one-dollar fallback here,
      * because without a date that would be too eager.
      */
-    fun findDuplicateIdAnyDate(t: Txn): Long? {
+    fun findDuplicateIdAnyDate(t: Txn, exclude: Set<Long> = emptySet()): Long? {
         val sym = (t.symbol ?: "").uppercase()
         if (sym.isBlank()) return null
         val amt = kotlin.math.abs(t.amount)
@@ -876,6 +876,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             arrayOf(t.type, sym)
         ).use { c ->
             while (c.moveToNext()) {
+                if (c.getLong(0) in exclude) continue
                 val q = c.getDouble(1)
                 val a = kotlin.math.abs(c.getDouble(2))
                 val sameQty = kotlin.math.abs(q - kotlin.math.abs(t.quantity)) < 0.0001

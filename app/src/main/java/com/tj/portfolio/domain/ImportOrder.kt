@@ -44,3 +44,55 @@ object ImportOrder {
         return c.get(java.util.Calendar.YEAR) * 1000L + c.get(java.util.Calendar.DAY_OF_YEAR)
     }
 }
+
+/** What the import review dialog says about one extracted row. */
+enum class ImportDup {
+    NEW,
+    /** Matches a transaction already on file - one stored row per extracted row. */
+    ON_FILE,
+    /**
+     * Identical to an earlier row in the same batch: the same row seen on two overlapping
+     * screenshots, or two genuine fills of the same size at the same price. Only the user can
+     * tell which, so it is shown unticked, never dropped.
+     */
+    REPEAT
+}
+
+/**
+ * Duplicate classification for an import batch (full-tests audit 2026-09-22, A-M4).
+ *
+ * Two fills of 50 shares at the same price on the same day are two identical rows, and both
+ * are real. The import used to (a) flag BOTH as "already have" when ONE was on file - the
+ * stored row matched every copy - and (b) silently drop the second at commit even after the
+ * user ticked it, through a within-batch fingerprint check that ignored `force`. Now each
+ * stored row can absorb exactly one extracted row, and a within-batch repeat is shown for the
+ * user to decide, then imported exactly as ticked.
+ */
+object ImportDupes {
+
+    /** The within-batch identity: same type, symbol, day, share count and cash amount. */
+    fun fingerprint(t: Txn): String = listOf(
+        t.type, (t.symbol ?: ""), com.tj.portfolio.util.Fmt.iso(t.date),
+        Math.round(kotlin.math.abs(t.quantity) * 10000),
+        Math.round(kotlin.math.abs(t.amount) * 100)
+    ).joinToString("|")
+
+    /**
+     * @param match finds a stored transaction matching the row, skipping the ids in its second
+     *   argument (already claimed by an earlier row of this batch), or null.
+     */
+    fun classify(batch: List<Txn>, match: (Txn, Set<Long>) -> Long?): List<ImportDup> {
+        val claimed = HashSet<Long>()
+        val seen = HashSet<String>()
+        return batch.map { t ->
+            val fp = fingerprint(t)
+            val onFile = match(t, claimed)
+            val firstInBatch = seen.add(fp)
+            when {
+                onFile != null -> { claimed.add(onFile); ImportDup.ON_FILE }
+                !firstInBatch -> ImportDup.REPEAT
+                else -> ImportDup.NEW
+            }
+        }
+    }
+}
