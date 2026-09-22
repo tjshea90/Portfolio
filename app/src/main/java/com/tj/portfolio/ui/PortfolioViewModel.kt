@@ -739,6 +739,21 @@ internal fun applyAnalystEnrichment(
     return ranked + tail
 }
 
+/**
+ * A row sparkline pulled at [fetchedAt] cannot have changed by [now] (full-tests audit
+ * 2026-09-22, N-M3). `Quote.spark` is the REGULAR session only, so a series fetched outside it
+ * already holds that whole session, and stays the latest one until the next opening bell. The
+ * five-minute clock used to ignore that: every visible holding re-downloaded its line every five
+ * minutes from 16:00 to 20:00, and again on every cold start overnight or at the weekend.
+ */
+internal fun sparkIsFinal(fetchedAt: Long, now: Long): Boolean {
+    if (fetchedAt <= 0L) return false
+    val closed = com.tj.portfolio.net.MarketClock.Phase.OPEN
+    if (com.tj.portfolio.net.MarketClock.phase(fetchedAt) == closed) return false
+    if (com.tj.portfolio.net.MarketClock.phase(now) == closed) return false
+    return now < com.tj.portfolio.net.MarketClock.nextOpenAfter(fetchedAt)
+}
+
 /** One row of [carryExplanations]: [p]'s `why` onto [r], while it is still current. */
 private fun carryWhy(
     r: com.tj.portfolio.data.ResearchRow,
@@ -2126,6 +2141,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         attachHttpDiskCache()
         val cached = db.cachedQuotes()
         _quotes.value = cached
+        // A cached series written after the last close is the whole session - see
+        // [sparkIsFinal]. Seeding its clock from the row's own stamp is what stops a night-time
+        // cold start re-downloading every holding's unchanged line (full-tests audit, N-M3).
+        // A row saved mid-session is not seeded, so its series is refreshed as before.
+        cached.values.forEach { q ->
+            if (q.spark.isNotEmpty() && q.updated > 0L &&
+                com.tj.portfolio.net.MarketClock.phase(q.updated) != com.tj.portfolio.net.MarketClock.Phase.OPEN
+            ) sparkAt[q.symbol] = q.updated
+        }
         // so the header reads "Prices updated 2h ago" offline instead of showing nothing
         cached.values.maxOfOrNull { it.updated }?.takeIf { it > 0 }?.let {
             _ui.value = _ui.value.copy(lastRefresh = it)
@@ -2788,6 +2812,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
         val due = symbols.filter {
             now - (sparkAt[it] ?: 0L) > SPARK_REFRESH_MS &&
+                !sparkIsFinal(sparkAt[it] ?: 0L, now) &&
                 !sparkRetry.blocked(it, now) && !heldByChart(it)
         }
         if (due.isEmpty()) return

@@ -111,6 +111,25 @@ object MarketClock {
         return if (early) EARLY_CLOSE_MINUTE else CLOSE_MINUTE
     }
 
+    /**
+     * The first regular-session opening bell (09:30 ET on a trading day) strictly after [t].
+     * Anything that can only change while the market is OPEN is unchanged from [t] until then.
+     */
+    fun nextOpenAfter(t: Long): Long {
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = t
+        c.set(Calendar.HOUR_OF_DAY, 9); c.set(Calendar.MINUTE, 30)
+        c.set(Calendar.SECOND, 0); c.set(Calendar.MILLISECOND, 0)
+        if (c.timeInMillis <= t) c.add(Calendar.DAY_OF_MONTH, 1)
+        // Two weeks is far past the longest run of closed days the calendar can produce.
+        repeat(14) {
+            val dow = c.get(Calendar.DAY_OF_WEEK)
+            if (dow != Calendar.SATURDAY && dow != Calendar.SUNDAY && !isHoliday(c)) return c.timeInMillis
+            c.add(Calendar.DAY_OF_MONTH, 1)
+        }
+        return c.timeInMillis
+    }
+
     /** Easter Sunday by the anonymous Gregorian algorithm; Good Friday is two days before. */
     private fun isGoodFriday(y: Int, m: Int, d: Int): Boolean {
         val a = y % 19; val b = y / 100; val cc = y % 100
