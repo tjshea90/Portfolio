@@ -614,4 +614,19 @@ Here is my read on your lists. I searched the web for the latest on each name.
         assertEquals("B", updated.best[0].symbol)
         assertTrue(updated.trending.isEmpty())
     }
+    // ---- BREAKEVEN IS NOT A LOSS, AND A NEGATIVE BOOK IS LED WITH (full-tests audit S-L8, S-M4)
+    @Test fun `breakeven trailing earnings are not described as a loss`() {
+        val breakeven = ResearchScore.best(com.tj.portfolio.data.ScreenRow(
+            symbol = "BE", epsTtm = 0.005, epsForward = 1.2))
+        assertTrue(breakeven.reasons.any { it.startsWith("Growing from breakeven") })
+        assertTrue(breakeven.reasons.none { it.contains("trailing loss") })
+        val loss = ResearchScore.best(com.tj.portfolio.data.ScreenRow(
+            symbol = "LS", epsTtm = -0.4, epsForward = 1.2))
+        assertTrue(loss.reasons.any { it.contains("trailing loss") })
+    }
+
+    @Test fun `a negative book value is the first reason on the card`() {
+        val r = ResearchScore.best(goodStock().copy(priceToBook = -2.0)).reasons
+        assertTrue("red flag first: $r", r.first().startsWith("Negative book value"))
+    }
 }
