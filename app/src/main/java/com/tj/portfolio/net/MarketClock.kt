@@ -146,6 +146,13 @@ object MarketClock {
         return if (t < now) minOf(d, -1L) else d
     }
 
+    /** [closeMinute] for the New York date [ms] falls on - 13:00 on a half day, else 16:00. */
+    fun closeMinuteAt(ms: Long): Int {
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = ms
+        return closeMinute(c)
+    }
+
     /** Easter Sunday by the anonymous Gregorian algorithm; Good Friday is two days before. */
     private fun isGoodFriday(y: Int, m: Int, d: Int): Boolean {
         val a = y % 19; val b = y / 100; val cc = y % 100

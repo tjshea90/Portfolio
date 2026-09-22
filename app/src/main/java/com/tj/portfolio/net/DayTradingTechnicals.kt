@@ -471,8 +471,11 @@ object DayTradingTechnicals {
      * included a thin after-hours print would move a breakout trigger to a price no regular-hours
      * order could ever have been filled at.
      */
+    // THE DAY'S OWN CLOSE, not a fixed 16:00 (full-tests audit 2026-09-22, with D-M4). These
+    // bars include post-market prints, so on a 13:00 half day the 13:00-16:00 after-hours tape
+    // was being read as regular session - into VWAP, the session high/low and the intraday ATR.
     internal fun regularSession(intraday: List<Bar>): List<Bar> =
-        intraday.filter { etMinutes(it.t) in OR_START_MIN until SESSION_END_MIN }
+        intraday.filter { etMinutes(it.t) in OR_START_MIN until MarketClock.closeMinuteAt(it.t * 1000L) }
 
     /** High of the 04:00-09:30 ET pre-market, or 0.0 when none of the bars fall in it. */
     internal fun premarketHigh(intraday: List<Bar>): Double =
@@ -480,7 +483,7 @@ object DayTradingTechnicals {
             .maxOfOrNull { it.high } ?: 0.0
 
     /** True once 16:00 ET has passed on the given instant's own New York date. */
-    private fun afterClose(nowMs: Long): Boolean = etMinutes(nowMs / 1000) >= SESSION_END_MIN
+    private fun afterClose(nowMs: Long): Boolean = etMinutes(nowMs / 1000) >= MarketClock.closeMinuteAt(nowMs)
 
     /**
      * The memo behind `fetch`'s daily leg.
