@@ -521,7 +521,8 @@ fun EarningsTab(
             // Same rule, same reason, as the estimates above.
             items(
                 f.history.distinctBy { it.quarter to it.date },
-                key = { "h_${it.quarter}_${it.date}" }
+                key = { "h_${it.quarter}_${it.date}" },
+                contentType = { "result" }
             ) { h ->
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),

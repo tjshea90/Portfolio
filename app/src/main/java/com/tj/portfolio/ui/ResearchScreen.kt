@@ -492,7 +492,10 @@ fun ResearchScreen(
                     // reintroduce the crash.
                     items(
                         rows.take(visibleCount),
-                        key = { "${section.key}_${it.symbol}" }
+                        key = { "${section.key}_${it.symbol}" },
+                        // One pool for every research card, so a card scrolled off is reused
+                        // for the next rather than rebuilt (2026-09-22b speed pass).
+                        contentType = { "research-card" }
                     ) { r ->
                         val chartKey = vm.chartKey(r.symbol, com.tj.portfolio.data.ChartRange.D1)
                         // Per-row derived reads (optimization pass): each keeps its own cached
