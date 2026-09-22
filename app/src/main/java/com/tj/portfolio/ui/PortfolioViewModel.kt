@@ -2018,6 +2018,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** True while the Day Trading tab wants the live loop running - see [setForeground]'s
      *  note on why the job handle alone is not enough to know whether to restart it. */
     private var dayTradingLiveWanted = false
+    /** When set, the live loop sweeps ONLY this symbol - a detail screen showing its plan,
+     *  not the Day Trading list. See [startDayTradingLive]'s `only`. */
+    private var dayTradingLiveOnly: String? = null
     /** Every symbol already given its one-time technicals score bonus this rebuild - see
      *  [enrichDayTradingVisible] for why this must be "once", not "every refresh". */
     private val dayTradingTechScored = HashSet<String>()
@@ -3122,7 +3125,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // See [startDayTradingLive]'s note: the old job died with the old `fgScope` above,
             // and only relaunching it here (never unconditionally - only when the tab was
             // actually left running) brings it back for a Day Trading tab still on screen.
-            if (dayTradingLiveWanted) startDayTradingLive()
+            if (dayTradingLiveWanted) startDayTradingLive(dayTradingLiveOnly)
         } else {
             wentBackgroundAt = System.currentTimeMillis()
             // Read BEFORE the cancellation below, which is what makes it true.
@@ -6945,8 +6948,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * instance's life. [dayTradingLiveWanted] is what lets `setForeground` tell "the tab is
      * still open, please restart" from "the tab was closed, leave it alone".
      */
-    fun startDayTradingLive() {
+    fun startDayTradingLive(only: String? = null) {
         dayTradingLiveWanted = true
+        // ---- ONE SYMBOL, FOR A DETAIL SCREEN (full-tests audit 2026-09-22, U-M5). Opening a
+        // pick from the Day Trading list takes the Research screen out of composition, which
+        // stopped this loop - and the detail screen's "today's plan" section, which reads the
+        // same row, froze at the moment of the tap. The detail screen now keeps it running for
+        // its own symbol only, so a holding that happens to be a pick costs one row's fetch,
+        // not the whole list's, and only while that screen is open.
+        dayTradingLiveOnly = only?.uppercase()
         dayTradingLiveJob?.cancel()
         dayTradingLiveJob = fgScope.launch {
             while (isActive) {
@@ -6986,6 +6996,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Stops it - called the moment the Day Trading tab is no longer the one on screen. */
     fun stopDayTradingLive() {
         dayTradingLiveWanted = false
+        dayTradingLiveOnly = null
         dayTradingLiveJob?.cancel()
         dayTradingLiveJob = null
     }
@@ -7022,8 +7033,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val name = com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING
         val rows = _research.value.section(name)
         if (rows.isEmpty()) return
-        val sweeping = !dayTradingSweepDone
-        val head = if (sweeping) rows else {
+        val only = dayTradingLiveOnly
+        // A single-symbol run never counts as the list's one-time full sweep, and never sorts.
+        val sweeping = only == null && !dayTradingSweepDone
+        val head = if (only != null) rows.filter { it.symbol == only } else if (sweeping) rows else {
             val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
                 .coerceAtMost(rows.size)
             rows.take(shown)
