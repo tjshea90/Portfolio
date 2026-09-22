@@ -154,7 +154,7 @@ object Ledger {
      * only (local noon), so all of one day's trades tie on `date` and used to fall back to the
      * row id - i.e. the order they happened to be inserted in. Two things that gets wrong:
      *
-     * 1. A SPLIT RECORDED ON A DAY THAT ALSO HAS TRADES (full-tests audit 2026-09-22, A-M3).
+     * 1. A SPLIT RECORDED ON THE SAME DATE AS TRADES (full-tests audit 2026-09-22, A-M3).
      *    A split takes effect at the open of its ex-date, so that day's fills are already in
      *    post-split shares. Replayed after them, the split multiplied shares that were bought
      *    at the new price - a 10-for-1 turned a same-day 50-share buy into 500. The split now
@@ -171,9 +171,11 @@ object Ledger {
      *    history keeps exactly the order it was entered in.
      */
     internal fun replayOrder(txns: List<Txn>): List<Txn> {
+        // Both rules act only on an exact TIE: rows stamped with a real time of day keep that
+        // order, because it is information; date-only rows (every entry point stamps local
+        // noon) tie, and the id is not.
         val sorted = txns.sortedWith(
-            compareBy<Txn>({ localDay(it.date) }, { if (it.type == TxnType.SPLIT) 0 else 1 },
-                { it.date }, { it.id })
+            compareBy<Txn>({ it.date }, { if (it.type == TxnType.SPLIT) 0 else 1 }, { it.id })
         ).toMutableList()
         // Slots of each symbol's rows, in replay order. Symbols never interact in a replay,
         // so a group is reordered within its own slots and every other row stays put.
@@ -188,9 +190,8 @@ object Ledger {
                     if (t.type == TxnType.SPLIT) TxnType.splitRatio(t).takeIf { it > 0.0 }?.let { held *= it }
                     k++; continue
                 }
-                val day = localDay(t.date)
                 var end = k
-                while (end + 1 < slots.size && localDay(sorted[slots[end + 1]].date) == day &&
+                while (end + 1 < slots.size && sorted[slots[end + 1]].date == t.date &&
                     sorted[slots[end + 1]].type.let { it == TxnType.BUY || it == TxnType.SELL }
                 ) end++
                 val group = (k..end).map { sorted[slots[it]] }
@@ -220,12 +221,6 @@ object Ledger {
             else { if (q > h + 1e-9) over += q - h; h = (h - q).coerceAtLeast(0.0) }
         }
         return h to over
-    }
-
-    private fun localDay(ms: Long): Long {
-        val c = java.util.Calendar.getInstance()
-        c.timeInMillis = ms
-        return c.get(java.util.Calendar.YEAR) * 1000L + c.get(java.util.Calendar.DAY_OF_YEAR)
     }
 
     /**
