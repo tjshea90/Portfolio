@@ -708,6 +708,37 @@ internal fun carryExplanations(
     ).let(keepEtfs)
 }
 
+/**
+ * An analyst pass's results, projected onto the list AS IT IS NOW - see `enrichPass`'s RES-7
+ * note for why the list is re-read at write time at all.
+ *
+ * ONLY THE ANALYST FIELDS ARE TAKEN FROM [enriched] (full-tests audit 2026-09-22, S-M3). The
+ * enriched copies were made from the rows as they stood BEFORE the pass suspended for seconds
+ * of Nasdaq requests. Swapping them in whole - as this used to - put back the OLD row: a Claude
+ * import that landed meanwhile had its `why` and catalyst reverted on every Best row this pass
+ * touched, and a price fill its price. Score, reasons and consensus are what the pass computed;
+ * everything else stays as the current row has it.
+ *
+ * The window is re-derived from the CURRENT list, so an import that inserted rows cannot smear
+ * the enriched ones across the wrong boundary; only it is re-ranked, and the tail keeps its
+ * screener ordering, so nothing can jump from an un-enriched region into a ranked one.
+ */
+internal fun applyAnalystEnrichment(
+    fresh: List<com.tj.portfolio.data.ResearchRow>,
+    enriched: List<com.tj.portfolio.data.ResearchRow>,
+    window: Int
+): List<com.tj.portfolio.data.ResearchRow> {
+    val enrichedBy = enriched.associateBy { it.symbol }
+    val head = fresh.take(window.coerceAtMost(fresh.size))
+    val tail = fresh.drop(head.size)
+    val ranked = head.map { f ->
+        val e = enrichedBy[f.symbol]
+        if (e?.consensus == null || f.consensus != null) f
+        else f.copy(score = e.score, reasons = e.reasons, consensus = e.consensus)
+    }.sortedByDescending { it.score }
+    return ranked + tail
+}
+
 /** One row of [carryExplanations]: [p]'s `why` onto [r], while it is still current. */
 private fun carryWhy(
     r: com.tj.portfolio.data.ResearchRow,
@@ -6394,7 +6425,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val set = _research.value
         if (set.isEmpty) return
         enrichJob = fgScope.launch {
-            _researchBusy.value = BUSY_DETAIL
+            // ONLY WHEN NOTHING ELSE HOLDS THE FLAG (full-tests audit 2026-09-22, S-M3). It is
+            // shared: "Explain with Claude" sets BUSY_EXPLAINING and its button is enabled on
+            // `busy.isEmpty()`. Taking it unconditionally overwrote a running explain's state,
+            // and the `finally` below then cleared it to "" while Claude was still answering -
+            // re-enabling the button mid-call, a second billed request one tap away.
+            if (_researchBusy.value.isEmpty()) _researchBusy.value = BUSY_DETAIL
             // Whether this pass fetched anything at all. The `finally` below re-serialises
             // the WHOLE ResearchSet - a few hundred rows - and writes it to SQLite, and this
             // function is now called whenever the Research screen re-evaluates its build
@@ -6505,19 +6541,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // the enriched copy of each symbol that is still there. Rows added while the
                 // pass ran survive; rows removed while it ran stay removed; nothing this pass
                 // did not fetch is touched.
-                val enrichedBy = enriched.associateBy { it.symbol }
-                val fresh = _research.value.section(name)
-                // The window is re-derived from the CURRENT list, so an import that inserted
-                // rows cannot smear the enriched ones across the wrong boundary.
-                val freshHead = fresh.take(window.coerceAtMost(fresh.size))
-                val freshTail = fresh.drop(freshHead.size)
-                // Re-rank the enriched window only. The tail keeps its screener ordering,
-                // which is what it was ranked on, so nothing can jump from an un-enriched
-                // region into a ranked one and look like the list reshuffling itself.
-                val ranked = freshHead
-                    .map { enrichedBy[it.symbol] ?: it }
-                    .sortedByDescending { it.score }
-                _research.value = _research.value.withSection(name, ranked + freshTail)
+                _research.value = _research.value.withSection(
+                    name, applyAnalystEnrichment(_research.value.section(name), enriched, window)
+                )
             }
 
         }
