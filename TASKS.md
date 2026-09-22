@@ -146,8 +146,13 @@ record-release.sh's BUILDLOG.md line, confirmed against get_release_by_tag.)
         `sessionDay` when importing levels). Tests: 5 in ResearchPriceFillTest
         (rollover block), 3 in DayTradingTest (import-session block). Suite run
         pending (Maven 429 on cold container, retrying).
-- [ ] Re-run suite, re-check touched code
-- [ ] Ship per the 2026-09-19 auto-ship rule if the fixes are release-worthy, post the link
+- [x] Re-run suite, re-check touched code - adversarial re-read of the whole pass
+      (git diff d816196..HEAD, 31 main files) found and fixed two more: (1) D-M4 follow-on -
+      DayTradingTechnicals.regularSession/afterClose/completedSessions used a fixed 16:00 close,
+      so on a half day the 13:00-16:00 after-hours prints fed VWAP/session range/intraday ATR
+      (now MarketClock.closeMinuteAt); (2) MainActivity detail-stack overflow shifted the
+      depth-keyed saved states (now forgotten before the shift). Final suite: green (1292+).
+- [ ] Ship v7.34 (code 91) per the 2026-09-19 auto-ship rule, post the link
 
 ## Tj's request, 2026-09-21e (his own words)
 
