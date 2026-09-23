@@ -498,6 +498,22 @@ private const val DEEP_NEWS_TTL_MS = 5 * 60 * 1000L
 /** The one fixed file in Downloads that survives the app being uninstalled. */
 private const val AUTOSAVE_FILE = "portfolio-autosave.json"
 
+/** The larger autosave, kept when a new one would have fewer transactions - see A-1. */
+private const val AUTOSAVE_PREVIOUS_FILE = "portfolio-autosave-previous.json"
+
+/**
+ * How many transactions a backup/autosave file holds: its manifest's count, else the length
+ * of its `transactions` array; -1 when [json] is missing or unreadable.
+ */
+internal fun backupTxnCount(json: String?): Int {
+    if (json.isNullOrBlank()) return -1
+    return runCatching {
+        val root = JSONObject(json)
+        root.optJSONObject("counts")?.optInt("transactions", -1)?.takeIf { it >= 0 }
+            ?: root.optJSONArray("transactions")?.length() ?: -1
+    }.getOrDefault(-1)
+}
+
 /**
  * The prompt files, at FIXED names so they are replaced rather than accumulated. One tap of
  * "Make prompt file" used to leave one more `claude-advice-prompt-<stamp>.md` in Downloads
@@ -7859,6 +7875,29 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             }.getOrNull()
             if (saved != null) db.set(Keys.AUTO_BACKUP_AT, now.toString())
 
+            // ---- NEVER SHRINK THE ONLY UNINSTALL-PROOF COPY WITHOUT KEEPING THE BIGGER ONE
+            // (full test 2026-09-23, A-1). After a storage wipe the ledger is empty but the
+            // Downloads autosave still holds everything - and one trade entered or one screenshot
+            // imported before restoring made the next autosave replace a 200-row file with a
+            // 1-row one, with the private snapshots already gone. Before an overwrite that would
+            // shrink it, the larger file is kept as AUTOSAVE_PREVIOUS_FILE - unless the copy
+            // already kept there is larger still, which is the one worth keeping.
+            runCatching {
+                val app = getApplication<Application>()
+                val oldJson = com.tj.portfolio.util.Storage.readOwnDownload(app, AUTOSAVE_FILE)
+                val oldCount = backupTxnCount(oldJson)
+                val newCount = backupTxnCount(json)
+                if (oldJson != null && oldCount > newCount) {
+                    val prevCount = backupTxnCount(
+                        com.tj.portfolio.util.Storage.readOwnDownload(app, AUTOSAVE_PREVIOUS_FILE)
+                    )
+                    if (oldCount > prevCount) {
+                        com.tj.portfolio.util.Storage.saveOrReplaceInDownloads(
+                            app, AUTOSAVE_PREVIOUS_FILE, oldJson
+                        )
+                    }
+                }
+            }
             val pub = runCatching {
                 com.tj.portfolio.util.Storage.saveOrReplaceInDownloads(
                     getApplication(), AUTOSAVE_FILE, json
