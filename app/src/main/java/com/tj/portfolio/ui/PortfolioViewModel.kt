@@ -2802,7 +2802,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // VISIBLE rows only, on a pull too (N-L5) - see [refreshSparklines]: a sparkline
                 // that is not on screen is not worth a request, and a pull on the Portfolio tab
                 // used to fetch every watched symbol's line as well.
-                refreshSparklines(onScreen)
+                //
+                // AND ONLY WHERE A ROW LINE IS DRAWN (full test 2026-09-23, N-4): the Portfolio
+                // and Watch lists. A detail screen polled its symbol's row sparkline every five
+                // minutes for a line no screen draws there - the chart replaced it in Round 58.
+                // Returning to a list re-scopes and refreshes it then.
+                if (visibleScope == VisibleScope.Portfolio || visibleScope == VisibleScope.Watchlist) {
+                    refreshSparklines(onScreen)
+                }
 
                 val fk = finnhubKey()
                 // ONE REQUEST FOR THE WHOLE PORTFOLIO, not one per symbol - see the long note
