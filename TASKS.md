@@ -16,7 +16,7 @@ next to the $4,986.70 total and not going away.)
       not animating + no finger down for 300 ms of frames -> animateToHidden (launched outside
       collectLatest - inside it the hide cancelled itself). PullIndicatorUiTest (3), MUTATION-
       CHECKED (watchdog off -> 2 fail).
-- [ ] Light tests (CLAUDE.md protocol)
+- [x] Light tests (CLAUDE.md protocol) - checkinit ok, suite 1328/0, diff read, all 9 Refreshable callers unaffected (new param defaulted; observer never consumes). No findings.
 - [ ] Ship + post link
 
 ## Tj's request, 2026-09-23b (his own words) — REPLACES the 2026-09-23 scheduled full test below
