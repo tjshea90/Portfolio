@@ -21,6 +21,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.graphics.asAndroidBitmap
 import com.tj.portfolio.ui.PortfolioTheme
 import com.tj.portfolio.ui.Refreshable
 import kotlinx.coroutines.CoroutineScope
@@ -180,29 +182,41 @@ class PullIndicatorUiTest {
 
     // ------------------------------------------ 2026-09-23d: the invariant at draw time
 
+    /**
+     * The pixels where the circle sits at the threshold (top centre, ~60dp down), as a
+     * fingerprint - compared across frames rather than against a hard-coded colour, so a theme
+     * change cannot break it.
+     */
+    private fun circleSpot(): List<Int> {
+        val img = rule.onNodeWithTag("list").captureToImage().asAndroidBitmap()
+        val d = img.density / 160f
+        val cx = img.width / 2
+        val cy = (60f * d).toInt()
+        return listOf(-6, 0, 6).flatMap { dx -> listOf(-6, 0, 6).map { dy -> img.getPixel(cx + (dx * d).toInt(), cy + (dy * d).toInt()) } }
+    }
+
     @Test fun `an animation state stuck at the threshold is never drawn while idle`() {
+        refreshing = true
         showList()
-        // Force the Animatable to 1 behind the gesture's back - the recording's state, however
-        // it got there - and hold a finger down mid-list so the watchdog cannot act.
+        rule.mainClock.advanceTimeBy(1_000)
+        val withCircle = circleSpot()
+        rule.runOnIdle { refreshing = false }
+        rule.mainClock.advanceTimeBy(1_000)
+        rule.waitForIdle()
+        val without = circleSpot()
+        assertTrue("fixture: the circle must change those pixels", withCircle != without)
+
+        // Force the Animatable to the threshold behind the gesture's back - the recording's
+        // state, however it got there - with a finger held down mid-list so no watchdog acts.
         rule.onNodeWithTag("list").performTouchInput { down(center) }
         rule.runOnIdle { scope.launch { state.snapTo(1f) } }
         rule.mainClock.advanceTimeByFrame()
         rule.onNodeWithTag("list").performTouchInput {
-            repeat(6) { moveBy(androidx.compose.ui.geometry.Offset(0f, -40f)) }
+            repeat(6) { moveBy(androidx.compose.ui.geometry.Offset(0f, -2f)) }
         }
         rule.mainClock.advanceTimeByFrame()
-        // The circle's own layer reads the gated value; the indicator must not be on screen.
-        rule.onNodeWithTag("list").assertExists()
         assertEquals("underlying state really is stuck", 1f, state.distanceFraction, 1e-3f)
-        assertTrue("circle drawn while idle", indicatorOffsetY() < 0f)
+        assertEquals("the stuck circle was drawn", without, circleSpot())
         rule.onNodeWithTag("list").performTouchInput { up() }
-    }
-
-    /** Where the indicator is actually drawn: negative = above the top edge, i.e. hidden. */
-    private fun indicatorOffsetY(): Float {
-        val nodes = rule.onAllNodes(androidx.compose.ui.test.hasProgressBarRangeInfo(
-            androidx.compose.ui.semantics.ProgressBarRangeInfo.Indeterminate).or(
-            androidx.compose.ui.test.SemanticsMatcher("any progress") { true }), useUnmergedTree = true)
-        return -1f
     }
 }
