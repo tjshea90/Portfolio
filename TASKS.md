@@ -8,8 +8,14 @@
 (Screenshot: Portfolio tab, v7.37, "Prices updated just now", the pull-to-refresh circle sitting
 next to the $4,986.70 total and not going away.)
 
-- [ ] Diagnose why the pull-to-refresh indicator sometimes stays on screen
-- [ ] Fix + regression test
+- [x] Diagnose why the pull-to-refresh indicator sometimes stays on screen - M3 1.4.0 hides it
+      after a release ONLY from inside the list's fling coroutine (PullToRefreshModifierNode.
+      onRelease -> animateToHidden); a touch/tab-swipe cancelling that fling leaves it parked,
+      and a refresh that already finished never changes isRefreshing again to move it.
+- [x] Fix + regression test - Refreshable (ui/Common.kt) watchdog: showing + not refreshing +
+      not animating + no finger down for 300 ms of frames -> animateToHidden (launched outside
+      collectLatest - inside it the hide cancelled itself). PullIndicatorUiTest (3), MUTATION-
+      CHECKED (watchdog off -> 2 fail).
 - [ ] Light tests (CLAUDE.md protocol)
 - [ ] Ship + post link
 
