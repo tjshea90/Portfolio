@@ -75,11 +75,11 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       [ ] S-8 L "trend is mixed" wording  [ ] S-9 L dated-but-unbucketable says "no dates"
       [ ] S-10 L double "Same exposure as" line
     - accounting.md (landed): [x] A-1 H (autosave-previous kept on shrink; recovery reads larger; FullTest0923Test) autosave overwritten by near-empty ledger
-      [ ] A-2 M replayOrder reverses correct day w/ missing history  [x] A-3 M snapshot rows
+      [x] A-2 M replayOrder reverses correct day w/ missing history  [x] A-3 M snapshot rows
       dated today -> huge "Today" P/L  [ ] A-4 M undo snapshot unreachable  [x] A-5 L BUY/SELL
       w/o symbol  [x] A-6 L fees on non-trade rows double  [ ] A-7 L wipe keeps overrides
       [x] A-8 L share-in replaces pending review  [x] A-9 L inbox deleted before import stored
-      [ ] A-10 L saving flag stuck after failed commit  [ ] A-11 L delete-last triggers
+      [x] A-10 L saving flag stuck after failed commit  [x] A-11 L delete-last triggers
       missing alarm  [ ] A-12 L autosave truncate-in-place
     - daytrading.md (landed): [x] D-1 H share->Research rebuild wipes Claude DT answer (=U-1)
       [ ] D-2 M Claude plan on app-declined row never logged (planDeclineStreak)  [ ] D-3 M no
