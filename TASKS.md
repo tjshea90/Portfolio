@@ -60,8 +60,11 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
         audits/2026-09-23/{scoring,daytrading,network,ui-share,accounting}.md (so a resumed
         session re-reads the files instead of re-running the audit). Missing file = that
         agent did not finish -> re-run just that one.
-  - [ ] Fix WatchSinceAddedTest hermeticity (asserts "no live quote" but VM.init's refresh()
-        really fetches NVDA when the container has network)
+  - [x] Fix WatchSinceAddedTest hermeticity (asserts "no live quote" but VM.init's refresh()
+        really fetches NVDA when the container has network) - now asserts pct is measured
+        from the baseline whichever way the fetch went; no-quote case stays covered by the
+        pure test. (Also: container-local ~/.gradle/init.d/central-mirror.gradle recreated -
+        Google's Central mirror, incl. Robolectric's runtime jar - stops the 429 retries.)
   - [ ] Verify + fix every finding (agents can be wrong - check each against the code), tests
   - [ ] Re-run suite; re-check what fixes touched
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
