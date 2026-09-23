@@ -92,8 +92,8 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       start Research rebuild before cache loads  [x] U-3 L cached advice overwrites shared
       advice on cold start  [x] U-4 L file:// URIs + BROWSABLE on share target  [x] U-5 L
       (=A-8)  [x] U-6 L prompt share after leaving app  [x] U-7 L (=A-9) + text fallback
-    - network.md (landed): [ ] N-1 M DT sweep downloads same 5m chart twice (no ETag from
-      Yahoo chart - "304" comments false)  [ ] N-2 M Claude retry on timeout/5xx re-bills
+    - network.md (landed): [x] N-1 M DT sweep downloads same 5m chart twice (no ETag from
+      Yahoo chart - "304" comments false)  [x] N-2 M Claude retry on timeout/5xx re-bills
       [ ] N-3 L cooldown checked before permit  [ ] N-4 L detail screen sparkline refetch
       [ ] N-5 L SPY compare line frozen on quote tick  [ ] N-6 L intradayChartIsFinal ignores
       session  [ ] N-7 L insider marks failed symbols checked  [ ] N-8 L research refetches
