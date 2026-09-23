@@ -6130,10 +6130,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val r = runCatching { importShared(text) }
                 .getOrElse { ShareImport("Couldn't import that share: ${it.message}", null) }
             _toast.value = r.message
-            r.dest?.let { d ->
-                if (d == ShareDest.RESEARCH || d == ShareDest.DAY_TRADING) jumpToResearch(d)
-                _shareNav.value = d
-            }
+            r.dest?.let { _shareNav.value = it }
         }
     }
 
@@ -6151,13 +6148,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val parsed = runCatching { com.tj.portfolio.net.DayTradingBridge.parse(text) }
                     .getOrElse { return ShareImport("Couldn't read that file: ${it.message}", null) }
                 val msg = applyDayTradingAnswer(parsed, "Claude app")
-                ShareImport(msg, if (parsed.error == null) ShareDest.DAY_TRADING else null)
+                if (parsed.error != null) return ShareImport(msg, null)
+                jumpToResearch(ShareDest.DAY_TRADING)
+                ShareImport(msg, ShareDest.DAY_TRADING)
             }
             com.tj.portfolio.net.SharedAnswer.Kind.RESEARCH -> {
                 val parsed = runCatching { com.tj.portfolio.net.ResearchBridge.parse(text) }
                     .getOrElse { return ShareImport("Couldn't read that file: ${it.message}", null) }
                 val msg = applyResearchAnswer(parsed, "Claude app")
-                ShareImport(msg, if (parsed.error == null) ShareDest.RESEARCH else null)
+                if (parsed.error != null) return ShareImport(msg, null)
+                jumpToResearch(ShareDest.RESEARCH)
+                ShareImport(msg, ShareDest.RESEARCH)
             }
             else -> importAdviceOrTransactions(text)
         }

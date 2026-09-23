@@ -51,6 +51,22 @@ class ShareFlowTest {
         app = ApplicationProvider.getApplicationContext()
         app.deleteDatabase(Db.DB_NAME)
         ShareInbox.take(app)
+        forgetFileProviderRoots()
+    }
+
+    /**
+     * FileProvider caches each authority's root folders in a STATIC map, the first time it is
+     * asked. On a phone the cache folder never moves, so that is fine; under Robolectric every
+     * test gets a fresh temp folder while the class - and its static map - is shared, so every
+     * test after the first would resolve against a folder that no longer exists. A test-only
+     * artifact, cleared here so each test sees what a real process would.
+     */
+    private fun forgetFileProviderRoots() {
+        runCatching {
+            val f = androidx.core.content.FileProvider::class.java.getDeclaredField("sCache")
+            f.isAccessible = true
+            (f.get(null) as MutableMap<*, *>).clear()
+        }
     }
 
     @After fun tearDown() {
