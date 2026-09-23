@@ -4590,9 +4590,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         stampFilingsAt()
         try {
             val known = snapshotInsiderDocs()
+            val answered: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
             val filings = withContext(Dispatchers.IO) {
                 runCatching {
-                    Insider.forSymbols(symbols, known, secGate, insiderSkip)
+                    Insider.forSymbols(symbols, known, secGate, insiderSkip, answered = answered)
                 }.getOrDefault(emptyList())
             }
             // SAVED FIRST, WHATEVER ELSE HAPPENED. The pass may have discovered that several
@@ -4612,8 +4613,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // listing request this pass had just made. SEC.gov is the one host here with a
             // published fair-use policy. (An empty pass returned above: that one may be an
             // outage, so nothing is stamped for it.)
+            //
+            // ONLY THE ONES EDGAR ANSWERED (full test 2026-09-23, N-7): a 403/429 part-way
+            // through arms the host cooldown, and every later listing in the pass was never
+            // made - stamping those as checked hid them for half an hour.
             val now = System.currentTimeMillis()
-            symbols.forEach { insiderAt[it.uppercase()] = now }
+            answered.forEach { insiderAt[it.uppercase()] = now }
             // Real open-market trades also belong in the All and My-stocks lists, where a
             // headline-shaped row saying "CEO bought 40,000 shares" reads as news - because
             // it is. The machinery (grants, tax withholding, option exercises) stays in the

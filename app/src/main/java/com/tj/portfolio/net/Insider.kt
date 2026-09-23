@@ -114,7 +114,13 @@ object Insider {
          */
         skip: MutableSet<String> = HashSet(),
         days: Int = WINDOW_DAYS,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        /**
+         * Filled with every symbol whose listing EDGAR actually ANSWERED (full test 2026-09-23,
+         * N-7) - so a caller stamping symbols as freshly checked can leave out the ones a
+         * mid-pass 403/429 cooldown skipped, instead of treating that failure as an answer.
+         */
+        answered: MutableSet<String>? = null
     ): List<InsiderFiling> = coroutineScope {
         if (symbols.isEmpty()) return@coroutineScope emptyList()
         val since = Fmt.iso(now - days * 86_400_000L)
@@ -124,8 +130,10 @@ object Insider {
         // downloaded yet, so this is cheap and it is what makes the budget below possible.
         val refs = symbols.distinct().map { sym ->
             async {
-                runCatching { gate.withPermit { listFilings(sym, since) } }
-                    .getOrDefault(emptyList())
+                runCatching { gate.withPermit { listing(sym, since) } }
+                    .getOrNull()
+                    ?.also { if (it.answered) answered?.add(sym) }
+                    ?.refs.orEmpty()
                     .take(MAX_PER_SYMBOL)
                     .map { sym to it }
             }
