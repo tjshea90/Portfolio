@@ -157,8 +157,7 @@ fun Refreshable(
     val drawn = remember(state, gesture) {
         object : PullToRefreshState by state {
             override val distanceFraction: Float
-                get() = if (latestRefreshing || gesture.distance > 0f || settling)
-                    state.distanceFraction else 0f
+                get() = drawnFraction(state.distanceFraction, latestRefreshing, gesture.distance > 0f, settling)
         }
     }
 
@@ -185,6 +184,14 @@ fun Refreshable(
         )
     }
 }
+
+/**
+ * Where the pull circle may be DRAWN, given where its animation state says it is: only while a
+ * refresh is running, a finger is pulling past the top, or one of [Refreshable]'s own show/hide
+ * animations is in flight. Otherwise nowhere, whatever the state claims (2026-09-23d).
+ */
+internal fun drawnFraction(raw: Float, refreshing: Boolean, pulling: Boolean, settling: Boolean): Float =
+    if (refreshing || pulling || settling) raw else 0f
 
 /** How long a pull indicator may sit abandoned before [Refreshable] puts it away. */
 internal const val STRANDED_INDICATOR_GRACE_MS = 300L
