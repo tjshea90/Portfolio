@@ -106,4 +106,15 @@ class FullTest0923Test {
         assertEquals(later, com.tj.portfolio.ui.pickUndoSnapshot(listOf(later, daily, before)))
         assertEquals(null, com.tj.portfolio.ui.pickUndoSnapshot(emptyList()))
     }
+
+    // ---- S-6: sell votes count in the research-list analyst blend.
+
+    @Test fun `S-6 an all-sell consensus scores below an all-hold one`() {
+        val base = com.tj.portfolio.net.ResearchScore.Scored(60, emptyList(), 80)
+        val hold = com.tj.portfolio.net.ResearchScore.withAnalyst(
+            base, com.tj.portfolio.data.Consensus2(buy = 0, hold = 10, sell = 0), 100.0)
+        val sell = com.tj.portfolio.net.ResearchScore.withAnalyst(
+            base, com.tj.portfolio.data.Consensus2(buy = 0, hold = 0, sell = 10), 100.0)
+        assert(hold.score > sell.score) { "hold ${hold.score} vs sell ${sell.score}" }
+    }
 }
