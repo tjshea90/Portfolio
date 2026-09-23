@@ -1,5 +1,18 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-23c (his own words)
+
+> Review the screenshot. Sometimes the pull to refresh works fine, but sometimes the refresh
+> circle symbol gets stuck . Diagnose and fix then run light tests and ship
+
+(Screenshot: Portfolio tab, v7.37, "Prices updated just now", the pull-to-refresh circle sitting
+next to the $4,986.70 total and not going away.)
+
+- [ ] Diagnose why the pull-to-refresh indicator sometimes stays on screen
+- [ ] Fix + regression test
+- [ ] Light tests (CLAUDE.md protocol)
+- [ ] Ship + post link
+
 ## Tj's request, 2026-09-23b (his own words) — REPLACES the 2026-09-23 scheduled full test below
 
 > At the beginning of the full test that is already scheduled, see if you can make it so anywhere
