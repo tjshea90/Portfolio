@@ -21,7 +21,7 @@ import java.io.File
  * written is kept alongside, as the fallback if the share sheet cannot open.
  *
  * IN ([ShareInbox]): `ShareImportActivity` copies whatever was shared into a one-file inbox
- * and hands over to `MainActivity`, which imports it. The copy is taken inside the receiving
+ * and hands over to `MainActivity`, which imports it and only then removes it. The copy is taken inside the receiving
  * activity because that is the only place the sender's read grant is guaranteed to hold - by
  * the time MainActivity (possibly cold-starting a whole process) gets to it, a grant tied to
  * the trampoline could already be gone. And a file on disk, rather than an Intent extra,
@@ -87,39 +87,54 @@ object ShareInbox {
 
     /** Under `noBackupFilesDir`: a transient hand-off, never worth a cloud backup. */
     private const val DIR = "share-inbox"
-    private const val FILE = "shared-answer.txt"
+    private const val PREFIX = "share-"
+    private const val SUFFIX = ".txt"
 
     /** The action `ShareImportActivity` starts `MainActivity` with. */
     const val ACTION_IMPORT = "com.tj.portfolio.action.IMPORT_SHARED"
 
-    private fun file(ctx: Context): File =
-        File(File(ctx.noBackupFilesDir, DIR).apply { if (!exists()) mkdirs() }, FILE)
+    /** One queued share: its file (for [done]) and its text. */
+    class Item(val file: File, val text: String)
 
-    /** Replaces whatever is waiting. Written beside and renamed, so [take] never reads half. */
+    private fun dir(ctx: Context): File =
+        File(ctx.noBackupFilesDir, DIR).apply { if (!exists()) mkdirs() }
+
+    /**
+     * A QUEUE, NOT ONE FILE (full test 2026-09-23, A-9 / U-7). A single fixed file let a
+     * second share that arrived before the first was drained (two quick shares on a cold
+     * start) overwrite the first. Each share now gets its own file, named by arrival time so
+     * [next] drains them oldest first. Written beside and renamed, so [next] never reads half.
+     */
     fun put(ctx: Context, text: String): Boolean = try {
-        val out = file(ctx)
-        val tmp = File(out.parentFile, "$FILE.tmp")
+        val d = dir(ctx)
+        val stamp = System.currentTimeMillis().toString().padStart(15, '0') + "-" +
+            System.nanoTime().toString().takeLast(9)
+        val out = File(d, PREFIX + stamp + SUFFIX)
+        val tmp = File(d, PREFIX + stamp + ".tmp")
         tmp.writeText(text)
-        if (!tmp.renameTo(out)) {
-            out.delete()
-            tmp.renameTo(out)
-        } else true
+        tmp.renameTo(out)
     } catch (e: Exception) {
         false
     }
 
     /**
-     * Reads AND deletes what is waiting, so one share is imported exactly once - a second
-     * delivery of the same intent (a process-death restore re-delivers the launching intent)
-     * finds nothing and does nothing.
+     * The oldest queued share, WITHOUT removing it - [done] removes it once its import has
+     * been applied, so a process death in between re-imports it on the next start instead of
+     * losing it. Unreadable files are dropped rather than blocking the queue for ever.
      */
-    fun take(ctx: Context): String? = try {
-        val f = file(ctx)
-        if (!f.exists()) null
-        else f.readText().also { f.delete() }
-    } catch (e: Exception) {
-        null
+    fun next(ctx: Context): Item? {
+        val files = dir(ctx).listFiles { f -> f.name.startsWith(PREFIX) && f.name.endsWith(SUFFIX) }
+            ?.sortedBy { it.name } ?: return null
+        for (f in files) {
+            val text = runCatching { f.readText() }.getOrNull()
+            if (text != null) return Item(f, text)
+            f.delete()
+        }
+        return null
     }
+
+    /** Removes a share [next] returned. False if it could not be removed. */
+    fun done(item: Item): Boolean = !item.file.exists() || item.file.delete()
 
     /**
      * The shared text, from any of the three shapes a share arrives in:

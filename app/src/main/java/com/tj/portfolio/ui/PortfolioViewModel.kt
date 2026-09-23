@@ -41,9 +41,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -1439,6 +1441,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * Trending/Best/ETF lists (it only fills an empty screen). [importSharedInbox] waits on this.
      */
     private val researchCacheReady = kotlinx.coroutines.CompletableDeferred<Unit>()
+
+    /** Serialises [importSharedInbox] - see its ONE DRAIN AT A TIME note. */
+    private val shareDrain = kotlinx.coroutines.sync.Mutex()
 
     private val _models = MutableStateFlow<List<String>>(emptyList())
     val models: StateFlow<List<String>> = _models.asStateFlow()
@@ -6187,8 +6192,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
-
-    private val shareDrain = kotlinx.coroutines.sync.Mutex()
 
     /**
      * Routes one shared answer by its CONTENT ([com.tj.portfolio.net.SharedAnswer.classify]) to
