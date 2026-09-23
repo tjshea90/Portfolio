@@ -316,7 +316,8 @@ object Ledger {
     private fun fifo(
         txns: List<Txn>,
         overrides: Map<String, Override>,
-        today: LongRange
+        today: LongRange,
+        repairBelowId: Long = Long.MAX_VALUE
     ): List<Position> {
         val lots = LinkedHashMap<String, ArrayDeque<Lot>>()
         val realized = LinkedHashMap<String, Double>()
@@ -324,7 +325,7 @@ object Ledger {
         /** Shares sold with nothing on the books to cover them - see [Position.oversold]. */
         val oversold = LinkedHashMap<String, Double>()
 
-        for (t in replayOrder(txns)) {
+        for (t in replayOrder(txns, repairBelowId)) {
             val sym = t.symbol?.uppercase() ?: continue
             if (t.type == TxnType.DIVIDEND) { lots.getOrPut(sym) { ArrayDeque() }; continue }
             // A SPLIT rewrites every open lot in place: more shares, proportionally cheaper,
@@ -420,7 +421,8 @@ object Ledger {
     private fun averageCost(
         txns: List<Txn>,
         overrides: Map<String, Override>,
-        today: LongRange
+        today: LongRange,
+        repairBelowId: Long = Long.MAX_VALUE
     ): List<Position> {
         /**
          * [beforeShares] is shares still held that were bought STRICTLY BEFORE the session
@@ -437,7 +439,7 @@ object Ledger {
                        var beforeShares: Double = 0.0, var oversold: Double = 0.0)
 
         val acc = LinkedHashMap<String, Acc>()
-        for (t in replayOrder(txns)) {
+        for (t in replayOrder(txns, repairBelowId)) {
             val sym = t.symbol?.uppercase() ?: continue
             if (t.type !in setOf(TxnType.BUY, TxnType.SELL)) {
                 if (t.type == TxnType.DIVIDEND) acc.getOrPut(sym) { Acc() }

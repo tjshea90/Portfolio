@@ -2560,7 +2560,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
         // The SESSION the quotes describe, not the wall clock - see sessionInstant().
         val session = sessionInstant()
-        cachedPositions = Ledger.positions(txns, overrides, costMethod(), session)
+        cachedPositions = Ledger.positions(txns, overrides, costMethod(), session, replayRepairBelowId())
         cachedTxns = txns
         cachedSums = Ledger.sums(txns)
         cachedTxnsDesc = txns.sortedWith(
@@ -3049,7 +3049,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private fun allTrackedSymbols(): List<String> {
         val fromRows = _ui.value.rows.map { it.symbol }
         return if (fromRows.isNotEmpty()) fromRows
-        else (Ledger.positions(db.allTxns(), db.overrides(), costMethod())
+        else (Ledger.positions(db.allTxns(), db.overrides(), costMethod(), repairBelowId = replayRepairBelowId())
             .filter { it.shares > 1e-9 }.map { it.symbol } + db.watchlist()).distinct()
     }
 
@@ -3639,6 +3639,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         toast("${ov.symbol.uppercase()} has a manual $what override - clear it (Edit shares / cost) for this trade to count")
     }
 
+    /**
+     * See [Keys.REPLAY_REPAIR_BELOW_ID]. Written once, the first time this build replays the
+     * ledger: every row on file then may predate chronological imports; every later insert
+     * gets a higher id and is left in the order it was stored.
+     */
+    private fun replayRepairBelowId(): Long {
+        db.get(Keys.REPLAY_REPAIR_BELOW_ID).toLongOrNull()?.let { return it }
+        val mark = db.maxTxnId() + 1
+        db.set(Keys.REPLAY_REPAIR_BELOW_ID, mark.toString())
+        return mark
+    }
+
     fun deleteTxn(id: Long) { db.deleteTxn(id); resetMarkIfEmptied(); recompute() }
 
     /**
@@ -3728,7 +3740,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
         // EVERY position, not the open ones - a symbol that was oversold into a closed
         // position is exactly the case with nowhere else to surface. See FeeAudit.oversold.
-        val short = Ledger.positions(txns, db.overrides(), costMethod())
+        val short = Ledger.positions(txns, db.overrides(), costMethod(), repairBelowId = replayRepairBelowId())
             .filter { it.oversold > 1e-9 }
             .map { it.symbol to it.oversold }
         return FeeAudit(

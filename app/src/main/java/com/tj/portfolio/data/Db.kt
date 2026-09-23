@@ -787,6 +787,13 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         )
     }
 
+    /** The highest transaction id on file, 0 when there are none. */
+    fun maxTxnId(): Long {
+        readableDatabase.rawQuery("SELECT MAX(id) FROM txns", null).use { c ->
+            return if (c.moveToFirst() && !c.isNull(0)) c.getLong(0) else 0L
+        }
+    }
+
     /** Cheap existence/size check - allTxns() materialises every row. */
     fun txnCount(): Int {
         readableDatabase.rawQuery("SELECT COUNT(*) FROM txns", null).use { c ->
@@ -2118,7 +2125,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         k == Keys.RESEARCH_CACHE || k == Keys.INSIDER_CACHE || k == Keys.INSIDER_SKIP ||
             k == Keys.FEED_AT || k == Keys.FILINGS_AT ||
             k == Keys.AUTOSAVE_AT || k == Keys.AUTO_BACKUP_AT || k == Keys.DOWNLOADS_TIDIED ||
-            k == Keys.PENDING_IMPORT
+            k == Keys.PENDING_IMPORT || k == Keys.REPLAY_REPAIR_BELOW_ID
 
     private fun appVersionName(): String = try {
         ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
@@ -2279,6 +2286,14 @@ object Keys {
      * app says so loudly instead of quietly drawing an empty portfolio.
      */
     const val LAST_TXN_COUNT = "last_txn_count"
+
+    /**
+     * The first transaction id that postdates chronological imports - rows below it may still
+     * be stored in screen order and are candidates for `Ledger.replayOrder`'s repair; rows at
+     * or above it never are (full test 2026-09-23, A-2). Per device: ids are, so it is not
+     * backed up, and a restore resets it (restored rows are re-inserted with new ids).
+     */
+    const val REPLAY_REPAIR_BELOW_ID = "replay_repair_below_id"
 
     /** When the uninstall-proof copy in Downloads was last written. */
     const val AUTOSAVE_AT = "autosave_at"
