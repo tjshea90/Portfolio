@@ -94,11 +94,11 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       (=A-8)  [x] U-6 L prompt share after leaving app  [x] U-7 L (=A-9) + text fallback
     - network.md (landed): [x] N-1 M DT sweep downloads same 5m chart twice (no ETag from
       Yahoo chart - "304" comments false)  [x] N-2 M Claude retry on timeout/5xx re-bills
-      [ ] N-3 L cooldown checked before permit  [ ] N-4 L detail screen sparkline refetch
-      [ ] N-5 L SPY compare line frozen on quote tick  [ ] N-6 L intradayChartIsFinal ignores
-      session  [ ] N-7 L insider marks failed symbols checked  [ ] N-8 L research refetches
-      RSS/Reddit Feed already has  [ ] N-9 L tradestie expired cert retried  [x] N-10 L ratings
-      row blocks core fundamentals  [ ] N-11 L empty deep-news never remembered
+      [x] N-3 L cooldown checked before permit  [x] N-4 L detail screen sparkline refetch
+      [x] N-5 L SPY compare line frozen on quote tick  [x] N-6 L intradayChartIsFinal ignores
+      session  [x] N-7 L insider marks failed symbols checked  [x] N-8 L research refetches
+      RSS/Reddit Feed already has  [x] N-9 L tradestie expired cert retried  [x] N-10 L ratings
+      row blocks core fundamentals  [x] N-11 L empty deep-news never remembered
       FIXED SO FAR (tests: ShareFlowTest +4, ResearchCarryTest +3): researchStale counts a Claude
       import as fresh; share drain waits for a running build; carry keeps catalyst/conviction/
       added rows/same-day DT plan; ShareInbox is a queue removed after import; readShared
