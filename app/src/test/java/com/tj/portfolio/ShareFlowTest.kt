@@ -50,7 +50,7 @@ class ShareFlowTest {
     @Before fun setUp() {
         app = ApplicationProvider.getApplicationContext()
         app.deleteDatabase(Db.DB_NAME)
-        ShareInbox.take(app)
+        drainInbox()
         forgetFileProviderRoots()
     }
 
@@ -71,7 +71,19 @@ class ShareFlowTest {
 
     @After fun tearDown() {
         app.deleteDatabase(Db.DB_NAME)
-        ShareInbox.take(app)
+        drainInbox()
+    }
+
+    private fun drainInbox() {
+        while (true) { val i = ShareInbox.next(app) ?: break; ShareInbox.done(i) }
+    }
+
+    /** A file served by ANOTHER app's provider, as the Claude app's share would be. */
+    private fun foreignUri(text: String): Uri {
+        val uri = Uri.parse("content://com.anthropic.claude.files/answers/answer.md")
+        org.robolectric.Shadows.shadowOf(app.contentResolver)
+            .registerInputStreamSupplier(uri) { java.io.ByteArrayInputStream(text.toByteArray()) }
+        return uri
     }
 
     private fun settle() {
@@ -210,7 +222,7 @@ ${ClaudeBridge.SHARE_BACK_LINE}
     // ------------------------------------------------------------ incoming share
 
     @Test fun `a shared file, an opened file and shared text all read the same`() {
-        val uri = PromptShare.stage(app, "answer.md", dayTradingReply)!!
+        val uri = foreignUri(dayTradingReply)
         val send = Intent(Intent.ACTION_SEND).setType("text/markdown").putExtra(Intent.EXTRA_STREAM, uri)
         val view = Intent(Intent.ACTION_VIEW).setDataAndType(uri, "text/markdown")
         val text = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, dayTradingReply)
@@ -222,10 +234,32 @@ ${ClaudeBridge.SHARE_BACK_LINE}
         assertNull(ShareInbox.readShared(app, send, maxChars = 10))
     }
 
-    @Test fun `the inbox hands over a share exactly once`() {
-        assertTrue(ShareInbox.put(app, "hello"))
-        assertEquals("hello", ShareInbox.take(app))
-        assertNull("a re-delivered intent would import it twice", ShareInbox.take(app))
+    @Test fun `our own files and raw file paths are never read as a share`() {
+        // U-4: the target is exported - a file:// path would be read with this app's own
+        // permissions, and our provider only ever serves prompts, never answers.
+        val own = PromptShare.stage(app, "claude-advice-prompt.md", "prompt")!!
+        val file = Uri.fromFile(java.io.File(app.filesDir, "anything.txt").apply { writeText("secret") })
+        listOf(own, file).forEach { u ->
+            assertNull(ShareInbox.readShared(app, Intent(Intent.ACTION_VIEW).setData(u), SharedAnswer.MAX_CHARS))
+        }
+        // ...but a share that ALSO carries the text still yields the text (U-7).
+        val both = Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, file)
+            .putExtra(Intent.EXTRA_TEXT, "the reply")
+        assertEquals("the reply", ShareInbox.readShared(app, both, SharedAnswer.MAX_CHARS))
+    }
+
+    @Test fun `the inbox is a queue drained oldest first, each removed only when done`() {
+        assertTrue(ShareInbox.put(app, "first"))
+        assertTrue(ShareInbox.put(app, "second"))
+        val a = ShareInbox.next(app)!!
+        assertEquals("first", a.text)
+        // Not removed by reading - a process death here must not lose it (A-9).
+        assertEquals("first", ShareInbox.next(app)!!.text)
+        assertTrue(ShareInbox.done(a))
+        val b = ShareInbox.next(app)!!
+        assertEquals("a second share must not overwrite the first", "second", b.text)
+        assertTrue(ShareInbox.done(b))
+        assertNull(ShareInbox.next(app))
     }
 
     // ------------------------------------------------------- import and navigate
@@ -241,7 +275,10 @@ ${ClaudeBridge.SHARE_BACK_LINE}
         assertEquals(dt, vm.researchJump.value)
         assertEquals(dt, vm.researchTab())
         assertTrue(vm.research.value.dayTrading.any { it.symbol == "GME" && it.why.contains("short squeeze") })
-        assertNull("the inbox was not cleared", ShareInbox.take(app))
+        assertNull("the inbox was not cleared", ShareInbox.next(app))
+        // U-1 / D-1: the answer counts as a refresh, so opening Research to show it does not
+        // trigger the rebuild that used to replace it.
+        assertFalse(vm.researchStale())
     }
 
     @Test fun `a shared research answer opens Research on a list it filled`() {
@@ -265,6 +302,13 @@ ${ClaudeBridge.SHARE_BACK_LINE}
         val t = vm.importShared(transactionsReply)
         assertEquals(ShareDest.ACTIVITY, t.dest)
         assertEquals("AAPL", vm.importResult.value!!.transactions.single().symbol)
+
+        // A-8: a second share adds to the review already waiting instead of replacing it.
+        val more = transactionsReply.replace("AAPL", "MSFT")
+        val t2 = vm.importShared(more)
+        assertEquals(ShareDest.ACTIVITY, t2.dest)
+        assertEquals(listOf("AAPL", "MSFT"), vm.importResult.value!!.transactions.map { it.symbol })
+        assertTrue(t2.message.contains("already waiting"))
     }
 
     @Test fun `junk and the prompt file navigate nowhere and change nothing`() {
