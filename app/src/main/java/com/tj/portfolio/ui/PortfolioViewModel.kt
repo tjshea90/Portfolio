@@ -503,9 +503,11 @@ private const val AUTOSAVE_FILE = "portfolio-autosave.json"
  * [files] newest first. The newest file, EXCEPT right after a destructive action: a Replace
  * restore (and any import) forces a fresh daily snapshot seconds after the "before" copy was
  * taken, and that newer file holds the state the undo is meant to undo - so the before-copy
- * shadowed by a daily snapshot written within ten minutes of it is the one returned.
+ * shadowed by a daily snapshot written within a MINUTE of it is the one returned. (Ten minutes
+ * was too wide - diff review R-10: an import a few minutes after a delete is real work, and the
+ * undo would have skipped it.)
  */
-internal fun pickUndoSnapshot(files: List<java.io.File>, windowMs: Long = 10 * 60_000L): java.io.File? {
+internal fun pickUndoSnapshot(files: List<java.io.File>, windowMs: Long = 60_000L): java.io.File? {
     val newest = files.firstOrNull() ?: return null
     if (newest.name.startsWith(com.tj.portfolio.util.Storage.BEFORE_PREFIX)) return newest
     val before = files.firstOrNull { it.name.startsWith(com.tj.portfolio.util.Storage.BEFORE_PREFIX) }
@@ -3682,7 +3684,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun updateTxn(t: Txn, savedMsg: String? = null) {
-        db.updateTxn(t); recompute(); refresh(); warnIfOverridden(t.type, t.symbol, savedMsg)
+        // A DATE THE USER HAS SET IS NO LONGER A GUESS (diff review 2026-09-23, R-8). The
+        // "date estimated" marker keeps a row out of "bought today" (A-3); left on after Tj
+        // corrects the date, a trade really made today would never show in the Today column.
+        val old = if (t.dateEstimated) db.allTxns().firstOrNull { it.id == t.id } else null
+        val fixed = if (old != null && old.date != t.date) t.copy(
+            note = t.note?.replace(Regex("\\s*-?\\s*" + Txn.DATE_ESTIMATED, RegexOption.IGNORE_CASE), "")
+                ?.trim()?.trim('-')?.trim()?.ifBlank { null }
+        ) else t
+        db.updateTxn(fixed); recompute(); refresh(); warnIfOverridden(fixed.type, fixed.symbol, savedMsg)
     }
 
     /**
@@ -6465,7 +6475,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val whyEvicted = evictStaleWhy(loaded)
         // SAME REASONING, FOR THE DAY-TRADING PLAN ITSELF - see [evictStaleDayTradingPlan].
         val set = whyEvicted.copy(
-            dayTrading = evictStaleDayTradingPlan(whyEvicted.dayTrading, loaded.generated)
+            // The newer of the build and the last Claude answer (diff review 2026-09-23, R-3): an
+            // answer now counts as a refresh, so `generated` can be yesterday's while today's
+            // Claude plan sits on the rows - and keying on it alone stripped that plan on the
+            // next cold start, the D-1 loss moved from the rebuild to the relaunch.
+            dayTrading = evictStaleDayTradingPlan(
+                whyEvicted.dayTrading, maxOf(loaded.generated, loaded.dtExplained)
+            )
         )
         withContext(Dispatchers.Main) {
             // Merged, not assigned: a live build may have landed while this was parsing,
@@ -7520,8 +7536,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // with no sweep the tab showed no entry/stop/target all night and all weekend:
                 // the "levels to plan from before the open" path was unreachable. The one sweep
                 // per rebuild ([dayTradingSweepDone]) costs one pass, not a poll.
+                // Only the LIST's sweep counts (diff review, R-7): a single-symbol run for an open
+                // detail screen never marks the sweep done, so it would have fetched every tick.
                 val closed = phase == com.tj.portfolio.net.MarketClock.Phase.CLOSED
-                if (online() && (!closed || !dayTradingSweepDone)) {
+                val listSweepOwed = dayTradingLiveOnly == null && !dayTradingSweepDone
+                if (online() && (!closed || listSweepOwed)) {
                     enrichDayTradingVisible()
                 }
                 delay(dayTradingLiveDelay(phase, com.tj.portfolio.net.MarketClock.sessionElapsedFraction()))
@@ -8151,19 +8170,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /**
-     * Read the uninstall-proof copy back, for the recovery banner's one-tap restore - the
-     * LARGER of the autosave and the copy kept when it last shrank (A-1), so a recovery after
-     * the shrink still brings back everything rather than the one row that replaced it.
-     */
+    /** Read the uninstall-proof copy back, for the recovery banner's one-tap restore. */
     fun readAutosave(onDone: (String?) -> Unit) {
         viewModelScope.launch {
             val text = withContext(Dispatchers.IO) {
                 runCatching {
-                    val app = getApplication<Application>()
-                    val cur = com.tj.portfolio.util.Storage.readOwnDownload(app, AUTOSAVE_FILE)
-                    val prev = com.tj.portfolio.util.Storage.readOwnDownload(app, AUTOSAVE_PREVIOUS_FILE)
-                    if (backupTxnCount(prev) > backupTxnCount(cur)) prev else cur
+                    // THE CURRENT AUTOSAVE, ALWAYS (diff review 2026-09-23, R-1). Preferring the
+                    // larger of it and the kept "-previous" copy looked safe, but a deliberate
+                    // shrink (a symbol deleted, a wipe and clean re-import) also leaves a larger,
+                    // OLDER previous copy - and one-tap recovery then brought the deleted rows
+                    // back and dropped everything entered since. The previous copy stays on disk
+                    // for a deliberate restore through Settings' file picker, which is the only
+                    // place a person can judge which of the two they mean.
+                    com.tj.portfolio.util.Storage.readOwnDownload(getApplication(), AUTOSAVE_FILE)
                 }.getOrNull()
             }
             onDone(text)
