@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.unit.Velocity
 import com.tj.portfolio.ui.PullGesture
+import com.tj.portfolio.ui.drawnFraction
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -106,7 +107,7 @@ class PullGestureTest {
     // animation state gets stuck, that combination draws nothing.
 
     @Test fun `a circle is drawn only while refreshing, pulling or animating`() {
-        val drawn = com.tj.portfolio.ui::drawnFraction
+        val drawn = ::drawnFraction
         assertEquals("the recording's state", 0f, drawn(1f, false, false, false), 0f)
         assertEquals(1f, drawn(1f, true, false, false), 0f)
         assertEquals(0.6f, drawn(0.6f, false, true, false), 0f)
