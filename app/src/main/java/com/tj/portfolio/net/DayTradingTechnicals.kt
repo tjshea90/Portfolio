@@ -341,15 +341,21 @@ object DayTradingTechnicals {
                 MarketData.enc(symbol) +
                 "?range=$range&interval=$interval" +
                 if (prePost) "&includePrePost=true" else ""
-                // CONDITIONAL, like every other repeat request in the app. Without a validator
-            // key an unchanged series is re-sent in full on every tick; with one it is a
-            // bodyless 304 that `Http` answers from `http_cache`. See BRIEF.md's locked
-            // "Response caching" decision - nothing already stored should be downloaded again.
+            // Conditional in case Yahoo ever starts sending a validator - but measured on
+            // 2026-09-23 its chart endpoint sends none (only `max-age=10`), so this is a full
+            // download every time (N-1). What actually saves the repeat is [RecentBodies]: the
+            // 1D chart and this intraday leg are the same url, fetched once and shared.
+            RecentBodies.get(url)?.let { body ->
+                runCatching { parseBars(body) }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
+            }
             val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
             if (r.throttledLocally) continue
             if (!r.ok) continue
             val parsed = runCatching { parseBars(r.body) }.getOrNull()
-            if (!parsed.isNullOrEmpty()) return parsed
+            if (!parsed.isNullOrEmpty()) {
+                RecentBodies.put(url, r.body)
+                return parsed
+            }
         }
         return null
     }

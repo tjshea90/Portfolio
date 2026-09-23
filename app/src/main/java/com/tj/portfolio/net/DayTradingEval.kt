@@ -56,10 +56,9 @@ object DayTradingEval {
         for (host in listOf("query1", "query2")) {
             val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
                 MarketData.enc(symbol) + "?period1=$period1&period2=$period2&interval=5m"
-            // CONDITIONAL: this window is a CLOSED session addressed by explicit period1/
-            // period2 bounds, so the answer is immutable - the one case where a validator can
-            // never be wrong. Every PENDING row inside the 55-day retention window was
-            // re-downloading it in full on every press.
+            // CONDITIONAL in case Yahoo ever sends a validator for this CLOSED, immutable window -
+            // but as of 2026-09-23 its chart endpoint sends none, so this is a full download per
+            // press (N-1); what bounds the cost is the per-press cap in `evaluateDayTradingLog`.
             val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
             if (r.throttledLocally) continue
             if (!r.ok) continue

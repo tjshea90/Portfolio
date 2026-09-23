@@ -39,11 +39,20 @@ object ChartFeed {
                 MarketData.enc(symbol) +
                 "?range=${range.yRange}&interval=${range.interval}" +
                 if (range.prePost) "&includePrePost=true" else ""
+            // Shared for a few seconds with the other consumers of the same url - see
+            // [RecentBodies] (N-1): Yahoo sends no validator here, so a repeat is a full download.
+            RecentBodies.get(url)?.let { body ->
+                runCatching { parse(symbol, range, body) }.getOrNull()
+                    ?.takeIf { !it.isEmpty }?.let { return it }
+            }
             val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
             if (r.throttledLocally) continue
             if (!r.ok) continue
             val parsed = runCatching { parse(symbol, range, r.body) }.getOrNull()
-            if (parsed != null && !parsed.isEmpty) return parsed
+            if (parsed != null && !parsed.isEmpty) {
+                RecentBodies.put(url, r.body)
+                return parsed
+            }
         }
         // Every host either refused, could not be parsed, or was being deliberately left
         // alone. Null means "keep whatever is on screen and try again later" - the caller
