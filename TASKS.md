@@ -25,7 +25,7 @@
 > Schedule all of this work in place of the full test you already have scheduled
 
 Scheduled (requested 07:18 UTC): old trigger `trig_01Hp73NbXPiPsjjEhxQwUY16` deleted, replaced
-by a new `send_later` at 09:04 UTC 2026-09-23 (same start time). Do NOT start before then.
+by `send_later` trigger `trig_01TKwdBrdRvskoXiErydAJff` at 09:04 UTC 2026-09-23 (same start time). Do NOT start before then.
 If it is past 09:04 UTC and nothing has started, any session reading this should start it.
 
 Feasibility notes (research at fire time, don't assume): the app side is fully ours
