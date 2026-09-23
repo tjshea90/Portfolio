@@ -1,13 +1,13 @@
-# CHECKPOINT 1612 — read me first, then TASKS.md
+# CHECKPOINT 1613 — read me first, then TASKS.md
 
-**Written:** 2026-09-23T07:03:24Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `fbac630` (this checkpoint is the commit after it)
+**Written:** 2026-09-23T07:03:57Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `a051c93` (this checkpoint is the commit after it)
 
 ## Just done
-Tj asked for a full test to start automatically 2h from now (07:03 UTC req); recorded in TASKS.md, scheduling send_later for ~09:04 UTC
+Tj confirmed 'full text' was a typo for full test; schedule unchanged (09:04 UTC)
 
 ## Do this next
-WAIT until ~09:04 UTC 2026-09-23, then run CLAUDE.md Full tests protocol unprompted (see TASKS.md 2026-09-23). If past that time and nothing started, start it.
+WAIT until 09:04 UTC 2026-09-23, then run CLAUDE.md Full tests protocol unprompted (TASKS.md 2026-09-23). If past that time and nothing started, start it.
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ WAIT until ~09:04 UTC 2026-09-23, then run CLAUDE.md Full tests protocol unpromp
 
 ## Last ten checkpoints
 ```
+  a051c93 ckpt 1612: Tj asked for a full test to start automatically 2h from now (07:03 UTC req); 
   fbac630 ckpt 1611: SHIPPED v7.36 (code 93): SPY comparison fixed on zoomed 1D/5D charts; Release
   a9a829c ckpt 1610: gated v7.36 (code 93) and pushed it: checkinit, the full unit suite and the v
   98bb330 ckpt 1609: Fixed the SPY comparison on zoomed 1D/5D charts (fixed anchor for every range
@@ -26,5 +27,4 @@ WAIT until ~09:04 UTC 2026-09-23, then run CLAUDE.md Full tests protocol unpromp
   bc8b165 ckpt 1605: gated v7.35 (code 92) and pushed it: checkinit, the full unit suite and the v
   18f45fb ckpt 1604: Speed pass complete: R8 (no rename), app baseline profile, SQLite WAL pool, l
   0a7d47b ckpt 1603: Perf pass: R8 enabled for release (-dontobfuscate), app baseline profile, CI 
-  173e5c2 ckpt 1602: Logged Tj's 2026-09-22b request (make the app as snappy as possible on the Mo
 ```

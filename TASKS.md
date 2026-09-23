@@ -6,7 +6,9 @@
 > 2 hours from now, and at that time, start and complete a full test without asking me to start
 > it. Do it automatically
 
-- [x] Scheduled via `send_later` (one-shot Routine into this session) for ~09:04 UTC 2026-09-23
+> (follow-up, same minute) I meant to say full test. Do a full test in 2 hours
+
+- [x] Scheduled via `send_later` (trigger `trig_01Hp73NbXPiPsjjEhxQwUY16`, one-shot into this session) for 09:04 UTC 2026-09-23
       (requested 07:03 UTC). Do NOT start the full test before then.
 - [ ] At fire time: run CLAUDE.md's **Full tests** protocol end to end, unprompted - checkinit +
       full Gradle suite floor, parallel subsystem audit (scoring/recommend, day-trading,
