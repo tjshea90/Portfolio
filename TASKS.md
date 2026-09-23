@@ -85,9 +85,9 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       [x] D-2 M Claude plan on app-declined row never logged (planDeclineStreak)  [x] D-3 M no
       plans overnight/weekend after rebuild  [x] D-4 M prompt has 10 visible rows, merge
       replaces all 40  [x] D-5 M answer asOf never checked (old file = today's plan)
-      [ ] D-6 M success-rate check uncapped requests  [x] D-7 L unseen rows logged
+      [x] D-6 M success-rate check uncapped requests  [x] D-7 L unseen rows logged
       [x] D-8 L late-evening Claude plan replaced at 04:00  [x] D-9 L half-day "flat by 15:50"
-      [ ] D-10 L daily-bar memo at close
+      [x] D-10 L daily-bar memo at close
     - ui-share.md (landed): [x] U-1 H (=D-1) + share import skips busy check  [ ] U-2 M cold
       start Research rebuild before cache loads  [x] U-3 L cached advice overwrites shared
       advice on cold start  [x] U-4 L file:// URIs + BROWSABLE on share target  [x] U-5 L

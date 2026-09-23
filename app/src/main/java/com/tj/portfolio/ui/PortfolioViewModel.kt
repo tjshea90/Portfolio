@@ -6758,6 +6758,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * standing rule is that nothing polls a provider for data the user is not looking at.
      */
     fun loadResearch(force: Boolean = false) {
+        // NOT BEFORE THE CACHE HAS LOADED (full test 2026-09-23, U-2). The cache is parsed off
+        // the main thread, and a cold start onto the Research tab asked first - saw an empty set,
+        // which reads as stale - and paid a full ~18-request rebuild for a list sitting on disk.
+        if (!researchCacheReady.isCompleted) {
+            viewModelScope.launch { researchCacheReady.await(); loadResearch(force) }
+            return
+        }
         if (_researchBusy.value.isNotEmpty()) return
         if (!force && !researchStale()) {
             // Cached rows can still be missing their per-row lookups - finish those instead.
