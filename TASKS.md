@@ -117,6 +117,7 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
     flag survives date edit  [x] R-9 L asOf sent as "Sep 23, 2026" bypasses D-5  [x] R-10 L
     undo window skips import  [x] R-11 L advice/txn shares wait on research build
   - [ ] Ship (bump version, ship.sh, trigger android.yml, record-release) + post link
+        v7.37/94 gated by ship.sh; Actions run 35880942669 triggered 15:21 UTC. When green: get_release_by_tag v7.37, then tools/record-release.sh (message in ckpt 1635), post link.
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
 
 ## Tj's request, 2026-09-23 (his own words)
