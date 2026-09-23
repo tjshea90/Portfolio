@@ -153,13 +153,21 @@ object ShareInbox {
                     ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
             else -> null
         }
-        if (uri != null) {
-            // Bytes, capped: a UTF-8 character is at most 4 bytes, so this bound can never
-            // reject a file that is within [maxChars].
-            val text = Storage.readText(ctx, uri, maxBytes = maxChars * 4) ?: return null
-            return text.takeIf { it.length <= maxChars }
+        // CONTENT URIS FROM OTHER APPS ONLY (full test 2026-09-23, U-4). This activity is
+        // exported, so any installed app can send it anything: a `file://` path would be opened
+        // with THIS app's own permissions - its private database included - and our own
+        // provider's URIs are prompts we wrote, never answers.
+        val usable = uri?.takeIf {
+            it.scheme == android.content.ContentResolver.SCHEME_CONTENT &&
+                it.authority != PromptShare.authority(ctx)
         }
+        // Bytes, capped: a UTF-8 character is at most 4 bytes, so this bound can never reject
+        // a file that is within [maxChars].
+        val fromFile = usable?.let { Storage.readText(ctx, it, maxBytes = maxChars * 4) }
+        if (fromFile != null) return fromFile.takeIf { it.length <= maxChars }
+        // A share can carry the text as well as (or instead of) a file; if the file could not
+        // be read, the text is the answer rather than a reason to refuse (U-7).
         return intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
-            ?.takeIf { it.length <= maxChars }
+            ?.takeIf { it.isNotBlank() && it.length <= maxChars }
     }
 }
