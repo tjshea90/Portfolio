@@ -1173,6 +1173,16 @@ internal fun loggableDayTradingRows(
         !it.tooLateToStart && it.planDeclineStreak == 0
 }
 
+/** At most this many log rows are resolved per "Check" press - see D-6 in evaluateDayTradingLog. */
+internal const val DAY_TRADING_EVAL_CAP = 60
+
+/** The rows one press resolves: the oldest [cap] of them, oldest first. */
+internal fun dayTradingRowsToResolve(
+    rows: List<com.tj.portfolio.data.DayTradingLogEntry>,
+    cap: Int = DAY_TRADING_EVAL_CAP
+): List<com.tj.portfolio.data.DayTradingLogEntry> =
+    rows.sortedWith(compareBy({ it.tradingDay }, { it.recordedAt })).take(cap)
+
 /** How many consecutive live ticks [ResearchScore.tradePlan] must decline before
  *  [mergeDayTradingTech] actually withdraws a level - see its own note on why. */
 private const val DAY_TRADING_DECLINE_CONFIRM_TICKS = 2
@@ -6574,10 +6584,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         db.setDayTradingOutcome(it.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
                     }
                 }
-                if (needsEval.isNotEmpty()) {
+                // ---- CAPPED PER PRESS, OLDEST FIRST (full test 2026-09-23, D-6). One request per
+                // unresolved row with no cap meant a press after two weeks away fired hundreds
+                // of Yahoo chart requests at once - enough to arm the host cooldown the quote
+                // loop and every chart share, leaving the whole app on stale prices for minutes.
+                val batch = dayTradingRowsToResolve(needsEval)
+                val left = needsEval.size - batch.size
+                if (batch.isNotEmpty()) {
                     withContext(Dispatchers.IO) {
                         val gate = Semaphore(MAX_PARALLEL_REQUESTS)
-                        needsEval.map { entry ->
+                        batch.map { entry ->
                             async {
                                 gate.withPermit { resolveOneDayTradingEntry(entry) }
                             }
@@ -6586,6 +6602,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 val refreshed = withContext(Dispatchers.IO) { db.dayTradingLog() }
                 _dayTradingStats.value = com.tj.portfolio.net.DayTradingEval.stats(refreshed)
+                if (left > 0) toast("Checked ${batch.size} - $left more to check, tap again")
             } finally {
                 _dayTradingStatsLoading.value = false
             }
