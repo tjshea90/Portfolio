@@ -1,13 +1,13 @@
-# CHECKPOINT 1624 — read me first, then TASKS.md
+# CHECKPOINT 1625 — read me first, then TASKS.md
 
-**Written:** 2026-09-23T09:45:41Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `1cc1baa` (this checkpoint is the commit after it)
+**Written:** 2026-09-23T09:47:02Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `dfecb49` (this checkpoint is the commit after it)
 
 ## Just done
-A-2 (replay watermark), A-3, A-5, A-6, A-10, A-11 fixed + tests (FullTest0923Test)
+A-4 (undo snapshot pick/gate/prune), A-7 (wipe clears overrides) fixed; A-12 documented no-change
 
 ## Do this next
-Next A-7, A-4, A-12(assess), then S-2,S-4..S-10, D-2..D-10, U-2, U-6, N-*
+Next S-2, S-4..S-10, then D-2..D-10, U-2, U-6, N-*
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Next A-7, A-4, A-12(assess), then S-2,S-4..S-10, D-2..D-10, U-2, U-6, N-*
 
 ## Last ten checkpoints
 ```
+  209483a ckpt 1624: A-2 (replay watermark), A-3, A-5, A-6, A-10, A-11 fixed + tests (FullTest0923
   515adc0 ckpt 1623: A-1 fixed (autosave shrink keeps previous; recovery uses larger)
   d6ea1b3 ckpt 1622: Fixed U-1/D-1 (H), S-3, A-8, A-9, U-3, U-4, U-5, U-7 with tests
   230b188 ckpt 1621: 4 of 5 audit reports landed; all findings listed in TASKS (S/A/D/U)
@@ -26,8 +27,7 @@ Next A-7, A-4, A-12(assess), then S-2,S-4..S-10, D-2..D-10, U-2, U-6, N-*
   b44f94f ckpt 1617: 2026-09-23b share flow DONE and verified: ShareFlowTest 12/12, suite 1306/130
   1f222b9 ckpt 1616: 2026-09-23b share flow code written (not yet compiled): PromptShare/ShareInbo
   0ed968e ckpt 1615: Rescheduled: new trigger trig_01TKwdBrdRvskoXiErydAJff fires 09:04 UTC with t
-  a66fb00 ckpt 1614: Tj replaced the scheduled full test with: share-sheet prompt export + share-i
 ```
 
-(9 automatic checkpoint(s) since the last deliberate one — the
+(2 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
