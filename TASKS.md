@@ -70,9 +70,9 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
         "no change" with the reason.
     - scoring.md (landed): [x] S-1 H phrase substring (Relevance, RelevanceTest +2)
       [ ] S-2 M ratings-only verdict frozen  [x] S-3 M rebuild drops Claude-added stock rows +
-      catalyst/conviction  [ ] S-4 M Sector/Market Weight, Top Pick unbucketed  [ ] S-5 L toInt
-      truncation  [ ] S-6 L all-hold == all-sell  [ ] S-7 L fundamentalsAt hides stale core
-      [ ] S-8 L "trend is mixed" wording  [ ] S-9 L dated-but-unbucketable says "no dates"
+      catalyst/conviction  [x] S-4 M Sector/Market Weight, Top Pick unbucketed  [x] S-5 L toInt
+      truncation  [x] S-6 L all-hold == all-sell  [ ] S-7 L fundamentalsAt hides stale core
+      [x] S-8 L "trend is mixed" wording  [x] S-9 L dated-but-unbucketable says "no dates"
       [ ] S-10 L double "Same exposure as" line
     - accounting.md (landed): [x] A-1 H (autosave-previous kept on shrink; recovery reads larger; FullTest0923Test) autosave overwritten by near-empty ledger
       [x] A-2 M replayOrder reverses correct day w/ missing history  [x] A-3 M snapshot rows

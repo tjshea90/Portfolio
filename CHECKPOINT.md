@@ -1,13 +1,13 @@
-# CHECKPOINT 1625 — read me first, then TASKS.md
+# CHECKPOINT 1626 — read me first, then TASKS.md
 
-**Written:** 2026-09-23T09:47:02Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `dfecb49` (this checkpoint is the commit after it)
+**Written:** 2026-09-23T09:49:17Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `8034897` (this checkpoint is the commit after it)
 
 ## Just done
-A-4 (undo snapshot pick/gate/prune), A-7 (wipe clears overrides) fixed; A-12 documented no-change
+S-4,S-5,S-6,S-8,S-9 fixed (+tests)
 
 ## Do this next
-Next S-2, S-4..S-10, then D-2..D-10, U-2, U-6, N-*
+Next S-2/S-7/N-10 (fundamentals core vs ratings), S-10, D-*, U-2, U-6, N-*
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Next S-2, S-4..S-10, then D-2..D-10, U-2, U-6, N-*
 
 ## Last ten checkpoints
 ```
+  3548dfe ckpt 1625: A-4 (undo snapshot pick/gate/prune), A-7 (wipe clears overrides) fixed; A-12 
   209483a ckpt 1624: A-2 (replay watermark), A-3, A-5, A-6, A-10, A-11 fixed + tests (FullTest0923
   515adc0 ckpt 1623: A-1 fixed (autosave shrink keeps previous; recovery uses larger)
   d6ea1b3 ckpt 1622: Fixed U-1/D-1 (H), S-3, A-8, A-9, U-3, U-4, U-5, U-7 with tests
@@ -26,8 +27,7 @@ Next S-2, S-4..S-10, then D-2..D-10, U-2, U-6, N-*
   6613d79 ckpt 1618: Full test started: 5 audit agents running (reports -> audits/2026-09-23/*.md)
   b44f94f ckpt 1617: 2026-09-23b share flow DONE and verified: ShareFlowTest 12/12, suite 1306/130
   1f222b9 ckpt 1616: 2026-09-23b share flow code written (not yet compiled): PromptShare/ShareInbo
-  0ed968e ckpt 1615: Rescheduled: new trigger trig_01TKwdBrdRvskoXiErydAJff fires 09:04 UTC with t
 ```
 
-(2 automatic checkpoint(s) since the last deliberate one — the
+(7 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
