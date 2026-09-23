@@ -1,5 +1,10 @@
 package com.tj.portfolio
 
+import com.tj.portfolio.data.Quote
+import com.tj.portfolio.data.Txn
+import com.tj.portfolio.data.TxnType
+import com.tj.portfolio.domain.Ledger
+import com.tj.portfolio.net.ClaudeBridge
 import com.tj.portfolio.ui.backupTxnCount
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -26,5 +31,42 @@ class FullTest0923Test {
         assertEquals(-1, backupTxnCount("not json"))
         // A missing old file (-1) is "smaller" than any real one, so nothing is rotated for it.
         assertEquals(true, backupTxnCount("""{"transactions":[{}]}""") > backupTxnCount(null))
+    }
+
+    // ---- A-3: a row whose date was guessed is not "bought today".
+
+    @Test fun `A-3 a holdings snapshot row does not report its whole gain as today's`() {
+        val session = 1_756_909_800_000L
+        val snap = Txn(
+            type = TxnType.BUY, symbol = "NVDA", quantity = 100.0, price = 50.0, amount = -5000.0,
+            date = session, note = "position snapshot - " + Txn.DATE_ESTIMATED, source = "CLAUDE_FILE"
+        )
+        val q = Quote(symbol = "NVDA", price = 180.0, prevClose = 178.0)
+        listOf(Ledger.FIFO, Ledger.AVERAGE).forEach { m ->
+            val p = Ledger.positions(listOf(snap), method = m, sessionInstant = session).single()
+            assertEquals("$m: sharesToday", 0.0, p.sharesToday, 1e-9)
+            assertEquals("$m: today's move is the price change, not the lifetime gain",
+                200.0, p.dayPnl(q), 1e-6)
+        }
+        // A real trade today is still today's.
+        val real = snap.copy(note = null)
+        val p = Ledger.positions(listOf(real), method = Ledger.FIFO, sessionInstant = session).single()
+        assertEquals(100.0, p.sharesToday, 1e-9)
+    }
+
+    // ---- A-5 / A-6: import parsers.
+
+    @Test fun `A-5 a trade with no ticker is refused and A-6 a cash row carries no fee`() {
+        val reply = """{"portfolioAppResponse":1,"notes":"","transactions":[
+          {"type":"BUY","symbol":"","quantity":20,"price":250,"amount":5000,"fees":0,"date":"2026-09-01"},
+          {"type":"FEE","symbol":null,"quantity":0,"price":0,"amount":0.40,"fees":0.40,"date":"2026-09-01"},
+          {"type":"BUY","symbol":"AAPL","quantity":2,"price":100,"amount":200,"fees":1,"date":"2026-09-01"}
+        ]}"""
+        val r = ClaudeBridge.parse(reply)
+        assertEquals(listOf(TxnType.FEE, TxnType.BUY), r.transactions.map { it.type })
+        assertEquals(0.0, r.transactions[0].fees, 1e-9)
+        assertEquals(1.0, r.transactions[1].fees, 1e-9)
+        // The fee row counts once, the trade's commission once.
+        assertEquals(1.40, Ledger.fees(r.transactions), 1e-9)
     }
 }
