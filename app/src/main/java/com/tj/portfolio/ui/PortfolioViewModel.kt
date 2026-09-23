@@ -7996,7 +7996,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     .getOrElse { Db.RestoreResult(error = "Restore failed: ${it.message}") }
             }
             if (r.error == null) {
-                _lastImport.value = withContext(Dispatchers.IO) { db.lastImport() }
+                _lastImport.value = withContext(Dispatchers.IO) {
+                    // Restored rows are re-inserted with NEW ids, and may be a pre-fix device's
+                    // screen-ordered imports - make them repair candidates again (A-2).
+                    db.set(Keys.REPLAY_REPAIR_BELOW_ID, (db.maxTxnId() + 1).toString())
+                    db.lastImport()
+                }
                 recompute()
                 refresh()
                 // ---- AND TAKE A SAFETY COPY OF WHAT WAS JUST RESTORED (Round 66).

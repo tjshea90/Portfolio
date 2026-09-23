@@ -69,4 +69,25 @@ class FullTest0923Test {
         // The fee row counts once, the trade's commission once.
         assertEquals(1.40, Ledger.fees(r.transactions), 1e-9)
     }
+
+    // ---- A-2: a correctly-ordered day with missing earlier history is not reversed.
+
+    @Test fun `A-2 rows newer than the repair watermark keep their stored order`() {
+        val session = 1_756_909_800_000L
+        val sell = Txn(id = 10, type = TxnType.SELL, symbol = "NVDA", quantity = 100.0, price = 180.0,
+            amount = 18_000.0, date = session, source = "SCREENSHOT")
+        val buy = Txn(id = 11, type = TxnType.BUY, symbol = "NVDA", quantity = 100.0, price = 175.0,
+            amount = -17_500.0, date = session, source = "SCREENSHOT")
+        listOf(Ledger.FIFO, Ledger.AVERAGE).forEach { m ->
+            // Imported after the fix: kept as stored - 100 shares held, the missing buy reported.
+            val kept = Ledger.positions(listOf(sell, buy), method = m, sessionInstant = session,
+                repairBelowId = 5).single()
+            assertEquals("$m shares", 100.0, kept.shares, 1e-9)
+            assertEquals("$m oversold", 100.0, kept.oversold, 1e-9)
+            // A legacy row pair (below the watermark) is still repaired, as before.
+            val legacy = Ledger.positions(listOf(sell, buy), method = m, sessionInstant = session,
+                repairBelowId = 100).single()
+            assertEquals("$m legacy repaired", 0.0, legacy.oversold, 1e-9)
+        }
+    }
 }
