@@ -77,9 +77,15 @@ class WatchSinceAddedTest {
         vm.recompute()
         val r = rowFor(vm, "NVDA")
         assertEquals(100.0, r.watchedBasePrice, 1e-9)
-        // No live quote in this test, so `price` is 0 - the percentage still withholds rather
-        // than dividing against a price it does not have, instead of reporting a bogus -100%.
-        assertNull(r.sinceWatchedPct)
+        // WHETHER A LIVE QUOTE EXISTS HERE DEPENDS ON THE NETWORK (full test 2026-09-23). This
+        // asserted "no live quote, so null" - but the ViewModel's own start-up refresh really
+        // fetches NVDA when the machine running the suite has network access, and whether that
+        // reply landed before this line decided the result (it failed once with 128.87 and
+        // passed on the rerun of identical code). The no-quote case is proven deterministically
+        // by the pure test below; what THIS test owns is that the recompute picked the baseline
+        // up, so the row's percentage must be measured from it whichever way the fetch went.
+        if (r.price > 0.0) assertEquals((r.price - 100.0) / 100.0 * 100.0, r.sinceWatchedPct!!, 1e-9)
+        else assertNull(r.sinceWatchedPct)
     }
 
     @Test fun `an unwatched symbol has no add date at all`() {
