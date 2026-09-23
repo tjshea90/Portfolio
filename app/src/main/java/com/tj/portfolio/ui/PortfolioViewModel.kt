@@ -7930,12 +7930,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Read the uninstall-proof copy back, for the recovery banner's one-tap restore. */
+    /**
+     * Read the uninstall-proof copy back, for the recovery banner's one-tap restore - the
+     * LARGER of the autosave and the copy kept when it last shrank (A-1), so a recovery after
+     * the shrink still brings back everything rather than the one row that replaced it.
+     */
     fun readAutosave(onDone: (String?) -> Unit) {
         viewModelScope.launch {
             val text = withContext(Dispatchers.IO) {
                 runCatching {
-                    com.tj.portfolio.util.Storage.readOwnDownload(getApplication(), AUTOSAVE_FILE)
+                    val app = getApplication<Application>()
+                    val cur = com.tj.portfolio.util.Storage.readOwnDownload(app, AUTOSAVE_FILE)
+                    val prev = com.tj.portfolio.util.Storage.readOwnDownload(app, AUTOSAVE_PREVIOUS_FILE)
+                    if (backupTxnCount(prev) > backupTxnCount(cur)) prev else cur
                 }.getOrNull()
             }
             onDone(text)
