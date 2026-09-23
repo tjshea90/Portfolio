@@ -108,14 +108,14 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       NOTE FOR TJ: the network auditor sent ONE read-only request to sec.gov with his email in
       the User-Agent (against the rule) - tell him in the summary.
   - [x] Re-run suite (1324/0)
-  - [ ] Independent review of today's whole diff (git diff 0ed968e) for regressions -> fix
-    diff-review.md (landed): [ ] R-1 H recovery restores larger -previous (older) file
-    [ ] R-2 M new same-day backwards rows not repaired (A-2 tradeoff)  [ ] R-3 M cold-start
-    eviction keyed on generated strips same-day Claude plan  [ ] R-4 L D-8 undone by carry/evict
-    [ ] R-5 L leftover shares only imported on share intent  [ ] R-6 L tradestie dead on any
-    failure  [ ] R-7 L DT detail single-symbol fetch every closed tick  [ ] R-8 L date-estimated
-    flag survives date edit  [ ] R-9 L asOf sent as "Sep 23, 2026" bypasses D-5  [ ] R-10 L
-    undo window skips import  [ ] R-11 L advice/txn shares wait on research build
+  - [x] Independent review of today's whole diff (git diff 0ed968e) for regressions -> fixed (suite 1325/0)
+    diff-review.md (landed): [x] R-1 H recovery restores larger -previous (older) file
+    [-] R-2 M new same-day backwards rows not repaired: NO CHANGE - deliberate A-2 tradeoff; such rows now show a visible "oversold" warning Tj can fix, whereas the old repair silently erased a real position  [x] R-3 M cold-start
+    eviction keyed on generated strips same-day Claude plan  [x] R-4 L D-8 undone by carry/evict
+    [x] R-5 L leftover shares only imported on share intent  [x] R-6 L tradestie dead on any
+    failure  [x] R-7 L DT detail single-symbol fetch every closed tick  [x] R-8 L date-estimated
+    flag survives date edit  [x] R-9 L asOf sent as "Sep 23, 2026" bypasses D-5  [x] R-10 L
+    undo window skips import  [x] R-11 L advice/txn shares wait on research build
   - [ ] Ship (bump version, ship.sh, trigger android.yml, record-release) + post link
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
 
