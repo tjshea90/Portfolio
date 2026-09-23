@@ -20,6 +20,8 @@
       watchdog kept. Tests: PullGestureTest (7, incl. the recording in numbers; mutation-
       checked), PullIndicatorUiTest (+2 real-gesture on a LazyColumn).
 - [ ] Light tests, ship, post link (same standing instruction as 2026-09-23c)
+      v7.39/96 gated by ship.sh; Actions run 35894509527 triggered 17:16 UTC. When green:
+      get_release_by_tag v7.39, tools/record-release.sh (message in ckpt 1646), post link.
       Light tests DONE: checkinit ok, suite 1337/0 (rerun after the review fix), Refreshable code
       read - 1 minor finding fixed (settling flag -> in-flight counter), 8 callers unchanged.
 
