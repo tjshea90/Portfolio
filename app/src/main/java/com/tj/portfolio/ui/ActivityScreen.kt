@@ -483,7 +483,10 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
                             r.transactions.filterIndexed { i, _ -> checks.getOrElse(i) { true } }
                         // the user has explicitly ticked these, so honour the selection exactly
                         vm.commitImportAsync(keep, force = true) { n ->
-                            vm.toast("Imported $n transaction(s)")
+                            // null = the write failed and said so; the extraction was kept,
+                            // so re-enable the button rather than strand it on "Importing..."
+                            if (n == null) saving = false
+                            else vm.toast("Imported $n transaction(s)")
                         }
                     }
                 ) { Text(if (saving) "Importing..." else "Import selected") }

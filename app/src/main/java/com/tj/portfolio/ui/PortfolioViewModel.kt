@@ -4011,7 +4011,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         list: List<Txn>,
         source: String = "SCREENSHOT",
         force: Boolean = false,
-        onDone: (Int) -> Unit
+        // NULL WHEN THE WRITE FAILED (full test 2026-09-23, A-10) - not 0, which is the
+        // legitimate "every row was already on file". The review dialog needs the difference:
+        // on a failure it must come back to life so the kept extraction can be retried.
+        onDone: (Int?) -> Unit
     ) {
         viewModelScope.launch {
             // RUNCATCHING, LIKE EVERY OTHER DB WRITE IN THIS FILE (Part 9 audit finding).
@@ -4078,7 +4081,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             if (res != null) setImportResult(null)
             recompute()
             refresh()
-            onDone(n)
+            onDone(res)
         }
     }
 
