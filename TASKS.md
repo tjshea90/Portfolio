@@ -54,7 +54,7 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       designed and coded; checkpoint - ShareFlowTest (12, all green; caught a real bug: the
       direct import path did not move the Research section). Suite 1306/1307: the 1 red is
       WatchSinceAddedTest, a network-timing flake (passes on rerun) - fix in the full test
-- [ ] THEN run CLAUDE.md's Full tests protocol end to end (the 2026-09-23 boxes below)
+- [x] THEN run CLAUDE.md's Full tests protocol end to end (the 2026-09-23 boxes below)
   - [x] Floor: checkinit ok; suite 1306/1307 (WatchSinceAddedTest network-timing flake)
   - [ ] 5 parallel read-only audits launched 09:3x UTC; each writes its FULL report to
         audits/2026-09-23/{scoring,daytrading,network,ui-share,accounting}.md (so a resumed
@@ -116,9 +116,9 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
     failure  [x] R-7 L DT detail single-symbol fetch every closed tick  [x] R-8 L date-estimated
     flag survives date edit  [x] R-9 L asOf sent as "Sep 23, 2026" bypasses D-5  [x] R-10 L
     undo window skips import  [x] R-11 L advice/txn shares wait on research build
-  - [ ] Ship (bump version, ship.sh, trigger android.yml, record-release) + post link
+  - [x] Ship (bump version, ship.sh, trigger android.yml, record-release) + post link - v7.37 released + recorded, run 35880942669 green
         v7.37/94 gated by ship.sh; Actions run 35880942669 triggered 15:21 UTC. When green: get_release_by_tag v7.37, then tools/record-release.sh (message in ckpt 1635), post link.
-- [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
+- [x] Ship per auto-ship rule and post the Release link; summarize for Tj (v7.37)
 
 ## Tj's request, 2026-09-23 (his own words)
 
