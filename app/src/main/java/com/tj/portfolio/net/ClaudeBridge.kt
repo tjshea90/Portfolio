@@ -51,8 +51,42 @@ object ClaudeBridge {
      * copy-paste kept only as a fallback for a client that genuinely cannot make one - gets a
      * real file with nothing more than tapping the same "Import answer" button that was
      * already there.
+     *
+     * A FUNCTION SINCE 2026-09-23b, so each prompt can name its own answer file and ask for
+     * the share-back line below.
      */
-    const val FILE_DELIVERY_INSTRUCTIONS = """**Create your answer as a downloadable file, not only a chat message.** Use your file or code tool to write a single `.md` file containing your full answer, ending with the fenced ```json code block described below - then I can download that file straight from this chat and import it, with nothing to copy or retype. If your interface genuinely cannot create a file, put the same fenced block at the end of your chat reply instead; I will save the whole reply as a `.txt` or `.md` file myself before importing it."""
+    fun fileDelivery(answerFile: String): String =
+        "**Create your answer as a downloadable file, not only a chat message.** Use your " +
+            "file or code tool to write a single `.md` file named `$answerFile` containing " +
+            "your full answer, ending with the fenced ```json code block described below. " +
+            "Then finish your chat reply with this exact line, so I know what to do next: " +
+            "\"$SHARE_BACK_LINE\" - my Portfolio app is a share target, so tapping the file " +
+            "and sharing it to the app imports it on its own, with nothing to download or " +
+            "pick by hand. If your interface genuinely cannot create a file, put the same " +
+            "fenced block at the end of your chat reply instead; I will share or save the " +
+            "whole reply myself before importing it."
+
+    /**
+     * THE LINE CLAUDE IS ASKED TO END ITS REPLY WITH (2026-09-23b). Tj's round trip is: tap
+     * "Make prompt file" -> the share sheet opens -> pick Claude -> Claude writes the answer
+     * file -> tap that file -> Share -> Portfolio, which imports it without asking anything.
+     * The Claude app decides for itself what tapping a file does - nothing in a prompt can make
+     * it open a share sheet unprompted - so the next best thing is having the reply itself say,
+     * right under the file, which two taps finish the job.
+     */
+    const val SHARE_BACK_LINE =
+        "To import: tap the file above, then Share (or Open with) and pick Portfolio."
+
+    /**
+     * The name each prompt asks Claude to give its answer file. The app never TRUSTS a name -
+     * [com.tj.portfolio.net.SharedAnswer] routes a shared file by what is inside it, the same
+     * payload keys the "Import answer" buttons already use - so these exist only to make the
+     * file recognisable at a glance in the Claude chat and in Downloads.
+     */
+    const val ANSWER_ADVICE = "portfolio-answer-advice.md"
+    const val ANSWER_TRANSACTIONS = "portfolio-answer-transactions.md"
+    const val ANSWER_RESEARCH = "portfolio-answer-research.md"
+    const val ANSWER_DAY_TRADING = "portfolio-answer-daytrading.md"
 
     private const val PROMPT_HEADER =
         "<!-- $PROMPT_MARK: this file is the QUESTION for Claude, not the ANSWER. " +
@@ -113,7 +147,7 @@ Please:
 
 ## IMPORTANT - how to answer
 
-$FILE_DELIVERY_INSTRUCTIONS Include one entry in "stocks" for every holding.
+${fileDelivery(ANSWER_ADVICE)} Include one entry in "stocks" for every holding.
 
 **The block below is a SCHEMA, not an example answer.** Every `<...>` is a description of
 what belongs there - replace each one with your own real value. Your JSON must be valid:
@@ -124,7 +158,7 @@ placeholder wording copied through.
 $ADVICE_SHAPE
 ```
 
-Import the file (or your saved reply) in the app's Advice tab.
+Share the file to the Portfolio app, or import it (or your saved reply) in the app's Advice tab.
 
 ---
 
@@ -196,7 +230,7 @@ $alreadyHave
 
 ## IMPORTANT - how to answer
 
-$FILE_DELIVERY_INSTRUCTIONS The shape is exactly this.
+${fileDelivery(ANSWER_TRANSACTIONS)} The shape is exactly this.
 
 **The two rows below are placeholders showing the field layout - they are NOT data.** The
 ticker `$EXAMPLE_SYMBOL` and the date `$EXAMPLE_DATE` exist only to mark them as fake, and my app
@@ -214,7 +248,7 @@ you send must come from something you can actually see in a screenshot.
 }
 ```
 
-Import the file (or your saved reply) in the app's Activity tab.
+Share the file to the Portfolio app, or import it (or your saved reply) in the app's Activity tab.
 """.trimIndent()
 
     // -------------------------------------------------- template detection

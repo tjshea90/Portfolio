@@ -140,7 +140,7 @@ Be candid. If a row on the "best" list does not deserve to be there, say that in
 
 ## IMPORTANT - how to answer
 
-${ClaudeBridge.FILE_DELIVERY_INSTRUCTIONS}
+${ClaudeBridge.fileDelivery(ClaudeBridge.ANSWER_RESEARCH)}
 
 **The block is a SCHEMA, not an example answer.** Every `<...>` is a description of what
 belongs there - replace each with your own real value. Your JSON must be valid: no `<`, no
@@ -151,7 +151,7 @@ through.
 $SHAPE
 ```
 
-Import the file (or your saved reply) in the app: Watch tab -> Research -> Import Claude's
+Share the file to the Portfolio app, or import it (or your saved reply) in the app: Watch tab -> Research -> Import Claude's
 answer.
 
 ---
