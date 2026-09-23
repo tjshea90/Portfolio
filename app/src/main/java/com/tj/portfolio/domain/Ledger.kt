@@ -142,11 +142,12 @@ object Ledger {
         txns: List<Txn>,
         overrides: Map<String, Override> = emptyMap(),
         method: String = FIFO,
-        sessionInstant: Long = System.currentTimeMillis()
+        sessionInstant: Long = System.currentTimeMillis(),
+        repairBelowId: Long = Long.MAX_VALUE
     ): List<Position> {
         val today = dayBounds(sessionInstant)
-        return if (method == AVERAGE) averageCost(txns, overrides, today)
-        else fifo(txns, overrides, today)
+        return if (method == AVERAGE) averageCost(txns, overrides, today, repairBelowId)
+        else fifo(txns, overrides, today, repairBelowId)
     }
 
     /**
@@ -169,8 +170,17 @@ object Ledger {
      *    the order on file sells shares the books do not hold and the reverse order sells
      *    fewer - an order that is internally consistent is never touched, so a hand-entered
      *    history keeps exactly the order it was entered in.
+     *
+     * ONLY ROWS OLDER THAN [repairBelowId] (full test 2026-09-23, A-2). Rule 2 cannot tell
+     * "stored backwards" from "the buy that covers this sale was never recorded": SELL 100
+     * then BUY 100 on a day whose earlier lot is not on file oversells forward and not in
+     * reverse - so it was reversed, the 100 shares actually held vanished, and the missing-buy
+     * warning went with them. Rows inserted since imports became chronological are already in
+     * the right order and need no repair, so the device records the first id that postdates
+     * the fix (`PortfolioViewModel.replayRepairBelowId`) and only a group made entirely of
+     * rows below it is a candidate. Default: every row, for callers with no watermark.
      */
-    internal fun replayOrder(txns: List<Txn>): List<Txn> {
+    internal fun replayOrder(txns: List<Txn>, repairBelowId: Long = Long.MAX_VALUE): List<Txn> {
         // Both rules act only on an exact TIE: rows stamped with a real time of day keep that
         // order, because it is information; date-only rows (every entry point stamps local
         // noon) tie, and the id is not.
@@ -197,7 +207,7 @@ object Ledger {
                 val group = (k..end).map { sorted[slots[it]] }
                 val forward = simulate(held, group)
                 var chosen = group
-                if (group.size > 1 && forward.second > 1e-9) {
+                if (group.size > 1 && forward.second > 1e-9 && group.all { it.id < repairBelowId }) {
                     val reversed = group.asReversed()
                     if (simulate(held, reversed).second < forward.second - 1e-9) {
                         chosen = reversed.toList()
