@@ -687,7 +687,14 @@ fun DetailScreen(
         // very fetch the settle window exists to defer - the tick clock runs four times a
         // minute and a pinch takes about a second, so without this the two would collide
         // often enough to notice.
-        if (!zoomSettling) vm.loadChart(symbol, chartRange)
+        if (!zoomSettling) {
+            vm.loadChart(symbol, chartRange)
+            // THE BENCHMARK TOO (full test 2026-09-23, N-5): its own effect above fires on a
+            // change of toggle or range only, so SPY froze at load time while the stock line kept
+            // refreshing - and "vs SPY" compared a live stock with a stale benchmark. Same TTL,
+            // same in-flight guard: at most one request per range per five minutes.
+            if (compareOn && !isBenchmark) vm.loadChart(BENCHMARK_SYMBOL, chartRange)
+        }
     }
 
     // REMEMBERED (Round 57). An unremembered lambda is a new object on every recomposition,
