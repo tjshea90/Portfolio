@@ -304,7 +304,7 @@ $SHAPE
      * Accepts a raw Claude reply, a fenced block, or a bare JSON file - the same three shapes
      * [ClaudeBridge.parse] accepts.
      */
-    fun parse(text: String): Parsed {
+    fun parse(text: String, now: Long = System.currentTimeMillis()): Parsed {
         if (ClaudeBridge.isPromptFile(text)) return Parsed(
             error = "That is the prompt file this app wrote, not Claude's answer. Attach it to " +
                 "a chat in the Claude app, then save what Claude replies as a .txt or .md " +
@@ -324,6 +324,12 @@ $SHAPE
                 "answer to a different prompt - the Research tab imports those."
         )
 
+        // ---- AN OLD ANSWER IS NOT TODAY'S PLAN (full test 2026-09-23, D-5). `asOf` was asked
+        // for and never read. With the share flow, yesterday's answer file sits one tap away in
+        // the Claude chat - and its entry/stop/target easily pass the half-to-double price check,
+        // so it became today's CLAUDE'S PLAN and was logged permanently under today's date. A
+        // dated answer from an earlier session keeps its explanations and loses its levels.
+        val current = answerIsCurrent(dt.text("asOf"), now)
         val arr = dt.optJSONArray("picks") ?: JSONArray()
         val out = ArrayList<ResearchRow>(arr.length())
         for (i in 0 until arr.length()) {
@@ -339,7 +345,7 @@ $SHAPE
             // a triple that is not stop < entry < target does not describe a trade at all,
             // whatever the prices are. The half that does need it - are these numbers anywhere
             // near this stock's actual price - can only run where the app's own price is known.
-            val sane = levelsSane(entry, stop, target)
+            val sane = current && levelsSane(entry, stop, target)
             // A row with nothing but a ticker adds nothing.
             if (why.isBlank() && risk.isBlank() && !sane) continue
             out.add(
@@ -359,13 +365,36 @@ $SHAPE
                 )
             )
         }
-        val notes = ClaudeBridge.scrub(dt.text("notes"))
+        val notes = ClaudeBridge.scrub(dt.text("notes")).let { n ->
+            if (current) n
+            else listOf(
+                "This answer is dated ${dt.text("asOf")}, an earlier session - its explanations " +
+                    "were kept, its entry/stop/target levels were not.",
+                n
+            ).filter { it.isNotBlank() }.joinToString(" ")
+        }
         if (out.isEmpty()) return Parsed(
             notes = notes,
             error = "That file only contained the example shape from the prompt, not a real " +
                 "answer. Make sure you saved Claude's whole reply."
         )
         return Parsed(picks = out, notes = notes)
+    }
+
+    /**
+     * Is an answer dated [asOf] (YYYY-MM-DD, as the prompt asks) about the session [now] is in?
+     * Today's New York date is; so is YESTERDAY's before today's open - an evening's "plan for
+     * tomorrow" read the next morning. Missing or unreadable counts as current: tolerance for a
+     * reply that left the field out, which the price check in [merge] still guards.
+     */
+    internal fun answerIsCurrent(asOf: String, now: Long): Boolean {
+        val m = Regex("""(\d{4})-(\d{2})-(\d{2})""").find(asOf) ?: return true
+        val key = m.groupValues[1] + m.groupValues[2] + m.groupValues[3]
+        val today = MarketClock.dayKey(now)
+        if (key >= today) return true
+        val et = java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.of("America/New_York"))
+        val beforeOpen = et.hour * 60 + et.minute < 9 * 60 + 30
+        return beforeOpen && key == MarketClock.dayKey(now - 86_400_000L)
     }
 
     /** The fallback trigger sentence, for a reply that gave levels but no wording of its own. */

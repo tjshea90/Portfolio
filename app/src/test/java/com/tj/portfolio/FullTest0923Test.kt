@@ -126,4 +126,27 @@ class FullTest0923Test {
         val normal = com.tj.portfolio.net.ResearchScore.exitPlan(12.0, 0, live = false)
         assert(normal.contains("15:50 ET")) { normal }
     }
+
+    // ---- D-5: an old answer's levels are not today's plan.
+
+    @Test fun `D-5 an answer dated an earlier session keeps its words and loses its levels`() {
+        // 2026-09-23 14:00 ET (18:00 UTC), mid-session.
+        val now = java.time.ZonedDateTime.of(2026, 9, 23, 14, 0, 0, 0,
+            java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
+        fun reply(asOf: String) = """{"portfolioAppResponse":1,"dayTrading":{"asOf":"$asOf","picks":[
+            {"symbol":"GME","why":"Squeeze setup.","entry":22.5,"stop":21.0,"target":25.5,"conviction":8}]}}"""
+        val today = com.tj.portfolio.net.DayTradingBridge.parse(reply("2026-09-23"), now)
+        assertEquals(22.5, today.picks.single().entryPrice, 1e-9)
+        val old = com.tj.portfolio.net.DayTradingBridge.parse(reply("2026-09-21"), now)
+        assertEquals(0.0, old.picks.single().entryPrice, 1e-9)
+        assertEquals("Squeeze setup.", old.picks.single().why)
+        assert(old.notes.contains("earlier session")) { old.notes }
+        // Yesterday's evening plan read before today's open is still current.
+        val preOpen = java.time.ZonedDateTime.of(2026, 9, 23, 8, 0, 0, 0,
+            java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
+        assert(com.tj.portfolio.net.DayTradingBridge.answerIsCurrent("2026-09-22", preOpen))
+        assert(!com.tj.portfolio.net.DayTradingBridge.answerIsCurrent("2026-09-22", now))
+        // No date at all is tolerated.
+        assert(com.tj.portfolio.net.DayTradingBridge.answerIsCurrent("", now))
+    }
 }
