@@ -90,4 +90,20 @@ class FullTest0923Test {
             assertEquals("$m legacy repaired", 0.0, legacy.oversold, 1e-9)
         }
     }
+
+    // ---- A-4: the undo restores the state before a destructive action, not the snapshot
+    // forced right after it.
+
+    @Test fun `A-4 a before-copy shadowed by a snapshot seconds later is the undo`() {
+        val dir = java.nio.file.Files.createTempDirectory("snaps").toFile()
+        fun f(name: String, at: Long) = java.io.File(dir, name).apply { writeText("{}"); setLastModified(at) }
+        val t = 1_700_000_000_000L
+        val before = f("portfolio-before-replace-1.json", t)
+        val daily = f("portfolio-autobackup-1.json", t + 2_000)
+        assertEquals(before, com.tj.portfolio.ui.pickUndoSnapshot(listOf(daily, before)))
+        // A day later the daily snapshot is the newer real state again.
+        val later = f("portfolio-autobackup-2.json", t + 86_400_000L)
+        assertEquals(later, com.tj.portfolio.ui.pickUndoSnapshot(listOf(later, daily, before)))
+        assertEquals(null, com.tj.portfolio.ui.pickUndoSnapshot(emptyList()))
+    }
 }

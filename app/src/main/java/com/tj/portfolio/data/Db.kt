@@ -1056,6 +1056,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         writableDatabase.insertWithOnConflict("overrides", null, cv, SQLiteDatabase.CONFLICT_REPLACE)
     }
 
+    /** Every manual position override - see `PortfolioViewModel.wipeTransactions`. */
+    fun clearAllOverrides() = writableDatabase.delete("overrides", null, null)
+
     fun clearOverride(symbol: String) =
         writableDatabase.delete("overrides", "symbol=?", arrayOf(symbol.uppercase()))
 

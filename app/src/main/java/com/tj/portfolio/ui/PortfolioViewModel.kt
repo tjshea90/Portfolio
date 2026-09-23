@@ -8071,6 +8071,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun wipeTransactions() {
         snapshotBefore("wipe")
         db.deleteAllTxns()
+        // THE OVERRIDES GO WITH THEM (full test 2026-09-23, A-7). They pin a symbol's shares
+        // and basis against its history; with no history they did nothing - until the usual
+        // reason for a wipe, re-importing everything cleanly, brought them silently back into
+        // force against the new rows. They are in the snapshot taken just above.
+        db.clearAllOverrides()
         // An intentional wipe resets the high-water mark, otherwise the app would then
         // insist for ever that data had gone missing.
         db.set(Keys.LAST_TXN_COUNT, "0")
