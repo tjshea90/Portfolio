@@ -36,18 +36,24 @@ best we can do is have the prompt file tell Claude to produce a downloadable fil
 recognizable name/marker, so tapping it in the Claude app offers "open with / share" and
 Portfolio appears in the list. Tell Tj plainly which parts are automatic and which need a tap.
 
-- [ ] Find every "make prompt file" (all Claude-prompt exports) + every "import answer" path
-- [ ] Every "make prompt file" auto-opens the Android share sheet (FileProvider + chooser);
+- [x] Find every "make prompt file" (all Claude-prompt exports) + every "import answer" path
+      (4 prompts: Advice, Activity/screenshots, Research, Day Trading; 3 import buttons)
+- [x] Every "make prompt file" auto-opens the Android share sheet (FileProvider + chooser);
       keep the existing save/download path working as a fallback
-- [ ] Prompt file instructs Claude to return the answer as a file with a recognizable
+      (util/ShareFiles.kt PromptShare, VM deliverPrompt, ui/PromptShareUi.kt launchPromptShare)
+- [x] Prompt file instructs Claude to return the answer as a file with a recognizable
       name/format marker so it can be shared/opened into Portfolio from the Claude app
-- [ ] Portfolio registers as a share/open target; incoming file is identified (which prompt it
+      (ClaudeBridge.fileDelivery(name) + SHARE_BACK_LINE; portfolio-answer-*.md)
+- [x] Portfolio registers as a share/open target; incoming file is identified (which prompt it
       answers) and auto-imported through the existing importer, with a clear confirmation and
-      safe rejection of junk
-- [ ] Day trading section: move "make prompt file" + "import answer" buttons to the top
-- [ ] Day trading section: delete the paragraph beginning "stocks $2 a share or more"
-- [ ] Verify all of the above (unit tests for routing/parsing, careful Compose read), well
-      designed and coded; checkpoint
+      safe rejection of junk (ShareImportActivity trampoline -> ShareInbox -> MainActivity ->
+      vm.importSharedInbox/importShared, SharedAnswer.classify; waits for research cache load)
+- [x] Day trading section: move "make prompt file" + "import answer" buttons to the top
+- [x] Day trading section: delete the paragraph beginning "stocks $2 a share or more"
+- [x] Verify all of the above (unit tests for routing/parsing, careful Compose read), well
+      designed and coded; checkpoint - ShareFlowTest (12, all green; caught a real bug: the
+      direct import path did not move the Research section). Suite 1306/1307: the 1 red is
+      WatchSinceAddedTest, a network-timing flake (passes on rerun) - fix in the full test
 - [ ] THEN run CLAUDE.md's Full tests protocol end to end (the 2026-09-23 boxes below)
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
 
