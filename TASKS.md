@@ -1,5 +1,56 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-23b (his own words) — REPLACES the 2026-09-23 scheduled full test below
+
+> At the beginning of the full test that is already scheduled, see if you can make it so anywhere
+> there is a "make prompt file" for the Claude app, when I press it, it automatically opens up an
+> android "share with" menu and I can select share with new Claude chat. That way I can quickly
+> share the file without download and import manually. And if possible, after Claude app is done
+> making the response, make it so when I click on the output file it also asks me if I want to
+> share the file, and I can select the portfolio app, then the portfolio app will automatically
+> import the data and already know how to use the data just from the share. I don't know if this
+> is possible, but if it is, build it. Keep in mind you will need to alter the app itself to make
+> the share with menu come up automatically, then alter the exported file from the app to tell
+> Claude to make the Claude chat finished file also automatically open the share with menu when I
+> click on it from the Claude app, and then again the portfolio app needs to be modified to
+> understand exactly what to do with the import from the share with prompt. Then in the portfolio
+> app, move the "make prompt file" and "import answer" buttons to the top of the day trading
+> section. There is a long paragraph at the top of this day trading section beginning with
+> "stocks $2 a share or more". Delete that whole paragraph because I don't need it and it takes
+> up space.
+>
+> Only after all of these changes are done, make sure they work and are well designed and coded
+> then begin the full tests.
+>
+> Schedule all of this work in place of the full test you already have scheduled
+
+Scheduled (requested 07:18 UTC): old trigger `trig_01Hp73NbXPiPsjjEhxQwUY16` deleted, replaced
+by a new `send_later` at 09:04 UTC 2026-09-23 (same start time). Do NOT start before then.
+If it is past 09:04 UTC and nothing has started, any session reading this should start it.
+
+Feasibility notes (research at fire time, don't assume): the app side is fully ours
+(ACTION_SEND chooser via FileProvider on every "make prompt file"; an ACTION_SEND/ACTION_VIEW
+intent-filter that routes a shared answer file straight into the matching importer). The
+middle hop - the Claude app popping a share menu on its own - is NOT ours to control; the
+best we can do is have the prompt file tell Claude to produce a downloadable file with a
+recognizable name/marker, so tapping it in the Claude app offers "open with / share" and
+Portfolio appears in the list. Tell Tj plainly which parts are automatic and which need a tap.
+
+- [ ] Find every "make prompt file" (all Claude-prompt exports) + every "import answer" path
+- [ ] Every "make prompt file" auto-opens the Android share sheet (FileProvider + chooser);
+      keep the existing save/download path working as a fallback
+- [ ] Prompt file instructs Claude to return the answer as a file with a recognizable
+      name/format marker so it can be shared/opened into Portfolio from the Claude app
+- [ ] Portfolio registers as a share/open target; incoming file is identified (which prompt it
+      answers) and auto-imported through the existing importer, with a clear confirmation and
+      safe rejection of junk
+- [ ] Day trading section: move "make prompt file" + "import answer" buttons to the top
+- [ ] Day trading section: delete the paragraph beginning "stocks $2 a share or more"
+- [ ] Verify all of the above (unit tests for routing/parsing, careful Compose read), well
+      designed and coded; checkpoint
+- [ ] THEN run CLAUDE.md's Full tests protocol end to end (the 2026-09-23 boxes below)
+- [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
+
 ## Tj's request, 2026-09-23 (his own words)
 
 > Do a full text on this portfolio app in 2 hours from now. Do not start the full test until
