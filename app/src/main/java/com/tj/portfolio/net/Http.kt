@@ -515,6 +515,15 @@ object Http {
         // The permit is taken AFTER the cooldown check and the cache read, so a request that
         // is never going to be sent does not queue behind four that are.
         gateFor(host).withPermit {
+        // AND CHECKED AGAIN ONCE THE PERMIT IS HELD (full test 2026-09-23, N-3). A request that
+        // was already queued when one of the four in flight got a 429 would otherwise still be
+        // sent into the throttle - five or ten of them at once, which is how a throttle turns
+        // into a block.
+        hosts[host]?.let { h ->
+            if (System.currentTimeMillis() < h.until) {
+                return@withPermit HttpResult(HttpResult.CODE_COOLDOWN, "rate limited, backing off")
+            }
+        }
         // CANCELLATION HAS TO REACH THE SOCKET, or it is not cancellation.
         //
         // `HttpURLConnection` blocks in `read()`, and coroutine cancellation is cooperative -
