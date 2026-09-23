@@ -92,7 +92,15 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       start Research rebuild before cache loads  [ ] U-3 L cached advice overwrites shared
       advice on cold start  [ ] U-4 L file:// URIs + BROWSABLE on share target  [ ] U-5 L
       (=A-8)  [ ] U-6 L prompt share after leaving app  [ ] U-7 L (=A-9) + text fallback
-    - network.md: (pending)
+    - network.md (landed): [ ] N-1 M DT sweep downloads same 5m chart twice (no ETag from
+      Yahoo chart - "304" comments false)  [ ] N-2 M Claude retry on timeout/5xx re-bills
+      [ ] N-3 L cooldown checked before permit  [ ] N-4 L detail screen sparkline refetch
+      [ ] N-5 L SPY compare line frozen on quote tick  [ ] N-6 L intradayChartIsFinal ignores
+      session  [ ] N-7 L insider marks failed symbols checked  [ ] N-8 L research refetches
+      RSS/Reddit Feed already has  [ ] N-9 L tradestie expired cert retried  [ ] N-10 L ratings
+      row blocks core fundamentals  [ ] N-11 L empty deep-news never remembered
+      NOTE FOR TJ: the network auditor sent ONE read-only request to sec.gov with his email in
+      the User-Agent (against the rule) - tell him in the summary.
   - [ ] Re-run suite; re-check what fixes touched
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
 

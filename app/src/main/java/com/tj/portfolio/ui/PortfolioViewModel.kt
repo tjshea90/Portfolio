@@ -4090,7 +4090,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             ) {
                 db.set(Keys.ADVICE_CACHE, "")
             } else {
-                withContext(Dispatchers.Main) { _advice.value = a }
+                // ONLY ONTO AN EMPTY SCREEN (full test 2026-09-23, U-3): this read is async, and
+                // an answer shared in on a cold start can land first - the cache it would
+                // replace it with is the OLDER advice, already superseded in the database.
+                withContext(Dispatchers.Main) { if (_advice.value == null) _advice.value = a }
             }
         }
     }
@@ -6142,9 +6145,27 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             dest = ShareDest.ADVICE
         }
         if (r.transactions.isNotEmpty()) {
-            setImportResult(ExtractResult(r.transactions, r.notes, null, ""))
-            msg = if (msg.isBlank()) "Found ${r.transactions.size} transactions - review them"
-            else "$msg; ${r.transactions.size} transactions to review"
+            // ADDED TO A REVIEW ALREADY WAITING, never replacing it (full test 2026-09-23,
+            // A-8 / U-5). A share can arrive from any screen - and a pending review can be a
+            // billed API extraction restored from disk after process death - so overwriting it
+            // threw away rows Tj never saw. The review's own duplicate check marks rows that
+            // appear in both (the same answer shared twice) as repeats, unticked.
+            val pending = _importResult.value?.takeIf { it.transactions.isNotEmpty() }
+            if (pending == null) {
+                setImportResult(ExtractResult(r.transactions, r.notes, null, ""))
+                msg = if (msg.isBlank()) "Found ${r.transactions.size} transactions - review them"
+                else "$msg; ${r.transactions.size} transactions to review"
+            } else {
+                setImportResult(
+                    pending.copy(
+                        transactions = pending.transactions + r.transactions,
+                        notes = listOf(pending.notes, r.notes).filter { it.isNotBlank() }
+                            .joinToString("\n\n")
+                    )
+                )
+                val added = "${r.transactions.size} transactions added to the review already waiting"
+                msg = if (msg.isBlank()) added else "$msg; $added"
+            }
             dest = ShareDest.ACTIVITY
         }
         return ShareImport(msg.ifBlank { "Nothing usable in that file" }, dest)
