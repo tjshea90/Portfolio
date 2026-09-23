@@ -13,7 +13,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Regression tests for the full-test audit of 2026-09-23 (audits/2026-09-23/*.md) that do not
+ * Regression tests for the full-test audit of 2026-09-23 (the reports in audits/2026-09-23) that do not
  * belong to an existing subsystem test file. Each test names the finding it pins.
  */
 @RunWith(RobolectricTestRunner::class)
