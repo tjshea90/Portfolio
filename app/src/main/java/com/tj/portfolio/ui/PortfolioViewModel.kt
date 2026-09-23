@@ -3639,7 +3639,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         toast("${ov.symbol.uppercase()} has a manual $what override - clear it (Edit shares / cost) for this trade to count")
     }
 
-    fun deleteTxn(id: Long) { db.deleteTxn(id); recompute() }
+    fun deleteTxn(id: Long) { db.deleteTxn(id); resetMarkIfEmptied(); recompute() }
+
+    /**
+     * A ledger emptied BY HAND is not a ledger that vanished (full test 2026-09-23, A-11).
+     * The "transactions are missing" alarm fires when the table is empty but the high-water
+     * mark says rows existed - so deleting the last row, or the only symbol, raised it, and its
+     * restore button merged the rows just deleted straight back. The same reset
+     * [wipeTransactions] already does, for the other two ways of emptying the table.
+     */
+    private fun resetMarkIfEmptied() {
+        if (db.txnCount() == 0) {
+            db.set(Keys.LAST_TXN_COUNT, "0")
+            _dataMissing.value = false
+        }
+    }
 
     /** Wipe a symbol entirely: every transaction plus any manual override. */
     fun deleteSymbol(symbol: String): Int {
@@ -3648,6 +3662,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val n = db.deleteTxnsForSymbol(sym)
         db.clearOverride(sym)
         db.removeWatch(sym)
+        resetMarkIfEmptied()
         recompute()
         return n
     }
