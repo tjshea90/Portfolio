@@ -425,4 +425,61 @@ class ResearchCarryTest {
         val out = applyAnalystEnrichment(rows, enriched, window = 2)
         assertEquals(listOf("B", "A", "C"), out.map { it.symbol })
     }
+
+    // ------------------------------- full test 2026-09-23: S-3 / D-1 - all of Claude's work
+
+    @Test fun `a rebuild keeps Claude's catalyst, conviction and the stock rows it added`() {
+        val now = System.currentTimeMillis()
+        val old = ResearchSet(
+            best = listOf(
+                ResearchRow(symbol = "XYZ", score = 70, why = "Real case.", whyAt = now,
+                    catalyst = "Q3 earnings 12 Oct - risk: dilution", conviction = 7),
+                // Claude ADDED this one: the screener never scored it.
+                ResearchRow(symbol = "ADD", score = 0, why = "Claude's pick.", whyAt = now, conviction = 8)
+            ),
+            generated = now - 3_600_000L
+        )
+        val fresh = ResearchSet(
+            best = listOf(ResearchRow(symbol = "XYZ", score = 72, catalyst = "Earnings in 20 days"),
+                ResearchRow(symbol = "NEW", score = 60)),
+            generated = now
+        )
+        val out = carryExplanations(old, fresh, now).best
+        assertEquals(listOf("XYZ", "NEW", "ADD"), out.map { it.symbol })
+        val xyz = out.first()
+        assertEquals(72, xyz.score)                       // the app's own score is fresh
+        assertEquals("Q3 earnings 12 Oct - risk: dilution", xyz.catalyst)
+        assertEquals(7, xyz.conviction)
+    }
+
+    @Test fun `a row Claude never answered keeps the fresh screener catalyst`() {
+        val now = System.currentTimeMillis()
+        // A `why` with no conviction is not a Claude answer for this row's catalyst.
+        val old = ResearchSet(best = listOf(ResearchRow(symbol = "XYZ", score = 70, why = "w",
+            whyAt = now, catalyst = "Earnings in 21 days")), generated = now)
+        val fresh = ResearchSet(best = listOf(ResearchRow(symbol = "XYZ", score = 70,
+            catalyst = "Earnings in 20 days")), generated = now)
+        assertEquals("Earnings in 20 days", carryExplanations(old, fresh, now).best.single().catalyst)
+    }
+
+    @Test fun `a same-day Claude plan survives a rebuild, a previous day's does not`() {
+        val now = System.currentTimeMillis()
+        fun set(whyAt: Long) = ResearchSet(dayTrading = listOf(
+            ResearchRow(symbol = "GME", score = 70, why = "In play.", whyAt = whyAt, conviction = 8,
+                entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5, planByClaude = true),
+            ResearchRow(symbol = "ADD", score = 0, why = "Claude's pick.", whyAt = whyAt, conviction = 6)
+        ), generated = whyAt)
+        val fresh = ResearchSet(dayTrading = listOf(ResearchRow(symbol = "GME", score = 75)), generated = now)
+
+        val today = carryExplanations(set(now), fresh, now).dayTrading
+        assertEquals(listOf("GME", "ADD"), today.map { it.symbol })
+        assertTrue(today.first().planByClaude)
+        assertEquals(22.5, today.first().entryPrice, 1e-9)
+
+        val lastWeek = now - 7L * 86_400_000L
+        val stale = carryExplanations(set(lastWeek), fresh, now).dayTrading
+        assertEquals("a previous session's added pick is not today's", listOf("GME"), stale.map { it.symbol })
+        assertTrue(!stale.single().planByClaude)
+        assertEquals(0.0, stale.single().entryPrice, 1e-9)
+    }
 }
