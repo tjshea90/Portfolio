@@ -82,11 +82,11 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       [x] A-10 L saving flag stuck after failed commit  [x] A-11 L delete-last triggers
       missing alarm  [-] A-12 L autosave truncate-in-place: NO CHANGE - a MediaStore pending-row swap is device-only and untestable here; mitigated by the private snapshot written first in the same pass, A-1's -previous copy, and readers treating invalid JSON as absent
     - daytrading.md (landed): [x] D-1 H share->Research rebuild wipes Claude DT answer (=U-1)
-      [ ] D-2 M Claude plan on app-declined row never logged (planDeclineStreak)  [ ] D-3 M no
+      [x] D-2 M Claude plan on app-declined row never logged (planDeclineStreak)  [x] D-3 M no
       plans overnight/weekend after rebuild  [ ] D-4 M prompt has 10 visible rows, merge
       replaces all 40  [ ] D-5 M answer asOf never checked (old file = today's plan)
-      [ ] D-6 M success-rate check uncapped requests  [ ] D-7 L unseen rows logged
-      [ ] D-8 L late-evening Claude plan replaced at 04:00  [ ] D-9 L half-day "flat by 15:50"
+      [ ] D-6 M success-rate check uncapped requests  [x] D-7 L unseen rows logged
+      [ ] D-8 L late-evening Claude plan replaced at 04:00  [x] D-9 L half-day "flat by 15:50"
       [ ] D-10 L daily-bar memo at close
     - ui-share.md (landed): [x] U-1 H (=D-1) + share import skips busy check  [ ] U-2 M cold
       start Research rebuild before cache loads  [x] U-3 L cached advice overwrites shared
