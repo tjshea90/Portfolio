@@ -4276,23 +4276,38 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * building the whole prompt string and writing it to Downloads, all on the main thread.
      * On a long history that is exactly the shape of an ANR.
      */
-    fun writeAdvicePrompt(onDone: (String) -> Unit) {
+    fun writeAdvicePrompt(onDone: (PromptOut) -> Unit) {
         viewModelScope.launch {
-            val msg = withContext(Dispatchers.IO) {
+            val out = withContext(Dispatchers.IO) {
                 runCatching {
                     // ONE file, replaced each time. A new timestamped file per tap meant TJ's
                     // Downloads filled with near-identical prompts - and picking the wrong one
                     // in the file chooser is precisely the v5.2 import bug. One file cannot be
                     // confused with an older one.
-                    val saved = com.tj.portfolio.util.Storage.saveOrReplaceInDownloads(
-                        getApplication(), ADVICE_PROMPT_FILE, advicePromptFile(), "text/markdown"
-                    )
-                    if (saved != null) "Saved to ${saved.display}"
-                    else "Couldn't write to Downloads"
-                }.getOrElse { "Couldn't build the prompt file: ${it.message}" }
+                    deliverPrompt(ADVICE_PROMPT_FILE, advicePromptFile())
+                }.getOrElse { PromptOut("Couldn't build the prompt file: ${it.message}", null) }
             }
-            onDone(msg)
+            onDone(out)
         }
+    }
+
+    /**
+     * EVERY PROMPT BUTTON ENDS HERE (2026-09-23b). Writes the Downloads copy exactly as before
+     * - the fallback, and the file the "How does this work?" notes still name - AND stages the
+     * same text for the share sheet, which the screen opens as soon as this returns. Call off
+     * the main thread: both are disk writes.
+     */
+    private fun deliverPrompt(fileName: String, body: String): PromptOut {
+        val app = getApplication<Application>()
+        val saved = runCatching {
+            com.tj.portfolio.util.Storage.saveOrReplaceInDownloads(app, fileName, body, "text/markdown")
+        }.getOrNull()
+        val share = com.tj.portfolio.util.PromptShare.stage(app, fileName, body)
+        return PromptOut(
+            if (saved != null) "Saved to ${saved.display} - attach it to a Claude chat"
+            else "Couldn't write the prompt file",
+            share
+        )
     }
 
     // ------------------------------------------------------------ live feed
@@ -6026,16 +6041,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** Builds and writes the prompt file off the UI thread - it reads every transaction. */
-    fun writeScreenshotPrompt(onDone: (String) -> Unit) {
+    fun writeScreenshotPrompt(onDone: (PromptOut) -> Unit) {
         viewModelScope.launch {
-            val msg = withContext(Dispatchers.IO) {
-                val saved = com.tj.portfolio.util.Storage.saveOrReplaceInDownloads(
-                    getApplication(), SCREENSHOT_PROMPT_FILE, screenshotPromptFile(),
-                    "text/markdown"
-                )
-                if (saved != null) "Saved to ${saved.display}" else "Couldn't write to Downloads"
+            val out = withContext(Dispatchers.IO) {
+                runCatching { deliverPrompt(SCREENSHOT_PROMPT_FILE, screenshotPromptFile()) }
+                    .getOrElse { PromptOut("Couldn't build the prompt file: ${it.message}", null) }
             }
-            onDone(msg)
+            onDone(out)
         }
     }
 
@@ -6068,22 +6080,103 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         ) {
             return importResearchFile(text)
         }
+        return importAdviceOrTransactions(text).message
+    }
+
+    /**
+     * The advice/transactions half of [importClaudeFile], shared with [importShared] so the
+     * share path cannot drift from the button path. [ShareImport.dest] says which screen now
+     * has something to show: the Activity tab when there are transactions to review (they sit
+     * in a review sheet until confirmed, so that is the screen that needs Tj), else Advice.
+     */
+    private fun importAdviceOrTransactions(text: String): ShareImport {
         val r = runCatching { com.tj.portfolio.net.ClaudeBridge.parse(text) }
-            .getOrElse { return "Couldn't read that file: ${it.message}" }
-        if (r.error != null) return r.error
+            .getOrElse { return ShareImport("Couldn't read that file: ${it.message}", null) }
+        if (r.error != null) return ShareImport(r.error, null)
         var msg = ""
+        var dest: ShareDest? = null
         if (r.advice != null) {
             _advice.value = r.advice
             _adviceError.value = null
             db.set(Keys.ADVICE_CACHE, adviceToJson(r.advice).toString())
             msg = "Advice loaded (${r.advice.stocks.size} ratings)"
+            dest = ShareDest.ADVICE
         }
         if (r.transactions.isNotEmpty()) {
             setImportResult(ExtractResult(r.transactions, r.notes, null, ""))
             msg = if (msg.isBlank()) "Found ${r.transactions.size} transactions - review them"
             else "$msg; ${r.transactions.size} transactions to review"
+            dest = ShareDest.ACTIVITY
         }
-        return msg.ifBlank { "Nothing usable in that file" }
+        return ShareImport(msg.ifBlank { "Nothing usable in that file" }, dest)
+    }
+
+    // ------------------------------------------------ SHARE -> PORTFOLIO (2026-09-23b)
+
+    /**
+     * Imports whatever `ShareImportActivity` left in the inbox, then asks `App` to open the
+     * screen it filled. Called by `MainActivity` for every [com.tj.portfolio.util.ShareInbox.ACTION_IMPORT]
+     * intent; [com.tj.portfolio.util.ShareInbox.take] deletes the file as it reads it, so a
+     * re-delivered intent imports nothing twice.
+     */
+    fun importSharedInbox() {
+        viewModelScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                com.tj.portfolio.util.ShareInbox.take(getApplication())
+            } ?: return@launch
+            // See [researchCacheReady]. Bounded, so a wedged cache read can never swallow the
+            // import - the worst case is the pre-existing cold-start race, not a lost answer.
+            kotlinx.coroutines.withTimeoutOrNull(5_000) { researchCacheReady.await() }
+            val r = runCatching { importShared(text) }
+                .getOrElse { ShareImport("Couldn't import that share: ${it.message}", null) }
+            _toast.value = r.message
+            r.dest?.let { d ->
+                if (d == ShareDest.RESEARCH || d == ShareDest.DAY_TRADING) jumpToResearch(d)
+                _shareNav.value = d
+            }
+        }
+    }
+
+    /**
+     * Routes one shared answer by its CONTENT ([com.tj.portfolio.net.SharedAnswer.classify]) to
+     * the importer its screen's own button uses, and says where it went. Anything that is not
+     * an answer - an empty share, an image, the prompt file itself - is refused before any
+     * importer sees it, and nothing is navigated to.
+     */
+    fun importShared(text: String): ShareImport {
+        val kind = com.tj.portfolio.net.SharedAnswer.classify(text)
+        com.tj.portfolio.net.SharedAnswer.rejection(kind)?.let { return ShareImport(it, null) }
+        return when (kind) {
+            com.tj.portfolio.net.SharedAnswer.Kind.DAY_TRADING -> {
+                val parsed = runCatching { com.tj.portfolio.net.DayTradingBridge.parse(text) }
+                    .getOrElse { return ShareImport("Couldn't read that file: ${it.message}", null) }
+                val msg = applyDayTradingAnswer(parsed, "Claude app")
+                ShareImport(msg, if (parsed.error == null) ShareDest.DAY_TRADING else null)
+            }
+            com.tj.portfolio.net.SharedAnswer.Kind.RESEARCH -> {
+                val parsed = runCatching { com.tj.portfolio.net.ResearchBridge.parse(text) }
+                    .getOrElse { return ShareImport("Couldn't read that file: ${it.message}", null) }
+                val msg = applyResearchAnswer(parsed, "Claude app")
+                ShareImport(msg, if (parsed.error == null) ShareDest.RESEARCH else null)
+            }
+            else -> importAdviceOrTransactions(text)
+        }
+    }
+
+    /**
+     * Point the Research screen at the section an answer filled. A Day Trading answer opens
+     * Day Trading; a Research answer covers Trending, Best and ETFs at once, so it keeps
+     * whichever of those was last open - unless that was Day Trading, which it did not touch.
+     * Persisted as well as published, so a Research screen composed AFTER this (the usual case:
+     * the Watch tab is opened by the same share) starts on the right section by itself.
+     */
+    private fun jumpToResearch(dest: ShareDest) {
+        val sections = com.tj.portfolio.data.ResearchSet.SECTIONS
+        val dt = sections.indexOf(com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING)
+        val target = if (dest == ShareDest.DAY_TRADING) dt
+        else researchTab().takeIf { it != dt } ?: 0
+        setResearchTab(target)
+        _researchJump.value = target
     }
 
     // ====================================================== RESEARCH (Round 54)
@@ -6778,26 +6871,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     )
 
     /** Write the offline prompt file - one fixed name, replaced, same as the other two. */
-    fun writeResearchPrompt(onDone: (String) -> Unit) {
+    fun writeResearchPrompt(onDone: (PromptOut) -> Unit) {
         if (_research.value.isFullyEmpty) {
-            onDone("Load the research lists first - there is nothing to ask about yet.")
+            onDone(PromptOut("Load the research lists first - there is nothing to ask about yet.", null))
             return
         }
         viewModelScope.launch {
             val body = researchPromptFile()
-            val msg = withContext(Dispatchers.IO) {
-                runCatching {
-                    val saved = com.tj.portfolio.util.Storage.saveOrReplaceInDownloads(
-                        getApplication(),
-                        com.tj.portfolio.net.ResearchBridge.PROMPT_FILE,
-                        body,
-                        "text/markdown"
-                    )
-                    if (saved != null) "Saved to ${saved.display}"
-                    else "Couldn't write to Downloads"
-                }.getOrElse { "Couldn't build the prompt file: ${it.message}" }
+            val out = withContext(Dispatchers.IO) {
+                runCatching { deliverPrompt(com.tj.portfolio.net.ResearchBridge.PROMPT_FILE, body) }
+                    .getOrElse { PromptOut("Couldn't build the prompt file: ${it.message}", null) }
             }
-            onDone(msg)
+            onDone(out)
         }
     }
 
@@ -6938,26 +7023,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     )
 
     /** Write the offline prompt file - one fixed name, replaced, same as [writeResearchPrompt]. */
-    fun writeDayTradingPrompt(onDone: (String) -> Unit) {
+    fun writeDayTradingPrompt(onDone: (PromptOut) -> Unit) {
         if (_research.value.dayTrading.isEmpty()) {
-            onDone("Load the research lists first - there is nothing to ask about yet.")
+            onDone(PromptOut("Load the research lists first - there is nothing to ask about yet.", null))
             return
         }
         viewModelScope.launch {
             val body = dayTradingPromptFile()
-            val msg = withContext(Dispatchers.IO) {
-                runCatching {
-                    val saved = com.tj.portfolio.util.Storage.saveOrReplaceInDownloads(
-                        getApplication(),
-                        com.tj.portfolio.net.DayTradingBridge.PROMPT_FILE,
-                        body,
-                        "text/markdown"
-                    )
-                    if (saved != null) "Saved to ${saved.display}"
-                    else "Couldn't write to Downloads"
-                }.getOrElse { "Couldn't build the prompt file: ${it.message}" }
+            val out = withContext(Dispatchers.IO) {
+                runCatching { deliverPrompt(com.tj.portfolio.net.DayTradingBridge.PROMPT_FILE, body) }
+                    .getOrElse { PromptOut("Couldn't build the prompt file: ${it.message}", null) }
             }
-            onDone(msg)
+            onDone(out)
         }
     }
 
