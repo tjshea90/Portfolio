@@ -65,7 +65,23 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
         from the baseline whichever way the fetch went; no-quote case stays covered by the
         pure test. (Also: container-local ~/.gradle/init.d/central-mirror.gradle recreated -
         Google's Central mirror, incl. Robolectric's runtime jar - stops the 429 retries.)
-  - [ ] Verify + fix every finding (agents can be wrong - check each against the code), tests
+  - [ ] Verify + fix every finding (agents can be wrong - check each against the code), tests.
+        Full write-ups: audits/2026-09-23/*.md. Tick each ID when fixed+tested, or mark
+        "no change" with the reason.
+    - scoring.md (landed): [x] S-1 H phrase substring (Relevance, RelevanceTest +2)
+      [ ] S-2 M ratings-only verdict frozen  [ ] S-3 M rebuild drops Claude-added stock rows +
+      catalyst/conviction  [ ] S-4 M Sector/Market Weight, Top Pick unbucketed  [ ] S-5 L toInt
+      truncation  [ ] S-6 L all-hold == all-sell  [ ] S-7 L fundamentalsAt hides stale core
+      [ ] S-8 L "trend is mixed" wording  [ ] S-9 L dated-but-unbucketable says "no dates"
+      [ ] S-10 L double "Same exposure as" line
+    - accounting.md (landed): [ ] A-1 H autosave overwritten by near-empty ledger
+      [ ] A-2 M replayOrder reverses correct day w/ missing history  [ ] A-3 M snapshot rows
+      dated today -> huge "Today" P/L  [ ] A-4 M undo snapshot unreachable  [ ] A-5 L BUY/SELL
+      w/o symbol  [ ] A-6 L fees on non-trade rows double  [ ] A-7 L wipe keeps overrides
+      [ ] A-8 L share-in replaces pending review  [ ] A-9 L inbox deleted before import stored
+      [ ] A-10 L saving flag stuck after failed commit  [ ] A-11 L delete-last triggers
+      missing alarm  [ ] A-12 L autosave truncate-in-place
+    - daytrading.md / network.md / ui-share.md: (pending)
   - [ ] Re-run suite; re-check what fixes touched
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
 
