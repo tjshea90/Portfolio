@@ -196,13 +196,22 @@ class PullIndicatorUiTest {
     }
 
     @Test fun `an animation state stuck at the threshold is never drawn while idle`() {
-        refreshing = true
         showList()
-        rule.mainClock.advanceTimeBy(1_000)
+        // Fixture: a real pull held just past the threshold shows the circle there...
+        rule.onNodeWithTag("list").performTouchInput {
+            down(topCenter + androidx.compose.ui.geometry.Offset(0f, 20f))
+            repeat(12) { moveBy(androidx.compose.ui.geometry.Offset(0f, 30f)) }
+        }
+        rule.mainClock.advanceTimeBy(200)
         val withCircle = circleSpot()
-        rule.runOnIdle { refreshing = false }
+        // ...and pulling it back up to nothing, then lifting, takes it away without a refresh.
+        rule.onNodeWithTag("list").performTouchInput {
+            repeat(12) { moveBy(androidx.compose.ui.geometry.Offset(0f, -30f)) }
+            up()
+        }
         rule.mainClock.advanceTimeBy(1_000)
         rule.waitForIdle()
+        assertEquals(0, refreshCalls)
         val without = circleSpot()
         assertTrue("fixture: the circle must change those pixels", withCircle != without)
 
