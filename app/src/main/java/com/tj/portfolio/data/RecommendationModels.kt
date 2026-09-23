@@ -109,6 +109,10 @@ data class Recommendation(
                 else "All $allRatingsStale analyst ratings on file are") + " over 8 months old - " +
                 (if (analystWeight > 0.0) "the consensus only counts because it moved last month. $cut."
                 else "not counted.")
+            // Dated, but no grade that maps to buy/hold/sell (full test 2026-09-23, S-9) - "no
+            // publication dates" would be false: the dates are there and were used.
+            analystCount > 0 && ratingsDated -> "Analyst ratings are dated, but none carries a " +
+                "buy/hold/sell grade this app can read, so the overall consensus stands in. $cut."
             analystCount > 0 -> "Analyst ratings came back with no publication dates, so their " +
                 "age could not be checked. $cut."
             else -> ""
