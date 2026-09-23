@@ -201,7 +201,9 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
                     Row {
                         OutlinedButton(
                             onClick = {
-                                vm.writeScreenshotPrompt { msg -> vm.toast(msg) }
+                                vm.writeScreenshotPrompt { out ->
+                                    launchPromptShare(ctx, out) { vm.toast(it) }
+                                }
                             },
                             modifier = Modifier.weight(1f)
                         ) { Text("Make prompt file") }
@@ -212,10 +214,12 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
                         ) { Text("Import reply") }
                     }
                     Text(
-                        "\"Make prompt file\" writes claude-screenshot-prompt.md into Downloads/Portfolio " +
-                            "(replacing the previous one). Attach it to a chat in " +
-                            "the Claude app along with your screenshots, save Claude's reply as a .txt " +
-                            "or .md file, then tap \"Import reply\". No API key is used.",
+                        "\"Make prompt file\" opens the share menu - pick Claude, then add your " +
+                            "screenshots to that chat. When Claude's answer file appears, tap it, " +
+                            "then Share and pick Portfolio: the rows open here for review. No API " +
+                            "key is used. A copy is also saved as Downloads/Portfolio/" +
+                            "claude-screenshot-prompt.md, and \"Import reply\" still takes a " +
+                            "saved answer file.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 6.dp)

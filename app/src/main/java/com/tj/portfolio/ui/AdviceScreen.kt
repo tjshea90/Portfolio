@@ -115,9 +115,9 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
                                 // building the prompt reads every transaction and writes a
                                 // file, so it goes off the main thread rather than running
                                 // here in the click handler
-                                vm.writeAdvicePrompt { msg ->
+                                vm.writeAdvicePrompt { out ->
                                     preloading = false
-                                    vm.toast(msg)
+                                    launchPromptShare(ctx, out) { vm.toast(it) }
                                 }
                             }
                         },
@@ -131,11 +131,11 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
                     ) { Text("Import reply") }
                 }
                 Text(
-                    "Writes Downloads/Portfolio/claude-advice-prompt.md with your whole portfolio and " +
-                        "recent headlines in it - the same file each time. Attach THAT file to a chat " +
-                        "in the Claude app, then " +
-                        "save Claude's answer as a separate .txt or .md file and tap \"Import reply\" on " +
-                        "the answer - not on the prompt file. The ratings below fill in with no API key used.",
+                    "Opens the share menu with your whole portfolio and recent headlines in one " +
+                        "file - pick Claude to start a new chat with it. When Claude's answer file " +
+                        "appears, tap it, then Share and pick Portfolio: the ratings below fill in " +
+                        "on their own, with no API key used. A copy of the prompt is also saved to " +
+                        "Downloads/Portfolio, and \"Import reply\" still takes a saved answer file.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp)
