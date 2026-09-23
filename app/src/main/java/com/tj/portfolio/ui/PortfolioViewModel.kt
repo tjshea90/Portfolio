@@ -505,6 +505,19 @@ private const val AUTOSAVE_FILE = "portfolio-autosave.json"
 private const val ADVICE_PROMPT_FILE = "claude-advice-prompt.md"
 private const val SCREENSHOT_PROMPT_FILE = "claude-screenshot-prompt.md"
 
+/**
+ * What a "Make prompt file" tap produced (2026-09-23b): the URI the share sheet hands to the
+ * Claude app, and the message to show if the share sheet cannot open - by then the Downloads
+ * copy, written as before, is the fallback, and [message] says where it is.
+ */
+data class PromptOut(val message: String, val share: Uri?)
+
+/** Which screen a shared-in Claude answer belongs on - see [PortfolioViewModel.importShared]. */
+enum class ShareDest { ADVICE, ACTIVITY, RESEARCH, DAY_TRADING }
+
+/** The outcome of one shared-in answer: the toast, and where to go (null = stay put). */
+data class ShareImport(val message: String, val dest: ShareDest?)
+
 
 // ==================================================================== research carry-over
 //
@@ -1371,6 +1384,27 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _toast = MutableStateFlow<String?>(null)
     val toast: StateFlow<String?> = _toast.asStateFlow()
+
+    // ---- SHARE -> PORTFOLIO (2026-09-23b). One-shot navigation requests raised by an import
+    // that arrived through the share sheet rather than a button, so no screen asked for it.
+    // `App` performs the tab change and clears [shareNav]; the Research screen switches its own
+    // section and clears [researchJump]. Both are plain state rather than events so a request
+    // raised before the screen is composed (a cold start straight from a share) still lands.
+    private val _shareNav = MutableStateFlow<ShareDest?>(null)
+    val shareNav: StateFlow<ShareDest?> = _shareNav.asStateFlow()
+    fun shareNavHandled() { _shareNav.value = null }
+
+    private val _researchJump = MutableStateFlow<Int?>(null)
+    val researchJump: StateFlow<Int?> = _researchJump.asStateFlow()
+    fun researchJumpHandled() { _researchJump.value = null }
+
+    /**
+     * Completed once [loadCachedResearch] has finished, whatever it found. A share can cold-start
+     * the app, and the research cache is parsed off the main thread - an answer merged into the
+     * still-empty lists first would make the cache load see a non-empty set and DROP the cached
+     * Trending/Best/ETF lists (it only fills an empty screen). [importSharedInbox] waits on this.
+     */
+    private val researchCacheReady = kotlinx.coroutines.CompletableDeferred<Unit>()
 
     private val _models = MutableStateFlow<List<String>>(emptyList())
     val models: StateFlow<List<String>> = _models.asStateFlow()
@@ -6063,6 +6097,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun loadCachedResearch() {
         viewModelScope.launch(Dispatchers.IO) {
+            try { loadCachedResearchNow() } finally { researchCacheReady.complete(Unit) }
+        }
+    }
+
+    private suspend fun loadCachedResearchNow() {
+        run {
             val raw = runCatching { db.get(Keys.RESEARCH_CACHE) }.getOrDefault("")
             if (raw.isBlank()) return@launch
             val loaded = runCatching {
