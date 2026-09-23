@@ -7,8 +7,18 @@
 (Recording: /root/.claude/uploads/ad4d015c-7c87-5509-a905-7be6c8ab7c35/09deaea6-screen-20260923-125857.mp4
 - session upload, not in git. On v7.38, which added the stranded-indicator watchdog.)
 
-- [ ] Extract frames, see exactly what the circle does
-- [ ] Find why v7.38's watchdog did not clear it; fix + regression test
+- [x] Extract frames, see exactly what the circle does - 72 frames at 25fps: the IDLE ARROW
+      (not the spinner), frozen at the threshold, unmoved while the holdings list scrolls
+      mid-list under it.
+- [x] Find why v7.38's watchdog did not clear it; fix + regression test - M3's node ignores
+      every scroll only while it thinks an animation is running, which also blocked v7.38's
+      "not animating" watchdog. Could NOT reproduce M3's race in Robolectric (randomized stress
+      of pull/refresh/touch timings, 80 rounds, passed on old + new; scratch test not kept).
+      Fix: M3's pull gesture replaced by our own PullGesture (ui/Common.kt; grows only on a
+      real overscroll at the top, zeroes on release, hide on our own scope) + draw-time
+      invariant drawnFraction (circle drawn only while refreshing / pulling / our animation) +
+      watchdog kept. Tests: PullGestureTest (7, incl. the recording in numbers; mutation-
+      checked), PullIndicatorUiTest (+2 real-gesture on a LazyColumn).
 - [ ] Light tests, ship, post link (same standing instruction as 2026-09-23c)
 
 ## Tj's request, 2026-09-23c (his own words)
