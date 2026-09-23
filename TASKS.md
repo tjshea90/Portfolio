@@ -55,6 +55,15 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       direct import path did not move the Research section). Suite 1306/1307: the 1 red is
       WatchSinceAddedTest, a network-timing flake (passes on rerun) - fix in the full test
 - [ ] THEN run CLAUDE.md's Full tests protocol end to end (the 2026-09-23 boxes below)
+  - [x] Floor: checkinit ok; suite 1306/1307 (WatchSinceAddedTest network-timing flake)
+  - [ ] 5 parallel read-only audits launched 09:3x UTC; each writes its FULL report to
+        audits/2026-09-23/{scoring,daytrading,network,ui-share,accounting}.md (so a resumed
+        session re-reads the files instead of re-running the audit). Missing file = that
+        agent did not finish -> re-run just that one.
+  - [ ] Fix WatchSinceAddedTest hermeticity (asserts "no live quote" but VM.init's refresh()
+        really fetches NVDA when the container has network)
+  - [ ] Verify + fix every finding (agents can be wrong - check each against the code), tests
+  - [ ] Re-run suite; re-check what fixes touched
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
 
 ## Tj's request, 2026-09-23 (his own words)
