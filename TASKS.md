@@ -1,5 +1,21 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-23 (his own words)
+
+> Do a full text on this portfolio app in 2 hours from now. Do not start the full test until
+> 2 hours from now, and at that time, start and complete a full test without asking me to start
+> it. Do it automatically
+
+- [x] Scheduled via `send_later` (one-shot Routine into this session) for ~09:04 UTC 2026-09-23
+      (requested 07:03 UTC). Do NOT start the full test before then.
+- [ ] At fire time: run CLAUDE.md's **Full tests** protocol end to end, unprompted - checkinit +
+      full Gradle suite floor, parallel subsystem audit (scoring/recommend, day-trading,
+      network/caching, UI), fix everything found, re-run suite, checkpoint as work completes
+- [ ] Ship per the 2026-09-19 auto-ship rule if the fixes are release-worthy, and post the
+      Release link
+- [ ] If the scheduled message never arrived (session reclaimed, Routine failed) and it is past
+      09:04 UTC 2026-09-23: any session reading this should just start the full test now
+
 ## Tj's request, 2026-09-22c (his own words)
 
 > Review the attached video. Why is the spy baseline still jumping up and down when I hold and
