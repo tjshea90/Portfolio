@@ -69,7 +69,7 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
         Full write-ups: audits/2026-09-23/*.md. Tick each ID when fixed+tested, or mark
         "no change" with the reason.
     - scoring.md (landed): [x] S-1 H phrase substring (Relevance, RelevanceTest +2)
-      [ ] S-2 M ratings-only verdict frozen  [ ] S-3 M rebuild drops Claude-added stock rows +
+      [ ] S-2 M ratings-only verdict frozen  [x] S-3 M rebuild drops Claude-added stock rows +
       catalyst/conviction  [ ] S-4 M Sector/Market Weight, Top Pick unbucketed  [ ] S-5 L toInt
       truncation  [ ] S-6 L all-hold == all-sell  [ ] S-7 L fundamentalsAt hides stale core
       [ ] S-8 L "trend is mixed" wording  [ ] S-9 L dated-but-unbucketable says "no dates"
@@ -78,20 +78,20 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       [ ] A-2 M replayOrder reverses correct day w/ missing history  [ ] A-3 M snapshot rows
       dated today -> huge "Today" P/L  [ ] A-4 M undo snapshot unreachable  [ ] A-5 L BUY/SELL
       w/o symbol  [ ] A-6 L fees on non-trade rows double  [ ] A-7 L wipe keeps overrides
-      [ ] A-8 L share-in replaces pending review  [ ] A-9 L inbox deleted before import stored
+      [x] A-8 L share-in replaces pending review  [x] A-9 L inbox deleted before import stored
       [ ] A-10 L saving flag stuck after failed commit  [ ] A-11 L delete-last triggers
       missing alarm  [ ] A-12 L autosave truncate-in-place
-    - daytrading.md (landed): [ ] D-1 H share->Research rebuild wipes Claude DT answer (=U-1)
+    - daytrading.md (landed): [x] D-1 H share->Research rebuild wipes Claude DT answer (=U-1)
       [ ] D-2 M Claude plan on app-declined row never logged (planDeclineStreak)  [ ] D-3 M no
       plans overnight/weekend after rebuild  [ ] D-4 M prompt has 10 visible rows, merge
       replaces all 40  [ ] D-5 M answer asOf never checked (old file = today's plan)
       [ ] D-6 M success-rate check uncapped requests  [ ] D-7 L unseen rows logged
       [ ] D-8 L late-evening Claude plan replaced at 04:00  [ ] D-9 L half-day "flat by 15:50"
       [ ] D-10 L daily-bar memo at close
-    - ui-share.md (landed): [ ] U-1 H (=D-1) + share import skips busy check  [ ] U-2 M cold
-      start Research rebuild before cache loads  [ ] U-3 L cached advice overwrites shared
-      advice on cold start  [ ] U-4 L file:// URIs + BROWSABLE on share target  [ ] U-5 L
-      (=A-8)  [ ] U-6 L prompt share after leaving app  [ ] U-7 L (=A-9) + text fallback
+    - ui-share.md (landed): [x] U-1 H (=D-1) + share import skips busy check  [ ] U-2 M cold
+      start Research rebuild before cache loads  [x] U-3 L cached advice overwrites shared
+      advice on cold start  [x] U-4 L file:// URIs + BROWSABLE on share target  [x] U-5 L
+      (=A-8)  [ ] U-6 L prompt share after leaving app  [x] U-7 L (=A-9) + text fallback
     - network.md (landed): [ ] N-1 M DT sweep downloads same 5m chart twice (no ETag from
       Yahoo chart - "304" comments false)  [ ] N-2 M Claude retry on timeout/5xx re-bills
       [ ] N-3 L cooldown checked before permit  [ ] N-4 L detail screen sparkline refetch
@@ -99,6 +99,11 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       session  [ ] N-7 L insider marks failed symbols checked  [ ] N-8 L research refetches
       RSS/Reddit Feed already has  [ ] N-9 L tradestie expired cert retried  [ ] N-10 L ratings
       row blocks core fundamentals  [ ] N-11 L empty deep-news never remembered
+      FIXED SO FAR (tests: ShareFlowTest +4, ResearchCarryTest +3): researchStale counts a Claude
+      import as fresh; share drain waits for a running build; carry keeps catalyst/conviction/
+      added rows/same-day DT plan; ShareInbox is a queue removed after import; readShared
+      content:// from other apps only + EXTRA_TEXT fallback, BROWSABLE dropped; cached advice
+      only onto empty screen; shared txns append to a pending review.
       NOTE FOR TJ: the network auditor sent ONE read-only request to sec.gov with his email in
       the User-Agent (against the rule) - tell him in the summary.
   - [ ] Re-run suite; re-check what fixes touched
