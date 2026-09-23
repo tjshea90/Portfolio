@@ -54,7 +54,7 @@ class PullStressScratchTest {
         rule.waitForIdle()
         val rnd = java.util.Random(7)
         var failures = 0
-        for (round in 0 until 60) {
+        for (round in 0 until 80) {
             // back to top
             rule.runOnIdle { kotlinx.coroutines.runBlocking { list.scrollToItem(0) } }
             rule.waitForIdle()
@@ -76,6 +76,10 @@ class PullStressScratchTest {
                 if (!touched && t >= touchAfterMs) {
                     node.performTouchInput { down(center); repeat(4) { moveBy(Offset(0f, -40f)) } }
                     touched = true
+                }
+                if (touched) {
+                    val dy = if ((t / 16) % 2 == 0L) 25f else -25f
+                    node.performTouchInput { moveBy(Offset(0f, dy)) }
                 }
                 rule.mainClock.advanceTimeBy(16); t += 16
             }
