@@ -10,6 +10,7 @@ import com.tj.portfolio.util.Fmt
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.ln
+import kotlin.math.roundToInt
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -148,7 +149,14 @@ object ResearchScore {
             if (r.fiftyDayAvg > r.twoHundredDayAvg) t += 10.0
             s += t
             if (t >= 20.0) why.add("In an uptrend - above its 50-day and the 50-day is above the 200-day")
-            else if (t > 0) why.add("Trend is mixed - above one moving average, below the other")
+            // SAID FROM WHAT WAS ACTUALLY TESTED (full test 2026-09-23, S-8). The second test
+            // compares the two averages with each other, not the price with the 200-day, so
+            // "above one, below the other" was false for a price below both (50d > 200d) and
+            // for one above both (50d < 200d).
+            else if (t > 0) why.add(
+                if (r.price > r.fiftyDayAvg) "Above its 50-day average, but the 50-day is below the 200-day"
+                else "Below its 50-day average, though the 50-day is still above the 200-day"
+            )
         }
 
         // --- position in the 52-week range (0-10)
@@ -1586,7 +1594,10 @@ object ResearchScore {
 
         if (c.total > 0) {
             val share = c.buyShare
-            a = 20.0 + share.coerceIn(0.0, 1.0) * 60.0
+            // SELL VOTES COUNT (full test 2026-09-23, S-6): on buy share alone, ten holds and
+            // ten sells scored identically while the line beside it said "Hold" or "Sell".
+            a = (20.0 + share.coerceIn(0.0, 1.0) * 60.0 - c.sellShare.coerceIn(0.0, 1.0) * 10.0)
+                .coerceIn(10.0, 80.0)
             val lab = c.label()
             // ---- SAY THAT THIS ONE IS UNDATED (2026-09-18).
             //
@@ -1957,7 +1968,10 @@ object ResearchScore {
 
         if (why.isEmpty()) why.add("Not enough public data yet to form a view either way")
 
-        return Scored(s.coerceIn(0.0, 100.0).toInt(), why, confidence(have, want))
+        // ROUNDED, NOT TRUNCATED (full test 2026-09-23, S-5): `toInt()` cuts toward zero, so the
+        // band [verdictFor] draws around 50 was lopsided - SELL at anything under 38.0, BUY only
+        // from 63.0 - and two mirror-image stocks got HOLD and SELL.
+        return Scored(s.coerceIn(0.0, 100.0).roundToInt(), why, confidence(have, want))
     }
 
     /**
