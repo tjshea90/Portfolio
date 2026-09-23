@@ -19,9 +19,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -66,7 +66,11 @@ fun Refreshable(
                     // collectLatest cancels this wait the moment anything changes - a finger
                     // coming down, an animation starting - so only a circle that stayed
                     // abandoned for the whole grace is touched.
-                    delay(STRANDED_INDICATOR_GRACE_MS)
+                    // Timed on the FRAME clock, not `delay`: the indicator is a drawing, and
+                    // the frame clock is what every animation it takes part in runs on (and
+                    // what a UI test can drive). A handful of frames, only while stranded.
+                    val start = withFrameMillis { it }
+                    while (withFrameMillis { it } - start < STRANDED_INDICATOR_GRACE_MS) Unit
                     state.animateToHidden()
                 }
             }
