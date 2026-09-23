@@ -482,7 +482,18 @@ object DayTradingTechnicals {
             .maxOfOrNull { it.high } ?: 0.0
 
     /** True once the close (16:00 ET, 13:00 on a half day) has passed on [nowMs]'s New York date. */
-    private fun afterClose(nowMs: Long): Boolean = etMinutes(nowMs / 1000) >= MarketClock.closeMinuteAt(nowMs)
+    private fun afterClose(nowMs: Long): Boolean = closeSettled(nowMs)
+
+    /**
+     * Today's daily bar counts as FINAL only once the close has had time to settle (full test
+     * 2026-09-23, D-10): Yahoo's daily candle takes a few minutes to absorb the closing-auction
+     * print, and the first post-close fetch is memoised for the rest of the evening - so a tick
+     * at 16:00:40 froze a prevClose/high/low that was off by the auction until midnight. The
+     * same grace [DayTradingEval.SETTLE_GRACE_MS] gives outcome evaluation.
+     */
+    private fun closeSettled(nowMs: Long): Boolean =
+        etMinutes(nowMs / 1000) * 60_000L >=
+            MarketClock.closeMinuteAt(nowMs) * 60_000L + DayTradingEval.SETTLE_GRACE_MS
 
     /**
      * The memo behind `fetch`'s daily leg.
@@ -538,7 +549,7 @@ object DayTradingTechnicals {
         val nowSec = now / 1000L
         val today = etDateKey(nowSec)
         // The day's own close - 13:00 on a half day (see [regularSession]).
-        val closed = etMinutes(nowSec) >= MarketClock.closeMinuteAt(now)
+        val closed = closeSettled(now)
         return daily.sortedBy { it.t }.filter { etDateKey(it.t) != today || closed }
     }
 

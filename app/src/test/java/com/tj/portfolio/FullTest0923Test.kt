@@ -149,4 +149,18 @@ class FullTest0923Test {
         // No date at all is tolerated.
         assert(com.tj.portfolio.net.DayTradingBridge.answerIsCurrent("", now))
     }
+
+    // ---- D-6: "Check success rate" resolves a bounded batch, oldest first.
+
+    @Test fun `D-6 at most the cap, oldest sessions first`() {
+        fun e(id: Long, day: String) = com.tj.portfolio.data.DayTradingLogEntry(
+            id = id, symbol = "S$id", tradingDay = day, recordedAt = id, setup = "", entry = 1.0,
+            stop = 0.9, target = 1.2, priceAtRecommendation = 1.0
+        )
+        val rows = (1L..100L).map { e(it, "202609" + (10 + (100 - it) % 20).toString()) }
+        val batch = com.tj.portfolio.ui.dayTradingRowsToResolve(rows, cap = 60)
+        assertEquals(60, batch.size)
+        assertEquals(batch.sortedBy { it.tradingDay }, batch)
+        assertEquals(rows.minOf { it.tradingDay }, batch.first().tradingDay)
+    }
 }
