@@ -74,7 +74,7 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       truncation  [ ] S-6 L all-hold == all-sell  [ ] S-7 L fundamentalsAt hides stale core
       [ ] S-8 L "trend is mixed" wording  [ ] S-9 L dated-but-unbucketable says "no dates"
       [ ] S-10 L double "Same exposure as" line
-    - accounting.md (landed): [ ] A-1 H autosave overwritten by near-empty ledger
+    - accounting.md (landed): [x] A-1 H (autosave-previous kept on shrink; recovery reads larger; FullTest0923Test) autosave overwritten by near-empty ledger
       [ ] A-2 M replayOrder reverses correct day w/ missing history  [ ] A-3 M snapshot rows
       dated today -> huge "Today" P/L  [ ] A-4 M undo snapshot unreachable  [ ] A-5 L BUY/SELL
       w/o symbol  [ ] A-6 L fees on non-trade rows double  [ ] A-7 L wipe keeps overrides
