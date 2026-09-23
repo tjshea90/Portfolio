@@ -231,7 +231,10 @@ thinner trade is still worth it."""
 
         val root = JSONObject().apply {
             put("app", "portfolio-day-trading")
-            put("asOf", Fmt.day(System.currentTimeMillis()))
+            // YYYY-MM-DD in New York time, the format the answer is asked to echo (diff review
+            // 2026-09-23, R-9): "Sep 23, 2026" here was copied into answers, and the D-5 date
+            // check could not read it and so let any old answer through.
+            put("asOf", java.time.LocalDate.now(java.time.ZoneId.of("America/New_York")).toString())
             put("marketPhase", MarketClock.label())
             put("dataAgeMinutes", if (set.generated > 0)
                 (System.currentTimeMillis() - set.generated) / 60000L else 0L)
@@ -388,8 +391,16 @@ $SHAPE
      * reply that left the field out, which the price check in [merge] still guards.
      */
     internal fun answerIsCurrent(asOf: String, now: Long): Boolean {
-        val m = Regex("""(\d{4})-(\d{2})-(\d{2})""").find(asOf) ?: return true
-        val key = m.groupValues[1] + m.groupValues[2] + m.groupValues[3]
+        val key = Regex("""(\d{4})-(\d{2})-(\d{2})""").find(asOf)
+            ?.let { it.groupValues[1] + it.groupValues[2] + it.groupValues[3] }
+            // The "Sep 23, 2026" form earlier prompt files sent, and Claude echoed (R-9).
+            ?: runCatching {
+                java.time.LocalDate.parse(
+                    asOf.trim(),
+                    java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy", java.util.Locale.US)
+                ).toString().replace("-", "")
+            }.getOrNull()
+            ?: return true
         val today = MarketClock.dayKey(now)
         if (key >= today) return true
         val et = java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.of("America/New_York"))
