@@ -127,7 +127,17 @@ object Research {
 
     // ------------------------------------------------------------------- the pass
 
-    suspend fun build(): ResearchSet = coroutineScope {
+    /**
+     * @param headlines / [social] the market-wide headlines and Reddit chatter the Feed pass
+     *   already holds, when they are recent (full test 2026-09-23, N-8). Null = fetch them here,
+     *   as before. Seven RSS feeds and two aggregators were re-downloaded on every rebuild while
+     *   the Feed had the same bodies in memory from minutes earlier - and none of those sources
+     *   sends a validator, so every one was a full download.
+     */
+    suspend fun build(
+        headlines: List<NewsItem>? = null,
+        social: List<com.tj.portfolio.data.Trending>? = null
+    ): ResearchSet = coroutineScope {
         val warnings = ArrayList<String>()
         val gate = Semaphore(MAX_PARALLEL)
 
@@ -146,9 +156,9 @@ object Research {
         val screenJobs = lists.map { id ->
             async { id to gate.withPermit { runCatching { Screener.fetch(id, SCREEN_DEPTH) }.getOrDefault(emptyList()) } }
         }
-        val socialJob = async { runCatching { Social.trending(60) }.getOrDefault(emptyList()) }
+        val socialJob = async { social ?: runCatching { Social.trending(60) }.getOrDefault(emptyList()) }
         val yahooTrendJob = async { runCatching { Screener.trendingSymbols(25) }.getOrDefault(emptyList()) }
-        val newsJob = async { runCatching { News.market() }.getOrDefault(emptyList()) }
+        val newsJob = async { headlines ?: runCatching { News.market() }.getOrDefault(emptyList()) }
 
         // --- merge every screener result into one universe keyed by symbol
         val universe = LinkedHashMap<String, ScreenRow>()

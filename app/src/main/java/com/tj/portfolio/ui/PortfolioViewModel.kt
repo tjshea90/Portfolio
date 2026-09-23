@@ -1713,6 +1713,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** When the Reddit aggregators were last successfully read. */
     private var socialAt: Long = 0L
 
+    /**
+     * The Feed pass's raw market headlines and full (60-row) Reddit list, with when they were
+     * fetched - handed to `Research.build` while recent, so a rebuild does not download them a
+     * second time (N-8). Null until the Feed has fetched them.
+     */
+    @Volatile private var feedMarketRaw: Pair<Long, List<com.tj.portfolio.data.NewsItem>>? = null
+    @Volatile private var feedSocialRaw: Pair<Long, List<com.tj.portfolio.data.Trending>>? = null
+
     /** Whether the on-disk headline cache has been read into memory this foreground spell. */
     private var feedRestored: Boolean = false
 
@@ -5845,8 +5853,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // alone kept both Reddit aggregators polled from Portfolio, Activity or Settings.
                 val socialDue = feedDue && System.currentTimeMillis() - socialAt > SOCIAL_REFRESH_MS
                 val socialJob = async(Dispatchers.IO) {
+                    // 60, not 25: the research rebuild wants 60 and can now reuse this one (N-8);
+                    // the Feed draws the top 25 as before.
                     if (!socialDue) emptyList()
-                    else runCatching { Social.trending(25) }.getOrDefault(emptyList())
+                    else runCatching { Social.trending(60) }.getOrDefault(emptyList())
+                        .also { if (it.isNotEmpty()) feedSocialRaw = System.currentTimeMillis() to it }
                 }
                 // Market-wide headlines, fetched alongside the per-symbol ones so they add
                 // nothing to the wait. Before this the "All" tab was only the user's own
@@ -5864,6 +5875,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val marketJob = async(Dispatchers.IO) {
                     if (!feedDue) emptyList()
                     else runCatching { News.market() }.getOrDefault(emptyList())
+                        .also { if (it.isNotEmpty()) feedMarketRaw = System.currentTimeMillis() to it }
                 }
                 // filings already on screen; kept if this pass skips or fails to refresh them
                 val existingFilings = _feed.value
@@ -6034,7 +6046,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // per process. Only advance the clock when this pass actually attempted it.
                 if (socialDue) socialAt = System.currentTimeMillis()
                 if (trend.isNotEmpty()) {
-                    _trending.value = trend.distinctBy { it.symbol }
+                    _trending.value = trend.distinctBy { it.symbol }.take(25)
                 }
             } catch (e: Exception) {
                 // a feed failure must never take the app down; last good data stays on screen
@@ -6867,7 +6879,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             if (force) _ui.value = _ui.value.copy(manualRefresh = true, refreshSource = PULL_RESEARCH)
             try {
                 val built = withContext(Dispatchers.IO) {
-                    runCatching { com.tj.portfolio.net.Research.build() }
+                    // What the Feed fetched recently is the same data - see N-8 on `build`.
+                    val now = System.currentTimeMillis()
+                    val headlines = feedMarketRaw
+                        ?.takeIf { now - it.first < MarketClock.feedIntervalSecs().coerceAtLeast(180) * 1000L }
+                        ?.second
+                    val social = feedSocialRaw?.takeIf { now - it.first < SOCIAL_REFRESH_MS }?.second
+                    runCatching { com.tj.portfolio.net.Research.build(headlines, social) }
                         .getOrElse {
                             com.tj.portfolio.data.ResearchSet(
                                 error = "Couldn't build research: ${it.message}"
