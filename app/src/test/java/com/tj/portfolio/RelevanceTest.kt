@@ -214,4 +214,26 @@ class RelevanceTest {
         assertNull(Relevance.matchHolding("", setOf("FIVE"), mapOf("FIVE" to FIVE)))
         assertNull(Relevance.matchHolding("Five Below tops estimates", emptySet(), emptyMap()))
     }
+
+    // ------------------------------------------ full test 2026-09-23, S-1
+
+    @Test
+    fun `a short-word company phrase no longer matches inside other words`() {
+        // "S&P Global Inc." -> core words S, P; "AT&T Inc." -> AT, T. As a bare substring,
+        // "s p" matched "stock-s p-lunge" and "at t" matched "at the" - hundreds of false hits.
+        assertFalse(m("Stocks plunge as yields jump", "SPGI", "S&P Global Inc."))
+        assertFalse(m("Fed holds rates at the June meeting", "T", "AT&T Inc."))
+        assertFalse(m("Nvidia posts profit that tops estimates", "T", "AT&T Inc."))
+        // The ticker rules still find them when they really are the subject.
+        assertTrue(m("Shares of AT&T (T) climbed after earnings", "T", "AT&T Inc."))
+        assertTrue(m("SPGI beats on ratings revenue", "SPGI", "S&P Global Inc."))
+    }
+
+    @Test
+    fun `a real multi-word phrase still matches, on whole words only`() {
+        assertTrue(m("five below beats on holiday sales", "FIVE", FIVE))
+        assertTrue(m("Ford Motor recalls 100,000 trucks", "F", "Ford Motor Company"))
+        // A phrase that only appears glued inside longer words is not the company.
+        assertFalse(m("Thefive belowground sensors", "FIVE", FIVE))
+    }
 }
