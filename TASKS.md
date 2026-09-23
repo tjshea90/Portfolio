@@ -88,10 +88,10 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       [x] D-6 M success-rate check uncapped requests  [x] D-7 L unseen rows logged
       [x] D-8 L late-evening Claude plan replaced at 04:00  [x] D-9 L half-day "flat by 15:50"
       [x] D-10 L daily-bar memo at close
-    - ui-share.md (landed): [x] U-1 H (=D-1) + share import skips busy check  [ ] U-2 M cold
+    - ui-share.md (landed): [x] U-1 H (=D-1) + share import skips busy check  [x] U-2 M cold
       start Research rebuild before cache loads  [x] U-3 L cached advice overwrites shared
       advice on cold start  [x] U-4 L file:// URIs + BROWSABLE on share target  [x] U-5 L
-      (=A-8)  [ ] U-6 L prompt share after leaving app  [x] U-7 L (=A-9) + text fallback
+      (=A-8)  [x] U-6 L prompt share after leaving app  [x] U-7 L (=A-9) + text fallback
     - network.md (landed): [ ] N-1 M DT sweep downloads same 5m chart twice (no ETag from
       Yahoo chart - "304" comments false)  [ ] N-2 M Claude retry on timeout/5xx re-bills
       [ ] N-3 L cooldown checked before permit  [ ] N-4 L detail screen sparkline refetch
