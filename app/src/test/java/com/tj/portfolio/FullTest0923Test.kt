@@ -163,4 +163,16 @@ class FullTest0923Test {
         assertEquals(batch.sortedBy { it.tradingDay }, batch)
         assertEquals(rows.minOf { it.tradingDay }, batch.first().tradingDay)
     }
+
+    // ---- N-2: a slow or failed Claude call is never re-sent as a second billed request.
+
+    @Test fun `N-2 only a tool refusal retries without tools`() {
+        val retry = com.tj.portfolio.net.Claude::shouldRetryWithoutTools
+        assert(!retry(-1, "")) { "timeout" }
+        assert(!retry(500, "internal error"))
+        assert(!retry(529, "overloaded_error"))
+        assert(!retry(403, "permission"))
+        assert(!retry(400, "prompt is too long"))
+        assert(retry(400, "{\"error\":{\"message\":\"web_search tool is not enabled\"}}"))
+    }
 }

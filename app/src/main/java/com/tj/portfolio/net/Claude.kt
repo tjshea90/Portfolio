@@ -17,6 +17,26 @@ data class ExtractResult(
 
 object Claude {
 
+    /**
+     * READ TIMEOUT FOR THE 16,000-TOKEN, WEB-SEARCHING CALLS (full test 2026-09-23, N-2). The
+     * request is not streamed, so nothing arrives until the whole answer is written - the old
+     * 180-second default capped TOTAL generation time, and a long answer with ten searches
+     * could run past it: the app gave up on a request the server went on to finish and bill.
+     */
+    const val LONG_REPLY_TIMEOUT_MS = 600_000
+
+    /**
+     * Retry a web-search call WITHOUT the tool only when the tool itself was refused (N-2): a
+     * 400 whose error names it. The old rule retried on anything but 401/429 - a timeout (-1),
+     * a 5xx, an overloaded 529 - sending a second full, billed request while the first had very
+     * likely completed on the server, and doubling the wait for an error at the end.
+     */
+    internal fun shouldRetryWithoutTools(code: Int, body: String): Boolean {
+        if (code != 400) return false
+        val b = body.lowercase()
+        return b.contains("web_search") || b.contains("tool")
+    }
+
     private const val BASE = "https://api.anthropic.com/v1"
     private const val VERSION = "2023-06-01"
 
@@ -316,10 +336,10 @@ say so in notes. Numbers must not contain commas or currency symbols."""
             }))
         }
 
-        var r = Http.postJson("$BASE/messages", msg.toString(), headers(key))
-        if (!r.ok && useWebSearch && r.code != 401 && r.code != 429) {
+        var r = Http.postJson("$BASE/messages", msg.toString(), headers(key), timeoutMs = LONG_REPLY_TIMEOUT_MS)
+        if (!r.ok && useWebSearch && shouldRetryWithoutTools(r.code, r.body)) {
             msg.remove("tools")
-            r = Http.postJson("$BASE/messages", msg.toString(), headers(key))
+            r = Http.postJson("$BASE/messages", msg.toString(), headers(key), timeoutMs = LONG_REPLY_TIMEOUT_MS)
         }
         if (!r.ok) return ResearchBridge.Parsed(error = apiError(r.code, r.body))
 
@@ -356,10 +376,10 @@ say so in notes. Numbers must not contain commas or currency symbols."""
             }))
         }
 
-        var r = Http.postJson("$BASE/messages", msg.toString(), headers(key))
-        if (!r.ok && useWebSearch && r.code != 401 && r.code != 429) {
+        var r = Http.postJson("$BASE/messages", msg.toString(), headers(key), timeoutMs = LONG_REPLY_TIMEOUT_MS)
+        if (!r.ok && useWebSearch && shouldRetryWithoutTools(r.code, r.body)) {
             msg.remove("tools")
-            r = Http.postJson("$BASE/messages", msg.toString(), headers(key))
+            r = Http.postJson("$BASE/messages", msg.toString(), headers(key), timeoutMs = LONG_REPLY_TIMEOUT_MS)
         }
         if (!r.ok) return DayTradingBridge.Parsed(error = apiError(r.code, r.body))
 
@@ -432,12 +452,12 @@ Include one entry in "stocks" for every symbol in the portfolio with shares > 0.
             }))
         }
 
-        var r = Http.postJson("$BASE/messages", msg.toString(), headers(key))
+        var r = Http.postJson("$BASE/messages", msg.toString(), headers(key), timeoutMs = LONG_REPLY_TIMEOUT_MS)
         // If the account or model cannot use the server-side search tool, retry plainly.
         // A 401/429 is never the tool's fault, so do not waste a second call on those.
-        if (!r.ok && useWebSearch && r.code != 401 && r.code != 429) {
+        if (!r.ok && useWebSearch && shouldRetryWithoutTools(r.code, r.body)) {
             msg.remove("tools")
-            r = Http.postJson("$BASE/messages", msg.toString(), headers(key))
+            r = Http.postJson("$BASE/messages", msg.toString(), headers(key), timeoutMs = LONG_REPLY_TIMEOUT_MS)
         }
         if (!r.ok) return Advice(
             error = apiError(r.code, r.body),
