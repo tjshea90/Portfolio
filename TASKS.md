@@ -20,6 +20,8 @@
       watchdog kept. Tests: PullGestureTest (7, incl. the recording in numbers; mutation-
       checked), PullIndicatorUiTest (+2 real-gesture on a LazyColumn).
 - [ ] Light tests, ship, post link (same standing instruction as 2026-09-23c)
+      Light tests DONE: checkinit ok, suite 1337/0 (rerun after the review fix), Refreshable code
+      read - 1 minor finding fixed (settling flag -> in-flight counter), 8 callers unchanged.
 
 ## Tj's request, 2026-09-23c (his own words)
 
