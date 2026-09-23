@@ -123,15 +123,25 @@ object ShareInbox {
      * losing it. Unreadable files are dropped rather than blocking the queue for ever.
      */
     fun next(ctx: Context): Item? {
-        val files = dir(ctx).listFiles { f -> f.name.startsWith(PREFIX) && f.name.endsWith(SUFFIX) }
-            ?.sortedBy { it.name } ?: return null
+        val files = queued(ctx)
         for (f in files) {
+            // A share nobody imported within a day is not what Tj means by "now" (R-5).
+            if (System.currentTimeMillis() - f.lastModified() > MAX_AGE_MS) { f.delete(); continue }
             val text = runCatching { f.readText() }.getOrNull()
             if (text != null) return Item(f, text)
             f.delete()
         }
         return null
     }
+
+    private const val MAX_AGE_MS = 24L * 3_600_000L
+
+    private fun queued(ctx: Context): List<File> =
+        dir(ctx).listFiles { f -> f.name.startsWith(PREFIX) && f.name.endsWith(SUFFIX) }
+            ?.sortedBy { it.name } ?: emptyList()
+
+    /** Is anything waiting to be imported? One directory listing. */
+    fun hasQueued(ctx: Context): Boolean = queued(ctx).isNotEmpty()
 
     /** Removes a share [next] returned. False if it could not be removed. */
     fun done(item: Item): Boolean = !item.file.exists() || item.file.delete()

@@ -135,7 +135,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun importIfShared(i: Intent?) {
-        if (i?.action != com.tj.portfolio.util.ShareInbox.ACTION_IMPORT) return
+        // ON EVERY START, NOT ONLY A SHARE'S (diff review 2026-09-23, R-5): a share left queued
+        // by a process death mid-import is picked up the next time the app opens at all,
+        // instead of waiting - stale - behind the next share. An empty queue costs one
+        // directory listing; `ShareInbox.next` drops anything older than a day.
+        if (i?.action != com.tj.portfolio.util.ShareInbox.ACTION_IMPORT &&
+            !com.tj.portfolio.util.ShareInbox.hasQueued(this)
+        ) return
         androidx.lifecycle.ViewModelProvider(this)[PortfolioViewModel::class.java].importSharedInbox()
     }
 

@@ -6369,12 +6369,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // See [researchCacheReady]. Bounded, so a wedged cache read can never swallow
                 // the import - the worst case is the pre-existing cold-start race.
                 kotlinx.coroutines.withTimeoutOrNull(5_000) { researchCacheReady.await() }
-                // AND NOT WHILE A RESEARCH BUILD IS RUNNING (U-1): the build publishes when it
-                // lands and would overwrite an answer applied underneath it - the reason the
-                // "Import answer" button is disabled while one runs. Bounded for the same reason.
-                kotlinx.coroutines.withTimeoutOrNull(90_000) {
-                    _researchBusy.first { it.isEmpty() }
-                }
                 val app = getApplication<Application>()
                 // Oldest first, and each one removed only AFTER its import has been applied
                 // (A-9 / U-7): a process death in between re-imports it on the next start
@@ -6383,6 +6377,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     val item = withContext(Dispatchers.IO) {
                         com.tj.portfolio.util.ShareInbox.next(app)
                     } ?: break
+                    // NOT WHILE A RESEARCH BUILD IS RUNNING (U-1): the build publishes when it
+                    // lands and would overwrite a research answer applied underneath it - the
+                    // reason the "Import answer" button is disabled while one runs. Only for
+                    // answers that touch research (diff review R-11): advice and transactions
+                    // never waited on it. Bounded for the same reason as the cache wait.
+                    val kind = com.tj.portfolio.net.SharedAnswer.classify(item.text)
+                    if (kind == com.tj.portfolio.net.SharedAnswer.Kind.RESEARCH ||
+                        kind == com.tj.portfolio.net.SharedAnswer.Kind.DAY_TRADING
+                    ) kotlinx.coroutines.withTimeoutOrNull(90_000) { _researchBusy.first { it.isEmpty() } }
                     val r = runCatching { importShared(item.text) }
                         .getOrElse { ShareImport("Couldn't import that share: ${it.message}", null) }
                     _toast.value = r.message
