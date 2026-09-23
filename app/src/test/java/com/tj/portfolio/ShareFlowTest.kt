@@ -275,6 +275,8 @@ ${ClaudeBridge.SHARE_BACK_LINE}
         assertEquals(dt, vm.researchJump.value)
         assertEquals(dt, vm.researchTab())
         assertTrue(vm.research.value.dayTrading.any { it.symbol == "GME" && it.why.contains("short squeeze") })
+        // Removed on IO just AFTER the import is applied (A-9) - give that write a moment.
+        repeat(20) { if (ShareInbox.next(app) != null) settle() }
         assertNull("the inbox was not cleared", ShareInbox.next(app))
     }
 
