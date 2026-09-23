@@ -86,7 +86,13 @@ fun Refreshable(
             thresholdPx = thresholdPx,
             refreshing = { latestRefreshing },
             onRefresh = { latestOnRefresh() },
-            show = { fraction -> scope.launch { state.snapTo(fraction) } },
+            // The value is read when the snap RUNS, not when it was queued, and never while a
+            // refresh owns the circle: a snap queued by the last scroll event before a release
+            // must not undo the release's hide - or, worse, knock down a spinning refresh
+            // circle. That kind of stale write is exactly the race that broke Material3's own.
+            show = { current ->
+                scope.launch { if (!latestRefreshing) state.snapTo(current()) }
+            },
             hide = { scope.launch { state.animateToHidden() } }
         )
     }
@@ -170,7 +176,7 @@ internal class PullGesture(
     private val thresholdPx: Float,
     private val refreshing: () -> Boolean,
     private val onRefresh: () -> Unit,
-    private val show: (Float) -> Unit,
+    private val show: (current: () -> Float) -> Unit,
     private val hide: () -> Unit
 ) : NestedScrollConnection {
 
@@ -193,7 +199,7 @@ internal class PullGesture(
         if (available.y >= 0f || distance <= 0f) return Offset.Zero
         val taken = maxOf(available.y, -distance)
         distance += taken
-        show(fraction())
+        show(::fraction)
         return Offset(0f, taken)
     }
 
@@ -201,7 +207,7 @@ internal class PullGesture(
         if (source != NestedScrollSource.UserInput || refreshing()) return Offset.Zero
         if (available.y <= 0f) return Offset.Zero
         distance += available.y
-        show(fraction())
+        show(::fraction)
         return Offset(0f, available.y)
     }
 
