@@ -706,12 +706,28 @@ internal fun carryExplanations(
     // paragraph ("breaking out over the premarket high...") as its long-term case. Claude
     // explains each list separately (`ResearchBridge.merge` and `DayTradingBridge.merge` are
     // applied per list), so a paragraph belongs to the list it was written for.
+    // ---- AND IT CARRIES ALL OF CLAUDE'S WORK, NOT JUST THE PARAGRAPH (full test 2026-09-23,
+    // S-3 / D-1 / U-1). Only `why` used to survive: Claude's catalyst/target/risk line, its
+    // conviction, its Day Trading plan and every symbol it ADDED were dropped by the next
+    // rebuild - which the share-in flow could trigger seconds after "Research updated - 2
+    // added". The ETF list already kept added funds (see [carryEtfExplanations]); the stock
+    // lists now follow the same rule: a Claude-added row (score 0 - the screener never scored
+    // it) whose paragraph is still current is kept, BELOW every scored row. Day Trading keeps
+    // an added row, and a Claude plan, only for the same trading day - a plan is not a claim
+    // about any other session (see [evictStaleDayTradingPlan]).
     fun carry(
         list: List<com.tj.portfolio.data.ResearchRow>,
-        from: List<com.tj.portfolio.data.ResearchRow>
+        from: List<com.tj.portfolio.data.ResearchRow>,
+        dayTrading: Boolean = false
     ): List<com.tj.portfolio.data.ResearchRow> {
         val prior = from.associateBy { it.symbol }
-        return list.map { r -> carryWhy(r, prior[r.symbol], now) }
+        val carried = list.map { r -> carryWhy(r, prior[r.symbol], now, dayTrading) }
+        val present = list.mapTo(HashSet()) { it.symbol }
+        val added = from.filter { p ->
+            p.symbol !in present && p.score <= 0 && stillCurrent(p.why, p.whyAt, now) &&
+                (!dayTrading || sameTradingDay(p.whyAt, now))
+        }
+        return carried + added
     }
     // `keepEtfs` also carries the fund list and its clock: `fresh` comes from `Research.build`,
     // which never touches `etfs`, and returning it as-is would wipe the six-hour fund list on
@@ -720,7 +736,7 @@ internal fun carryExplanations(
     return fresh.copy(
         trending = carry(fresh.trending, old.trending),
         best = carry(fresh.best, old.best),
-        dayTrading = carry(fresh.dayTrading, old.dayTrading)
+        dayTrading = carry(fresh.dayTrading, old.dayTrading, dayTrading = true)
     ).let(keepEtfs)
 }
 
@@ -818,11 +834,15 @@ internal fun sessionInstantFrom(quotes: Collection<Quote>, now: Long): Long {
     return if (newestPrint > 0 && now - newestPrint < aWeek) newestPrint else now
 }
 
-/** One row of [carryExplanations]: [p]'s `why` onto [r], while it is still current. */
+private fun sameTradingDay(a: Long, b: Long) =
+    a > 0 && com.tj.portfolio.net.MarketClock.dayKey(a) == com.tj.portfolio.net.MarketClock.dayKey(b)
+
+/** One row of [carryExplanations]: [p]'s Claude work onto [r], while it is still current. */
 private fun carryWhy(
     r: com.tj.portfolio.data.ResearchRow,
     p: com.tj.portfolio.data.ResearchRow?,
-    now: Long
+    now: Long,
+    dayTrading: Boolean = false
 ): com.tj.portfolio.data.ResearchRow {
     // Claude's explanation survives a rebuild; the app's own score and reasons - and, for day
     // trading, the entry/stop/target risk levels - are recomputed from fresh screener data
@@ -830,7 +850,21 @@ private fun carryWhy(
     // [WHY_STALE_MS]. Past that window this stops carrying `why` forward at all, which is the
     // actual eviction: the next `cacheResearch` persists this row with `why` blank again.
     if (p == null || !stillCurrent(p.why, p.whyAt, now)) return r
-    return r.copy(why = p.why, whyAt = p.whyAt)
+    // `conviction > 0` is the mark of a row Claude answered for - the app never sets it - and
+    // only then is a catalyst that differs from the fresh screener's Claude's own line.
+    val claude = p.conviction > 0
+    val base = r.copy(
+        why = p.why,
+        whyAt = p.whyAt,
+        catalyst = if (claude && p.catalyst.isNotBlank()) p.catalyst else r.catalyst,
+        conviction = if (claude) p.conviction else r.conviction
+    )
+    if (!dayTrading || !p.planByClaude || !sameTradingDay(p.whyAt, now)) return base
+    return base.copy(
+        entryPrice = p.entryPrice, stopPrice = p.stopPrice, targetPrice = p.targetPrice,
+        setup = p.setup, trigger = p.trigger, planNote = p.planNote, planExit = p.planExit,
+        planByClaude = true
+    )
 }
 
 /**
@@ -6121,18 +6155,40 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun importSharedInbox() {
         viewModelScope.launch {
-            val text = withContext(Dispatchers.IO) {
-                com.tj.portfolio.util.ShareInbox.take(getApplication())
-            } ?: return@launch
-            // See [researchCacheReady]. Bounded, so a wedged cache read can never swallow the
-            // import - the worst case is the pre-existing cold-start race, not a lost answer.
-            kotlinx.coroutines.withTimeoutOrNull(5_000) { researchCacheReady.await() }
-            val r = runCatching { importShared(text) }
-                .getOrElse { ShareImport("Couldn't import that share: ${it.message}", null) }
-            _toast.value = r.message
-            r.dest?.let { _shareNav.value = it }
+            // ONE DRAIN AT A TIME: a second share arriving mid-import re-calls this, and two
+            // drains would read the same file twice.
+            shareDrain.withLock {
+                // See [researchCacheReady]. Bounded, so a wedged cache read can never swallow
+                // the import - the worst case is the pre-existing cold-start race.
+                kotlinx.coroutines.withTimeoutOrNull(5_000) { researchCacheReady.await() }
+                // AND NOT WHILE A RESEARCH BUILD IS RUNNING (U-1): the build publishes when it
+                // lands and would overwrite an answer applied underneath it - the reason the
+                // "Import answer" button is disabled while one runs. Bounded for the same reason.
+                kotlinx.coroutines.withTimeoutOrNull(90_000) {
+                    _researchBusy.first { it.isEmpty() }
+                }
+                val app = getApplication<Application>()
+                // Oldest first, and each one removed only AFTER its import has been applied
+                // (A-9 / U-7): a process death in between re-imports it on the next start
+                // rather than losing it, and every importer is idempotent on a repeat.
+                while (true) {
+                    val item = withContext(Dispatchers.IO) {
+                        com.tj.portfolio.util.ShareInbox.next(app)
+                    } ?: break
+                    val r = runCatching { importShared(item.text) }
+                        .getOrElse { ShareImport("Couldn't import that share: ${it.message}", null) }
+                    _toast.value = r.message
+                    r.dest?.let { _shareNav.value = it }
+                    val removed = withContext(Dispatchers.IO) {
+                        com.tj.portfolio.util.ShareInbox.done(item)
+                    }
+                    if (!removed) break
+                }
+            }
         }
     }
+
+    private val shareDrain = kotlinx.coroutines.sync.Mutex()
 
     /**
      * Routes one shared answer by its CONTENT ([com.tj.portfolio.net.SharedAnswer.classify]) to
@@ -6548,8 +6604,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun researchStale(): Boolean {
         val s = _research.value
+        // A CLAUDE ANSWER COUNTS AS A REFRESH (full test 2026-09-23, U-1/D-1). An import never
+        // moved `generated` - rightly, Claude did not re-screen anything - so a list older than
+        // the TTL was rebuilt the moment the Research screen next looked at it, which after a
+        // SHARE is immediately: the app navigates there to show the answer. Tj then watched the
+        // answer he had just imported be replaced. The list Claude just read and reworked is as
+        // current as a rebuild; the TTL runs from whichever happened last.
+        val freshAt = maxOf(s.generated, s.explained, s.dtExplained)
         return s.isEmpty ||
-            System.currentTimeMillis() - s.generated > com.tj.portfolio.net.Research.TTL_MS
+            System.currentTimeMillis() - freshAt > com.tj.portfolio.net.Research.TTL_MS
     }
 
     /**
