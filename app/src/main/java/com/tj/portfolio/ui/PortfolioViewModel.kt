@@ -1866,6 +1866,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * not how old the answer is.
      */
     private val coreFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    /** Symbols whose on-screen verdict was scored before its core numbers - see S-2. */
+    private val recProvisional: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     private val ratingsFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /**
@@ -4909,8 +4912,22 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 if (ensureRatingsForRecommendation(sym)) recRatingsTried[sym] = today
 
                 val f = _fundamentals.value[sym] ?: return@launch
-                val fresh = com.tj.portfolio.net.Recommend.build(sym, price, f) ?: return@launch
+                val fresh = com.tj.portfolio.net.Recommend.build(
+                    sym, price, f, coreAt = coreFetchedAt[sym] ?: f.fetched
+                ) ?: return@launch
                 _recommendations.value = _recommendations.value + (sym to fresh)
+                // ---- NOT FROZEN UNTIL THE CORE NUMBERS ARE IN (full test 2026-09-23, S-2). The
+                // ratings fetch alone yields a non-empty Fundamentals (it carries
+                // `financialData`), so a verdict could be scored from analysts and growth only -
+                // no valuation, no relative performance - and, its ratings being dated, count as
+                // settled for the whole day. Until the core fetch has either landed or failed for
+                // now, the verdict is shown but provisional: not persisted, not settled, and
+                // recomputed when `_fundamentals` changes again.
+                if (!coreFetchedAt.containsKey(sym) && !fundRetry.blocked("$sym|core")) {
+                    recProvisional.add(sym)
+                    return@launch
+                }
+                recProvisional.remove(sym)
                 // On viewModelScope, not fgScope: a write already computed for today should
                 // land even if the screen is backgrounded a moment later - same reasoning as
                 // every other cache write in this file.
@@ -4943,7 +4960,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         sym: String,
         r: com.tj.portfolio.data.Recommendation,
         today: String
-    ): Boolean = r.ratingsDated || recRatingsTried[sym] == today
+    ): Boolean = sym !in recProvisional && (r.ratingsDated || recRatingsTried[sym] == today)
 
     /**
      * Fundamentals - and through them, the BUY/HOLD/SELL badge - for every row on the
@@ -5243,18 +5260,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 if (_fundamentals.value[sym] == null) {
                     // BOTH rows, not just the core one: the Analysts tab is one swipe away
                     // and should not be empty while its own fetch runs.
-                    val disk = withContext(Dispatchers.IO) {
-                        listOfNotNull(
-                            runCatching { db.cachedFundamentals(sym, Keys.KIND_CORE) }.getOrNull(),
+                    val (coreRow, ratingsRow) = withContext(Dispatchers.IO) {
+                        runCatching { db.cachedFundamentals(sym, Keys.KIND_CORE) }.getOrNull() to
                             runCatching { db.cachedFundamentals(sym, Keys.KIND_RATINGS) }.getOrNull()
-                        )
                     }
-                    disk.forEach { mergeFundamentals(sym, it) }
+                    listOfNotNull(coreRow, ratingsRow).forEach { mergeFundamentals(sym, it) }
                     // A disk row that is still inside its life is a complete answer - going
                     // to the network for it would be a request that could only return the
                     // same numbers. Recording its age as the fetch mark makes the guard at
                     // the top of this function agree for the rest of the session.
-                    val core = disk.firstOrNull { it.values.isNotEmpty() }
+                    //
+                    // THE CORE ROW, BY KIND (full test 2026-09-23, N-10). This took the first row
+                    // with any values - and the RATINGS row has values too (its `financialData`),
+                    // so with no core row on disk it was accepted as the core answer, the core
+                    // fetch was skipped for six hours and the Stats tab showed only a subset.
+                    val core = coreRow?.takeIf { it.values.isNotEmpty() }
                     if (!force && core != null &&
                         System.currentTimeMillis() - core.fetched <
                         com.tj.portfolio.net.FundamentalsFeed.CORE_TTL_MS

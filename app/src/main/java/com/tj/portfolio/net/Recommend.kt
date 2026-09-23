@@ -22,7 +22,12 @@ object Recommend {
         symbol: String,
         price: Double,
         fundamentals: Fundamentals,
-        now: Long = System.currentTimeMillis()
+        now: Long = System.currentTimeMillis(),
+        // WHEN THE CORE NUMBERS WERE FETCHED, not the merged row's stamp (full test 2026-09-23,
+        // S-7): `fundamentals` merges the core row with the daily ratings row and carries the
+        // NEWER time, so a core row days old behind a fresh ratings fetch looked current and the
+        // dialog's "numbers last fetched" warning could never show.
+        coreAt: Long = fundamentals.fetched
     ): Recommendation? {
         if (fundamentals.isEmpty || price <= 0.0) return null
         val input = ResearchScore.HoldingInput(
@@ -87,7 +92,7 @@ object Recommend {
             allRatingsStale = allStale,
             targetIsWeighted = weighted != null,
             targetAgeDays = weighted?.targetAgeDays ?: -1,
-            fundamentalsAt = fundamentals.fetched
+            fundamentalsAt = coreAt
         )
     }
 }
