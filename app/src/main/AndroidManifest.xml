@@ -42,5 +42,58 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          SHARE -> PORTFOLIO (2026-09-23b). Claude's answer file, shared or opened with this
+          app, lands in ShareImportActivity - a no-UI trampoline that copies it and hands it
+          to MainActivity, which imports it and opens the matching screen. See that class for
+          why it is a separate activity rather than a filter on MainActivity.
+
+          The MIME list is wide on purpose: the Claude app, file managers and download
+          managers label the same .md file text/markdown, text/plain, text/x-markdown or
+          application/octet-stream depending on who is asking. What is actually inside is
+          checked on import (SharedAnswer.classify), and anything that is not an answer is
+          rejected in plain language, so being offered for an unrelated file costs nothing.
+        -->
+        <activity
+            android:name=".ShareImportActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:label="@string/app_name"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <intent-filter android:label="@string/app_name">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="content" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          The other direction: every "Make prompt file" button hands its prompt to the share
+          sheet through this provider, which exposes ONLY cache/shared/ (res/xml/share_paths.xml)
+          and only by per-file, per-share read grants - it is not exported.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
     </application>
 </manifest>
