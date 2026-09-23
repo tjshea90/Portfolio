@@ -276,9 +276,6 @@ ${ClaudeBridge.SHARE_BACK_LINE}
         assertEquals(dt, vm.researchTab())
         assertTrue(vm.research.value.dayTrading.any { it.symbol == "GME" && it.why.contains("short squeeze") })
         assertNull("the inbox was not cleared", ShareInbox.next(app))
-        // U-1 / D-1: the answer counts as a refresh, so opening Research to show it does not
-        // trigger the rebuild that used to replace it.
-        assertFalse(vm.researchStale())
     }
 
     @Test fun `a shared research answer opens Research on a list it filled`() {
@@ -290,6 +287,9 @@ ${ClaudeBridge.SHARE_BACK_LINE}
         assertEquals(ShareDest.RESEARCH, r.dest)
         assertEquals(0, vm.researchTab())
         assertTrue(vm.research.value.best.any { it.symbol == "GOOD" })
+        // U-1 / D-1: the answer counts as a refresh, so opening Research to show it does not
+        // trigger the rebuild that used to replace it.
+        assertFalse(vm.researchStale())
     }
 
     @Test fun `advice opens Advice and transactions open the review on Activity`() {

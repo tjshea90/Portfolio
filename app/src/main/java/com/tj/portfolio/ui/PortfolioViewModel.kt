@@ -700,7 +700,10 @@ internal fun carryExplanations(
             dtExplainedBy = dtExplainedVia
         )
     }
-    if (old.isEmpty) return keepEtfs(fresh)
+    // `isEmpty` asks only about Trending and Best; a set holding nothing but Day Trading rows
+    // (a Day Trading answer shared into an app that had not built research yet) still has
+    // Claude's work in it to carry.
+    if (old.isEmpty && old.dayTrading.isEmpty()) return keepEtfs(fresh)
     // ---- EACH LIST CARRIES FROM ITS OWN OLD LIST (full-tests audit 2026-09-22, S-M2).
     //
     // This was one map across all three lists, and `associateBy` keeps the LAST row per symbol
