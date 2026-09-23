@@ -33,12 +33,25 @@ object ChartFeed {
      * and the next one is tried; only when EVERY host is unavailable does the call fail, and
      * it fails without sending anything, so the cooldown still does its job.
      */
+    /** The chart url for [range] - one definition, so [RecentBodies] keys always agree. */
+    fun url(host: String, symbol: String, range: ChartRange): String =
+        "https://$host.finance.yahoo.com/v8/finance/chart/" +
+            MarketData.enc(symbol) +
+            "?range=${range.yRange}&interval=${range.interval}" +
+            if (range.prePost) "&includePrePost=true" else ""
+
+    /**
+     * The series for [range] from a body another consumer fetched in the last few seconds, or
+     * null - no request is ever made. See [RecentBodies].
+     */
+    fun recentSeries(symbol: String, range: ChartRange): ChartSeries? {
+        val body = RecentBodies.get(url("query1", symbol, range)) ?: return null
+        return runCatching { parse(symbol, range, body) }.getOrNull()?.takeIf { !it.isEmpty }
+    }
+
     suspend fun series(symbol: String, range: ChartRange): ChartSeries? {
         for (host in listOf("query1", "query2")) {
-            val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
-                MarketData.enc(symbol) +
-                "?range=${range.yRange}&interval=${range.interval}" +
-                if (range.prePost) "&includePrePost=true" else ""
+            val url = url(host, symbol, range)
             // Shared for a few seconds with the other consumers of the same url - see
             // [RecentBodies] (N-1): Yahoo sends no validator here, so a repeat is a full download.
             RecentBodies.get(url)?.let { body ->

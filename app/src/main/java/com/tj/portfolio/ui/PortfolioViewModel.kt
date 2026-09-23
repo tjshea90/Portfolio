@@ -5253,6 +5253,27 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Publish the 1D chart from a body fetched in the last few seconds by another consumer of
+     * the same url (N-1), with no request of its own. True when there was one to publish. Written
+     * to disk only when the held copy was already due for a refresh, so a 30-second sweep does
+     * not turn into a database write per row every 30 seconds. Main thread.
+     */
+    private fun adoptRecentD1(symbol: String): Boolean {
+        val sym = symbol.uppercase()
+        val fresh = com.tj.portfolio.net.ChartFeed.recentSeries(sym, ChartRange.D1) ?: return false
+        val key = chartKey(sym, ChartRange.D1)
+        val held = _charts.value[key]
+        if (held != null && held.fetched >= fresh.fetched) return true
+        _charts.value = _charts.value + (key to fresh)
+        chartRetry.success(key)
+        adoptAsSparkline(sym, fresh)
+        if (held == null || held.stale()) {
+            viewModelScope.launch(Dispatchers.IO) { runCatching { db.cacheChart(fresh) } }
+        }
+        return true
+    }
+
     fun loadFundamentals(symbol: String, force: Boolean = false) {
         val sym = symbol.uppercase()
         val since = System.currentTimeMillis() - (coreFetchedAt[sym] ?: 0L)
@@ -7531,13 +7552,22 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // the same (symbol, D1) key could also pass the guard - two fetches for
                         // the same chart. Getting the Job back on Main closes that gap; the
                         // wait itself can still happen on any dispatcher.
-                        val chartJob = withContext(Dispatchers.Main) {
-                            loadChart(row.symbol, com.tj.portfolio.data.ChartRange.D1)
-                        }
-                        chartJob?.join()
-                        row.symbol to runCatching {
+                        // TECHNICALS FIRST, THEN THE CHART FROM THE SAME BODY (full test
+                        // 2026-09-23, N-1). The intraday leg and the 1D chart are one Yahoo url;
+                        // fetched in the other order they were two full downloads per row
+                        // whenever the chart's clock lapsed, and the card's chart ran up to five
+                        // minutes behind a plan computed from a 30-second-old copy of the same
+                        // series. `adoptRecentD1` publishes the body the technicals just fetched;
+                        // `loadChart` is left to fetch only when there was none (a failed leg).
+                        val tech = runCatching {
                             com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
                         }.getOrNull()
+                        val chartJob = withContext(Dispatchers.Main) {
+                            if (adoptRecentD1(row.symbol)) null
+                            else loadChart(row.symbol, com.tj.portfolio.data.ChartRange.D1)
+                        }
+                        chartJob?.join()
+                        row.symbol to tech
                     }
                 }
             }.awaitAll().toMap()
