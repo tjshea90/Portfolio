@@ -166,8 +166,17 @@ object Relevance {
             fun of(symbol: String, company: String): Subject {
                 val sym = symbol.trim().uppercase()
                 val core = coreWords(company)
+                // PADDED WITH SPACES AND MATCHED ON WORD BOUNDARIES (full test 2026-09-23,
+                // S-1), and only built when at least one word is 3+ letters. A bare substring
+                // test let "S&P Global Inc." (core words S, P -> "s p") match "stock-s p-lunge"
+                // and "AT&T Inc." ("at t") match "at the meeting" - hundreds of false news
+                // hits per build, which inflated maxNews and flattened every other stock's
+                // news term on Trending and Day Trading. All-short names fall through to the
+                // ticker and lead-word rules, which already handle them.
                 val phrase =
-                    if (core.size >= 2) core.joinToString(" ") { it.lowercase() } else null
+                    if (core.size >= 2 && core.any { it.length >= 3 })
+                        " " + core.joinToString(" ") { it.lowercase() } + " "
+                    else null
                 val lead = core.firstOrNull()
                     ?.takeIf { it.length >= 3 && it.lowercase() !in AMBIGUOUS_NAME_WORDS }
                 val marks = if (sym.length == 1)
@@ -191,7 +200,7 @@ object Relevance {
 
         // 1. full company phrase
         if (s.phrase != null) {
-            if ((squashedHay ?: squash(hay)).contains(s.phrase)) return true
+            if ((" " + (squashedHay ?: squash(hay)) + " ").contains(s.phrase)) return true
         }
 
         // 2. leading distinctive word, capitalised, not ordinary English
