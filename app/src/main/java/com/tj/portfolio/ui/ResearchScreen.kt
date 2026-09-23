@@ -112,16 +112,13 @@ private enum class Section(
      */
     DAY_TRADING(
         ResearchSet.SECTION_DAY_TRADING, "Day Trading",
-        "Stocks $2 a share or more that are objectively in play RIGHT NOW - unusually heavy " +
-            "volume, a real move already under way, elevated wallstreetbets/news attention, a " +
-            "breakout, or a short-squeeze-prone setup. The buy price is a TRIGGER, not the " +
-            "current quote: a level price has to reach - above the opening range, the premarket " +
-            "high or the prior session's high for a breakout, or back down at VWAP or support " +
-            "when it has already run too far to chase. The stop sits under the structure that " +
-            "would say the setup failed and the target at the next real resistance. Computed " +
-            "from real intraday levels - not a forecast of where the price is going. No system " +
-            "built on free public data can honestly promise which stocks will rise today; this " +
-            "list says what is already happening, not what happens next."
+        // NO BLURB (2026-09-23b). Tj: "There is a long paragraph at the top of this day
+        // trading section beginning with 'stocks $2 a share or more'. Delete that whole
+        // paragraph because I don't need it and it takes up space." Its place at the top is
+        // taken by the Claude-app buttons he asked to have there instead. What it said is
+        // still where it matters: every card labels its plan "computed, not a forecast", and
+        // the footnote under the list says the same in one line.
+        ""
     );
 
     fun rowsIn(set: ResearchSet): List<ResearchRow> = when (this) {
