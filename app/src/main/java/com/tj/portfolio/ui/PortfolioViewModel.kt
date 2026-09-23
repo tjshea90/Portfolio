@@ -6500,7 +6500,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         //    literal word "Pullback", and Claude's setup text is free-form ("Support bounce"),
         //    so a genuine limit entry is read as a stop entry and "triggers" on the first bar
         //    that trades anywhere near it - crediting or blaming a fill that never happened.
-        val priced = loggableDayTradingRows(rows, today)
+        //
+        //  * A ROW NOBODY WAS SHOWN (full test 2026-09-23, D-7). The one-time sweep plans every
+        //    row, including the thirty below "Load more", and all of them were logged - while
+        //    the stats card promises "this only records what it actually shows you". Only the
+        //    rows inside the shown window count as a recommendation made to Tj.
+        val shown = _researchShown.value[com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING]
+            ?: com.tj.portfolio.data.ResearchSet.PAGE
+        val priced = loggableDayTradingRows(rows.take(shown), today)
         if (priced.isEmpty()) return
         val recordedAt = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
