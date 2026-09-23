@@ -1,13 +1,13 @@
-# CHECKPOINT 1632 — read me first, then TASKS.md
+# CHECKPOINT 1633 — read me first, then TASKS.md
 
-**Written:** 2026-09-23T10:06:18Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `ebb4edf` (this checkpoint is the commit after it)
+**Written:** 2026-09-23T10:16:12Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `e4009ff` (this checkpoint is the commit after it)
 
 ## Just done
-All audit findings fixed (A-12 documented); suite 1324/0
+Diff review landed: R-1..R-11 listed in TASKS
 
 ## Do this next
-Independent diff review of 0ed968e..HEAD, fix anything, then ship v7.37
+Fix R-1..R-11, rerun suite, ship
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Independent diff review of 0ed968e..HEAD, fix anything, then ship v7.37
 
 ## Last ten checkpoints
 ```
+  10ad7d1 ckpt 1632: All audit findings fixed (A-12 documented); suite 1324/0
   d6ae2ee ckpt 1631: N-1 (RecentBodies shared chart body; sweep publishes D1 from it) and N-2 (Cla
   effef6a ckpt 1630: D-6, D-10, U-2, U-6 fixed; all S/A/D/U findings done (A-12 documented no-chan
   3b00834 ckpt 1629: D-4 (whole DT list to Claude), D-5 (asOf check +test), D-8 (evening import ->
@@ -26,8 +27,7 @@ Independent diff review of 0ed968e..HEAD, fix anything, then ship v7.37
   3548dfe ckpt 1625: A-4 (undo snapshot pick/gate/prune), A-7 (wipe clears overrides) fixed; A-12 
   209483a ckpt 1624: A-2 (replay watermark), A-3, A-5, A-6, A-10, A-11 fixed + tests (FullTest0923
   515adc0 ckpt 1623: A-1 fixed (autosave shrink keeps previous; recovery uses larger)
-  d6ea1b3 ckpt 1622: Fixed U-1/D-1 (H), S-3, A-8, A-9, U-3, U-4, U-5, U-7 with tests
 ```
 
-(9 automatic checkpoint(s) since the last deliberate one — the
+(1 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
