@@ -225,11 +225,26 @@ object Storage {
             findOwnDownload(ctx, fileName, subDir) != null
         else File(legacyDir(subDir), fileName).isFile
 
-    /** Read a document the user picked with the system file picker. */
+    /**
+     * Read a document the user picked with the system file picker, or one shared in.
+     *
+     * STOPS AT [maxBytes] + 1 rather than reading everything and then checking: the cap was
+     * applied only after `readBytes()` had already pulled the whole stream into memory, so a
+     * mis-picked video or a huge log was loaded in full just to be rejected.
+     */
     fun readText(ctx: Context, uri: Uri, maxBytes: Int = 8_000_000): String? = try {
         ctx.contentResolver.openInputStream(uri)?.use { input ->
-            val bytes = input.readBytes()
-            if (bytes.size > maxBytes) null else String(bytes)
+            val buf = java.io.ByteArrayOutputStream()
+            val chunk = ByteArray(64 * 1024)
+            var total = 0L
+            while (true) {
+                val n = input.read(chunk)
+                if (n < 0) break
+                total += n
+                if (total > maxBytes) return@use null
+                buf.write(chunk, 0, n)
+            }
+            String(buf.toByteArray(), Charsets.UTF_8)
         }
     } catch (e: Exception) {
         null
