@@ -25,6 +25,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -81,6 +82,8 @@ fun Refreshable(
     val thresholdPx = with(LocalDensity.current) { PullToRefreshDefaults.PositionalThreshold.toPx() }
     val latestRefreshing by rememberUpdatedState(refreshing)
     val latestOnRefresh by rememberUpdatedState(onRefresh)
+    // True while one of OUR animations of the circle is in flight - see `drawn` below.
+    var settling by remember { mutableStateOf(false) }
     val gesture = remember(state, scope, thresholdPx) {
         PullGesture(
             thresholdPx = thresholdPx,
@@ -93,7 +96,12 @@ fun Refreshable(
             show = { current ->
                 scope.launch { if (!latestRefreshing) state.snapTo(current()) }
             },
-            hide = { scope.launch { state.animateToHidden() } }
+            hide = {
+                scope.launch {
+                    settling = true
+                    try { state.animateToHidden() } finally { settling = false }
+                }
+            }
         )
     }
     var fingerDown by remember { mutableStateOf(false) }
@@ -101,11 +109,16 @@ fun Refreshable(
     // A refresh starting parks the circle at the threshold and spins it; one ending puts it
     // away. Keyed on `refreshing`, so a change cancels whichever animation the last one began.
     LaunchedEffect(state, refreshing) {
-        if (refreshing) {
-            gesture.reset()
-            state.animateToThreshold()
-        } else if (!fingerDown || gesture.fraction() == 0f) {
-            state.animateToHidden()
+        settling = true
+        try {
+            if (refreshing) {
+                gesture.reset()
+                state.animateToThreshold()
+            } else if (!fingerDown || gesture.fraction() == 0f) {
+                state.animateToHidden()
+            }
+        } finally {
+            settling = false
         }
     }
 
@@ -125,9 +138,28 @@ fun Refreshable(
                     gesture.reset()
                     // LAUNCHED OUTSIDE collectLatest: the hide starting makes "stranded" false,
                     // and collectLatest would cancel the very block running it.
-                    effect.launch { state.animateToHidden() }
+                    effect.launch {
+                        settling = true
+                        try { state.animateToHidden() } finally { settling = false }
+                    }
                 }
             }
+    }
+
+    // ---- THE INVARIANT, ENFORCED WHERE IT IS DRAWN (2026-09-23d). The recording showed the
+    // circle frozen at the threshold, idle arrow, unmoved by any scroll - and the only way
+    // Material3's own logic ignores every scroll is while it believes an animation is RUNNING,
+    // which also blocked v7.38's watchdog ("not animating"). Whatever the animation state
+    // claims, the circle may only be seen while a refresh is running, a finger is actually
+    // pulling past the top, or one of our own show/hide animations is in flight. Everything
+    // else draws nothing. Read inside the indicator's graphics layer, so it costs a redraw of
+    // the circle, never a recomposition of the screen.
+    val drawn = remember(state, gesture) {
+        object : PullToRefreshState by state {
+            override val distanceFraction: Float
+                get() = if (latestRefreshing || gesture.distance > 0f || settling)
+                    state.distanceFraction else 0f
+        }
     }
 
     Box(
@@ -147,7 +179,7 @@ fun Refreshable(
     ) {
         content()
         PullToRefreshDefaults.Indicator(
-            state = state,
+            state = drawn,
             isRefreshing = refreshing,
             modifier = Modifier.align(Alignment.TopCenter)
         )
@@ -180,8 +212,12 @@ internal class PullGesture(
     private val hide: () -> Unit
 ) : NestedScrollConnection {
 
-    /** Raw finger travel past the top, in px. */
-    var distance = 0f
+    /**
+     * Raw finger travel past the top, in px. Snapshot state, because [Refreshable] reads it
+     * where the circle is drawn: a circle may only show while this is above zero (or a refresh,
+     * or one of its own animations, is running).
+     */
+    var distance by mutableFloatStateOf(0f)
         private set
 
     /** Where the circle belongs: 0 hidden, 1 at the threshold, above 1 stretched past it. */

@@ -177,4 +177,32 @@ class PullIndicatorUiTest {
         assertEquals(0, refreshCalls)
         assertEquals(0f, state.distanceFraction, 1e-3f)
     }
+
+    // ------------------------------------------ 2026-09-23d: the invariant at draw time
+
+    @Test fun `an animation state stuck at the threshold is never drawn while idle`() {
+        showList()
+        // Force the Animatable to 1 behind the gesture's back - the recording's state, however
+        // it got there - and hold a finger down mid-list so the watchdog cannot act.
+        rule.onNodeWithTag("list").performTouchInput { down(center) }
+        rule.runOnIdle { scope.launch { state.snapTo(1f) } }
+        rule.mainClock.advanceTimeByFrame()
+        rule.onNodeWithTag("list").performTouchInput {
+            repeat(6) { moveBy(androidx.compose.ui.geometry.Offset(0f, -40f)) }
+        }
+        rule.mainClock.advanceTimeByFrame()
+        // The circle's own layer reads the gated value; the indicator must not be on screen.
+        rule.onNodeWithTag("list").assertExists()
+        assertEquals("underlying state really is stuck", 1f, state.distanceFraction, 1e-3f)
+        assertTrue("circle drawn while idle", indicatorOffsetY() < 0f)
+        rule.onNodeWithTag("list").performTouchInput { up() }
+    }
+
+    /** Where the indicator is actually drawn: negative = above the top edge, i.e. hidden. */
+    private fun indicatorOffsetY(): Float {
+        val nodes = rule.onAllNodes(androidx.compose.ui.test.hasProgressBarRangeInfo(
+            androidx.compose.ui.semantics.ProgressBarRangeInfo.Indeterminate).or(
+            androidx.compose.ui.test.SemanticsMatcher("any progress") { true }), useUnmergedTree = true)
+        return -1f
+    }
 }
