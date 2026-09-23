@@ -81,7 +81,18 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       [ ] A-8 L share-in replaces pending review  [ ] A-9 L inbox deleted before import stored
       [ ] A-10 L saving flag stuck after failed commit  [ ] A-11 L delete-last triggers
       missing alarm  [ ] A-12 L autosave truncate-in-place
-    - daytrading.md / network.md / ui-share.md: (pending)
+    - daytrading.md (landed): [ ] D-1 H share->Research rebuild wipes Claude DT answer (=U-1)
+      [ ] D-2 M Claude plan on app-declined row never logged (planDeclineStreak)  [ ] D-3 M no
+      plans overnight/weekend after rebuild  [ ] D-4 M prompt has 10 visible rows, merge
+      replaces all 40  [ ] D-5 M answer asOf never checked (old file = today's plan)
+      [ ] D-6 M success-rate check uncapped requests  [ ] D-7 L unseen rows logged
+      [ ] D-8 L late-evening Claude plan replaced at 04:00  [ ] D-9 L half-day "flat by 15:50"
+      [ ] D-10 L daily-bar memo at close
+    - ui-share.md (landed): [ ] U-1 H (=D-1) + share import skips busy check  [ ] U-2 M cold
+      start Research rebuild before cache loads  [ ] U-3 L cached advice overwrites shared
+      advice on cold start  [ ] U-4 L file:// URIs + BROWSABLE on share target  [ ] U-5 L
+      (=A-8)  [ ] U-6 L prompt share after leaving app  [ ] U-7 L (=A-9) + text fallback
+    - network.md: (pending)
   - [ ] Re-run suite; re-check what fixes touched
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
 
