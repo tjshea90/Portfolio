@@ -478,6 +478,10 @@ $SHAPE
                 // session clock on every tick for every row, Claude's included, so an import at
                 // 15:45 correctly carries the late-session badge the app would give its own.
                 planByClaude = takeLevels,
+                // The app's "declined" state belongs to the app's plan (D-2): a row the app had
+                // declined but Claude planned is a planned row, and must be loggable as one.
+                planDeclineStreak = if (takeLevels) 0 else app.planDeclineStreak,
+                planReason = if (takeLevels) "" else app.planReason,
                 // A PLAN IMPORTED ONTO A ROW STILL STAMPED WITH AN EARLIER SESSION starts that
                 // row's session fresh (full-tests audit, 2026-09-22). `mergeDayTradingTech`
                 // drops a Claude plan the moment it sees the row's `sessionDay` roll over - right

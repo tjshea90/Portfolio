@@ -1077,7 +1077,10 @@ internal fun mergeDayTradingTech(
     // plan bug Round 73 fixed: a genuinely dead plan still clears within one extra tick, not
     // for the rest of the afternoon.
     val declineStreak = when {
-        plan != null -> 0
+        // A standing Claude plan IS a plan (full test 2026-09-23, D-2): freezing the app's
+        // streak under it kept `loggableDayTradingRows` (streak must be 0) from ever logging
+        // it - so Claude's plans were skipped exactly where they differed from the app's.
+        plan != null || claudePlanStands -> 0
         // A fresh session starts its OWN streak, not a carry-over from yesterday's close - see
         // `sessionChanged`'s note above. `confirmedDecline` below forces the clear on this exact
         // tick regardless, so this only governs how the NEXT tick's debounce behaves.
@@ -1136,7 +1139,7 @@ internal fun mergeDayTradingTech(
         // (blank, on a row that has never shown a reason yet) so the reason cannot flash in
         // before the levels it explains have actually gone.
         planReason = when {
-            plan != null -> ""
+            plan != null || claudePlanStands -> ""
             confirmedDecline -> declineReason
             else -> row.planReason
         },
