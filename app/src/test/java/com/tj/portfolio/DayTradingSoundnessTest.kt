@@ -295,7 +295,9 @@ class DayTradingSoundnessTest {
             tech(atrIntraday = 1.0, vwap = 99.0, orHigh = 100.5, sessionHigh = 100.5, sessionLow = 99.0),
             minutesLeft = 240
         )!!
-        assertTrue(plan.exit.contains("flat by 15:50"))
+        // 12:50 on an NYSE half day, when a live plan names the real close (full test
+        // 2026-09-23, D-9) - so the test does not depend on which day the suite runs.
+        assertTrue(plan.exit, Regex("flat by 1[25]:50 ET").containsMatchIn(plan.exit))
         assertTrue("and why, not just the instruction", plan.exit.contains("overnight"))
     }
 
