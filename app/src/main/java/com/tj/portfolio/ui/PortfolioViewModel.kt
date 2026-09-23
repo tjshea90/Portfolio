@@ -872,8 +872,21 @@ internal fun sessionInstantFrom(quotes: Collection<Quote>, now: Long): Long {
     return if (newestPrint > 0 && now - newestPrint < aWeek) newestPrint else now
 }
 
-private fun sameTradingDay(a: Long, b: Long) =
-    a > 0 && com.tj.portfolio.net.MarketClock.dayKey(a) == com.tj.portfolio.net.MarketClock.dayKey(b)
+private fun sameTradingDay(a: Long, b: Long) = a > 0 && planStillForSession(a, b)
+
+/**
+ * Does a plan made at [madeAt] still belong to the session [now] is in? The same New York day
+ * does - and so does the NEXT session, for a plan made after a day's close (diff review
+ * 2026-09-23, R-4): the evening's "plan for tomorrow" is exactly what D-8 keeps through the
+ * morning's first tick, and the rebuild carry and the cold-start eviction must agree with it.
+ */
+internal fun planStillForSession(madeAt: Long, now: Long): Boolean {
+    val mc = com.tj.portfolio.net.MarketClock
+    if (mc.dayKey(madeAt) == mc.dayKey(now)) return true
+    val et = java.time.Instant.ofEpochMilli(madeAt).atZone(java.time.ZoneId.of("America/New_York"))
+    val afterClose = et.hour * 60 + et.minute >= mc.closeMinuteAt(madeAt)
+    return afterClose && mc.dayKey(mc.nextOpenAfter(madeAt)) == mc.dayKey(now)
+}
 
 /** One row of [carryExplanations]: [p]'s Claude work onto [r], while it is still current. */
 private fun carryWhy(
@@ -954,9 +967,7 @@ internal fun evictStaleDayTradingPlan(
     generated: Long,
     now: Long = System.currentTimeMillis()
 ): List<com.tj.portfolio.data.ResearchRow> {
-    if (com.tj.portfolio.net.MarketClock.dayKey(generated) == com.tj.portfolio.net.MarketClock.dayKey(now)) {
-        return rows
-    }
+    if (planStillForSession(generated, now)) return rows
     return rows.map { r ->
         if (r.entryPrice <= 0.0 && r.stopPrice <= 0.0 && r.targetPrice <= 0.0) r
         else r.copy(

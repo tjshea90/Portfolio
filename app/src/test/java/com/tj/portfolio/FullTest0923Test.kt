@@ -190,4 +190,18 @@ class FullTest0923Test {
         assertEquals(null, r.get(q1, now = 1_000L + 30_000L))
         r.clear()
     }
+
+    // ---- R-4: an evening plan belongs to the next session, through a weekend too.
+
+    @Test fun `R-4 an after-close plan is kept for the next session only`() {
+        val ny = java.time.ZoneId.of("America/New_York")
+        fun t(d: Int, h: Int) = java.time.ZonedDateTime.of(2026, 9, d, h, 0, 0, 0, ny).toInstant().toEpochMilli()
+        // Friday 18 Sep 22:00 -> Monday 21 Sep 08:00 (next session): kept.
+        assert(com.tj.portfolio.ui.planStillForSession(t(18, 22), t(21, 8)))
+        // Friday 11:00 (mid-session) -> Monday: not kept.
+        assert(!com.tj.portfolio.ui.planStillForSession(t(18, 11), t(21, 8)))
+        // Same day: kept. Two sessions later: not.
+        assert(com.tj.portfolio.ui.planStillForSession(t(22, 10), t(22, 15)))
+        assert(!com.tj.portfolio.ui.planStillForSession(t(18, 22), t(22, 8)))
+    }
 }
