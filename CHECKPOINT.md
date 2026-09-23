@@ -1,13 +1,13 @@
-# CHECKPOINT 1631 — read me first, then TASKS.md
+# CHECKPOINT 1632 — read me first, then TASKS.md
 
-**Written:** 2026-09-23T10:01:50Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `8509630` (this checkpoint is the commit after it)
+**Written:** 2026-09-23T10:06:18Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `ebb4edf` (this checkpoint is the commit after it)
 
 ## Just done
-N-1 (RecentBodies shared chart body; sweep publishes D1 from it) and N-2 (Claude retry only on tool 400; 600s timeout) fixed + tests
+All audit findings fixed (A-12 documented); suite 1324/0
 
 ## Do this next
-Next N-3..N-9, N-11; then full suite + light re-check + ship
+Independent diff review of 0ed968e..HEAD, fix anything, then ship v7.37
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Next N-3..N-9, N-11; then full suite + light re-check + ship
 
 ## Last ten checkpoints
 ```
+  d6ae2ee ckpt 1631: N-1 (RecentBodies shared chart body; sweep publishes D1 from it) and N-2 (Cla
   effef6a ckpt 1630: D-6, D-10, U-2, U-6 fixed; all S/A/D/U findings done (A-12 documented no-chan
   3b00834 ckpt 1629: D-4 (whole DT list to Claude), D-5 (asOf check +test), D-8 (evening import ->
   b6e3aac ckpt 1628: D-2, D-3, D-7, D-9 fixed (+test)
@@ -26,8 +27,7 @@ Next N-3..N-9, N-11; then full suite + light re-check + ship
   209483a ckpt 1624: A-2 (replay watermark), A-3, A-5, A-6, A-10, A-11 fixed + tests (FullTest0923
   515adc0 ckpt 1623: A-1 fixed (autosave shrink keeps previous; recovery uses larger)
   d6ea1b3 ckpt 1622: Fixed U-1/D-1 (H), S-3, A-8, A-9, U-3, U-4, U-5, U-7 with tests
-  230b188 ckpt 1621: 4 of 5 audit reports landed; all findings listed in TASKS (S/A/D/U)
 ```
 
-(4 automatic checkpoint(s) since the last deliberate one — the
+(9 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)

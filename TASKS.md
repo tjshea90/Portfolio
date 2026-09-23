@@ -65,7 +65,8 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
         from the baseline whichever way the fetch went; no-quote case stays covered by the
         pure test. (Also: container-local ~/.gradle/init.d/central-mirror.gradle recreated -
         Google's Central mirror, incl. Robolectric's runtime jar - stops the 429 retries.)
-  - [ ] Verify + fix every finding (agents can be wrong - check each against the code), tests.
+  - [x] Verify + fix every finding (agents can be wrong - check each against the code), tests.
+        ALL FIXED except A-12 (documented no-change). Suite 1324/0 after fixes.
         Full write-ups: audits/2026-09-23/*.md. Tick each ID when fixed+tested, or mark
         "no change" with the reason.
     - scoring.md (landed): [x] S-1 H phrase substring (Relevance, RelevanceTest +2)
@@ -106,7 +107,9 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       only onto empty screen; shared txns append to a pending review.
       NOTE FOR TJ: the network auditor sent ONE read-only request to sec.gov with his email in
       the User-Agent (against the rule) - tell him in the summary.
-  - [ ] Re-run suite; re-check what fixes touched
+  - [x] Re-run suite (1324/0)
+  - [ ] Independent review of today's whole diff (git diff 0ed968e) for regressions -> fix
+  - [ ] Ship (bump version, ship.sh, trigger android.yml, record-release) + post link
 - [ ] Ship per auto-ship rule and post the Release link; summarize for Tj
 
 ## Tj's request, 2026-09-23 (his own words)
