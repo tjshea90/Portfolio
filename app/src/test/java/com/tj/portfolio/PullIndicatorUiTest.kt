@@ -2,6 +2,13 @@ package com.tj.portfolio
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.material3.Text
+import androidx.compose.ui.unit.dp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -19,6 +26,7 @@ import com.tj.portfolio.ui.Refreshable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -95,6 +103,78 @@ class PullIndicatorUiTest {
         rule.onNodeWithTag("content").performTouchInput { up() }
         rule.mainClock.advanceTimeBy(2_000)
         rule.waitForIdle()
+        assertEquals(0f, state.distanceFraction, 1e-3f)
+    }
+
+    // ------------------------------------------ 2026-09-23d: the real gesture, on a real list
+
+    private lateinit var list: LazyListState
+    private var refreshCalls = 0
+
+    private fun showList() {
+        rule.setContent {
+            PortfolioTheme(dark = true) {
+                state = rememberPullToRefreshState()
+                scope = rememberCoroutineScope()
+                list = rememberLazyListState()
+                Refreshable(
+                    refreshing = refreshing,
+                    onRefresh = { refreshCalls++; refreshing = true },
+                    state = state
+                ) {
+                    LazyColumn(Modifier.fillMaxSize().testTag("list"), state = list) {
+                        items(100) { i -> Text("row $i", Modifier.fillMaxWidth().height(60.dp)) }
+                    }
+                }
+            }
+        }
+        rule.waitForIdle()
+    }
+
+    @Test fun `a pull refreshes, and scrolling the list afterwards never brings the circle back`() {
+        showList()
+        // Pull well past the threshold from the top of the list, and let go.
+        rule.onNodeWithTag("list").performTouchInput {
+            down(topCenter + androidx.compose.ui.geometry.Offset(0f, 20f))
+            repeat(20) { moveBy(androidx.compose.ui.geometry.Offset(0f, 30f)) }
+            up()
+        }
+        rule.waitForIdle()
+        assertEquals(1, refreshCalls)
+        // The refresh finishes quickly - the case that stranded Material3's circle.
+        rule.runOnIdle { refreshing = false }
+        rule.mainClock.advanceTimeBy(1_000)
+        rule.waitForIdle()
+        assertEquals(0f, state.distanceFraction, 1e-3f)
+
+        // Now scroll the list down into the middle and back and forth, finger held - the
+        // recording. The circle must stay put away the whole time.
+        rule.onNodeWithTag("list").performTouchInput {
+            down(center)
+            repeat(10) { moveBy(androidx.compose.ui.geometry.Offset(0f, -60f)) }
+        }
+        rule.mainClock.advanceTimeByFrame()
+        assertTrue("the list really scrolled", list.firstVisibleItemIndex > 0 || list.firstVisibleItemScrollOffset > 0)
+        rule.onNodeWithTag("list").performTouchInput {
+            repeat(6) { moveBy(androidx.compose.ui.geometry.Offset(0f, 40f)); moveBy(androidx.compose.ui.geometry.Offset(0f, -40f)) }
+        }
+        rule.mainClock.advanceTimeByFrame()
+        assertEquals("circle came back while scrolling mid-list", 0f, state.distanceFraction, 1e-3f)
+        rule.onNodeWithTag("list").performTouchInput { up() }
+        rule.waitForIdle()
+        assertEquals(0f, state.distanceFraction, 1e-3f)
+    }
+
+    @Test fun `a short pull does not refresh and the circle goes away`() {
+        showList()
+        rule.onNodeWithTag("list").performTouchInput {
+            down(topCenter + androidx.compose.ui.geometry.Offset(0f, 20f))
+            repeat(3) { moveBy(androidx.compose.ui.geometry.Offset(0f, 20f)) }
+            up()
+        }
+        rule.mainClock.advanceTimeBy(1_000)
+        rule.waitForIdle()
+        assertEquals(0, refreshCalls)
         assertEquals(0f, state.distanceFraction, 1e-3f)
     }
 }
