@@ -3544,7 +3544,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // So the short-circuit is on a recent DEEP fetch specifically, not on the map.
         val lastDeep = deepNewsAt[symbol] ?: 0L
         val fresh = System.currentTimeMillis() - lastDeep < DEEP_NEWS_TTL_MS
-        if (!force && fresh && _news.value[symbol]?.isNotEmpty() == true) return
+        // ---- A RECENT ATTEMPT IS AN ANSWER, EVEN AN EMPTY ONE (full test 2026-09-23, N-11). The
+        // stamp used to be set only when headlines came back, so a thinly covered symbol - or
+        // any outage - re-ran all three or four sources on every open and every resume; and
+        // after a memory trim cleared `_news`, a symbol fetched seconds earlier went back to
+        // the network although its headlines were on disk. Now: inside the window, repaint from
+        // disk if memory lost them, and ask nobody.
+        if (!force && fresh) {
+            if (_news.value[symbol].isNullOrEmpty() && !_newsLoading.value.contains(symbol)) {
+                fgScope.launch {
+                    val saved = withContext(Dispatchers.IO) {
+                        runCatching { db.cachedNewsFor(symbol) }.getOrDefault(emptyList())
+                    }
+                    if (saved.isNotEmpty() && _news.value[symbol].isNullOrEmpty()) {
+                        _news.value = _news.value + (symbol to saved)
+                    }
+                }
+            }
+            return
+        }
         if (_newsLoading.value.contains(symbol)) return
         fgScope.launch {
             _newsLoading.value = _newsLoading.value + symbol
@@ -3570,6 +3588,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     runCatching { News.forSymbol(symbol, name, finnhubKey(), deep = true) }
                         .getOrDefault(emptyList())
                 }
+                // Stamped whatever came back - see the N-11 note at the top of this function.
+                if (items.isEmpty()) deepNewsAt[symbol] = System.currentTimeMillis()
                 if (items.isNotEmpty()) {
                     // MERGED with what is already shown, not assigned over it - the same
                     // additive rule as the Feed tab. Assigning here threw away every story
