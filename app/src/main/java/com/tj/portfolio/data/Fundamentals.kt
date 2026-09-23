@@ -240,8 +240,14 @@ data class AnalystRating(
             ) return SELL
             if (g.contains("outperform") || g.contains("overweight") || g.contains("buy") ||
                 g.contains("accumulate") || g.contains("add") || g.contains("positive") ||
-                g.contains("conviction") || g.contains("strong")
+                g.contains("conviction") || g.contains("strong") || g.contains("top pick")
             ) return BUY
+            // "Sector Weight" (KeyBanc's standard neutral), "Market Weight", "Peer Weight" -
+            // they said neither over nor under, and had no bucket at all, so the firm was on
+            // the panel with no vote and the lean was exaggerated (full test 2026-09-23, S-4).
+            if (g.contains("sector weight") || g.contains("market weight") ||
+                g.contains("peer weight")
+            ) return HOLD
             if (g.contains("hold") || g.contains("neutral") || g.contains("equal") ||
                 g.contains("in-line") || g.contains("in line") || g.contains("sector perform") ||
                 g.contains("peer perform") || g.contains("market perform") ||
