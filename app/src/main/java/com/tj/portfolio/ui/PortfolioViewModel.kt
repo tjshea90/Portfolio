@@ -498,6 +498,21 @@ private const val DEEP_NEWS_TTL_MS = 5 * 60 * 1000L
 /** The one fixed file in Downloads that survives the app being uninstalled. */
 private const val AUTOSAVE_FILE = "portfolio-autosave.json"
 
+/**
+ * WHICH SNAPSHOT "RESTORE THE LATEST AUTOMATIC SNAPSHOT" MEANS (full test 2026-09-23, A-4).
+ * [files] newest first. The newest file, EXCEPT right after a destructive action: a Replace
+ * restore (and any import) forces a fresh daily snapshot seconds after the "before" copy was
+ * taken, and that newer file holds the state the undo is meant to undo - so the before-copy
+ * shadowed by a daily snapshot written within ten minutes of it is the one returned.
+ */
+internal fun pickUndoSnapshot(files: List<java.io.File>, windowMs: Long = 10 * 60_000L): java.io.File? {
+    val newest = files.firstOrNull() ?: return null
+    if (newest.name.startsWith(com.tj.portfolio.util.Storage.BEFORE_PREFIX)) return newest
+    val before = files.firstOrNull { it.name.startsWith(com.tj.portfolio.util.Storage.BEFORE_PREFIX) }
+        ?: return newest
+    return if (newest.lastModified() - before.lastModified() <= windowMs) before else newest
+}
+
 /** The larger autosave, kept when a new one would have fewer transactions - see A-1. */
 private const val AUTOSAVE_PREVIOUS_FILE = "portfolio-autosave-previous.json"
 
@@ -7859,8 +7874,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Newest private snapshot, for the Settings restore button. */
     fun latestSnapshotJson(): String? =
-        com.tj.portfolio.util.Storage.appBackups(getApplication())
-            .firstOrNull()
+        pickUndoSnapshot(com.tj.portfolio.util.Storage.appBackups(getApplication()))
             ?.let { runCatching { it.readText() }.getOrNull() }
 
     fun autoBackupOn() = db.getB(Keys.AUTO_BACKUP, true)

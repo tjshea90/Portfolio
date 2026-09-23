@@ -307,10 +307,20 @@ object Storage {
             ?.sortedByDescending { it.lastModified() }
             ?: emptyList()
 
-    /** Keep a rolling window so the folder cannot grow without bound. */
-    private fun prune(ctx: Context, keep: Int = 14) {
-        appBackups(ctx).drop(keep).forEach { runCatching { it.delete() } }
+    /**
+     * Keep a rolling window so the folder cannot grow without bound - ONE PER KIND (full test
+     * 2026-09-23, A-4). The "before a delete" undo copies shared the daily snapshots' window,
+     * so tidying up 14 symbols in one sitting pushed every daily snapshot out, and the first
+     * symbol's own undo copy with them.
+     */
+    private fun prune(ctx: Context, keep: Int = 14, keepBefore: Int = 10) {
+        val (before, daily) = appBackups(ctx).partition { it.name.startsWith(BEFORE_PREFIX) }
+        daily.drop(keep).forEach { runCatching { it.delete() } }
+        before.drop(keepBefore).forEach { runCatching { it.delete() } }
     }
+
+    /** Names of the snapshots taken just before a destructive action (`snapshotBefore`). */
+    const val BEFORE_PREFIX = "portfolio-before-"
 
     /**
      * Removes automatic snapshots this app previously wrote into Downloads. An app can

@@ -796,9 +796,14 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                 infoTick++
             })
         }
-        if (snapshotAt > 0) {
+        // GATED ON SNAPSHOTS EXISTING, not on the daily-backup clock (full test 2026-09-23,
+        // A-4): the before-delete / before-wipe / before-replace snapshots never set that
+        // clock, so with daily snapshots off the button every one of those dialogs points to
+        // was never shown.
+        if (snapshotCount > 0) {
             Text(
-                "Last snapshot ${Fmt.relative(snapshotAt)} - $snapshotCount kept privately",
+                (if (snapshotAt > 0) "Last daily snapshot ${Fmt.relative(snapshotAt)} - " else "") +
+                    "$snapshotCount kept privately",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
