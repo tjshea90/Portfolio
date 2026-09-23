@@ -928,7 +928,10 @@ object ResearchScore {
             entry = entry,
             stop = stop,
             target = target,
-            exit = exitPlan(target, minutesLeft, live),
+            exit = exitPlan(
+                target, minutesLeft, live,
+                closeMinute = if (live) MarketClock.closeMinuteAt(System.currentTimeMillis()) else 16 * 60
+            ),
             tooLateToStart = tooLate,
             setup = setup,
             trigger = when (setup) {
@@ -1003,8 +1006,19 @@ object ResearchScore {
      * raise the win rate produces a smoother equity curve and a LOWER expected return. Adding
      * it because it is popular would be adding a number this app cannot defend.
      */
-    internal fun exitPlan(target: Double, minutesLeft: Int, live: Boolean): String {
-        val flat = "Day trade: be flat by 15:50 ET at the latest, win or lose - never carry it " +
+    internal fun exitPlan(
+        target: Double,
+        minutesLeft: Int,
+        live: Boolean,
+        // THE DAY'S REAL CLOSE (full test 2026-09-23, D-9): the clock, `minutesLeft` and the
+        // plan already knew about NYSE half days, but this line said 15:50 at 11:00 on a day the
+        // market shuts at 13:00. Ten minutes before whichever close applies; 16:00 when there is
+        // no clock to ask (the Claude import path).
+        closeMinute: Int = 16 * 60
+    ): String {
+        val flatAt = (closeMinute - 10).coerceAtLeast(0)
+        val flatBy = "%d:%02d".format(flatAt / 60, flatAt % 60)
+        val flat = "Day trade: be flat by $flatBy ET at the latest, win or lose - never carry it " +
             "overnight, where a gap can open straight through the stop."
         val runner = "Take profit at ${Fmt.price(target)} if you want a fixed exit. The research " +
             "behind this section says the alternative pays better on average: trail the stop up " +

@@ -117,4 +117,13 @@ class FullTest0923Test {
             base, com.tj.portfolio.data.Consensus2(buy = 0, hold = 0, sell = 10), 100.0)
         assert(hold.score > sell.score) { "hold ${hold.score} vs sell ${sell.score}" }
     }
+
+    // ---- D-9: the exit line names the day's real close.
+
+    @Test fun `D-9 a half day's exit says 12 50, an ordinary day 15 50`() {
+        val half = com.tj.portfolio.net.ResearchScore.exitPlan(12.0, 120, live = true, closeMinute = 13 * 60)
+        assert(half.contains("12:50 ET")) { half }
+        val normal = com.tj.portfolio.net.ResearchScore.exitPlan(12.0, 0, live = false)
+        assert(normal.contains("15:50 ET")) { normal }
+    }
 }
