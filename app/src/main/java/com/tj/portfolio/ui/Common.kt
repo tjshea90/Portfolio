@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -82,8 +83,14 @@ fun Refreshable(
     val thresholdPx = with(LocalDensity.current) { PullToRefreshDefaults.PositionalThreshold.toPx() }
     val latestRefreshing by rememberUpdatedState(refreshing)
     val latestOnRefresh by rememberUpdatedState(onRefresh)
-    // True while one of OUR animations of the circle is in flight - see `drawn` below.
-    var settling by remember { mutableStateOf(false) }
+    // How many of OUR animations of the circle are in flight - see `drawn` below. A COUNT, not
+    // a flag: a release's hide, a refresh's show and the backstop can overlap, and the first to
+    // finish must not declare the circle settled while another is still moving it.
+    var settling by remember { mutableIntStateOf(0) }
+    suspend fun animating(block: suspend () -> Unit) {
+        settling++
+        try { block() } finally { settling-- }
+    }
     val gesture = remember(state, scope, thresholdPx) {
         PullGesture(
             thresholdPx = thresholdPx,
@@ -97,10 +104,7 @@ fun Refreshable(
                 scope.launch { if (!latestRefreshing) state.snapTo(current()) }
             },
             hide = {
-                scope.launch {
-                    settling = true
-                    try { state.animateToHidden() } finally { settling = false }
-                }
+                scope.launch { animating { state.animateToHidden() } }
             }
         )
     }
@@ -109,16 +113,13 @@ fun Refreshable(
     // A refresh starting parks the circle at the threshold and spins it; one ending puts it
     // away. Keyed on `refreshing`, so a change cancels whichever animation the last one began.
     LaunchedEffect(state, refreshing) {
-        settling = true
-        try {
+        animating {
             if (refreshing) {
                 gesture.reset()
                 state.animateToThreshold()
             } else if (!fingerDown || gesture.fraction() == 0f) {
                 state.animateToHidden()
             }
-        } finally {
-            settling = false
         }
     }
 
@@ -138,10 +139,7 @@ fun Refreshable(
                     gesture.reset()
                     // LAUNCHED OUTSIDE collectLatest: the hide starting makes "stranded" false,
                     // and collectLatest would cancel the very block running it.
-                    effect.launch {
-                        settling = true
-                        try { state.animateToHidden() } finally { settling = false }
-                    }
+                    effect.launch { animating { state.animateToHidden() } }
                 }
             }
     }
@@ -157,7 +155,7 @@ fun Refreshable(
     val drawn = remember(state, gesture) {
         object : PullToRefreshState by state {
             override val distanceFraction: Float
-                get() = drawnFraction(state.distanceFraction, latestRefreshing, gesture.distance > 0f, settling)
+                get() = drawnFraction(state.distanceFraction, latestRefreshing, gesture.distance > 0f, settling > 0)
         }
     }
 
