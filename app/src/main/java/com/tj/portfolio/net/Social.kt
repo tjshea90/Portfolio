@@ -32,9 +32,13 @@ object Social {
         val now = System.currentTimeMillis()
         val pJob = async {
             if (now < tradestieDeadUntil) emptyList()
-            else runCatching { tradestie() }.getOrNull()
-                .also { if (it == null) tradestieDeadUntil = now + SOURCE_DEAD_MS }
-                .orEmpty()
+            else try {
+                tradestie().also { if (it == null) tradestieDeadUntil = now + SOURCE_DEAD_MS }.orEmpty()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e      // leaving the app is not the source failing (diff review, R-6)
+            } catch (e: Exception) {
+                emptyList()  // a parse surprise: try again next pass
+            }
         }
         val sJob = async { runCatching { apeWisdom() }.getOrDefault(emptyList()) }
         val primary = pJob.await()
@@ -89,7 +93,15 @@ object Social {
         )
         // A local cooldown refusal is not the source failing - do not mark it dead for it.
         if (r.throttledLocally) return emptyList()
-        if (!r.ok) return null
+        // ONLY A FAILURE THE SOURCE ITSELF GAVE marks it dead (diff review 2026-09-23, R-6): an
+        // HTTP error, or a TLS/certificate refusal (Tradestie's expired certificate). Being
+        // offline is the phone, not the source, and must not switch it off for six hours.
+        if (!r.ok) {
+            val b = r.body.lowercase()
+            val sourceRefused = r.code >= 400 ||
+                b.contains("certificate") || b.contains("ssl") || b.contains("handshake")
+            return if (sourceRefused) null else emptyList()
+        }
         val arr = JSONArray(r.body)
         val out = ArrayList<Trending>()
         for (i in 0 until arr.length()) {
