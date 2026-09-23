@@ -373,11 +373,13 @@ class FundamentalsTest {
     fun `every common grade wording lands in the right bucket`() {
         val buy = listOf(
             "Buy", "Strong Buy", "Outperform", "Overweight", "Accumulate", "Add",
-            "Market Outperform", "Positive", "Conviction Buy"
+            "Market Outperform", "Positive", "Conviction Buy", "Top Pick"
         )
         val hold = listOf(
             "Hold", "Neutral", "Equal-Weight", "Market Perform", "Sector Perform",
-            "Peer Perform", "In-Line", "Equal Weight"
+            "Peer Perform", "In-Line", "Equal Weight",
+            // full test 2026-09-23, S-4 - these had no bucket, so the firm got no vote
+            "Sector Weight", "Market Weight", "Peer Weight"
         )
         val sell = listOf(
             "Sell", "Underperform", "Underweight", "Reduce", "Market Underperform",
