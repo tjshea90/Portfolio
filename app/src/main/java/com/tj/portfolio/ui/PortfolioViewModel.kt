@@ -7387,7 +7387,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // EXTENDED hours still sweep: pre-market and after-hours prints move the
                 // premarket high and the session high/low, which are real trigger levels.
                 val phase = com.tj.portfolio.net.MarketClock.phase()
-                if (phase != com.tj.portfolio.net.MarketClock.Phase.CLOSED && online()) {
+                // AND ONCE PER REBUILD WHILE CLOSED (full test 2026-09-23, D-3). "Nothing can
+                // move while closed" assumed the rows already had plans - but a rebuild (or a
+                // cold start, whose stale plans are evicted) hands this loop plan-less rows, and
+                // with no sweep the tab showed no entry/stop/target all night and all weekend:
+                // the "levels to plan from before the open" path was unreachable. The one sweep
+                // per rebuild ([dayTradingSweepDone]) costs one pass, not a poll.
+                val closed = phase == com.tj.portfolio.net.MarketClock.Phase.CLOSED
+                if (online() && (!closed || !dayTradingSweepDone)) {
                     enrichDayTradingVisible()
                 }
                 delay(dayTradingLiveDelay(phase, com.tj.portfolio.net.MarketClock.sessionElapsedFraction()))
