@@ -6675,6 +6675,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * Yahoo's throttle. Same rule `loadResearch` already follows for the stock lists.
      */
     fun loadEtfs(force: Boolean = false) {
+        // Same cold-start rule as [loadResearch] (U-2): the fund list is in that same cache.
+        if (!researchCacheReady.isCompleted) {
+            viewModelScope.launch { researchCacheReady.await(); loadEtfs(force) }
+            return
+        }
         if (_researchBusy.value.isNotEmpty()) return
         if (!force && !etfsStale()) return
         if (!force && researchRetry.blocked(RETRY_ETFS)) return
