@@ -1779,7 +1779,12 @@ object ResearchScore {
             // NO DATED RATINGS AT ALL - a symbol the history feed does not cover, or a fetch
             // that failed. The consensus is still real; its AGE is what is unknown, and an
             // unknown age on this app's heaviest input cannot be read as "today".
+            // UNLESS THE RATINGS ARE DATED BUT UNREADABLE (full test 2026-09-23, S-9): a panel
+            // exists - so their age IS known - but no grade in it maps to buy/hold/sell. The
+            // consensus is then capped by how current that panel is, as the target term below
+            // already is, instead of counting at up to 90% whatever its age.
             val trust = RatingRecency.undatedTrust(input.trend, allStale)
+                .let { t -> if (panel != null) minOf(t, panel.currency) else t }
             if (trust > 0.0) have++
             s += RatingRecency.undatedLean(c) * 30.0 * trust
             val buyVotes = c.strongBuy + c.buy
@@ -1799,7 +1804,13 @@ object ResearchScore {
                 "$lab consensus - $buyVotes buy / ${c.hold} hold / $sellVotes sell across " +
                     "${c.votes} analysts"
             )
-            why.add(RatingRecency.undatedNote(input.trend, allStale))
+            why.add(
+                if (panel != null)
+                    "Analyst ratings are dated, but none carries a buy/hold/sell grade this app " +
+                        "can read - the overall consensus is used instead, counted at " +
+                        "${(trust * 100).roundToInt()}% of full weight for how recent they are"
+                else RatingRecency.undatedNote(input.trend, allStale)
+            )
         }
 
         // --- price vs. target (+-12.5): "for how much", the number TJ asked for by name.
