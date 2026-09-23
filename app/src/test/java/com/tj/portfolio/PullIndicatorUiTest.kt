@@ -71,10 +71,6 @@ class PullIndicatorUiTest {
     @Test fun `an abandoned indicator is put away`() {
         show()
         strand()
-        repeat(6) {
-            println("DBG t=${rule.mainClock.currentTime} frac=${state.distanceFraction} anim=${state.isAnimating}")
-            rule.mainClock.advanceTimeBy(100)
-        }
         rule.mainClock.advanceTimeBy(2_000)
         rule.waitForIdle()
         assertEquals(0f, state.distanceFraction, 1e-3f)

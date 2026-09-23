@@ -23,6 +23,7 @@ import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -59,11 +60,10 @@ fun Refreshable(
 ) {
     var fingerDown by remember { mutableStateOf(false) }
     LaunchedEffect(state, refreshing) {
-        System.out.println("DBG effect refreshing=" + refreshing)
         if (refreshing) return@LaunchedEffect
+        val effect = this
         snapshotFlow { state.distanceFraction > 0f && !state.isAnimating && !fingerDown }
             .collectLatest { stranded ->
-                System.out.println("DBG stranded=" + stranded + " finger=" + fingerDown + " anim=" + state.isAnimating)
                 if (stranded) {
                     // collectLatest cancels this wait the moment anything changes - a finger
                     // coming down, an animation starting - so only a circle that stayed
@@ -73,9 +73,12 @@ fun Refreshable(
                     // what a UI test can drive). A handful of frames, only while stranded.
                     val start = withFrameMillis { it }
                     while (withFrameMillis { it } - start < STRANDED_INDICATOR_GRACE_MS) Unit
-                    System.out.println("DBG hiding")
-                    state.animateToHidden()
-                    System.out.println("DBG hidden " + state.distanceFraction)
+                    // LAUNCHED OUTSIDE collectLatest, not awaited inside it: the hide starting
+                    // makes "stranded" false, and collectLatest would cancel the very block
+                    // running the hide - which then re-strands, forever (caught by this change's
+                    // own UI test). A refresh starting restarts this effect and cancels it,
+                    // which is right: the indicator is then meant to be shown.
+                    effect.launch { state.animateToHidden() }
                 }
             }
     }
