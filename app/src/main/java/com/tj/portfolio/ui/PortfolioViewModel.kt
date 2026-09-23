@@ -5045,7 +5045,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (now == MarketClock.Phase.OPEN) return false
         if (held.endMs <= 0L) return false
         return when (held.range) {
-            ChartRange.D1 -> MarketClock.phase(held.endMs) == MarketClock.Phase.OPEN
+            // AND FROM THE LATEST SESSION (full test 2026-09-23, N-6): a series that ended in ANY
+            // past regular session used to count - so after one failed fetch on a Saturday,
+            // Wednesday's chart stayed on screen as "1D" until Monday's open. [sparkIsFinal] is
+            // the same question already answered for the row line: fetched outside the session,
+            // and no session has opened since.
+            ChartRange.D1 -> MarketClock.phase(held.endMs) == MarketClock.Phase.OPEN &&
+                sparkIsFinal(held.fetched, System.currentTimeMillis())
             ChartRange.OVERNIGHT -> now == MarketClock.Phase.CLOSED &&
                 MarketClock.phase(held.fetched) == MarketClock.Phase.CLOSED
             else -> false
@@ -5225,7 +5231,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
                 // ---- 2. is what we hold still good?
                 val held = _charts.value[key]
-                if (!force && held != null && !held.isEmpty && !held.stale()) return@launch
+                // Finality counts here too (N-6): a final 1D series restored from disk at night
+                // is as good as a fresh one, and re-downloading it on every cold start was waste.
+                if (!force && held != null && !held.isEmpty &&
+                    (!held.stale() || intradayChartIsFinal(held))
+                ) return@launch
 
                 // ---- 3. fetch
                 val fresh = withContext(Dispatchers.IO) {
