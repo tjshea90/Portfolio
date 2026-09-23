@@ -1,5 +1,16 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-23d (his own words)
+
+> still getting stuck, see screen recording
+
+(Recording: /root/.claude/uploads/ad4d015c-7c87-5509-a905-7be6c8ab7c35/09deaea6-screen-20260923-125857.mp4
+- session upload, not in git. On v7.38, which added the stranded-indicator watchdog.)
+
+- [ ] Extract frames, see exactly what the circle does
+- [ ] Find why v7.38's watchdog did not clear it; fix + regression test
+- [ ] Light tests, ship, post link (same standing instruction as 2026-09-23c)
+
 ## Tj's request, 2026-09-23c (his own words)
 
 > Review the screenshot. Sometimes the pull to refresh works fine, but sometimes the refresh

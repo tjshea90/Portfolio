@@ -1,13 +1,13 @@
-# CHECKPOINT 1643 — read me first, then TASKS.md
+# CHECKPOINT 1644 — read me first, then TASKS.md
 
-**Written:** 2026-09-23T16:56:54Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `ba58078` (this checkpoint is the commit after it)
+**Written:** 2026-09-23T16:59:42Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `178ebbb` (this checkpoint is the commit after it)
 
 ## Just done
-SHIPPED v7.38 (code 95): stuck pull-to-refresh fix; release published and recorded
+Recorded Tj request 2026-09-23d (pull circle still sticks on v7.38, video)
 
 ## Do this next
-Nothing pending. Ask Tj whether the circle still sticks on v7.38.
+Extract video frames and diagnose
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Nothing pending. Ask Tj whether the circle still sticks on v7.38.
 
 ## Last ten checkpoints
 ```
+  178ebbb ckpt 1643: SHIPPED v7.38 (code 95): stuck pull-to-refresh fix; release published and rec
   0024d91 ckpt 1642: v7.38 ship.sh passed; build run 35890763962 triggered
   05abc54 ckpt 1641: gated v7.38 (code 95) and pushed it: checkinit, the full unit suite and the v
   c523e2e ckpt 1640: pre-ship: Fixed the pull-to-refresh circle sometimes staying stuck on screen 
@@ -26,5 +27,4 @@ Nothing pending. Ask Tj whether the circle still sticks on v7.38.
   4ac5316 ckpt 1636: v7.37 ship.sh passed; build run 35880942669 triggered
   cff89b1 ckpt 1635: gated v7.37 (code 94) and pushed it: checkinit, the full unit suite and the v
   8f0449a ckpt 1634: Diff review R-1..R-11 fixed (R-2 documented tradeoff); suite 1325/0
-  2c6d558 ckpt 1633: Diff review landed: R-1..R-11 listed in TASKS
 ```
