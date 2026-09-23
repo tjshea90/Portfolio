@@ -69,11 +69,11 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
         Full write-ups: audits/2026-09-23/*.md. Tick each ID when fixed+tested, or mark
         "no change" with the reason.
     - scoring.md (landed): [x] S-1 H phrase substring (Relevance, RelevanceTest +2)
-      [ ] S-2 M ratings-only verdict frozen  [x] S-3 M rebuild drops Claude-added stock rows +
+      [x] S-2 M ratings-only verdict frozen  [x] S-3 M rebuild drops Claude-added stock rows +
       catalyst/conviction  [x] S-4 M Sector/Market Weight, Top Pick unbucketed  [x] S-5 L toInt
-      truncation  [x] S-6 L all-hold == all-sell  [ ] S-7 L fundamentalsAt hides stale core
+      truncation  [x] S-6 L all-hold == all-sell  [x] S-7 L fundamentalsAt hides stale core
       [x] S-8 L "trend is mixed" wording  [x] S-9 L dated-but-unbucketable says "no dates"
-      [ ] S-10 L double "Same exposure as" line
+      [x] S-10 L double "Same exposure as" line
     - accounting.md (landed): [x] A-1 H (autosave-previous kept on shrink; recovery reads larger; FullTest0923Test) autosave overwritten by near-empty ledger
       [x] A-2 M replayOrder reverses correct day w/ missing history  [x] A-3 M snapshot rows
       dated today -> huge "Today" P/L  [x] A-4 M undo snapshot unreachable  [x] A-5 L BUY/SELL
@@ -97,7 +97,7 @@ Portfolio appears in the list. Tell Tj plainly which parts are automatic and whi
       [ ] N-3 L cooldown checked before permit  [ ] N-4 L detail screen sparkline refetch
       [ ] N-5 L SPY compare line frozen on quote tick  [ ] N-6 L intradayChartIsFinal ignores
       session  [ ] N-7 L insider marks failed symbols checked  [ ] N-8 L research refetches
-      RSS/Reddit Feed already has  [ ] N-9 L tradestie expired cert retried  [ ] N-10 L ratings
+      RSS/Reddit Feed already has  [ ] N-9 L tradestie expired cert retried  [x] N-10 L ratings
       row blocks core fundamentals  [ ] N-11 L empty deep-news never remembered
       FIXED SO FAR (tests: ShareFlowTest +4, ResearchCarryTest +3): researchStale counts a Claude
       import as fresh; share drain waits for a running build; carry keeps catalyst/conviction/

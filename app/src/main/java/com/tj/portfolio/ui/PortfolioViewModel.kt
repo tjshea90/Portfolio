@@ -7652,10 +7652,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // and is never drawn: the imported fund would vanish from the list a
                         // second after the toast said it had been added, with nothing on the
                         // survivor's card saying where it went.
-                        reasons = (listOf(
-                            "Same exposure as " + also.joinToString(", ") +
-                                " - this one scored highest of them"
-                        ) + row.reasons).distinct()
+                        // ONE such line, naming every fund it stands for (full test 2026-09-23,
+                        // S-10): the screener's survivor already said "Same exposure as IVV,
+                        // SPLG ...", and prepending a second line for the imported fund pushed
+                        // that one to line two and left the shown line naming only VOO.
+                        reasons = run {
+                            val prefix = "Same exposure as "
+                            val earlier = row.reasons.filter { it.startsWith(prefix) }
+                                .flatMap { line ->
+                                    line.removePrefix(prefix).substringBefore(" - ")
+                                        .split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                                }
+                            val names = (earlier + also).distinct()
+                            listOf(prefix + names.joinToString(", ") + " - this one scored highest of them") +
+                                row.reasons.filterNot { it.startsWith(prefix) }
+                        }
                     )
                 }
 
