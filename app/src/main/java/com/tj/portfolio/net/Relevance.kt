@@ -200,7 +200,7 @@ object Relevance {
 
         // 1. full company phrase
         if (s.phrase != null) {
-            if ((" " + (squashedHay ?: squash(hay)) + " ").contains(s.phrase)) return true
+            if ((squashedHay ?: squashed(title, summary)).contains(s.phrase)) return true
         }
 
         // 2. leading distinctive word, capitalised, not ordinary English
@@ -226,8 +226,9 @@ object Relevance {
      * symbols. Passing it into [matches] turns an O(headlines x symbols) rebuild of the same
      * string into one per headline.
      */
+    // Space-padded, so a phrase (also padded - see [Subject.of]) only matches whole words.
     fun squashed(title: String, summary: String): String =
-        squash((title.trim() + " " + summary.trim()).trim())
+        " " + squash((title.trim() + " " + summary.trim()).trim()) + " "
 
     /**
      * Keep only the headlines that concern this stock - but NEVER return nothing.
