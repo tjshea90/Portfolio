@@ -17,7 +17,7 @@ next to the $4,986.70 total and not going away.)
       collectLatest - inside it the hide cancelled itself). PullIndicatorUiTest (3), MUTATION-
       CHECKED (watchdog off -> 2 fail).
 - [x] Light tests (CLAUDE.md protocol) - checkinit ok, suite 1328/0, diff read, all 9 Refreshable callers unaffected (new param defaulted; observer never consumes). No findings.
-- [ ] Ship + post link - v7.38/95 gated by ship.sh; Actions run 35890763962 triggered 16:43 UTC. When green: get_release_by_tag v7.38, tools/record-release.sh (message in ckpt 1641), post link.
+- [x] Ship + post link - RELEASED + RECORDED - v7.38/95 gated by ship.sh; Actions run 35890763962 triggered 16:43 UTC. When green: get_release_by_tag v7.38, tools/record-release.sh (message in ckpt 1641), post link.
 
 ## Tj's request, 2026-09-23b (his own words) — REPLACES the 2026-09-23 scheduled full test below
 
