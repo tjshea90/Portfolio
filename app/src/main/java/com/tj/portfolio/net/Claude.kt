@@ -212,7 +212,9 @@ say so in notes. Numbers must not contain commas or currency symbols."""
             val qty = importNumber(o, "quantity")
             var px = importNumber(o, "price")
             var amt = importNumber(o, "amount")
-            val fees = importNumber(o, "fees")
+            // Only a trade carries a commission (A-6): on a cash row `cashEffect` ignores it while
+            // `Ledger.fees()` still counted it - the transaction editor already zeroes it there.
+            val fees = if (type == TxnType.BUY || type == TxnType.SELL) importNumber(o, "fees") else 0.0
             // The prompt tells Claude that a fee already sits inside the net amount, so the
             // fee has to come back out before the total is turned into a price per share -
             // otherwise cashEffect subtracts it a second time. See Txn.unitPriceFromTotal.
@@ -226,7 +228,8 @@ say so in notes. Numbers must not contain commas or currency symbols."""
             // cash but produces no position, so the money disappears into the headline total
             // with nothing on any screen to attribute it to. Counted and reported, never
             // dropped in silence.
-            if ((type == TxnType.BUY || type == TxnType.SELL) && qty < 1e-9) {
+            // Nor is one with no ticker (A-5): cash moves, no position appears, nothing explains it.
+            if ((type == TxnType.BUY || type == TxnType.SELL) && (qty < 1e-9 || sym == null)) {
                 unusable++; continue
             }
             // ANY date that does not parse is estimated, not only a missing one (A-L6): "Sep 15"
@@ -241,7 +244,7 @@ say so in notes. Numbers must not contain commas or currency symbols."""
                     amount = Txn.cashEffect(type, qty, px, amt, fees),
                     fees = fees, date = date,
                     note = if (parsedDate == null)
-                        listOfNotNull(note, "date estimated").joinToString(" - ") else note,
+                        listOfNotNull(note, Txn.DATE_ESTIMATED).joinToString(" - ") else note,
                     source = "SCREENSHOT"
                 )
             )

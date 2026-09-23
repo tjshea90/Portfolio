@@ -411,7 +411,9 @@ Share the file to the Portfolio app, or import it (or your saved reply) in the a
             val qty = Claude.importNumber(o, "quantity")
             var px = Claude.importNumber(o, "price")
             var amt = Claude.importNumber(o, "amount")
-            val fees = Claude.importNumber(o, "fees")
+            // Only a trade carries a commission (A-6): on a cash row `cashEffect` ignores it while
+            // `Ledger.fees()` still counted it - the transaction editor already zeroes it there.
+            val fees = if (type == TxnType.BUY || type == TxnType.SELL) Claude.importNumber(o, "fees") else 0.0
             // The prompt says a fee is already inside the net amount, so it has to come back
             // out before the total becomes a price per share - or cashEffect charges it
             // twice. Same helper the transaction editor and the API path use.
@@ -422,7 +424,8 @@ Share the file to the Portfolio app, or import it (or your saved reply) in the a
             if (isExampleRow(sym, dateStr) || demoBlock) continue
             // A BUY or SELL with no share count moves cash but creates no position, so the
             // money vanishes into the portfolio total unattributed. Reported, not dropped.
-            if ((type == TxnType.BUY || type == TxnType.SELL) && qty < 1e-9) {
+            // Nor is one with no ticker (A-5): cash moves, no position appears, nothing explains it.
+            if ((type == TxnType.BUY || type == TxnType.SELL) && (qty < 1e-9 || sym == null)) {
                 unusable++; continue
             }
             val parsedDate = Fmt.parseDate(dateStr)
@@ -434,7 +437,7 @@ Share the file to the Portfolio app, or import it (or your saved reply) in the a
                     amount = Txn.cashEffect(type, qty, px, amt, fees),
                     fees = fees, date = date,
                     note = if (parsedDate == null)
-                        listOfNotNull(note, "date estimated").joinToString(" - ") else note,
+                        listOfNotNull(note, Txn.DATE_ESTIMATED).joinToString(" - ") else note,
                     source = "CLAUDE_FILE"
                 )
             )

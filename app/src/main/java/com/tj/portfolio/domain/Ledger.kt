@@ -368,7 +368,9 @@ object Ledger {
                     // On the lot, the arithmetic is exact and needs no separate bookkeeping at
                     // all - FIFO already removes the right lots, so whatever is still in the
                     // deque and flagged is genuinely what was bought today and still held.
-                    q.addLast(Lot(qty, (qty * px + t.fees) / qty, today = t.date in today))
+                    // A guessed date is not a purchase today - see [Txn.dateEstimated].
+                    q.addLast(Lot(qty, (qty * px + t.fees) / qty,
+                        today = t.date in today && !t.dateEstimated))
                 }
                 TxnType.SELL -> {
                     var remaining = qty
@@ -461,10 +463,10 @@ object Ledger {
                     // Three buckets, because a sale consumes them in this order: shares
                     // bought before the window, then inside it, then after it. The third
                     // needs no counter - it is whatever `shares` has left over.
-                    if (t.date in today) {
+                    if (t.date in today && !t.dateEstimated) {
                         a.todayShares += qty
                         a.todayCost += qty * px + t.fees
-                    } else if (t.date < today.first) {
+                    } else if (t.date < today.first || t.dateEstimated) {
                         a.beforeShares += qty
                     }
                 }

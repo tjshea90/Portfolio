@@ -103,7 +103,18 @@ data class Txn(
     val note: String? = null,
     val source: String = "MANUAL"
 ) {
+    /**
+     * An imported row whose date was GUESSED (the source showed none, or none that parsed) -
+     * both import parsers stamp it today and say so in the note. Its date is a placeholder, so
+     * it must never count as "bought today" (full test 2026-09-23, A-3): a holdings-screen
+     * snapshot row did, and its whole unrealized gain was reported as the day's move.
+     */
+    val dateEstimated: Boolean get() = note?.contains(DATE_ESTIMATED, ignoreCase = true) == true
+
     companion object {
+        /** The note both import parsers add to a row whose date they had to guess. */
+        const val DATE_ESTIMATED = "date estimated"
+
         /**
          * Per-share price for a trade that gives a TOTAL but no price per share.
          *
