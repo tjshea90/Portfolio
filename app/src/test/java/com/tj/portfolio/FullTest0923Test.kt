@@ -175,4 +175,19 @@ class FullTest0923Test {
         assert(!retry(400, "prompt is too long"))
         assert(retry(400, "{\"error\":{\"message\":\"web_search tool is not enabled\"}}"))
     }
+
+    // ---- N-1: one Yahoo chart body serves every consumer of the same url for a few seconds.
+
+    @Test fun `N-1 a recent body is shared across hosts and expires`() {
+        val r = com.tj.portfolio.net.RecentBodies
+        r.clear()
+        val q1 = com.tj.portfolio.net.ChartFeed.url("query1", "GME", com.tj.portfolio.data.ChartRange.D1)
+        val q2 = com.tj.portfolio.net.ChartFeed.url("query2", "GME", com.tj.portfolio.data.ChartRange.D1)
+        // The day-trading intraday leg asks for exactly this url.
+        assert(q1.endsWith("GME?range=1d&interval=5m&includePrePost=true")) { q1 }
+        r.put(q2, "body", now = 1_000L)
+        assertEquals("body", r.get(q1, now = 1_000L + 10_000L))
+        assertEquals(null, r.get(q1, now = 1_000L + 30_000L))
+        r.clear()
+    }
 }
