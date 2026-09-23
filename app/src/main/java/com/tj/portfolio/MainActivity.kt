@@ -115,6 +115,28 @@ class MainActivity : ComponentActivity() {
                 ) { App() }
             }
         }
+        importIfShared(intent)
+    }
+
+    /**
+     * SHARE -> PORTFOLIO (2026-09-23b). `ShareImportActivity` brings this activity forward with
+     * [com.tj.portfolio.util.ShareInbox.ACTION_IMPORT] after queueing the shared answer; a
+     * running app gets it here, a cold start in [onCreate]. Either way the import is the
+     * ViewModel's, and so is the navigation it asks `App` for afterwards.
+     *
+     * The same ViewModel instance `App` gets from `viewModel()`: both resolve the default key
+     * for this class in this activity's store. Safe to call on a re-delivered intent - the
+     * inbox is deleted as it is read, so a second call finds nothing.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        importIfShared(intent)
+    }
+
+    private fun importIfShared(i: Intent?) {
+        if (i?.action != com.tj.portfolio.util.ShareInbox.ACTION_IMPORT) return
+        androidx.lifecycle.ViewModelProvider(this)[PortfolioViewModel::class.java].importSharedInbox()
     }
 
     /**
@@ -329,6 +351,24 @@ fun App() {
                 }
             }
         }
+    }
+
+    // ---- A CLAUDE ANSWER SHARED INTO THE APP OPENS THE SCREEN IT FILLED (2026-09-23b).
+    // Through `goToTab`, so it leaves the same back-stack and persisted-tab state a tap on the
+    // bottom bar would, and closes anything (a stock, an article) that was open on top.
+    val shareNav by vm.shareNav.collectAsState()
+    LaunchedEffect(shareNav) {
+        val d = shareNav ?: return@LaunchedEffect
+        when (d) {
+            com.tj.portfolio.ui.ShareDest.ADVICE -> goToTab(TAB_ADVICE)
+            com.tj.portfolio.ui.ShareDest.ACTIVITY -> goToTab(TAB_ACTIVITY)
+            com.tj.portfolio.ui.ShareDest.RESEARCH, com.tj.portfolio.ui.ShareDest.DAY_TRADING -> {
+                goToTab(TAB_WATCHLIST)
+                watchSubTab = WATCH_RESEARCH
+                vm.setWatchSubTab(WATCH_RESEARCH)
+            }
+        }
+        vm.shareNavHandled()
     }
 
     // Stop polling when the app leaves the screen, and refresh the moment it comes back.
