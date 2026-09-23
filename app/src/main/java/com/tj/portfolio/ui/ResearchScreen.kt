@@ -187,6 +187,20 @@ fun ResearchScreen(
         }
     }
 
+    // Both prompt buttons finish in the share sheet - see [launchPromptShare].
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val sharePrompt: (PromptOut) -> Unit = { out -> launchPromptShare(ctx, out) { vm.toast(it) } }
+
+    // A Claude answer shared INTO the app names the section it filled (2026-09-23b). `section`
+    // is remembered here, so a screen already showing when the share lands has to be told.
+    val researchJump by vm.researchJump.collectAsState()
+    LaunchedEffect(researchJump) {
+        researchJump?.let { i ->
+            section = Section.entries.getOrElse(i) { section }
+            vm.researchJumpHandled()
+        }
+    }
+
     // ---- BUILD WHAT IS BEING LOOKED AT, AND NOTHING ELSE (Round 63).
     //
     // This used to live in `WatchTab` as a single `loadResearch()` on first sight, which was
@@ -447,13 +461,24 @@ fun ResearchScreen(
                                 color = if (marketPhase == com.tj.portfolio.net.MarketClock.Phase.OPEN)
                                     greenText else MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Spacer(Modifier.height(4.dp))
+                            // THE CLAUDE-APP BUTTONS LIVE HERE ON DAY TRADING (2026-09-23b) - Tj
+                            // asked for them at the top of this section, where the paragraph
+                            // he had deleted used to be, instead of below the whole list.
+                            Spacer(Modifier.height(8.dp))
+                            ClaudeAppButtons(
+                                onMakePrompt = { vm.writeDayTradingPrompt(sharePrompt) },
+                                makeEnabled = set.dayTrading.isNotEmpty(),
+                                onImport = { filePicker.launch(arrayOf("*/*")) },
+                                importEnabled = busy.isEmpty()
+                            )
                         }
-                        Text(
-                            section.blurb,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        if (section.blurb.isNotBlank()) {
+                            Text(
+                                section.blurb,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
@@ -581,37 +606,17 @@ fun ResearchScreen(
                             Text(if (explainedBefore) "Re-explain with Claude" else "Explain with Claude")
                         }
 
-                        SectionHeader("No API key? Use the Claude app")
-                        Row {
-                            OutlinedButton(
-                                onClick = {
-                                    if (section == Section.DAY_TRADING) {
-                                        vm.writeDayTradingPrompt { msg -> vm.toast(msg) }
-                                    } else {
-                                        vm.writeResearchPrompt { msg -> vm.toast(msg) }
-                                    }
-                                },
-                                enabled = if (section == Section.DAY_TRADING)
-                                    set.dayTrading.isNotEmpty() else !set.isFullyEmpty,
-                                modifier = Modifier.weight(1f)
-                            ) { Text("Make prompt file") }
-                            Spacer(Modifier.width(8.dp))
-                            // `enabled = busy.isEmpty()`, like the API button above it
-                            // (Round 66 audit, RES-7). Importing while a research pass is in
-                            // flight is a race the app should not ask the user to think about
-                            // - `enrichPass` no longer LOSES the import, but the two writing
-                            // to the same list a second apart still makes the screen jump for
-                            // no reason anyone can see.
-                            //
-                            // ALWAYS `importResearchFile` (Round 67), regardless of which tab
-                            // is open: it recognises a Day Trading answer file by its own
-                            // payload key and routes it correctly, so picking the reply file
-                            // works the same from either tab.
-                            OutlinedButton(
-                                onClick = { filePicker.launch(arrayOf("*/*")) },
-                                enabled = busy.isEmpty(),
-                                modifier = Modifier.weight(1f)
-                            ) { Text("Import answer") }
+                        // Day Trading draws these two at the TOP of its list instead (see the
+                        // "blurb" item) - drawing them here as well would be two copies of the
+                        // same buttons on one screen.
+                        if (section != Section.DAY_TRADING) {
+                            SectionHeader("No API key? Use the Claude app")
+                            ClaudeAppButtons(
+                                onMakePrompt = { vm.writeResearchPrompt(sharePrompt) },
+                                makeEnabled = !set.isFullyEmpty,
+                                onImport = { filePicker.launch(arrayOf("*/*")) },
+                                importEnabled = busy.isEmpty()
+                            )
                         }
                         TextButton(onClick = { howTo = !howTo }) {
                             Text(if (howTo) "Hide how this works" else "How does this work?")
@@ -623,16 +628,19 @@ fun ResearchScreen(
                                         "The prompt file carries every row on this screen - " +
                                             "the price, the app's own score and reasons, and " +
                                             "the entry/stop/target it computed - so Claude " +
-                                            "needs no explanation from you. Attach " +
+                                            "needs no explanation from you. \"Make prompt " +
+                                            "file\" at the top opens the share menu: pick " +
+                                            "Claude to start a new chat with it. Claude is " +
+                                            "asked to hand back its answer as a file - tap " +
+                                            "that file in the chat, then Share and pick " +
+                                            "Portfolio, and this list updates on its own. If " +
+                                            "Claude only replies in the chat, share the reply " +
+                                            "text to Portfolio the same way, or save it as a " +
+                                            ".txt or .md file and use \"Import answer\". A " +
+                                            "copy of the prompt is also saved as " +
                                             "Downloads/Portfolio/" +
                                             com.tj.portfolio.net.DayTradingBridge.PROMPT_FILE +
-                                            " to a chat in the Claude app. Claude is asked to " +
-                                            "hand back its answer as a file you can download " +
-                                            "straight from that chat - tap \"Import answer\" " +
-                                            "and pick it. If it only replies in the chat " +
-                                            "instead, save the whole reply yourself as a .txt " +
-                                            "or .md file, then import that - not the prompt " +
-                                            "file. Claude can rebuild the whole list: drop " +
+                                            ". Claude can rebuild the whole list: drop " +
                                             "names it would not trade, add ones it would, and " +
                                             "set its own entry, stop and target for every " +
                                             "name, using real-time information the app cannot " +
@@ -643,16 +651,17 @@ fun ResearchScreen(
                                     else
                                         "The prompt file carries every row on this screen - the " +
                                             "prices, the scores and the reasons - so Claude needs " +
-                                            "no explanation from you. Attach " +
-                                            "Downloads/Portfolio/" +
+                                            "no explanation from you. \"Make prompt file\" opens " +
+                                            "the share menu: pick Claude to start a new chat with " +
+                                            "it. Claude is asked to hand back its answer as a " +
+                                            "file - tap that file in the chat, then Share and " +
+                                            "pick Portfolio, and these lists update on their own. " +
+                                            "If Claude only replies in the chat, share the reply " +
+                                            "text to Portfolio the same way, or save it as a .txt " +
+                                            "or .md file and use \"Import answer\". A copy of the " +
+                                            "prompt is also saved as Downloads/Portfolio/" +
                                             com.tj.portfolio.net.ResearchBridge.PROMPT_FILE +
-                                            " to a chat in the Claude app. Claude is asked to " +
-                                            "hand back its answer as a file you can download " +
-                                            "straight from that chat - tap \"Import answer\" " +
-                                            "and pick it. If it only replies in the chat " +
-                                            "instead, save the whole reply yourself as a .txt " +
-                                            "or .md file, then import that - not the prompt " +
-                                            "file. The explanations fill in and no API key is " +
+                                            ". The explanations fill in and no API key is " +
                                             "used. Anything Claude adds that the app missed is " +
                                             "added to the list.\n\n" +
                                             "The ETF list is the one that asks Claude to go and " +
@@ -1462,5 +1471,38 @@ internal fun DayTradingSuccessRate(
                 }
             }
         }
+    }
+}
+
+/**
+ * "Make prompt file" + "Import answer", side by side - the Claude-app round trip without an
+ * API key. One composable because Day Trading draws it at the top of its list and the other
+ * sections at the bottom (2026-09-23b), and two hand-copied rows are how one of them ends up
+ * with a different enabled rule.
+ *
+ * `importEnabled` is `busy.isEmpty()`, like the API button (Round 66 audit, RES-7): importing
+ * while a research pass is in flight is a race the app should not ask the user to think about.
+ * The import itself is ALWAYS `importResearchFile` (Round 67), whichever section is open - it
+ * recognises a Day Trading answer by its own payload key and routes it.
+ */
+@Composable
+private fun ClaudeAppButtons(
+    onMakePrompt: () -> Unit,
+    makeEnabled: Boolean,
+    onImport: () -> Unit,
+    importEnabled: Boolean
+) {
+    Row {
+        OutlinedButton(
+            onClick = onMakePrompt,
+            enabled = makeEnabled,
+            modifier = Modifier.weight(1f)
+        ) { Text("Make prompt file") }
+        Spacer(Modifier.width(8.dp))
+        OutlinedButton(
+            onClick = onImport,
+            enabled = importEnabled,
+            modifier = Modifier.weight(1f)
+        ) { Text("Import answer") }
     }
 }
