@@ -24,7 +24,18 @@ object Social {
     suspend fun trending(limit: Int = 25): List<Trending> = kotlinx.coroutines.coroutineScope {
         // These two were awaited one after the other, so the feed paid for BOTH round trips
         // end to end. They are independent - fetch them at the same time.
-        val pJob = async { runCatching { tradestie() }.getOrDefault(emptyList()) }
+        // A SOURCE THAT FAILED IS LEFT ALONE FOR HOURS, NOT MINUTES (full test 2026-09-23, N-9).
+        // Tradestie's certificate had expired (re-verified 2026-09-23), and `Http`'s unreachable
+        // backoff tops out at five minutes - below this pass's own 15-minute cadence - so every
+        // pass paid a DNS lookup, a connect and a TLS handshake that could not succeed. Kept, not
+        // removed: it is the only source with sentiment, and it comes back on its own if fixed.
+        val now = System.currentTimeMillis()
+        val pJob = async {
+            if (now < tradestieDeadUntil) emptyList()
+            else runCatching { tradestie() }.getOrNull()
+                .also { if (it == null) tradestieDeadUntil = now + SOURCE_DEAD_MS }
+                .orEmpty()
+        }
         val sJob = async { runCatching { apeWisdom() }.getOrDefault(emptyList()) }
         val primary = pJob.await()
         val secondary = sJob.await()
@@ -64,13 +75,21 @@ object Social {
         return (merged + extra).take(limit)
     }
 
-    /** https://tradestie.com/apps/reddit/api/ - free, no key, 20 requests/minute. */
-    private suspend fun tradestie(): List<Trending> {
+    @Volatile private var tradestieDeadUntil = 0L
+    private const val SOURCE_DEAD_MS = 6L * 3_600_000L
+
+    /**
+     * https://tradestie.com/apps/reddit/api/ - free, no key, 20 requests/minute. Null when the
+     * source FAILED (as opposed to answering with nothing) - see the dead-source note above.
+     */
+    private suspend fun tradestie(): List<Trending>? {
         val r = Http.get(
             "https://api.tradestie.com/v1/apps/reddit",
             timeoutMs = 15000, conditionalKey = true
         )
-        if (!r.ok) return emptyList()
+        // A local cooldown refusal is not the source failing - do not mark it dead for it.
+        if (r.throttledLocally) return emptyList()
+        if (!r.ok) return null
         val arr = JSONArray(r.body)
         val out = ArrayList<Trending>()
         for (i in 0 until arr.length()) {
