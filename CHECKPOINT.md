@@ -1,13 +1,13 @@
-# CHECKPOINT 1628 — read me first, then TASKS.md
+# CHECKPOINT 1629 — read me first, then TASKS.md
 
-**Written:** 2026-09-23T09:53:04Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `0ba4813` (this checkpoint is the commit after it)
+**Written:** 2026-09-23T09:56:52Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/work-scheduling-capability-6jeiez` · **builds on:** `9674969` (this checkpoint is the commit after it)
 
 ## Just done
-D-2, D-3, D-7, D-9 fixed (+test)
+D-4 (whole DT list to Claude), D-5 (asOf check +test), D-8 (evening import -> next session) fixed
 
 ## Do this next
-Next D-4, D-5, D-6, D-8, D-10, U-2, U-6, N-*
+Next D-6, D-10, U-2, U-6, N-*
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Next D-4, D-5, D-6, D-8, D-10, U-2, U-6, N-*
 
 ## Last ten checkpoints
 ```
+  b6e3aac ckpt 1628: D-2, D-3, D-7, D-9 fixed (+test)
   8c2915a ckpt 1627: S-2 (provisional verdict until core), S-7 (coreAt), S-10 (one exposure line),
   38f0490 ckpt 1626: S-4,S-5,S-6,S-8,S-9 fixed (+tests)
   3548dfe ckpt 1625: A-4 (undo snapshot pick/gate/prune), A-7 (wipe clears overrides) fixed; A-12 
@@ -26,8 +27,7 @@ Next D-4, D-5, D-6, D-8, D-10, U-2, U-6, N-*
   230b188 ckpt 1621: 4 of 5 audit reports landed; all findings listed in TASKS (S/A/D/U)
   111fe45 ckpt 1620: S-1 fixed (Relevance word-boundary phrase + tests); scoring+accounting report
   5a289e4 ckpt 1619: WatchSinceAddedTest made network-independent (passes)
-  6613d79 ckpt 1618: Full test started: 5 audit agents running (reports -> audits/2026-09-23/*.md)
 ```
 
-(5 automatic checkpoint(s) since the last deliberate one — the
+(4 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
