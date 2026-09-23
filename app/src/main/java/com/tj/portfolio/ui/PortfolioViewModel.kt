@@ -7192,14 +7192,24 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     // for a section with its own bridge, its own prompt and its own button. See
     // [ResearchSet.dtExplained] for why it does NOT share state with [applyResearchAnswer].
 
+    /**
+     * THE WHOLE DAY TRADING LIST, NOT THE PAGE ON SCREEN (full test 2026-09-23, D-4). The
+     * prompt tells Claude "the array you return IS my new list", and [applyDayTradingAnswer]
+     * replaces the list with it - but only the first ten rows were sent, so the other thirty
+     * were deleted by a model that never saw them, and the toast called them "dropped". Sending
+     * every row costs no request (it is data already on the phone) and makes "dropped" true.
+     */
+    private fun dayTradingSet(): com.tj.portfolio.data.ResearchSet =
+        visibleResearch().copy(dayTrading = _research.value.dayTrading)
+
     fun dayTradingBundle(): String = com.tj.portfolio.net.DayTradingBridge.bundleJson(
-        visibleResearch(),
+        dayTradingSet(),
         heldSymbols().toList().sorted(),
         watchedSymbols().toList().sorted()
     )
 
     fun dayTradingPromptFile(): String = com.tj.portfolio.net.DayTradingBridge.prompt(
-        visibleResearch(),
+        dayTradingSet(),
         heldSymbols().toList().sorted(),
         watchedSymbols().toList().sorted()
     )
