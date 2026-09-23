@@ -59,12 +59,9 @@ fun Refreshable(
 ) {
     var fingerDown by remember { mutableStateOf(false) }
     LaunchedEffect(state, refreshing) {
-        println("DBG effect refreshing=$refreshing")
         if (refreshing) return@LaunchedEffect
-        snapshotFlow {
-            println("DBG read frac=${state.distanceFraction} anim=${state.isAnimating} finger=$fingerDown") state.distanceFraction > 0f && !state.isAnimating && !fingerDown }
+        snapshotFlow { state.distanceFraction > 0f && !state.isAnimating && !fingerDown }
             .collectLatest { stranded ->
-                println("DBG stranded=$stranded")
                 if (stranded) {
                     // collectLatest cancels this wait the moment anything changes - a finger
                     // coming down, an animation starting - so only a circle that stayed
@@ -74,7 +71,6 @@ fun Refreshable(
                     // what a UI test can drive). A handful of frames, only while stranded.
                     val start = withFrameMillis { it }
                     while (withFrameMillis { it } - start < STRANDED_INDICATOR_GRACE_MS) Unit
-                    println("DBG hiding")
                     state.animateToHidden()
                 }
             }
