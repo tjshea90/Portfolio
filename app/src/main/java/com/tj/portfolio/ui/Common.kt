@@ -10,7 +10,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.material3.pulltorefresh.PullToRefreshState
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.LaunchedEffect
@@ -34,20 +43,30 @@ import androidx.compose.ui.unit.dp
  * Pull-down-to-refresh wrapper. Every tab is wrapped in one of these, so the gesture
  * works everywhere and always re-fetches live prices.
  *
- * ---- THE STRANDED CIRCLE (Tj, 2026-09-23c, with a screenshot: the pull circle parked next to
- * the portfolio total, "Prices updated just now", nothing refreshing). Material3 1.4.0 hides the
- * indicator after a release in exactly one place: an `animateToHidden()` run INSIDE the list's
- * fling coroutine (`PullToRefreshModifierNode.onRelease`). Anything that cancels that fling - a
- * finger landing on the screen again within the ~300 ms of the hide, the tab-swipe gesture
- * taking the pointer - cancels the hide with it and leaves the circle wherever it had got to.
- * The only other thing that ever moves it is `isRefreshing` CHANGING; a price refresh that had
- * already finished by then (they are quick, which is why it only happened "sometimes") never
- * changes it again, so the circle sat there for good.
+ * ---- OUR OWN GESTURE, MATERIAL3'S DRAWING (Tj, 2026-09-23c and d).
  *
- * So this watches for that state from outside - showing, not refreshing, not animating, and no
- * finger on the screen - and after a short grace animates it away. Only a genuinely abandoned
- * indicator ever meets all four: under a finger it is a pull in progress, while animating it is
- * already on its way somewhere, and while refreshing it is meant to be there.
+ * The first report was a pull circle parked next to the portfolio total; v7.38 added a
+ * "put away an abandoned circle" watchdog, and the second report - a screen recording - showed
+ * why that could never be enough: the circle sits at the threshold WHILE the holdings list is
+ * scrolled up and down under it, nowhere near the top.
+ *
+ * That is Material3 1.4.0's own pull logic (`PullToRefreshModifierNode`). Its `onPostScroll`
+ * runs for EVERY user scroll event, not just an overscroll at the top of the list, and re-snaps
+ * the circle to `verticalOffset / threshold` each time - with `verticalOffset` taken from a
+ * private "distance pulled" that its own animations leave at the full threshold when a hide and
+ * a show race each other around a quick refresh. From then on every ordinary scroll puts the
+ * circle back, and nothing outside the library can reset that private value. Hiding it from
+ * outside (v7.38) lasted only until the next scroll.
+ *
+ * So the gesture is ours now ([PullGesture]): it moves the circle ONLY for a real overscroll
+ * past the top of the list, and the hide after a release runs on this composable's own scope,
+ * where no touch or fling can cancel it. Material3 still draws the circle
+ * ([PullToRefreshDefaults.Indicator]) from a plain [PullToRefreshState], so it looks and behaves
+ * exactly as before - same 80dp threshold, same half-speed drag, same stretch past the threshold.
+ *
+ * The v7.38 watchdog stays as a backstop: showing, not refreshing, not animating and no finger
+ * down for a moment means abandoned, whatever the cause - and it now also clears the gesture's
+ * own distance, which is precisely what Material3 never let us do.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +77,33 @@ fun Refreshable(
     state: PullToRefreshState = rememberPullToRefreshState(),
     content: @Composable () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+    val thresholdPx = with(LocalDensity.current) { PullToRefreshDefaults.PositionalThreshold.toPx() }
+    val latestRefreshing by rememberUpdatedState(refreshing)
+    val latestOnRefresh by rememberUpdatedState(onRefresh)
+    val gesture = remember(state, scope, thresholdPx) {
+        PullGesture(
+            thresholdPx = thresholdPx,
+            refreshing = { latestRefreshing },
+            onRefresh = { latestOnRefresh() },
+            show = { fraction -> scope.launch { state.snapTo(fraction) } },
+            hide = { scope.launch { state.animateToHidden() } }
+        )
+    }
     var fingerDown by remember { mutableStateOf(false) }
+
+    // A refresh starting parks the circle at the threshold and spins it; one ending puts it
+    // away. Keyed on `refreshing`, so a change cancels whichever animation the last one began.
+    LaunchedEffect(state, refreshing) {
+        if (refreshing) {
+            gesture.reset()
+            state.animateToThreshold()
+        } else if (!fingerDown || gesture.fraction() == 0f) {
+            state.animateToHidden()
+        }
+    }
+
+    // ---- THE BACKSTOP (v7.38, kept). See the header.
     LaunchedEffect(state, refreshing) {
         if (refreshing) return@LaunchedEffect
         val effect = this
@@ -67,27 +112,22 @@ fun Refreshable(
                 if (stranded) {
                     // collectLatest cancels this wait the moment anything changes - a finger
                     // coming down, an animation starting - so only a circle that stayed
-                    // abandoned for the whole grace is touched.
-                    // Timed on the FRAME clock, not `delay`: the indicator is a drawing, and
-                    // the frame clock is what every animation it takes part in runs on (and
-                    // what a UI test can drive). A handful of frames, only while stranded.
+                    // abandoned for the whole grace is touched. Timed on the frame clock, which
+                    // is what every animation here runs on (and what a UI test can drive).
                     val start = withFrameMillis { it }
                     while (withFrameMillis { it } - start < STRANDED_INDICATOR_GRACE_MS) Unit
-                    // LAUNCHED OUTSIDE collectLatest, not awaited inside it: the hide starting
-                    // makes "stranded" false, and collectLatest would cancel the very block
-                    // running the hide - which then re-strands, forever (caught by this change's
-                    // own UI test). A refresh starting restarts this effect and cancels it,
-                    // which is right: the indicator is then meant to be shown.
+                    gesture.reset()
+                    // LAUNCHED OUTSIDE collectLatest: the hide starting makes "stranded" false,
+                    // and collectLatest would cancel the very block running it.
                     effect.launch { state.animateToHidden() }
                 }
             }
     }
-    PullToRefreshBox(
-        isRefreshing = refreshing,
-        onRefresh = onRefresh,
-        state = state,
-        modifier = modifier
+
+    Box(
+        modifier
             .fillMaxSize()
+            .nestedScroll(gesture)
             // Observed on the Initial pass and never consumed: this only needs to KNOW whether
             // a finger is down, and must not take a single event from the list or the gesture.
             .pointerInput(Unit) {
@@ -98,11 +138,91 @@ fun Refreshable(
                     }
                 }
             }
-    ) { content() }
+    ) {
+        content()
+        PullToRefreshDefaults.Indicator(
+            state = state,
+            isRefreshing = refreshing,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
+    }
 }
 
 /** How long a pull indicator may sit abandoned before [Refreshable] puts it away. */
 internal const val STRANDED_INDICATOR_GRACE_MS = 300L
+
+/**
+ * The pull gesture behind [Refreshable], as plain nested-scroll arithmetic - no Compose state of
+ * its own, so a unit test can drive it event by event.
+ *
+ * The rules, and the one that differs from Material3's:
+ *  - it GROWS only from what the list could not scroll - `available.y > 0` after the list has
+ *    had its turn, i.e. a pull past the top. Material3 re-derived its circle on every user
+ *    scroll, including mid-list ones with nothing left over, which is how a stale internal
+ *    distance kept putting the circle back (see [Refreshable]'s header);
+ *  - scrolling back up SHRINKS it first, before the list moves, so a pull can be taken back;
+ *  - releasing past the threshold refreshes; releasing anywhere puts the circle away, and the
+ *    distance is zeroed on the spot rather than inside an animation that could be cancelled;
+ *  - while a refresh is running it neither grows nor shrinks: the circle is parked, spinning.
+ * Distances are Material3's: half-speed drag, 80dp threshold, and a tapering stretch past it.
+ */
+internal class PullGesture(
+    private val thresholdPx: Float,
+    private val refreshing: () -> Boolean,
+    private val onRefresh: () -> Unit,
+    private val show: (Float) -> Unit,
+    private val hide: () -> Unit
+) : NestedScrollConnection {
+
+    /** Raw finger travel past the top, in px. */
+    var distance = 0f
+        private set
+
+    /** Where the circle belongs: 0 hidden, 1 at the threshold, above 1 stretched past it. */
+    fun fraction(): Float {
+        val adjusted = distance * DRAG_MULTIPLIER
+        if (adjusted <= thresholdPx) return adjusted / thresholdPx
+        val linear = (adjusted / thresholdPx - 1f).coerceIn(0f, 2f)
+        return 1f + linear - linear * linear / 4f
+    }
+
+    fun reset() { distance = 0f }
+
+    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        if (source != NestedScrollSource.UserInput || refreshing()) return Offset.Zero
+        if (available.y >= 0f || distance <= 0f) return Offset.Zero
+        val taken = maxOf(available.y, -distance)
+        distance += taken
+        show(fraction())
+        return Offset(0f, taken)
+    }
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
+        if (source != NestedScrollSource.UserInput || refreshing()) return Offset.Zero
+        if (available.y <= 0f) return Offset.Zero
+        distance += available.y
+        show(fraction())
+        return Offset(0f, available.y)
+    }
+
+    override suspend fun onPreFling(available: Velocity): Velocity {
+        if (distance <= 0f) return Velocity.Zero
+        val trigger = !refreshing() && distance * DRAG_MULTIPLIER > thresholdPx
+        distance = 0f
+        if (trigger) onRefresh()
+        // Not awaited here: the fling is cancelled by the next touch, and a hide tied to it was
+        // cancelled with it - Material3's original bug. The refresh starting takes over from
+        // here (it parks the circle at the threshold); if it never starts, this finishes.
+        hide()
+        // A downward fling that ends a pull is the pull's, not the list's.
+        return if (available.y > 0f) available else Velocity.Zero
+    }
+
+    companion object {
+        /** Material3's own: the circle travels half as far as the finger. */
+        const val DRAG_MULTIPLIER = 0.5f
+    }
+}
 
 /**
  * Android's minimum touch target, applied to a control Compose will not size for us.
