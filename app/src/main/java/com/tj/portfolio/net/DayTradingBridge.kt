@@ -458,6 +458,9 @@ $SHAPE
         // which let an old `why` paragraph ride forward under a fresh clock any time Claude's
         // reply only touched the trade levels or catalyst, not the explanation).
         val today = MarketClock.dayKey(now)
+        val afterTodaysClose = java.time.Instant.ofEpochMilli(now)
+            .atZone(java.time.ZoneId.of("America/New_York"))
+            .let { it.hour * 60 + it.minute } >= MarketClock.closeMinuteAt(now)
         val byExisting = existing.associateBy { it.symbol }
         // De-duplicated - same reason [ResearchBridge.merge] does it: a keyed LazyColumn
         // crashes on a repeated key, and a model repeating a ticker is not a hypothetical.
@@ -520,7 +523,14 @@ $SHAPE
                 // away the plan the user had just imported. Blank means "no reading for today
                 // yet", which is exactly true - and it is also what keeps yesterday's VWAP and
                 // session range from being carried into today by `effectiveTechnicals`.
-                sessionDay = if (takeLevels && app.sessionDay.isNotBlank() && app.sessionDay != today) ""
+                //
+                // AND AN IMPORT AFTER TODAY'S CLOSE belongs to the NEXT session too (full test
+                // 2026-09-23, D-8): at 22:00 the row still carries today's date, so the 04:00
+                // pre-market tick read a rollover and replaced Claude's evening plan with the
+                // app's - while the same import at 00:05 survived.
+                sessionDay = if (takeLevels && app.sessionDay.isNotBlank() &&
+                    (app.sessionDay != today || afterTodaysClose)
+                ) ""
                 else app.sessionDay
             )
         }
