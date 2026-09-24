@@ -165,5 +165,23 @@ data class DayTradingStats(
     val cappedTrades: Int = 0,
     /** Distinct trading days the log covers - the context an average per trade needs. */
     val sessions: Int = 0,
-    val evaluatedAt: Long = 0L
+    val evaluatedAt: Long = 0L,
+    /**
+     * WHAT WORKED, SPLIT THREE WAYS (2026-09-24b, Day Trading ideas 1-2): by who planned it
+     * (the app or Claude), by setup, and by the time of day it was recommended - the breakdown
+     * trading journals lead with. Only groups with at least one decided trade.
+     */
+    val breakdown: List<StatSlice> = emptyList()
 )
+
+/** One slice of [DayTradingStats.breakdown]: [decided] trades, how many hit target / made money net. */
+data class StatSlice(
+    val group: String,
+    val label: String,
+    val decided: Int,
+    val targetHits: Int,
+    val profitable: Int
+) {
+    val targetHitRate: Double get() = if (decided > 0) targetHits * 100.0 / decided else 0.0
+    val profitableRate: Double get() = if (decided > 0) profitable * 100.0 / decided else 0.0
+}

@@ -484,7 +484,47 @@ object DayTradingEval {
             // the context an average per trade needs, and a day whose picks all expired without
             // triggering is still a day the system was followed.
             sessions = entries.mapTo(HashSet()) { it.tradingDay }.size,
-            evaluatedAt = System.currentTimeMillis()
+            evaluatedAt = System.currentTimeMillis(),
+            breakdown = breakdown(entries)
         )
+    }
+
+    /** The decided outcomes - a trade that actually happened and is over. */
+    private val DECIDED = setOf(DayTradingOutcome.WIN, DayTradingOutcome.LOSS,
+        DayTradingOutcome.CLOSED_PROFIT, DayTradingOutcome.CLOSED_LOSS)
+
+    /** See [DayTradingStats.breakdown]. Net "profitable" is the same test the headline uses. */
+    internal fun breakdown(entries: List<DayTradingLogEntry>): List<com.tj.portfolio.data.StatSlice> {
+        val decided = entries.filter { it.outcome in DECIDED }
+        fun profitable(e: DayTradingLogEntry): Boolean {
+            val exit = e.outcomeExitPrice ?: when (e.outcome) {
+                DayTradingOutcome.WIN -> e.target
+                DayTradingOutcome.LOSS -> e.stop
+                else -> e.entry
+            }
+            return Costs.exitFill(e.outcome, exit) > Costs.entryFill(e.entry)
+        }
+        fun slices(group: String, key: (DayTradingLogEntry) -> String, order: List<String>) =
+            decided.groupBy(key).map { (label, rows) ->
+                com.tj.portfolio.data.StatSlice(group, label, rows.size,
+                    rows.count { it.outcome == DayTradingOutcome.WIN }, rows.count { profitable(it) })
+            }.sortedBy { order.indexOf(it.label).let { i -> if (i < 0) order.size else i } }
+        val who = listOf("The app's plans", "Claude's plans")
+        val setups = listOf(ResearchScore.SETUP_BREAKOUT, ResearchScore.SETUP_PULLBACK,
+            ResearchScore.SETUP_RECLAIM, "Claude's own setups")
+        val times = listOf("First hour", "Midday", "Last two hours")
+        return slices("Who planned it", {
+            if (it.source == DayTradingLogEntry.SOURCE_CLAUDE) who[1] else who[0]
+        }, who) + slices("Setup", {
+            if (it.setup in setups.take(3)) it.setup else "Claude's own setups"
+        }, setups) + slices("When it was recommended", { e ->
+            val et = java.time.Instant.ofEpochMilli(e.recordedAt).atZone(java.time.ZoneId.of("America/New_York"))
+            val m = et.hour * 60 + et.minute
+            when {
+                m < 10 * 60 + 30 -> times[0]
+                m < MarketClock.closeMinuteAt(e.recordedAt) - 120 -> times[1]
+                else -> times[2]
+            }
+        }, times)
     }
 }
