@@ -8433,7 +8433,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             if (removed > 0) _toast.value =
                 "Tidied $removed file(s) out of Downloads - the app's files are in " +
                     "Downloads/Portfolio now"
-        }
+        } }
     }
 
     fun snapshotCount(): Int =
