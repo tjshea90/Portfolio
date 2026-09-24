@@ -33,7 +33,14 @@ object DayTradingEval {
     /** One 5-minute bar of REAL, ALREADY-HAPPENED intraday trading - never the current, still
      *  forming one; see [fetchDaySeries]'s own bounds. [t] is epoch SECONDS, matching Yahoo's
      *  own timestamp unit. */
-    data class IntradayBar(val t: Long, val high: Double, val low: Double, val close: Double)
+    data class IntradayBar(
+        val t: Long,
+        val high: Double,
+        val low: Double,
+        val close: Double,
+        /** The bar's first print - NaN when the feed did not say (2026-09-24c: gap fills, see [DayTradingGrader]). */
+        val open: Double = Double.NaN
+    )
 
     /**
      * The regular session's own 5-minute bars for [tradingDay] (`MarketClock.dayKey` format,
@@ -108,6 +115,7 @@ object DayTradingEval {
         val highs = quote.optJSONArray("high")
         val lows = quote.optJSONArray("low")
         val closes = quote.optJSONArray("close")
+        val opens = quote.optJSONArray("open")
         if (highs == null || lows == null || closes == null) return@runCatching emptyList()
         val n = minOf(ts.length(), highs.length(), lows.length(), closes.length())
         val out = ArrayList<IntradayBar>(n)
@@ -122,7 +130,10 @@ object DayTradingEval {
             if (h.isNaN() || l.isNaN() || c.isNaN() || h <= 0.0 || l <= 0.0 || c <= 0.0) continue
             val t = ts.optLong(i, 0L)
             if (t <= 0L) continue
-            out.add(IntradayBar(t, h, l, c))
+            // An open outside the bar's own range is a bad value, not a gap - dropped, not used.
+            val o = opens?.takeIf { i < it.length() && !it.isNull(i) }?.optDouble(i, Double.NaN)
+                ?.takeIf { it.isFinite() && it >= l - 1e-9 && it <= h + 1e-9 } ?: Double.NaN
+            out.add(IntradayBar(t, h, l, c, o))
         }
         out.sortedBy { it.t }
     }.getOrDefault(emptyList())
@@ -266,58 +277,19 @@ object DayTradingEval {
         bars: List<IntradayBar>,
         sessionStillOpen: Boolean
     ): Resolved {
-        // A BAR ALREADY UNDER WAY WHEN recordedAt LANDS IS EXCLUDED WHOLE, not sliced at the
-        // moment of recording - [IntradayBar] carries no `open`, so there is no way to tell how
-        // much of a straddled bar's high/low happened before vs. after recordedAt. This can
-        // discard up to ~5 real minutes of genuine post-recommendation trading (a conservative
-        // miss - PENDING/NO_ENTRY a beat later than reality) rather than risk the opposite and
-        // far worse mistake: crediting an entry/target/stop touch that may have happened before
-        // the recommendation was ever made, which is exactly what Tj's own requirement (this
-        // file's header) rules out.
-        // (The plan's "flat by 15:50" cut is applied by the caller to real bars - see
-        // [beforeFlatTime], D-11.)
-        val after = bars.filter { it.t * 1000L >= recordedAt }
-        val rises = entryRises(setup, entry, priceAtRecommendation)
-        val entryIndex = after.indexOfFirst { bar -> if (rises) bar.high >= entry else bar.low <= entry }
-        if (entryIndex < 0) {
-            return Resolved(
-                if (sessionStillOpen) DayTradingOutcome.PENDING else DayTradingOutcome.NO_ENTRY, null, false)
-        }
-        var deferredWin = false
-        for (i in entryIndex until after.size) {
-            val bar = after[i]
-            // BOTH TARGET AND STOP REACHABLE IN THE SAME BAR - checked STOP first, always, so
-            // this can never credit a win it did not actually prove happened. See this file's
-            // own header on why a 5-minute high/low cannot say which came first inside it.
-            if (bar.low <= stop) return Resolved(DayTradingOutcome.LOSS, stop,
-                ambiguous = deferredWin || (i == entryIndex && rises) || bar.high >= target)
-            // A FALLING (PULLBACK) ENTRY'S OWN TRIGGER BAR IS THE ONE CASE WHERE THE TARGET
-            // CHECK ABOVE IS ITSELF AMBIGUOUS, not just the stop/target pair. Entry there
-            // triggers off the bar's LOW (price fell to the buy-limit); target is read off the
-            // same bar's HIGH - two different extremes with no way to know which came first
-            // inside one 5-minute bar. That is NOT true of the rising case (entry and target
-            // both read off the HIGH, so target > entry mathematically guarantees price passed
-            // through entry on the way up - no ambiguity) or of the stop check just above
-            // (entry and stop both read off the LOW, same reasoning). Crediting a WIN here
-            // would be exactly the "resolve an ambiguous bar in the strategy's own favour"
-            // mistake this file's header warns against, so it is deferred to the first LATER
-            // bar instead - by then entry is known to have already triggered, so any target hit
-            // is unambiguous. A real intrabar win in the entry bar itself reads one bar late
-            // rather than not at all, and one that never really filled before retracing is
-            // never credited - both err toward under-, not over-, crediting the strategy.
-            val targetProvable = rises || i > entryIndex
-            if (targetProvable && bar.high >= target) return Resolved(DayTradingOutcome.WIN, target, false)
-            if (!targetProvable && bar.high >= target) deferredWin = true
-        }
-        if (sessionStillOpen) return Resolved(DayTradingOutcome.PENDING, null, deferredWin)
-        // A DAY TRADE IS FLAT BEFORE THE CLOSE (TradePlan's own rule) - simulated the same way
-        // here: neither level was reached, so the trade is marked closed at the session's own
-        // last print rather than left open indefinitely. `after` is guaranteed non-empty here -
-        // `entryIndex >= 0` only ever comes from a real match inside it.
-        val lastClose = after.last().close
-        return Resolved(
-            if (lastClose > entry) DayTradingOutcome.CLOSED_PROFIT else DayTradingOutcome.CLOSED_LOSS,
-            lastClose, deferredWin)
+        // SINCE 2026-09-24c THIS IS [DayTradingGrader] WITH ITS FILL REALISM SWITCHED OFF - touch
+        // fills (no trade-through tick), no spike filter, no entry cut-off or flat time, and a bar
+        // with no open never gaps. That keeps the original sequencing rules (bars before the
+        // recommendation excluded whole, stop before target, the pullback bar's deferred target)
+        // pinned by this file's tests against the SAME code the app grades with. The app itself
+        // calls [DayTradingGrader.grade] with every rule on.
+        val g = DayTradingGrader.grade(
+            DayTradingGrader.Spec(entry, stop, target, entryRises(setup, entry, priceAtRecommendation), recordedAt),
+            bars,
+            decidedThroughSec = if (sessionStillOpen) 0L else Long.MAX_VALUE,
+            res = 5, spikeFilter = false, withGrid = false, tk = 0.0
+        )
+        return Resolved(g.outcome, g.exitPrice, g.ambiguous)
     }
 
     /**

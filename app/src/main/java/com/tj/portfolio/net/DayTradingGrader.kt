@@ -95,7 +95,7 @@ object DayTradingGrader {
         val fill: Double = 0.0,
         val fillAt: Long = 0L,
         val exitAt: Long = 0L,
-        /** "target", "stop", "gap-stop", "flat", "expired" (entry deadline passed), "never" (session ended unfilled). */
+        /** "target", "stop", "gap-stop", "flat", or "unfilled" (the entry never filled before its cut-off). */
         val why: String = "",
         /** Best / worst excursion from the fill to the exit, in R of the plan's risk (gross). */
         val mfeR: Double = 0.0,
@@ -236,9 +236,10 @@ object DayTradingGrader {
         decidedThroughSec: Long,
         res: Int,
         spikeFilter: Boolean = true,
-        withGrid: Boolean = true
+        withGrid: Boolean = true,
+        /** The trade-through a limit needs; 0 only for [DayTradingEval.evaluateResolved]'s touch rules. */
+        tk: Double = tick(spec.entry)
     ): Graded {
-        val tk = tick(spec.entry)
         val day = bars.filter { it.t < spec.flatSec }.sortedBy { it.t }
         val median = medianRange(day)
         val start = day.indexOfFirst { it.t * 1000L >= spec.recordedAt }
@@ -267,11 +268,10 @@ object DayTradingGrader {
             }
         }
         if (fillIdx < 0) {
-            val over = entryWindowOver || complete
-            if (!over) return Graded(DayTradingOutcome.PENDING, null, false, null)
-            val why = if (spec.entryDeadlineSec <= (day.lastOrNull()?.t ?: 0L) + res * 60L ||
-                decidedThroughSec >= spec.entryDeadlineSec) "expired" else "never"
-            return Graded(DayTradingOutcome.NO_ENTRY, null, false, Detail(res = res, why = why))
+            // Unfilled until the plan's own cut-off (or the end of the session): the order is
+            // cancelled, and no trade happened - not a win, not a loss.
+            if (!(entryWindowOver || complete)) return Graded(DayTradingOutcome.PENDING, null, false, null)
+            return Graded(DayTradingOutcome.NO_ENTRY, null, false, Detail(res = res, why = "unfilled"))
         }
 
         // ---- the exit
