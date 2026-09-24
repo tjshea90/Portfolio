@@ -754,7 +754,11 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             put("note", t.note)
             put("source", t.source)
         }
-        return writableDatabase.insert("txns", null, cv)
+        // insertOrThrow, NOT insert (full test 2026-09-24, A-5): `insert` swallows a failed
+        // write (disk full, a constraint) and returns -1, which every caller counted as a row
+        // written - a Replace restore could pass its manifest check with rows missing and
+        // commit. Throwing lets each caller's own transaction roll back and say so.
+        return writableDatabase.insertOrThrow("txns", null, cv)
     }
 
     fun updateTxn(t: Txn) {

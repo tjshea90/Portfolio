@@ -3901,13 +3901,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         amount: Double, fees: Double, date: Long, note: String?
     ) {
         val signed = Txn.cashEffect(type, qty, price, amount, fees)
-        db.insertTxn(
-            Txn(
-                type = type, symbol = symbol?.uppercase()?.ifBlank { null },
-                quantity = qty, price = price, amount = signed,
-                fees = fees, date = date, note = note, source = "MANUAL"
+        val saved = runCatching {
+            db.insertTxn(
+                Txn(
+                    type = type, symbol = symbol?.uppercase()?.ifBlank { null },
+                    quantity = qty, price = price, amount = signed,
+                    fees = fees, date = date, note = note, source = "MANUAL"
+                )
             )
-        )
+        }
+        // A failed write says so (A-5) - it used to be counted as saved.
+        saved.exceptionOrNull()?.let { toast("Couldn't save that transaction: ${it.message}"); return }
         recompute()
         refresh()
         warnIfOverridden(type, symbol)
@@ -3919,7 +3923,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * toast set afterwards would overwrite the override warning below before anyone saw it.
      */
     fun addTxnRecord(t: Txn, savedMsg: String? = null) {
-        db.insertTxn(t)
+        // A failed write says so (A-5), instead of the caller's "saved".
+        runCatching { db.insertTxn(t) }.exceptionOrNull()?.let {
+            toast("Couldn't save that transaction: ${it.message}"); return
+        }
         recompute()
         refresh()
         warnIfOverridden(t.type, t.symbol, savedMsg)
