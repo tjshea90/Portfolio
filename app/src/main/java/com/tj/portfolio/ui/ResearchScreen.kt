@@ -168,6 +168,7 @@ fun ResearchScreen(
     val engine by vm.engine.collectAsState()
     val engineReview by vm.engineReview.collectAsState()
     val engineEvidence by vm.engineEvidence.collectAsState()
+    val engineApplying by vm.engineApplying.collectAsState()
 
     // Persisted rather than remembered: this screen leaves composition every time the user
     // visits another bottom-bar tab, so a plain `remember` would drop them back on Trending
@@ -242,13 +243,29 @@ fun ResearchScreen(
         onDispose { if (section == Section.DAY_TRADING) vm.stopDayTradingLive() }
     }
 
-    // The tuning card's readiness line follows the graded log (2026-09-24c) - a local read.
-    LaunchedEffect(section, dayTradingStats, engine.version) {
+    // The tuning card's counts arrive with every stats publish (UI-17); a change of engine moves
+    // "since the change in force", so that alone asks for a recount.
+    LaunchedEffect(section, engine.version) {
         if (section == Section.DAY_TRADING) vm.refreshEngineEvidence()
     }
     // A Claude tuning answer waiting for approval - shared in or imported (2026-09-24c).
     engineReview?.let { review ->
-        EngineReviewDialog(review, onApply = { vm.applyEngineReview() }, onDismiss = { vm.dismissEngineReview() })
+        EngineReviewDialog(review, applying = engineApplying,
+            onApply = { vm.applyEngineReview() }, onDismiss = { vm.dismissEngineReview() })
+    }
+    // Undo / revert confirmations live at the SCREEN level (UI-24): inside the lazy "tools" item a
+    // saved dialog could reappear on its own after a rotation scrolled that item out of view.
+    var engineConfirm by rememberSaveable { mutableStateOf("") }
+    if (engineConfirm.isNotEmpty()) EngineConfirmDialog(
+        kind = engineConfirm,
+        onConfirm = { if (engineConfirm == ENGINE_UNDO) vm.undoEngineChange() else vm.revertEngine(); engineConfirm = "" },
+        onDismiss = { engineConfirm = "" }
+    )
+    // The tuning card's own file picker (UI-19): its errors speak about tuning answers, not research.
+    val enginePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.readPickedFile(uri) { text ->
+            vm.toast(if (text == null) "Couldn't read that file" else vm.importEngineFile(text))
+        }
     }
 
     // ---- "UP TODAY" IS ONLY TRUE WHEN THE MARKET ACTUALLY HAD A TODAY (Round 68 bug fix).
@@ -710,13 +727,12 @@ fun ResearchScreen(
                             Spacer(Modifier.height(8.dp))
                             EngineTuningCard(
                                 state = engine,
-                                graded = engineEvidence.first,
-                                sinceLastChange = engineEvidence.second,
+                                evidence = engineEvidence,
                                 onMakePrompt = { vm.writeEngineTuningPrompt(sharePrompt) },
-                                onImport = { filePicker.launch(arrayOf("*/*")) },
-                                onUndo = { vm.undoEngineChange() },
-                                onRevert = { vm.revertEngine() },
-                                busy = dayTradingStatsLoading
+                                onImport = { enginePicker.launch(arrayOf("*/*")) },
+                                onUndo = { engineConfirm = ENGINE_UNDO },
+                                onRevert = { engineConfirm = ENGINE_REVERT },
+                                grading = dayTradingStatsLoading
                             )
                         }
 
