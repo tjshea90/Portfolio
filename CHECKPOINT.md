@@ -1,22 +1,24 @@
-# CHECKPOINT 1665 — read me first, then TASKS.md
+# CHECKPOINT 1666 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T14:08:30Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `1e3e94bb` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T14:10:45Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `23baefbd` (this checkpoint is the commit after it)
 
 ## Just done
-S-1 (popup reports scorer's branch/weight for dated voteless panel) + S-2 (detail verdict recomputed when core lands) fixed; FullTest0924Test 16/0
+S-4 fixed: old Research/Advice answers age from their asOf (answeredAt), notes say so; +3 tests
 
 ## Do this next
-S-4..S-8, then D-2..D-5, C-2..C-5
+S-5, S-6, S-7, S-8, then D-2..D-5, C-2..C-5
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
      M TASKS.md
+     M app/src/test/java/com/tj/portfolio/EtfTest.kt
 
 ## Last ten checkpoints
 ```
+  acb9c0fe ckpt 1665: S-1 (popup reports scorer's branch/weight for dated voteless panel) + S-2 (d
   026ca08a ckpt 1664: A-2 (merge re-arms repair only for inserted ids), A-3 (dup tolerance = round
   01258ec7 ckpt 1663: U-2 (Feed pull retries empty All-companies insider list) + U-3 (headline swe
   ef549bf9 ckpt 1662: L-2 (quote re-entry judged on job + generation counter) + L-3 (background pr
@@ -26,7 +28,6 @@ S-4..S-8, then D-2..D-5, C-2..C-5
   85278c6f ckpt 1658: N-2 fixed (empty well-formed v7 answer no longer disables batch) + A-1 fixed
   3a66627f ckpt 1657: L-1/N-1 fixed: Http cancel hook now fires on cancelling (was on completion =
   6fe3086d ckpt 1656: All 7 audit reports complete (7H/~25M/~50L). U-1 fixed: per-surface spinner 
-  f993b5be ckpt 1655: Resumed after usage cap: 7 audit agents died 07:43 with partial reports (net
 ```
 
 (3 automatic checkpoint(s) since the last deliberate one — the

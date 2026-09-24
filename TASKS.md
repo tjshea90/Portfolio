@@ -69,7 +69,8 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       newest wins; matchesOwnName test; platform rename behaviour still to confirm on the phone)
       [x] S-1 S-9 popup fix unreachable (ratingsDated = panel != null; weight capped by panel.currency
       like the scorer; test)  [x] S-2 detail screen ratings-only verdict frozen (effect keyed on the fundamentals object)
-      [ ] S-4 Research asOf ignored / Advice undated  [ ] S-5 carry freezes relative catalyst
+      [x] S-4 Research asOf ignored / Advice undated (ClaudeBridge.answeredAt; ResearchBridge stamps
+      whyAt/explained with it + notes line; advice schema asOf -> generated; +3 tests)  [ ] S-5 carry freezes relative catalyst
       [ ] S-6 stale Claude fund permanent  [ ] S-7 DT paragraphs carried 14 days  [ ] S-8 ETF
       dedupe merges different products  [x] U-2 Insider all-companies pull never refetches (Feed pull also refreshMarketInsidersIfEmpty)
       [x] U-3 feed sweep runs under reader/detail (feedListVisible + readerNow key; test)

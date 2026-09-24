@@ -549,7 +549,8 @@ class EtfTest {
         // and an expense ratio.
         assertEquals("the app scored nothing here", 0, vti.score)
         assertEquals(9, vti.conviction)
-        assertEquals("Your list is missing the broad-market funds.", p.notes)
+        // Claude's note survives; a past `asOf` also prefixes a "this answer is dated" line (S-4).
+        assertTrue(p.notes, p.notes.endsWith("Your list is missing the broad-market funds."))
     }
 
     @Test fun `a fund Claude adds is kept and one it explains is merged`() {
