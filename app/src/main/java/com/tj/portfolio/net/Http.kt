@@ -366,6 +366,9 @@ object Http {
 
     fun attachDiskCache(cache: DiskCache?) { disk = cache }
 
+    /** Detach [cache] only if it is still the attached one - a later owner's stays (L-6). */
+    @Synchronized fun detachDiskCache(cache: DiskCache) { if (disk === cache) disk = null }
+
     /**
      * Two different limits, because the heap and the disk have nothing in common.
      *

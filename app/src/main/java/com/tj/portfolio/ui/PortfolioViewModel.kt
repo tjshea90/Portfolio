@@ -1875,6 +1875,39 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Whether the on-disk headline cache has been read into memory this foreground spell. */
     private var feedRestored: Boolean = false
 
+    /**
+     * Set when [onTrimMemory] dropped the sparklines, so only the next return re-reads them
+     * (full test 2026-09-24, L-5). The old "any quote missing a series" test is defeated for
+     * good by one symbol Yahoo never sends a series for - every resume then read and parsed
+     * the whole quotes table to change nothing.
+     */
+    private var sparksTrimmed: Boolean = false
+
+    /**
+     * THIS ViewModel's [com.tj.portfolio.net.Http] disk cache, kept so [onCleared] detaches only
+     * its own (full test 2026-09-24, L-6): a finishing activity's `onDestroy` can run after the
+     * NEXT ViewModel's `init` attached, and an unconditional detach left that process on a
+     * memory-only HTTP cache for the rest of its life.
+     */
+    private val httpDiskCache = object : com.tj.portfolio.net.Http.DiskCache {
+        override fun load(url: String): Triple<String, String, String>? =
+            runCatching {
+                db.httpCached(url)?.let { Triple(it.etag, it.lastModified, it.body) }
+            }.getOrNull()
+
+        override fun save(url: String, etag: String, lastModified: String, body: String) {
+            runCatching { db.httpStore(url, etag, lastModified, body) }
+        }
+
+        override fun touch(url: String) {
+            runCatching { db.httpTouch(url) }
+        }
+
+        override fun forget(url: String) {
+            runCatching { db.httpForget(url) }
+        }
+    }
+
     /** Memoised feed de-duplication keys - see [storyKey] for why this exists. */
     private val storyKeys = HashMap<String, String>(MAX_FEED_ITEMS * 2)
 
@@ -2160,6 +2193,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         _quotes.value = _quotes.value.mapValues { (_, q) ->
             if (q.spark.isEmpty()) q else q.copy(spark = emptyList())
         }
+        sparksTrimmed = true
 
         // The fetched chart series, for the same reason and with the same recovery: every
         // one of them is on disk in `chart_cache`, and `loadChart` reads disk before it ever
@@ -2241,7 +2275,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // any tracked symbol Yahoo never supplied a series for (a freshly added watch entry,
         // a thin ticker) defeats the "every quote already has one" check, and then `changed`
         // can never become true, because the map and the disk rows are the same data.
-        if (!fromInit) restoreSparklines()
+        // AND ONLY AFTER A TRIM ACTUALLY DROPPED THEM (L-5) - see [sparksTrimmed].
+        if (!fromInit && sparksTrimmed) {
+            sparksTrimmed = false
+            restoreSparklines()
+        }
         if (feedRestored && !force) return
         feedRestored = true
         viewModelScope.launch(Dispatchers.IO) {
@@ -5931,29 +5969,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * what keeps that from being a leak; the next ViewModel attaches its own in `init`.
      */
     override fun onCleared() {
-        com.tj.portfolio.net.Http.attachDiskCache(null)
+        com.tj.portfolio.net.Http.detachDiskCache(httpDiskCache)   // only if still ours (L-6)
         super.onCleared()
     }
 
     private fun attachHttpDiskCache() {
-        com.tj.portfolio.net.Http.attachDiskCache(object : com.tj.portfolio.net.Http.DiskCache {
-            override fun load(url: String): Triple<String, String, String>? =
-                runCatching {
-                    db.httpCached(url)?.let { Triple(it.etag, it.lastModified, it.body) }
-                }.getOrNull()
-
-            override fun save(url: String, etag: String, lastModified: String, body: String) {
-                runCatching { db.httpStore(url, etag, lastModified, body) }
-            }
-
-            override fun touch(url: String) {
-                runCatching { db.httpTouch(url) }
-            }
-
-            override fun forget(url: String) {
-                runCatching { db.httpForget(url) }
-            }
-        })
+        com.tj.portfolio.net.Http.attachDiskCache(httpDiskCache)
     }
 
     /**
