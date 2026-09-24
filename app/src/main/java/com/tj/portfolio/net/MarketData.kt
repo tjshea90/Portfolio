@@ -198,7 +198,7 @@ object MarketData {
      * others did. [COOLING] is last so it can only ever be the verdict when EVERY chunk was
      * cooling, which is the one case where the per-symbol fallback must not run.
      */
-    private enum class Batch { OK, INCONCLUSIVE, FAILED, COOLING }
+    internal enum class Batch { OK, INCONCLUSIVE, FAILED, COOLING }
 
     private const val FALLBACK_PARALLELISM = 5
 
@@ -227,7 +227,7 @@ object MarketData {
      * the chart parser. A response that parses to nothing is treated as a failed batch, which
      * is what arms the fallback.
      */
-    private suspend fun batchYahoo(symbols: List<String>): Pair<Batch, List<Quote>> {
+    internal suspend fun batchYahoo(symbols: List<String>): Pair<Batch, List<Quote>> {
         val crumb = YahooAuth.crumb()
         // No crumb means the handshake could not complete - a throttled mint, no signal.
         // Nothing has been learned about the batch endpoint itself.
