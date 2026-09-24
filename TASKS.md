@@ -1,5 +1,26 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-24 (his own words)
+
+> Run full tests on this app
+
+CLAUDE.md "Full tests" protocol, end to end. Branch `claude/full-app-tests-91htyl`, builds on
+`370bfa4` (v7.39 shipped). Last full test was 2026-09-23 (audits/2026-09-23/, all fixed) - this
+one audits the WHOLE app again with a different split so fresh eyes land on code yesterday's
+split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
+
+- [ ] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+- [ ] 7 parallel read-only audits; each writes its FULL report to
+      audits/2026-09-24/{scoring,daytrading,network,persistence,charts,screens,lifecycle}.md
+      (a resumed session re-reads the files instead of re-running; a MISSING file = that
+      agent did not finish -> re-run just that one). Agents: no network, no gradle, no git.
+- [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
+      tests. Tick each ID here when fixed+tested, or mark "no change" with the reason.
+- [ ] Re-run the full suite; re-check anything a fix touched
+- [ ] Independent review of this session's whole diff for regressions -> fix
+- [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
+      record-release) and post the Release link; summarize for Tj
+
 ## Tj's request, 2026-09-23d (his own words)
 
 > still getting stuck, see screen recording
