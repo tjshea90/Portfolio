@@ -55,9 +55,10 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       logged with later timestamp/old price (capture only from the DT sweep, only rows re-planned
       live THIS tick: loggableDayTradingRows(liveNow); ResearchPriceFillTest +1). ALL H DONE.
     - M: [ ] C-2 5D "truncated" Fridays  [ ] C-3 vs-SPY All range different starts  [ ] C-4 zoom
-      hysteresis missing at 4 boundaries  [ ] C-5 stale benchmark carried flat  [ ] D-2 evening
-      Claude plan replaced at 04:00 (post-close sweep re-stamps)  [ ] D-3 weekend/holiday Claude
-      plans dropped  [ ] D-4 no plans after rebuild until next tick  [ ] D-5 forming first bar /
+      hysteresis missing at 4 boundaries  [ ] C-5 stale benchmark carried flat  [x] D-2 evening
+      Claude plan replaced at 04:00 (post-close sweep re-stamps) (claudePlanStands also by the plan's
+      own whyAt session; levels kept; mergeDayTradingTech now param; test)  [x] D-3 weekend/holiday Claude
+      plans dropped (MarketClock.sessionFor; planStillForSession + answerIsCurrent extended; +2 tests)  [ ] D-4 no plans after rebuild until next tick  [ ] D-5 forming first bar /
       opening range used as trigger  [x] L-2 return during unwinding pass drops refresh (guard on quoteJob.isActive + quoteGen so a
       stale pass can't clear the new one's flag; FullTest0924Test, MUTATION-CHECKED)
       [x] L-3 answer landing in background never priced (pendingPriceFill flushed on return; test)  [ ] L-4 trim handler unreachable on
