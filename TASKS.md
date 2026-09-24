@@ -114,6 +114,12 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
           Compose screens, wording, perf on the Moto G, accessibility.
     - [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
           tests; tick IDs here. Then full suite again; second audit round if anything major.
+      - own: [x] gap-through-target graded WIN -> CLOSED_LOSS "gap-target" (DayTradingGraderTest)
+      - ui.md (complete, 27+2): [ ] UI-1 [ ] UI-2 [ ] UI-3 [ ] UI-4 [ ] UI-5 [ ] UI-6 [ ] UI-7
+        [ ] UI-8 [ ] UI-9 [ ] UI-10 [ ] UI-11 [ ] UI-12 [ ] UI-13 [ ] UI-14 [ ] UI-15 [ ] UI-16
+        [ ] UI-17 [ ] UI-18 [ ] UI-19 [ ] UI-20 [ ] UI-21 [ ] UI-22 [ ] UI-23 [ ] UI-24 [ ] UI-25
+        [ ] UI-26 [ ] UI-27 [ ] S-1 [ ] S-2
+      - daytrading.md: (pending)   - platform.md: (pending)
 - [ ] C2 Ship (auto-ship rule), post the Release link, summarize
 
 ## Tj's request, 2026-09-24b (his own words)

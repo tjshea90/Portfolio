@@ -1,21 +1,23 @@
-# CHECKPOINT 1715 — read me first, then TASKS.md
+# CHECKPOINT 1716 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T20:23:17Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/day-trading-success-claude-learn-t9ot3u` · **builds on:** `d81764d6` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T20:34:43Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/day-trading-success-claude-learn-t9ot3u` · **builds on:** `41cdd394` (this checkpoint is the commit after it)
 
 ## Just done
-Prompt trade table capped at 1000 rows (tables still cover all); EngineTuningTest green
+UI audit report complete (audits/2026-09-24c/ui.md, 27+2 findings); IDs listed in TASKS.md C1
 
 ## Do this next
-Waiting on the 3 audit agents; then verify + fix findings
+Fix UI findings (start: UI-3/12/13 apply safety, UI-1/2 stats wording, UI-6 row engine stamp + closed-market replan, then the rest); daytrading.md + platform.md agents still running
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
+     M TASKS.md
 
 ## Last ten checkpoints
 ```
+  08201d44 ckpt 1715: Prompt trade table capped at 1000 rows (tables still cover all); EngineTunin
   71f26bd3 ckpt 1714: Own finding from reading a generated prompt: a buy-stop filled at an open al
   63de9fe8 ckpt 1713: Full-tests protocol started: floor green (1501/0); audit plan recorded in TA
   6701f184 ckpt 1712: Light pass fixes: tuning review off the main thread (importEngineTuning -> c
@@ -25,8 +27,7 @@ Waiting on the 3 audit agents; then verify + fix findings
   3c63cb86 ckpt 1708: Tuning UI: ui/EngineTuningUi.kt (EngineTuningCard: status, readiness tier, M
   52138f93 ckpt 1707: Part B core: net/EngineTuning.kt (state+history, load/undo/revert/apply, Evi
   749e9a6a ckpt 1706: Part A complete: success card v2 (sample note, expectancy+CI, PF, drawdown, 
-  4754a2ac ckpt 1705: DayTradingGraderTest (16): E1 fill+stop inside first minutes (old rule credi
 ```
 
-(1 automatic checkpoint(s) since the last deliberate one — the
+(17 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
