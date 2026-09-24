@@ -7024,7 +7024,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         entry = r.entryPrice,
                         stop = r.stopPrice,
                         target = r.targetPrice,
-                        priceAtRecommendation = r.price,
+                        // THE PRICE THE PLAN WAS MADE AT, for a Claude plan (review 2026-09-24,
+                        // R2-3): the evaluator reads the plan's direction off this, and a Claude
+                        // pullback logged after the stock traded under its entry was scored as a
+                        // breakout - the opposite of what the card (D-9) told Tj.
+                        priceAtRecommendation = r.planPrice.takeIf { r.planByClaude && it > 0.0 }
+                            ?: r.price,
                         source = if (r.planByClaude) com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE
                         else com.tj.portfolio.data.DayTradingLogEntry.SOURCE_APP
                     )
@@ -8093,7 +8098,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         else runCatching {
                             com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
                         }.getOrNull().also { t ->
-                            if (t == null || t.isEmpty) dayTradingTechRetry.failure(row.symbol)
+                            // A sweep cancelled by leaving the tab is not the symbol failing (R2-4).
+                            if (coroutineContext[Job]?.isActive == false) Unit
+                            else if (t == null || t.isEmpty) dayTradingTechRetry.failure(row.symbol)
                             else dayTradingTechRetry.success(row.symbol)
                         }
                         val chartJob = withContext(Dispatchers.Main) {
