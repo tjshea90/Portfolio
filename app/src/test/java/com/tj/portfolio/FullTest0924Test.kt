@@ -8,6 +8,7 @@ import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.net.ClaudeBridge
 import com.tj.portfolio.net.FundamentalsFeed
 import com.tj.portfolio.net.HttpResult
+import com.tj.portfolio.net.Insider
 import com.tj.portfolio.net.MarketData
 import com.tj.portfolio.net.SharedAnswer
 import org.junit.Assert.assertEquals
@@ -167,5 +168,23 @@ class FullTest0924Test {
         assertEquals(listOf(false, true), p.mints)
         assertEquals(1, p.invalidations)
         assertEquals("401 on query1, then both hosts once more", 3, p.urls.size)
+    }
+
+    // ---- N-4: SEC requests are paced, not just bounded.
+
+    @Test fun `N-4 twenty back-to-back SEC requests span at least nineteen gaps`() {
+        var last = 0L
+        val start = 1_000_000L
+        var t = start
+        repeat(20) {
+            val at = Insider.nextSendAt(last, t)
+            last = at
+            t = at            // the next caller arrives the instant this one leaves
+        }
+        assertTrue("20 requests in ${last - start} ms is faster than 8/s",
+            last - start >= 19 * Insider.SEC_MIN_GAP_MS)
+        assertTrue("under EDGAR's 10/s cap", Insider.SEC_MIN_GAP_MS >= 100)
+        // A request after a long quiet spell goes out at once.
+        assertEquals(5_000_000L, Insider.nextSendAt(lastSendAt = 1_000_000L, now = 5_000_000L))
     }
 }
