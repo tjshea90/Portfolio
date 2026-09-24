@@ -1474,6 +1474,9 @@ internal fun loggableDayTradingRows(
         it.price >= 1.0 && planWaiting(it)
 }
 
+/** What [PortfolioViewModel.importEngineTuning] says when an answer was read and is being reviewed. */
+internal const val ENGINE_REVIEW_CHECKING = "Checking Claude's engine review..."
+
 /** At most this many log rows are resolved per "Check" press - see D-6 in evaluateDayTradingLog. */
 internal const val DAY_TRADING_EVAL_CAP = 60
 
@@ -7008,9 +7011,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // Round 54: one file chooser, three kinds of answer. A research reply is recognised
         // by its own payload key and handled first, so importing it from the Advice tab by
         // mistake fills the Research tab instead of reporting "nothing usable".
+        // AN ENGINE-TUNING ANSWER picked from the Advice or Activity tab opens the Day Trading tab,
+        // where its review sheet lives (audit PL-14) - a toast saying "ready for you to approve"
+        // over a screen with nothing to approve was a dead end.
+        if (com.tj.portfolio.net.EngineTuning.looksLikeTuning(text)) {
+            val msg = importEngineTuning(text)
+            if (msg == ENGINE_REVIEW_CHECKING) {
+                jumpToResearch(ShareDest.DAY_TRADING)
+                _shareNav.value = ShareDest.DAY_TRADING
+            }
+            return msg
+        }
         if (com.tj.portfolio.net.ResearchBridge.looksLikeResearch(text) ||
-            com.tj.portfolio.net.DayTradingBridge.looksLikeDayTrading(text) ||
-            com.tj.portfolio.net.EngineTuning.looksLikeTuning(text)
+            com.tj.portfolio.net.DayTradingBridge.looksLikeDayTrading(text)
         ) {
             return importResearchFile(text)
         }
@@ -7117,8 +7130,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         com.tj.portfolio.net.SharedAnswer.rejection(kind)?.let { return ShareImport(it, null) }
         return when (kind) {
             com.tj.portfolio.net.SharedAnswer.Kind.ENGINE_TUNING -> {
-                // Opens the review sheet on the Day Trading tab - nothing changes until Apply.
+                // Opens the review sheet on the Day Trading tab - nothing changes until Apply. An
+                // unreadable answer stays where it is, with the reason (audit PL-14).
                 val msg = importEngineTuning(text)
+                if (msg != ENGINE_REVIEW_CHECKING) return ShareImport(msg, null)
                 jumpToResearch(ShareDest.DAY_TRADING)
                 ShareImport(msg, ShareDest.DAY_TRADING)
             }
@@ -8432,7 +8447,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             _engineReview.value = review
             toast(engineReviewMessage(review))
         }
-        return "Checking Claude's engine review..."
+        return ENGINE_REVIEW_CHECKING
     }
 
     /** What an opened review sheet found, in one line. */
