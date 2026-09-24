@@ -238,7 +238,7 @@ class DayTradingTest {
             100.0,
             tech(
                 atrIntraday = 1.0, vwap = 99.0,
-                orHigh = 100.5, orLow = 99.5,
+                orComplete = true, orHigh = 100.5, orLow = 99.5,
                 sessionHigh = 100.5, sessionLow = 99.0
             )
         )!!
@@ -270,7 +270,7 @@ class DayTradingTest {
             110.0,
             tech(
                 atrIntraday = 1.0, vwap = 100.0,
-                orHigh = 105.0, orLow = 102.0, prevHigh = 115.0,
+                orComplete = true, orHigh = 105.0, orLow = 102.0, prevHigh = 115.0,
                 sessionHigh = 110.0, sessionLow = 99.0
             )
         )!!
@@ -299,7 +299,7 @@ class DayTradingTest {
             100.0,
             tech(
                 atrIntraday = 1.0, vwap = 99.0,
-                orHigh = 100.2, orLow = 99.5,
+                orComplete = true, orHigh = 100.2, orLow = 99.5,
                 prevHigh = 100.8, prevLow = 98.0, prevClose = 99.5,
                 sessionHigh = 100.2, sessionLow = 99.0
             )
@@ -320,7 +320,7 @@ class DayTradingTest {
             110.0,
             tech(
                 atrIntraday = 1.0, vwap = 100.0,
-                orHigh = 105.0, orLow = 102.0, prevHigh = 115.0,
+                orComplete = true, orHigh = 105.0, orLow = 102.0, prevHigh = 115.0,
                 sessionHigh = 110.0, sessionLow = 99.0
             )
         )!!
@@ -337,7 +337,7 @@ class DayTradingTest {
             100.0,
             tech(
                 atrIntraday = 1.0, vwap = 99.0,
-                orHigh = 100.5, orLow = 99.5,
+                orComplete = true, orHigh = 100.5, orLow = 99.5,
                 sessionHigh = 100.5, sessionLow = 99.0
             )
         )!!
