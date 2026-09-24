@@ -21,6 +21,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.tj.portfolio.data.DayTradingStats
@@ -93,13 +94,13 @@ class DayTradingLearnUiTest {
         assertTrue("a small slice says so (UI-16)", t.contains("too few to judge"))
         assertTrue(t, t.contains("Biggest drop from a high"))
         // the long notes sit behind Details (UI-21)
-        rule.onNodeWithText("Details: sizing, percent figures, costs, counts").performClick()
+        rule.onNodeWithText("Details: sizing, percent figures, costs, counts").performScrollTo().performClick()
         val d = texts().joinToString(" | ")
         assertTrue(d, d.contains("3 older results graded under the previous, less strict rules are no longer re-checkable"))
         assertTrue(d, d.contains("2 graded on 5-minute bars"))
         assertTrue(d, d.contains("4 being re-checked under the current, stricter rules"))
         assertTrue(d, d.contains("the cap sized"))
-        rule.onNodeWithText("How are trades graded?").performClick()
+        rule.onNodeWithText("How are trades graded?").performScrollTo().performClick()
         assertTrue(texts().any { it.contains("buy-stop at the buy price") })
     }
 
