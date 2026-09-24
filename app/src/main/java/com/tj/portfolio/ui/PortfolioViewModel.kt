@@ -5384,6 +5384,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (closes.size < 2) return
         val q = _quotes.value[symbol] ?: return
         sparkAt[symbol] = System.currentTimeMillis()
+        // The same line again is not a change - no repaint, no database write (N-9).
+        if (q.spark == closes) return
         val merged = q.copy(spark = closes)
         _quotes.value = _quotes.value + (symbol to merged)
         viewModelScope.launch(Dispatchers.IO) { runCatching { db.cacheQuotes(listOf(merged)) } }

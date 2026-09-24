@@ -37,6 +37,13 @@ object RecentBodies {
         return if (now - e.at in 0..maxAgeMs) e.body else null
     }
 
+    /** [get] plus WHEN the body was fetched - the time a series parsed from it is "from" (N-9). */
+    @Synchronized
+    fun getStamped(url: String, maxAgeMs: Long = MAX_AGE_MS, now: Long = System.currentTimeMillis()): Pair<Long, String>? {
+        val e = map[keyOf(url)] ?: return null
+        return if (now - e.at in 0..maxAgeMs) e.at to e.body else null
+    }
+
     @Synchronized
     fun put(url: String, body: String, now: Long = System.currentTimeMillis()) {
         map[keyOf(url)] = Entry(now, body)

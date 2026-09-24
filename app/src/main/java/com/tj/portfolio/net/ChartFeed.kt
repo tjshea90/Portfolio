@@ -45,8 +45,12 @@ object ChartFeed {
      * null - no request is ever made. See [RecentBodies].
      */
     fun recentSeries(symbol: String, range: ChartRange): ChartSeries? {
-        val body = RecentBodies.get(url("query1", symbol, range)) ?: return null
-        return runCatching { parse(symbol, range, body) }.getOrNull()?.takeIf { !it.isEmpty }
+        val (at, body) = RecentBodies.getStamped(url("query1", symbol, range)) ?: return null
+        // Stamped with when the BODY was fetched, not when it was parsed (full test 2026-09-24,
+        // N-9): the caller's "already holding this or newer" check could never be true against
+        // a parse-time stamp, so every 30-second sweep republished the same chart.
+        return runCatching { parse(symbol, range, body) }.getOrNull()
+            ?.takeIf { !it.isEmpty }?.copy(fetched = at)
     }
 
     suspend fun series(symbol: String, range: ChartRange): ChartSeries? {
