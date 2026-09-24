@@ -199,7 +199,7 @@ class EngineTuningTest {
     // ------------------------------------------------------------------ audit round 2 (daytrading.md)
 
     @Test fun `DA-3 a change rests on the trades its parameter acts on, whatever group is cited`() {
-        val rows = log(76, "Breakout") + log(4, "VWAP Reclaim", startId = 1000)
+        val rows = log(76, "Breakout") + log(4, com.tj.portfolio.net.ResearchScore.SETUP_RECLAIM, startId = 1000)
         val r = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.reclaim.enabled", 1, 0, "all"))),
             EngineTuning.State(), rows)
         assertEquals(EngineTuning.Tier.MEDIUM, r.tier)
