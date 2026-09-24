@@ -1694,6 +1694,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private var quoteJob: Job? = null
 
+    /**
+     * Which `refresh()` pass is the current one - a counter, not a Job comparison, because a
+     * pass with nothing to fetch finishes (and runs its `finally`) synchronously inside
+     * `launch`, before [quoteJob] has even been assigned.
+     */
+    private var quoteGen = 0L
+
     /** The feed pass currently in flight, so leaving the app can stop it. */
     private var feedJob: Job? = null
 
@@ -2837,6 +2844,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // THE DATABASE WRITE STAYS ON `viewModelScope` (see below). That is the whole rule
         // this project follows: if the answer is only useful while the screen is up, it is
         // cancellable; if it must not be lost, it is not.
+        val gen = ++quoteGen
         quoteJob = fgScope.launch {
             _ui.value = _ui.value.copy(
                 loading = true,
@@ -2975,8 +2983,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // must always clear `loading`, or every later refresh() returns at the guard
                 // above and pull-to-refresh is dead for the session - UNLESS a newer pass has
                 // already replaced this cancelled one (L-2): its flag is not ours to clear.
-                val superseded = quoteJob != null && quoteJob !== coroutineContext[Job]
-                if (!superseded) _ui.value = _ui.value.copy(loading = false)
+                if (gen == quoteGen) _ui.value = _ui.value.copy(loading = false)
                 // The spinner is DERIVED, not cleared by hand - see syncManualIndicator. This
                 // used to blank `manualRefresh` unconditionally, which is the mirror image of
                 // the bug fixed there: a quote refresh finishing would snatch the spinner away
