@@ -50,6 +50,30 @@ object DayTradingGrader {
     /** Bump when the rules above change: every row graded by an older version is re-graded. */
     const val VERSION = 2
 
+    /**
+     * The rules above in plain words - shown on the success card ("How are trades graded?") and
+     * sent in the tuning prompt, so Tj and Claude read the same description of the same grader.
+     */
+    const val RULES_TEXT =
+    "Each recommendation is graded as one real order placed the moment the card showed it: a " +
+        "buy-stop at the buy price when that is above the price (it buys only if the stock rises " +
+        "to it), a buy-limit when it is below (it buys only if the stock drops to it), with the " +
+        "stop and the target attached.\n\n" +
+        "- Only prices from after that moment count - a move that happened before the " +
+        "recommendation never does. One-minute price bars are used whenever they still exist " +
+        "(about 30 days), five-minute bars after that.\n" +
+        "- A buy that could only have happened above the buy price (the stock jumped past it) is " +
+        "filled at that worse price. A stop that the price gapped through fills at the gap.\n" +
+        "- The target only counts when the price trades past it by at least a cent, and a single " +
+        "stray price far from every trade around it is ignored.\n" +
+        "- When a single bar reached both the stop and the target, it is read as the stop.\n" +
+        "- An order that has not filled by the plan's own \"too late to start\" time is cancelled " +
+        "(no trade). Anything still open at the \"be flat by\" time is sold there.\n" +
+        "- Costs are taken off every trade, and the portfolio figure skips any trade the " +
+        "portfolio could not have paid for at the time (no margin).\n" +
+        "- Recommendations the card said to skip (already past the target, under the stop, or " +
+        "already through the buy price) are never recorded."
+
     /** US equities above $1 trade in cents; below it in hundredths of a cent. */
     fun tick(price: Double): Double = if (price >= 1.0) 0.01 else 0.0001
 

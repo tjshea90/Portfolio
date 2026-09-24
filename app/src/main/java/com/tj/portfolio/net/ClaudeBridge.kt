@@ -87,6 +87,7 @@ object ClaudeBridge {
     const val ANSWER_TRANSACTIONS = "portfolio-answer-transactions.md"
     const val ANSWER_RESEARCH = "portfolio-answer-research.md"
     const val ANSWER_DAY_TRADING = "portfolio-answer-daytrading.md"
+    const val ANSWER_ENGINE = "portfolio-answer-engine-tuning.md"
 
     /**
      * THE FIRST THING CLAUDE READS (2026-09-24b). Tj: "when Claude gets the file, it
