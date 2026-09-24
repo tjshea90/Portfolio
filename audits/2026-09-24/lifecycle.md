@@ -159,7 +159,7 @@ the sections after it were added on resume).
 - confidence: medium (depends on the platform's destroy ordering; plausible, not reproduced)
 
 ### L-7 [L] Leaving the app with a symbol search in flight leaves the search spinner stuck on
-- where: `ui/PortfolioViewModel.kt:6157-6184` (`searchSymbols`) with `setForeground(false)` (`searchJob = null`, `:3334`)
+- where: `ui/PortfolioViewModel.kt:6157-6184` (`searchSymbols`) with `setForeground(false)` (`searchJob = null`, `:3352` at time of writing)
 - what's wrong: the `finally` clears the spinner only `if (searchJob === me)`. `setForeground(false)`
   cancels `fgScope` and then sets `searchJob = null`. If the search was suspended in `delay(220)`,
   the cancellation resumes it inline on Main before the null assignment, so it is fine — but if
