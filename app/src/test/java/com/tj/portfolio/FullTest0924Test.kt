@@ -932,4 +932,55 @@ class FullTest0924Test {
         val dataAt = field(vm, "coreDataAt").get(vm) as Map<String, Long>
         assertEquals(threeDaysAgo, dataAt["ZZZT"])
     }
+
+    // ---- S-9: the core row carries no per-firm ratings of its own.
+
+    @Test fun `S-9 a fallback core answer keeps its numbers but not its rating rows`() {
+        val finviz = com.tj.portfolio.data.Fundamentals(symbol = "X",
+            values = mapOf("forwardPE" to 11.0),
+            ratings = listOf(com.tj.portfolio.data.AnalystRating(firm = "BofA Securities",
+                date = 1_758_000_000_000L)))
+        val fill = FundamentalsFeed.coreFill(finviz)
+        assertTrue(fill.ratings.isEmpty())
+        assertEquals(11.0, fill.values["forwardPE"]!!, 1e-9)
+    }
+
+    // ---- S-10: Trending's price line names the session it describes.
+
+    @Test fun `S-10 a closed-market Trending card does not say today about the last session`() {
+        val t = com.tj.portfolio.net.ResearchScore.TrendInput(symbol = "X", mentions = 10, changePct = 9.0)
+        val closed = com.tj.portfolio.net.ResearchScore.trending(t, 10, 0, "in the last session")
+        val line = closed.reasons.single { it.startsWith("Price ") }
+        assertFalse(line, line.contains("today"))
+        assertTrue(line, line.endsWith("in the last session"))
+        assertTrue(com.tj.portfolio.net.ResearchScore.trending(t, 10, 0).reasons
+            .any { it.startsWith("Price up") && it.endsWith("today") })
+    }
+
+    // ---- S-11: rows Claude adds land on the page on screen, and never show "SCORE 0".
+
+    @Test fun `S-11 added rows go to the end of the visible page and are badged as Claude's`() {
+        val existing = (1..20).map { com.tj.portfolio.data.ResearchRow(symbol = "S$it", score = 50,
+            reasons = listOf("r")) }
+        val added = com.tj.portfolio.data.ResearchRow(symbol = "NEW", why = "Claude's pick")
+        val merged = com.tj.portfolio.net.ResearchBridge.merge(existing, listOf(added), insertAt = 10)
+        assertEquals("NEW", merged[10].symbol)
+        assertEquals(21, merged.size)
+        assertTrue(com.tj.portfolio.ui.claudeSourced(merged[10]))
+        assertFalse(com.tj.portfolio.ui.claudeSourced(merged[0]))
+    }
+
+    // ---- S-12: a line with no stated price does not dilute the headline price.
+
+    @Test fun `S-12 an insider sale's price is averaged over the priced lines only`() {
+        fun line(shares: Double, price: Double) = com.tj.portfolio.data.InsiderTrade(code = "S",
+            action = com.tj.portfolio.net.Form4.SELL, disposed = true, shares = shares,
+            price = price, date = 1_758_000_000_000L, sharesAfter = 0.0, derivative = false)
+        val f = com.tj.portfolio.data.InsiderFiling(symbol = "X", accession = "a", filedAt = 0L,
+            tradeDate = 0L, person = "P", role = "CEO", planned = false, amended = false,
+            sharesAfter = 0.0, url = "", trades = listOf(line(1000.0, 50.0), line(1000.0, 0.0)))
+        assertEquals(2000.0, f.shares, 1e-9)
+        assertEquals(50.0, f.price, 1e-9)
+        assertEquals(100_000.0, f.value, 1e-6)
+    }
 }
