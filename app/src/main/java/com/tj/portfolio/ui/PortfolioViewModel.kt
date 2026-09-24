@@ -1485,6 +1485,32 @@ internal fun loggableDayTradingRows(
         it.price >= 1.0 && planWaiting(it)
 }
 
+/**
+ * The rules a logged plan's order is cancelled and closed by. A CLAUDE PLAN'S ORDER IS CANCELLED
+ * WHEN ITS CARD SAYS SO (audit DA-10): at the last-entry time, which the Claude card enforces - not
+ * at the app engine's midday-lull start, which it never shows.
+ */
+internal fun cutoffParams(
+    r: com.tj.portfolio.data.ResearchRow,
+    engine: com.tj.portfolio.net.DayTradingParams
+): com.tj.portfolio.net.DayTradingParams =
+    if (r.planByClaude && engine.avoidMiddayLull) engine.with(mapOf(com.tj.portfolio.net.DayTradingParams.AVOID_LULL to 0.0))
+    else engine
+
+/**
+ * NOT IN ITS LAST MINUTE (audit DA-13): a plan recorded after, or within a minute of, its own entry
+ * cut-off could never fill - a guaranteed "never filled" in the fill rates Claude is told to use.
+ */
+internal fun beforeOwnCutoff(
+    r: com.tj.portfolio.data.ResearchRow,
+    today: String,
+    recordedAt: Long,
+    engine: com.tj.portfolio.net.DayTradingParams
+): Boolean {
+    val deadline = com.tj.portfolio.net.DayTradingFeatures.entryDeadlineMs(today, recordedAt, cutoffParams(r, engine))
+    return deadline == null || recordedAt < deadline - 60_000L
+}
+
 /** What [PortfolioViewModel.importEngineTuning] says when an answer was read and is being reviewed. */
 internal const val ENGINE_REVIEW_CHECKING = "Checking Claude's engine review..."
 
@@ -7378,17 +7404,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val snap = com.tj.portfolio.net.DayTradingEngine.current
         val engineParams = snap.params
         val engineVersion = snap.version
-        // A CLAUDE PLAN'S ORDER IS CANCELLED WHEN ITS CARD SAYS SO (audit DA-10): at the last-entry
-        // time, which the Claude card enforces - not at the app engine's midday-lull start, which it
-        // never shows.
-        val claudeParams = engineParams.with(mapOf(com.tj.portfolio.net.DayTradingParams.AVOID_LULL to 0.0))
         val priced = loggableDayTradingRows(rows.take(shown), today, liveNow).filter { r ->
-            if ("${r.symbol}|$today" in dtLoggedToday) return@filter false
-            // AND NOT IN ITS LAST MINUTE (audit DA-13): a plan recorded after (or within a minute of)
-            // its own cut-off could never fill - a guaranteed "never filled" in the fill rates.
-            val deadline = com.tj.portfolio.net.DayTradingFeatures.entryDeadlineMs(
-                today, recordedAt, if (r.planByClaude) claudeParams else engineParams)
-            deadline == null || recordedAt < deadline - 60_000L
+            "${r.symbol}|$today" !in dtLoggedToday && beforeOwnCutoff(r, today, recordedAt, engineParams)
         }
         if (priced.isEmpty()) return
         val mso = com.tj.portfolio.net.MarketClock.minutesSinceOpen(recordedAt)
@@ -7422,7 +7439,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         else com.tj.portfolio.net.DayTradingEngine.label(engineVersion),
                         features = com.tj.portfolio.net.DayTradingFeatures.build(
                             r, today, recordedAt, fetched[r.symbol]?.lastBarAt ?: 0L, r.planByClaude,
-                            mso, mleft, lull, if (r.planByClaude) claudeParams else engineParams, engineVersion
+                            mso, mleft, lull, cutoffParams(r, engineParams), engineVersion
                         ).toString()
                     )
                 })
