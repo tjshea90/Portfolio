@@ -143,12 +143,25 @@ object Ledger {
         overrides: Map<String, Override> = emptyMap(),
         method: String = FIFO,
         sessionInstant: Long = System.currentTimeMillis(),
-        repairBelowId: Long = Long.MAX_VALUE
+        repairBelowId: Long = Long.MAX_VALUE,
+        /**
+         * Id ranges ABOVE [repairBelowId] that are repair candidates too: the rows a Merge
+         * restore inserted (full test 2026-09-24, A-2). A merge used to move [repairBelowId]
+         * past the whole ledger, re-arming the repair on every row entered chronologically
+         * since the fix - the exact A-2 position loss, brought back by a routine restore.
+         */
+        repairRanges: List<LongRange> = emptyList()
     ): List<Position> {
         val today = dayBounds(sessionInstant)
-        return if (method == AVERAGE) averageCost(txns, overrides, today, repairBelowId)
-        else fifo(txns, overrides, today, repairBelowId)
+        val repairable = repairablePredicate(repairBelowId, repairRanges)
+        return if (method == AVERAGE) averageCost(txns, overrides, today, repairable)
+        else fifo(txns, overrides, today, repairable)
     }
+
+    /** Whether a row's id makes it a replay-repair candidate - see [positions]. */
+    internal fun repairablePredicate(below: Long, ranges: List<LongRange>): (Long) -> Boolean =
+        if (ranges.isEmpty()) { id -> id < below }
+        else { id -> id < below || ranges.any { id in it } }
 
     /**
      * The order both replays walk the history in. Every entry point stamps a trade with a DATE
@@ -180,7 +193,10 @@ object Ledger {
      * the fix (`PortfolioViewModel.replayRepairBelowId`) and only a group made entirely of
      * rows below it is a candidate. Default: every row, for callers with no watermark.
      */
-    internal fun replayOrder(txns: List<Txn>, repairBelowId: Long = Long.MAX_VALUE): List<Txn> {
+    internal fun replayOrder(txns: List<Txn>, repairBelowId: Long = Long.MAX_VALUE): List<Txn> =
+        replayOrder(txns) { it < repairBelowId }
+
+    internal fun replayOrder(txns: List<Txn>, repairable: (Long) -> Boolean): List<Txn> {
         // Both rules act only on an exact TIE: rows stamped with a real time of day keep that
         // order, because it is information; date-only rows (every entry point stamps local
         // noon) tie, and the id is not.
@@ -207,7 +223,7 @@ object Ledger {
                 val group = (k..end).map { sorted[slots[it]] }
                 val forward = simulate(held, group)
                 var chosen = group
-                if (group.size > 1 && forward.second > 1e-9 && group.all { it.id < repairBelowId }) {
+                if (group.size > 1 && forward.second > 1e-9 && group.all { repairable(it.id) }) {
                     val reversed = group.asReversed()
                     if (simulate(held, reversed).second < forward.second - 1e-9) {
                         chosen = reversed.toList()
@@ -317,7 +333,7 @@ object Ledger {
         txns: List<Txn>,
         overrides: Map<String, Override>,
         today: LongRange,
-        repairBelowId: Long = Long.MAX_VALUE
+        repairable: (Long) -> Boolean
     ): List<Position> {
         val lots = LinkedHashMap<String, ArrayDeque<Lot>>()
         val realized = LinkedHashMap<String, Double>()
@@ -325,7 +341,7 @@ object Ledger {
         /** Shares sold with nothing on the books to cover them - see [Position.oversold]. */
         val oversold = LinkedHashMap<String, Double>()
 
-        for (t in replayOrder(txns, repairBelowId)) {
+        for (t in replayOrder(txns, repairable)) {
             val sym = t.symbol?.uppercase() ?: continue
             if (t.type == TxnType.DIVIDEND) { lots.getOrPut(sym) { ArrayDeque() }; continue }
             // A SPLIT rewrites every open lot in place: more shares, proportionally cheaper,
@@ -422,7 +438,7 @@ object Ledger {
         txns: List<Txn>,
         overrides: Map<String, Override>,
         today: LongRange,
-        repairBelowId: Long = Long.MAX_VALUE
+        repairable: (Long) -> Boolean
     ): List<Position> {
         /**
          * [beforeShares] is shares still held that were bought STRICTLY BEFORE the session
@@ -439,7 +455,7 @@ object Ledger {
                        var beforeShares: Double = 0.0, var oversold: Double = 0.0)
 
         val acc = LinkedHashMap<String, Acc>()
-        for (t in replayOrder(txns, repairBelowId)) {
+        for (t in replayOrder(txns, repairable)) {
             val sym = t.symbol?.uppercase() ?: continue
             if (t.type !in setOf(TxnType.BUY, TxnType.SELL)) {
                 if (t.type == TxnType.DIVIDEND) acc.getOrPut(sym) { Acc() }
