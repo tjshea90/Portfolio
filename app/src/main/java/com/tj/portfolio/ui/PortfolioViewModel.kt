@@ -1946,6 +1946,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private val _dayTradingStatsLoading = MutableStateFlow(false)
     val dayTradingStatsLoading: StateFlow<Boolean> = _dayTradingStatsLoading.asStateFlow()
 
+    /** The day-trading engine in force and its change history (2026-09-24c) - see [loadEngine]. */
+    private val _engine = MutableStateFlow(com.tj.portfolio.net.EngineTuning.State())
+    val engine: StateFlow<com.tj.portfolio.net.EngineTuning.State> = _engine.asStateFlow()
+
+    /** A Claude tuning answer checked and waiting for Tj's Apply - see [importEngineTuning]. */
+    private val _engineReview = MutableStateFlow<com.tj.portfolio.net.EngineTuning.Review?>(null)
+    val engineReview: StateFlow<com.tj.portfolio.net.EngineTuning.Review?> = _engineReview.asStateFlow()
+
+    /** Graded trades of the app's own plans, for the tuning card's readiness line. */
+    private val _engineEvidence = MutableStateFlow(0 to 0)
+    val engineEvidence: StateFlow<Pair<Int, Int>> = _engineEvidence.asStateFlow()
+
     /**
      * Form 4 filings for ONE stock, for its own detail screen.
      *
@@ -6916,7 +6928,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // by its own payload key and handled first, so importing it from the Advice tab by
         // mistake fills the Research tab instead of reporting "nothing usable".
         if (com.tj.portfolio.net.ResearchBridge.looksLikeResearch(text) ||
-            com.tj.portfolio.net.DayTradingBridge.looksLikeDayTrading(text)
+            com.tj.portfolio.net.DayTradingBridge.looksLikeDayTrading(text) ||
+            com.tj.portfolio.net.EngineTuning.looksLikeTuning(text)
         ) {
             return importResearchFile(text)
         }
@@ -6999,6 +7012,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     if (kind == com.tj.portfolio.net.SharedAnswer.Kind.RESEARCH ||
                         kind == com.tj.portfolio.net.SharedAnswer.Kind.DAY_TRADING
                     ) kotlinx.coroutines.withTimeoutOrNull(90_000) { _researchBusy.first { it.isEmpty() } }
+                    // A tuning answer is reviewed against the log - make sure the log is loaded
+                    // and graded as far as it can be first (it is a local read; grading is not waited on).
                     val r = runCatching { importShared(item.text) }
                         .getOrElse { ShareImport("Couldn't import that share: ${it.message}", null) }
                     _toast.value = r.message
@@ -7022,6 +7037,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val kind = com.tj.portfolio.net.SharedAnswer.classify(text)
         com.tj.portfolio.net.SharedAnswer.rejection(kind)?.let { return ShareImport(it, null) }
         return when (kind) {
+            com.tj.portfolio.net.SharedAnswer.Kind.ENGINE_TUNING -> {
+                // Opens the review sheet on the Day Trading tab - nothing changes until Apply.
+                val msg = importEngineTuning(text)
+                jumpToResearch(ShareDest.DAY_TRADING)
+                ShareImport(msg, ShareDest.DAY_TRADING)
+            }
             com.tj.portfolio.net.SharedAnswer.Kind.DAY_TRADING -> {
                 val parsed = runCatching { com.tj.portfolio.net.DayTradingBridge.parse(text) }
                     .getOrElse { return ShareImport("Couldn't read that file: ${it.message}", null) }
@@ -7994,6 +8015,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * already follows for a Research reply picked from the Advice tab by mistake.
      */
     fun importResearchFile(text: String): String {
+        // An engine-tuning answer picked from this screen's file chooser (2026-09-24c).
+        if (com.tj.portfolio.net.EngineTuning.looksLikeTuning(text)) return importEngineTuning(text)
         if (com.tj.portfolio.net.DayTradingBridge.looksLikeDayTrading(text)) {
             return importDayTradingFile(text)
         }
@@ -8113,6 +8136,151 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             }
             onDone(out)
         }
+    }
+
+    // ================================================ THE ENGINE-TUNING LOOP (2026-09-24c)
+
+    /**
+     * Reads the stored engine and installs it - at start-up and after a backup restore. Anything
+     * missing or corrupt reads as the original engine ([com.tj.portfolio.net.EngineTuning.load]).
+     */
+    private fun loadEngine() {
+        val st = com.tj.portfolio.net.EngineTuning.load(
+            runCatching { db.get(Keys.DT_ENGINE) }.getOrNull(),
+            runCatching { db.get(Keys.DT_ENGINE_HISTORY) }.getOrNull()
+        )
+        com.tj.portfolio.net.DayTradingEngine.install(st.params, st.version)
+        _engine.value = st
+        viewModelScope.launch(Dispatchers.IO) { runCatching { writeEngineBackupFiles(st) } }
+    }
+
+    /** Persists, installs and backs up a new engine state - the one path every change goes through. */
+    private suspend fun saveEngine(st: com.tj.portfolio.net.EngineTuning.State) {
+        withContext(Dispatchers.IO) {
+            db.set(Keys.DT_ENGINE, st.engineJson())
+            db.set(Keys.DT_ENGINE_HISTORY, st.historyJson())
+        }
+        com.tj.portfolio.net.DayTradingEngine.install(st.params, st.version)
+        _engine.value = st
+        withContext(Dispatchers.IO) { runCatching { writeEngineBackupFiles(st) } }
+    }
+
+    /**
+     * THE BACKUP FILE TJ ASKED FOR (rule 3) - plain JSON in the app's private storage:
+     * `daytrading-engine/original.json` (the original engine, every parameter), `current.json` and
+     * `history.json`. The revert itself never depends on these - the original is compiled into the
+     * app - but they are a readable record that survives a corrupt settings table, and they travel
+     * with Android's own app backup.
+     */
+    private fun writeEngineBackupFiles(st: com.tj.portfolio.net.EngineTuning.State) {
+        val dir = java.io.File(getApplication<Application>().filesDir, "daytrading-engine").apply { mkdirs() }
+        val original = java.io.File(dir, "original.json")
+        if (!original.exists()) original.writeText(com.tj.portfolio.net.DayTradingParams.DEFAULTS.toFullJson().toString(2))
+        java.io.File(dir, "current.json").writeText(
+            org.json.JSONObject().put("version", st.version).put("params", st.params.toFullJson()).toString(2))
+        java.io.File(dir, "history.json").writeText(org.json.JSONArray(st.historyJson()).toString(2))
+    }
+
+    /** Graded trades of the app's own plans - total, and since the last applied change. */
+    private suspend fun engineEvidenceNow(): com.tj.portfolio.net.EngineTuning.Evidence {
+        val log = withContext(Dispatchers.IO) { runCatching { db.dayTradingLog() }.getOrDefault(emptyList()) }
+        val ev = com.tj.portfolio.net.EngineTuning.Evidence(log, _engine.value.lastApplyAt)
+        _engineEvidence.value = ev.total to ev.sinceLastChange
+        return ev
+    }
+
+    fun refreshEngineEvidence() { viewModelScope.launch { engineEvidenceNow() } }
+
+    /** "Make tuning prompt": the whole graded log, the engine and its history, for a Claude chat. */
+    fun writeEngineTuningPrompt(onDone: (PromptOut) -> Unit) {
+        viewModelScope.launch {
+            val out = withContext(Dispatchers.IO) {
+                runCatching {
+                    val log = db.dayTradingLog()
+                    val stats = com.tj.portfolio.net.DayTradingEval.stats(log)
+                    val body = com.tj.portfolio.net.EngineTuningPrompt.prompt(_engine.value, log, stats)
+                    deliverPrompt(com.tj.portfolio.net.EngineTuningPrompt.PROMPT_FILE, body)
+                }.getOrElse { PromptOut("Couldn't build the tuning prompt: ${it.message}", null) }
+            }
+            onDone(out)
+        }
+    }
+
+    /**
+     * A Claude tuning answer, from a share or the Import button: parsed, then checked against the
+     * CURRENT engine and log (the sample-size rules are the app's, not Claude's), and held for
+     * Tj's review. Nothing changes until [applyEngineReview].
+     */
+    fun importEngineTuning(text: String): String {
+        val proposal = runCatching { com.tj.portfolio.net.EngineTuning.parse(text) }
+            .getOrElse { return "Couldn't read that file: ${it.message}" }
+        if (proposal.error != null && proposal.changes.isEmpty() && proposal.verdict.isBlank()) return proposal.error
+        // A local read: the log is small, and the review must see it as it is right now.
+        val log = runCatching { db.dayTradingLog() }.getOrDefault(emptyList())
+        val review = com.tj.portfolio.net.EngineTuning.review(proposal, _engine.value, log)
+        _engineReview.value = review
+        val ok = review.applicable.size
+        return when {
+            review.blocker.isNotBlank() && proposal.changes.isNotEmpty() -> "Claude's review loaded - no changes can be applied yet (see why)"
+            proposal.changes.isEmpty() -> "Claude's review loaded - it recommends no changes this time"
+            ok == 0 -> "Claude's review loaded - none of its changes pass the app's checks (see why)"
+            else -> "Claude's review loaded - $ok change${if (ok == 1) "" else "s"} ready for you to approve"
+        }
+    }
+
+    fun dismissEngineReview() { _engineReview.value = null }
+
+    /** Tj tapped Apply on the review sheet. */
+    fun applyEngineReview() {
+        val review = _engineReview.value ?: return
+        viewModelScope.launch {
+            val ev = engineEvidenceNow()
+            // Re-checked against the engine as it is at the moment of the tap - an undo or another
+            // apply may have happened while the sheet was open.
+            val fresh = com.tj.portfolio.net.EngineTuning.review(review.proposal, _engine.value, ev.rows)
+            val next = com.tj.portfolio.net.EngineTuning.apply(fresh, _engine.value, System.currentTimeMillis())
+            if (next == null) {
+                _engineReview.value = fresh
+                toast("Nothing was applied - the checks changed since the review opened")
+                return@launch
+            }
+            saveEngine(next)
+            _engineReview.value = null
+            engineEvidenceNow()
+            toast("Engine v${next.version} applied - ${fresh.applicable.size} change" +
+                "${if (fresh.applicable.size == 1) "" else "s"}. New plans use it from the next refresh; " +
+                "ranking weights from the next list rebuild. Undo or revert any time.")
+            replanDayTradingNow()
+        }
+    }
+
+    /** "Undo last change". */
+    fun undoEngineChange() {
+        viewModelScope.launch {
+            val ev = engineEvidenceNow()
+            val next = com.tj.portfolio.net.EngineTuning.undo(_engine.value, System.currentTimeMillis(), ev.total)
+                ?: return@launch toast("Nothing to undo")
+            saveEngine(next)
+            toast("Undone - the engine is back to how it was before that change (now v${next.version})")
+            replanDayTradingNow()
+        }
+    }
+
+    /** "Revert to the original engine" - every change ever applied, taken back. */
+    fun revertEngine() {
+        viewModelScope.launch {
+            val ev = engineEvidenceNow()
+            val next = com.tj.portfolio.net.EngineTuning.revert(_engine.value, System.currentTimeMillis(), ev.total)
+                ?: return@launch toast("The engine is already the original")
+            saveEngine(next)
+            toast("Reverted - the day-trading engine is the original again (now v${next.version})")
+            replanDayTradingNow()
+        }
+    }
+
+    /** A changed engine re-plans the open list at once rather than on the next 30-second tick. */
+    private fun replanDayTradingNow() {
+        if (dayTradingLiveWanted) startDayTradingLive(dayTradingLiveOnly)
     }
 
     /** The API-key path: same question, same parser, no file round trip. */

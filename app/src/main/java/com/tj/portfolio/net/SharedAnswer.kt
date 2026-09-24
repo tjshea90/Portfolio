@@ -51,6 +51,9 @@ object SharedAnswer {
         /** A Day Trading answer ([DayTradingBridge]). */
         DAY_TRADING,
 
+        /** An engine-tuning answer ([EngineTuning]) - changes to the day-trading engine (2026-09-24c). */
+        ENGINE_TUNING,
+
         /** A Trending / Best / ETFs answer ([ResearchBridge]). */
         RESEARCH,
 
@@ -71,6 +74,7 @@ object SharedAnswer {
         if (ClaudeBridge.isPromptFile(text)) return Kind.PROMPT_FILE
         if (isBackup(text)) return Kind.BACKUP
         if (isOnlyLink(text)) return Kind.LINK
+        if (EngineTuning.looksLikeTuning(text)) return Kind.ENGINE_TUNING
         if (DayTradingBridge.looksLikeDayTrading(text)) return Kind.DAY_TRADING
         if (ResearchBridge.looksLikeResearch(text)) return Kind.RESEARCH
         return Kind.CLAUDE

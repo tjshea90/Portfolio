@@ -2264,6 +2264,13 @@ object Keys {
     const val IN_APP_READER = "in_app_reader"
     /** Toast when a Day Trading plan's buy, stop or target price is reached (2026-09-24b). */
     const val DT_ALERTS = "dt_level_alerts"
+    /**
+     * THE DAY-TRADING ENGINE THE APP IS RUNNING, AND EVERY CHANGE EVER MADE TO IT (2026-09-24c) -
+     * `net/EngineTuning.State`. Real user data, not a cache: carried in backups, so a new phone
+     * gets the tuned engine and its history back (a Merge keeps this phone's own).
+     */
+    const val DT_ENGINE = "dt_engine"
+    const val DT_ENGINE_HISTORY = "dt_engine_history"
 
     /**
      * A Claude screenshot extraction awaiting review, JSON-encoded (full-tests audit,
