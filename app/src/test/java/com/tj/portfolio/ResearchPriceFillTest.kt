@@ -651,11 +651,14 @@ class ResearchPriceFillTest {
     }
     // ---- ONLY A LIVE INSTRUCTION IS LOGGED AS A RECOMMENDATION (full-tests audit, D-M3).
 
+    /** [extended] with its target above the price - a plan still WAITING for its pullback (E5). */
+    private fun waiting() = extended().copy(targetPrice = 112.0)
+
     @Test fun `a too-late or pending-decline plan is not logged, a live one is`() {
-        val live = extended()
-        val tooLate = extended().copy(symbol = "LATE", tooLateToStart = true)
-        val declining = extended().copy(symbol = "DECL", planDeclineStreak = 1)
-        val yesterday = extended().copy(symbol = "OLD", sessionDay = "2026-09-10")
+        val live = waiting()
+        val tooLate = waiting().copy(symbol = "LATE", tooLateToStart = true)
+        val declining = waiting().copy(symbol = "DECL", planDeclineStreak = 1)
+        val yesterday = waiting().copy(symbol = "OLD", sessionDay = "2026-09-10")
         val everyone = setOf("GME", "LATE", "DECL", "OLD")
         assertEquals(listOf("GME"),
             loggableDayTradingRows(listOf(live, tooLate, declining, yesterday), TODAY, everyone)
@@ -670,12 +673,42 @@ class ResearchPriceFillTest {
      * re-plan it (Best's analyst pass, an ETF rebuild, an import), is not in that set.
      */
     @Test fun `D-1 a same-day plan that was not re-planned live this tick is not logged`() {
-        val premarket = extended()   // sessionDay = TODAY, levels set: indistinguishable by date
+        val premarket = waiting()   // sessionDay = TODAY, levels set: indistinguishable by date
         assertEquals(emptyList<String>(),
             loggableDayTradingRows(listOf(premarket), TODAY, liveNow = emptySet()).map { it.symbol })
         assertEquals(emptyList<String>(),
             loggableDayTradingRows(listOf(premarket), TODAY, liveNow = setOf("OTHER")).map { it.symbol })
         assertEquals(listOf("GME"),
             loggableDayTradingRows(listOf(premarket), TODAY, liveNow = setOf("GME")).map { it.symbol })
+    }
+
+    /**
+     * 2026-09-24c, audit E5: ONLY A PLAN STILL WAITING FOR ITS ENTRY IS A RECOMMENDATION. The card
+     * reads "too late" once the price has passed the target, "skip" once it is under the stop, and
+     * "it already reached the buy price" once it has traded through the entry - none of those is
+     * the clean instruction a trade can be graded against.
+     */
+    @Test fun `E5 a plan past its target, under its stop or through its entry is not logged`() {
+        val live = setOf("GME")
+        assertEquals("past the target", 0, loggableDayTradingRows(listOf(extended()), TODAY, live).size)
+        assertEquals("under the stop", 0,
+            loggableDayTradingRows(listOf(waiting().copy(price = 103.0)), TODAY, live).size)
+        // A Claude BREAKOUT made at 100 (entry 101): logged while under 101, not once it trades at 101.5.
+        val claude = ResearchRow(symbol = "GME", price = 100.5, entryPrice = 101.0, stopPrice = 99.0,
+            targetPrice = 105.0, setup = "Gap and go", sessionDay = TODAY, planByClaude = true, planPrice = 100.0)
+        assertEquals(1, loggableDayTradingRows(listOf(claude), TODAY, live).size)
+        assertEquals("through its entry", 0, loggableDayTradingRows(listOf(claude.copy(price = 101.5)), TODAY, live).size)
+        // and a sub-dollar price is refused outright
+        assertEquals(0, loggableDayTradingRows(listOf(claude.copy(price = 0.9, entryPrice = 0.95,
+            stopPrice = 0.8, targetPrice = 1.2, planPrice = 0.85)), TODAY, live).size)
+    }
+
+    /** 2026-09-24c, audit E6: a plan built on a bar more than ten minutes old is not live. */
+    @Test fun `E6 a stale feed is not a live re-plan`() {
+        val now = 1_790_000_000_000L
+        fun t(ageSec: Long) = com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals(
+            sessionLive = true, sessionDay = TODAY, lastPrice = 10.0, lastBarAt = now / 1000 - ageSec)
+        val got = com.tj.portfolio.ui.replannedLive(mapOf("A" to t(120), "B" to t(11 * 60), "C" to t(0).copy(lastBarAt = 0L)), now)
+        assertEquals(setOf("A", "C"), got)
     }
 }
