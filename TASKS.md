@@ -41,6 +41,31 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       failed -> gate now allows all of 127/8; NetLogicTest 29/0 + OfflineGateTest 4/0.
 - [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
       tests. Tick each ID here when fixed+tested, or mark "no change" with the reason.
+      ALL 7 REPORTS COMPLETE (13:50 UTC). Order: H, then M, then L; Q items as they fit.
+      One VM regression file for today: app/src/test/.../FullTest0924Test.kt.
+    - H: [x] U-1 spinner surface-blind (spinnerShouldShow source + sync on every research-busy
+      clear; SpinnerTest +2, FullTest0924Test U-1 MUTATION-CHECKED)  [ ] L-1(=N-1) cancel never
+      reaches socket (invokeOnCompletion fires after completion)  [ ] N-2 one unknown symbol kills
+      v7 batch for session  [ ] A-1 backup JSON shared in = Claude answer re-dated today
+      [ ] C-1 pinch/pan into unfetched range kills gesture + blanks chart  [ ] D-1 stale plans
+      logged with later timestamp/old price
+    - M: [ ] C-2 5D "truncated" Fridays  [ ] C-3 vs-SPY All range different starts  [ ] C-4 zoom
+      hysteresis missing at 4 boundaries  [ ] C-5 stale benchmark carried flat  [ ] D-2 evening
+      Claude plan replaced at 04:00 (post-close sweep re-stamps)  [ ] D-3 weekend/holiday Claude
+      plans dropped  [ ] D-4 no plans after rebuild until next tick  [ ] D-5 forming first bar /
+      opening range used as trigger  [ ] L-2 return during unwinding pass drops refresh
+      [ ] L-3 answer landing in background never priced  [ ] L-4 trim handler unreachable on
+      Android 14+ (LOCKED decision - needs Tj)  [ ] N-3 quoteSummary retries every failure
+      [ ] N-4 SEC 10 req/s not enforced as rate  [ ] A-2 merge restore moves replay watermark
+      [ ] A-3 dup check hides real second fill  [ ] A-4 autosave name after reinstall (device-only)
+      [ ] S-1 S-9 popup fix unreachable  [ ] S-2 detail screen ratings-only verdict frozen
+      [ ] S-4 Research asOf ignored / Advice undated  [ ] S-5 carry freezes relative catalyst
+      [ ] S-6 stale Claude fund permanent  [ ] S-7 DT paragraphs carried 14 days  [ ] S-8 ETF
+      dedupe merges different products  [ ] U-2 Insider all-companies pull never refetches
+      [ ] U-3 feed sweep runs under reader/detail
+    - L: C-6..C-12, D-6..D-14, L-5..L-7, N-5..N-12, A-5..A-11, S-3, S-9..S-12, U-4..U-8
+      (tick inline here as done: )
+    - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
 - [ ] Re-run the full suite; re-check anything a fix touched
 - [ ] Independent review of this session's whole diff for regressions -> fix
 - [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,

@@ -1,13 +1,13 @@
-# CHECKPOINT 1655 — read me first, then TASKS.md
+# CHECKPOINT 1656 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T13:34:23Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `45800f16` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T13:40:58Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `2b154e0a` (this checkpoint is the commit after it)
 
 ## Just done
-Resumed after usage cap: 7 audit agents died 07:43 with partial reports (network/scoring/lifecycle substantial; charts/daytrading barely started)
+All 7 audit reports complete (7H/~25M/~50L). U-1 fixed: per-surface spinner rule + sync on research-busy clears; SpinnerTest 8/0, FullTest0924Test U-1 mutation-checked
 
 ## Do this next
-Finish audits in batches of <=3; verify+fix findings from partial reports meanwhile
+Fix L-1/N-1 (Http cancel->disconnect), then N-2, A-1, C-1, D-1, then Ms
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Finish audits in batches of <=3; verify+fix findings from partial reports meanwh
 
 ## Last ten checkpoints
 ```
+  f993b5be ckpt 1655: Resumed after usage cap: 7 audit agents died 07:43 with partial reports (net
   d1129bc4 ckpt 1654: T-1 fixed: unit tests offline (Http gate via portfolio.test.offline, loopbac
   60420aee ckpt 1653: Floor green: checkinit ok, suite 1337/0
   88cdb9fe ckpt 1652: Recorded Tj follow-up (6h auto check-in); scheduled trig_016i6a9SLnAAgdG46oL
@@ -26,8 +27,7 @@ Finish audits in batches of <=3; verify+fix findings from partial reports meanwh
   3243632a ckpt 1648: v7.39 run 35894509527 failed in emulator SDK download (infra, before any tes
   a8f3dfb6 ckpt 1647: v7.39 ship.sh passed; build run 35894509527 triggered
   e73ace3c ckpt 1646: gated v7.39 (code 96) and pushed it: checkinit, the full unit suite and the 
-  98f07b3f ckpt 1645: Stuck pull circle v2: own PullGesture + draw-time invariant + watchdog; test
 ```
 
-(4 automatic checkpoint(s) since the last deliberate one — the
+(18 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
