@@ -1309,6 +1309,23 @@ internal fun dayTradingRowsToResolve(
 private const val DAY_TRADING_DECLINE_CONFIRM_TICKS = 2
 
 /**
+ * Whether `[dayStart, todayStart)` - both local midnights - holds a weekday, i.e. a session
+ * whose close the %-since-added baseline could be (N-7). Holidays are not modelled: one costs a
+ * single request that finds nothing, and the next weekday covers it.
+ */
+internal fun baselineWindowHasSession(dayStart: Long, todayStart: Long): Boolean {
+    if (dayStart >= todayStart) return false
+    val c = java.util.Calendar.getInstance().apply { timeInMillis = dayStart }
+    repeat(7) {
+        if (c.timeInMillis >= todayStart) return false
+        val dow = c.get(java.util.Calendar.DAY_OF_WEEK)
+        if (dow != java.util.Calendar.SATURDAY && dow != java.util.Calendar.SUNDAY) return true
+        c.add(java.util.Calendar.DAY_OF_MONTH, 1)
+    }
+    return true
+}
+
+/**
  * The LAST point in [points] whose timestamp falls in `[dayStart, todayStart)` - the
  * %-since-added baseline's own "which point is the close" rule, pulled out of
  * [PortfolioViewModel.closeOnOrAfter] so it can be tested without a live network fetch.
@@ -4174,9 +4191,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun closeOnOrAfter(symbol: String, dateMs: Long): Double? {
         val dayStart = startOfDay(dateMs)
         val todayStart = startOfDay(System.currentTimeMillis())
+        // NO REQUEST FOR AN ANSWER THAT CANNOT EXIST YET, AND A BACKOFF FOR ONE THAT FAILS
+        // (full test 2026-09-24, N-7). A symbol added today (or on a weekend, until the next
+        // session has closed) has an empty window, yet every Watch-tab visit downloaded a chart
+        // to find that out; and this path bypasses `_charts`/`chartRetry`, so a symbol Yahoo
+        // cannot chart was re-requested on both hosts on every visit, forever.
+        if (!baselineWindowHasSession(dayStart, todayStart)) return null
+        val key = "$symbol|baseline"
+        if (chartRetry.blocked(key)) return null
         val lookback = (System.currentTimeMillis() - dayStart).coerceAtLeast(0L)
         val range = com.tj.portfolio.data.ChartRange.rangeForLookback(lookback)
-        val series = com.tj.portfolio.net.ChartFeed.series(symbol, range) ?: return null
+        val series = com.tj.portfolio.net.ChartFeed.series(symbol, range)
+        if (series == null) { chartRetry.failure(key); return null }
+        chartRetry.success(key)
         return lastCloseInWindow(series.points, dayStart, todayStart)
     }
 
