@@ -77,7 +77,9 @@ Status: IN PROGRESS (findings appended as confirmed)
   outcome and to "keep using the tab ... then check again" - wrong, and alarming (his results look
   deleted). It lasts the first 60-fetch batch; offline it lasts until he is online (auto is skipped,
   `refreshDayTradingStats` publishes the same stats). If every row is legacy, it reads "none of the 0
-  recorded recommendations" and the legacy note is hidden.
+  recorded recommendations" and the legacy note is hidden. Same branch, second wrong case: when every
+  recorded plan expired unfilled, NO_ENTRY is a final outcome, yet the card says none "has a decided
+  outcome" and hides the "N never filled before their cut-off" count that would explain it.
 - Fix: in the zero branch append the same regrading/legacy sentences, and when `regrading > 0` lead with
   "N earlier results are being re-checked under the current, stricter rules - they appear here once
   done." When `totalRecommendations == 0`: "No recommendations recorded yet - ...".
