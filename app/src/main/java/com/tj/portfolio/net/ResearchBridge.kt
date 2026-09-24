@@ -309,7 +309,14 @@ $SHAPE
         val best: List<ResearchRow> = emptyList(),
         val etfs: List<ResearchRow> = emptyList(),
         val notes: String = "",
-        val error: String? = null
+        val error: String? = null,
+        /**
+         * The answer's own `asOf` as a time, when it names an EARLIER day (full test
+         * 2026-09-24, S-4); null = written now. Its paragraphs are stamped with this, so a week-old
+         * answer shared again from an old chat ages from when it was written instead of
+         * reading "Explained just now" and restarting the 14-day clock.
+         */
+        val answeredAt: Long? = null
     ) {
         val isEmpty: Boolean
             get() = trending.isEmpty() && best.isEmpty() && etfs.isEmpty()
@@ -346,11 +353,17 @@ $SHAPE
                 "answer to a different prompt - the Advice tab imports those."
         )
 
+        val asOf = res.text("asOf").ifBlank { root.text("asOf") }
+        val answeredAt = ClaudeBridge.answeredAt(asOf, System.currentTimeMillis())
+        val notes = ClaudeBridge.scrub(res.text("notes"))
         val out = Parsed(
             trending = section(res, "trending"),
             best = section(res, "best"),
             etfs = section(res, "etfs"),
-            notes = ClaudeBridge.scrub(res.text("notes"))
+            notes = if (answeredAt == null) notes
+            else listOf("This answer is dated $asOf - its explanations are aged from then.", notes)
+                .filter { it.isNotBlank() }.joinToString("\n\n"),
+            answeredAt = answeredAt
         )
         if (out.isEmpty) return Parsed(
             notes = out.notes,
@@ -402,7 +415,12 @@ $SHAPE
      * it only orders rows Claude added that the app had no score for. Everything Claude is
      * uniquely good at - the explanation and the catalyst - is merged in.
      */
-    fun merge(existing: List<ResearchRow>, incoming: List<ResearchRow>): List<ResearchRow> {
+    fun merge(
+        existing: List<ResearchRow>,
+        incoming: List<ResearchRow>,
+        /** When the answer was written - see [Parsed.answeredAt] (S-4). */
+        at: Long = System.currentTimeMillis()
+    ): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
         // STAMPED ONLY WHEN `why` ITSELF IS FRESH (full-tests audit, round 79 sweep) - THE BUG
         // THIS FIXES.
@@ -416,7 +434,7 @@ $SHAPE
         // paragraph could ride forward indefinitely under a fresh-looking timestamp every time
         // Claude touched anything else on the row - the exact "old cached recommendation
         // carried forward with no real age check" pattern this whole fix exists to close.
-        val now = System.currentTimeMillis()
+        val now = at
         val byIncoming = incoming.associateBy { it.symbol }
         val merged = existing.map { row ->
             val c = byIncoming[row.symbol] ?: return@map row

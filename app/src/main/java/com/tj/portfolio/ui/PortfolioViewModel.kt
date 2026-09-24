@@ -7389,9 +7389,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             return parsed.error
         }
         val cur = _research.value
+        // The answer's own date when it names an earlier day (S-4) - see Parsed.answeredAt.
+        val writtenAt = parsed.answeredAt ?: System.currentTimeMillis()
         val merged = cur.copy(
-            trending = com.tj.portfolio.net.ResearchBridge.merge(cur.trending, parsed.trending),
-            best = com.tj.portfolio.net.ResearchBridge.merge(cur.best, parsed.best),
+            trending = com.tj.portfolio.net.ResearchBridge.merge(cur.trending, parsed.trending, writtenAt),
+            best = com.tj.portfolio.net.ResearchBridge.merge(cur.best, parsed.best, writtenAt),
             // RE-SORTED, unlike the stock lists. Claude is asked to ADD funds the app's
             // screener universe cannot see - which is the whole point of researching this
             // list online - and `merge` puts additions last.
@@ -7400,10 +7402,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // did not, BELOW them. See [ResearchRow.conviction] for why a model's number is
             // no longer allowed to sort itself into the top of this list.
             etfs = com.tj.portfolio.net.ResearchBridge
-                .merge(cur.etfs, parsed.etfs)
+                .merge(cur.etfs, parsed.etfs, writtenAt)
                 .sortedWith(compareByDescending<com.tj.portfolio.data.ResearchRow> { it.score }
                     .thenByDescending { it.conviction }),
-            explained = System.currentTimeMillis(),
+            explained = writtenAt,
             explainedBy = via,
             // MERGED, not overwritten - every other field in this copy is. A second reply
             // that simply omits `notes` used to erase the first one's paragraph.
