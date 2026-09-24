@@ -2522,9 +2522,10 @@ internal fun comparePercents(
         // and the chips use for an intraday window.
         compare.from
     } else {
-        // Rebased to where the benchmark stood when THIS window opened - and no overlay when it
-        // did not exist yet (C-3), rather than a line measured from a later start.
-        valueAtOrBefore(cs, pts.first().t) ?: return null
+        // Rebased to where the benchmark stood when THIS window opened. (Unanchored - only a
+        // direct caller reaches this; [compareLines] always passes the shared anchor, which since
+        // C-3 is never earlier than the benchmark's first candle.)
+        valueAtOrBefore(cs, pts.first().t) ?: cs.first().close
     }
     if (base <= 0.0 || !base.isFinite()) return null
 

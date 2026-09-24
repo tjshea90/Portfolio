@@ -544,4 +544,30 @@ class FullTest0924Test {
         assertFalse(f.truncatedSpan(com.tj.portfolio.data.ChartRange.D5, 6.3))
         assertTrue("listed two days ago", f.truncatedSpan(com.tj.portfolio.data.ChartRange.D5, 1.3))
     }
+
+    // ---- C-3 / C-5: both comparison lines share a real start, in the same session.
+
+    private fun cseries(sym: String, range: com.tj.portfolio.data.ChartRange, start: Long, step: Long,
+                        closes: List<Double>) = com.tj.portfolio.data.ChartSeries(
+        symbol = sym, range = range,
+        points = closes.mapIndexed { i, c -> com.tj.portfolio.data.ChartPoint(start + i * step, c) },
+        baseline = closes.first(), currency = "USD", fetched = System.currentTimeMillis())
+
+    @Test fun `C-3 a stock older than SPY is anchored where both exist`() {
+        val day = 86_400L
+        val stock = cseries("KO", com.tj.portfolio.data.ChartRange.MAX, 1_000_000L, day, List(10) { 10.0 + it })
+        val spy = cseries("SPY", com.tj.portfolio.data.ChartRange.MAX, 1_000_000L + 4 * day, day, List(6) { 100.0 + it })
+        assertEquals("the later of the two first candles", 1_000_000L + 4 * day,
+            com.tj.portfolio.ui.compareAnchorFor(stock, com.tj.portfolio.data.ChartRange.MAX, spy))
+        val pair = com.tj.portfolio.ui.compareLines(stock, spy, stock, com.tj.portfolio.data.ChartRange.MAX)!!
+        // At the shared anchor (index 4) both lines read 0%.
+        assertEquals(0.0, pair.other[4], 1e-9)
+        assertEquals(0.0, pair.own[4], 1e-9)
+    }
+
+    @Test fun `C-5 a benchmark that ends before the stock's window is no overlay`() {
+        val stock = cseries("X", com.tj.portfolio.data.ChartRange.M1, 2_000_000L, 1000L, listOf(1.0, 2.0, 3.0))
+        val stale = cseries("SPY", com.tj.portfolio.data.ChartRange.M1, 1_000_000L, 1000L, listOf(5.0, 6.0, 7.0))
+        assertNull(com.tj.portfolio.ui.comparePercents(stock, stale))
+    }
 }
