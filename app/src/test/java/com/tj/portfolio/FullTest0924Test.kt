@@ -588,8 +588,9 @@ class FullTest0924Test {
                 cur = R.rangeForSpan(span, cur)
                 assertEquals("frame $k at ${fine.label}/${coarse.label}", coarse, cur)
             }
-            // Clearly inside the finer rung, it does go finer.
-            assertEquals(fine, R.rangeForSpan((edge * 0.5).toLong(), coarse))
+            // Clearly inside the finer rung, it does go finer (to the finest rung that covers it).
+            val deep = R.rangeForSpan((edge * 0.5).toLong(), coarse)
+            assertTrue("${coarse.label} -> ${deep.label}", deep.approxSpanMs <= fine.approxSpanMs)
         }
     }
 }
