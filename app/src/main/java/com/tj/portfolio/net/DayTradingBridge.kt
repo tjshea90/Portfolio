@@ -83,8 +83,8 @@ object DayTradingBridge {
      * [set] is trimmed by the caller to the rows actually on screen, same rule [ResearchBridge]
      * follows.
      */
-    fun prompt(set: ResearchSet, holdings: List<String>, watchlist: List<String>): String {
-        val bundle = bundleJson(set, holdings, watchlist)
+    fun prompt(set: ResearchSet, holdings: List<String>, watchlist: List<String>, liveAt: Long = 0L): String {
+        val bundle = bundleJson(set, holdings, watchlist, liveAt)
         return """
 <!-- ${ClaudeBridge.PROMPT_MARK}: this file is the QUESTION for Claude, not the ANSWER. Attach it to a chat in the Claude app - do NOT import this file back. -->
 
@@ -191,7 +191,7 @@ thinner trade is still worth it."""
      * The data bundle, also used verbatim by the API path - same reason [ResearchBridge]'s
      * does.
      */
-    fun bundleJson(set: ResearchSet, holdings: List<String>, watchlist: List<String>): String {
+    fun bundleJson(set: ResearchSet, holdings: List<String>, watchlist: List<String>, liveAt: Long = 0L): String {
         val rows = JSONArray().also { arr ->
             set.dayTrading.forEach { r ->
                 arr.put(JSONObject().apply {
@@ -236,8 +236,12 @@ thinner trade is still worth it."""
             // check could not read it and so let any old answer through.
             put("asOf", java.time.LocalDate.now(java.time.ZoneId.of("America/New_York")).toString())
             put("marketPhase", MarketClock.label())
-            put("dataAgeMinutes", if (set.generated > 0)
-                (System.currentTimeMillis() - set.generated) / 60000L else 0L)
+            // THE AGE OF THE NEWEST NUMBERS, not of the list (full test 2026-09-24, D-14): rows
+            // re-priced every 30 seconds since a 10:00 build were sent at 14:00 as "240 minutes
+            // old", inviting Claude to discount prices and levels that were current.
+            val freshest = maxOf(set.generated, liveAt)
+            put("dataAgeMinutes", if (freshest > 0)
+                (System.currentTimeMillis() - freshest) / 60000L else 0L)
             put("sources", set.sources.ifBlank { Research.SOURCES })
             if (set.warnings.isNotEmpty()) put("feedProblems", JSONArray(set.warnings))
             if (holdings.isNotEmpty()) put("iAlreadyHold", JSONArray(holdings))

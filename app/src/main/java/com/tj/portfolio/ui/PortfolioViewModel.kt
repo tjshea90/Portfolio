@@ -2345,6 +2345,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private var dayTradingRebuildGen = 0L
 
+    /** When the live loop last put fresh numbers on the Day Trading rows (D-14). */
+    @Volatile private var dayTradingLiveAt = 0L
+
     // ================================================================ PRICE CHARTS
     //
     // ALL OF THESE ARE ABOVE `init` DELIBERATELY - see checkinit.py and the note on the
@@ -7539,13 +7542,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun dayTradingBundle(): String = com.tj.portfolio.net.DayTradingBridge.bundleJson(
         dayTradingSet(),
         heldSymbols().toList().sorted(),
-        watchedSymbols().toList().sorted()
+        watchedSymbols().toList().sorted(),
+        liveAt = dayTradingLiveAt
     )
 
     fun dayTradingPromptFile(): String = com.tj.portfolio.net.DayTradingBridge.prompt(
         dayTradingSet(),
         heldSymbols().toList().sorted(),
-        watchedSymbols().toList().sorted()
+        watchedSymbols().toList().sorted(),
+        liveAt = dayTradingLiveAt
     )
 
     /** Write the offline prompt file - one fixed name, replaced, same as [writeResearchPrompt]. */
@@ -7922,6 +7927,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             dayTradingSweepDone = true
             if (claudeOrdered) updated else sortDayTradingForActionability(updated)
         } else updated
+        if (changed) dayTradingLiveAt = System.currentTimeMillis()
         if (changed || sweeping) {
             _research.value = _research.value.withSection(name, finalRows)
             // A completed sweep re-sorted the list - worth writing now; an ordinary tick is not.
