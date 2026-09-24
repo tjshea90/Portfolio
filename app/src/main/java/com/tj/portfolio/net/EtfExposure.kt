@@ -44,6 +44,14 @@ object EtfExposure {
      * Growth" would be grouped with plain "S&P 500" and a growth tilt would vanish into a
      * broad index fund.
      */
+    /** Names of the states single-state muni funds are issued for (S-8). */
+    private val MUNI_STATES = listOf(
+        " california ", " new york ", " new jersey ", " massachusetts ", " pennsylvania ",
+        " ohio ", " minnesota ", " virginia ", " arizona ", " oregon ", " michigan ",
+        " maryland ", " connecticut ", " colorado ", " georgia ", " north carolina ",
+        " texas ", " florida ", " washington ", " missouri ", " kentucky ", " wisconsin "
+    )
+
     fun keyOf(name: String): String? {
         if (name.isBlank()) return null
         // '+' with the rest of the punctuation: "iShares 20+ Year Treasury" has to reduce to
@@ -61,7 +69,15 @@ object EtfExposure {
             " growth ", " value ", " dividend ", " equal weight ", " equally weighted ",
             " hedged ", " esg ", " buffer ", " covered call ", " enhanced ", " momentum ",
             " quality ", " low volatility ", " minimum volatility ", " min vol ",
-            " screened ", " sri ", " catholic ", " sustainable "
+            " screened ", " sri ", " catholic ", " sustainable ",
+            // STRATEGY PRODUCTS BUILT ON AN INDEX ARE NOT THE INDEX (full test 2026-09-24, S-8).
+            // Each of these named an index and was keyed with it: "S&P 500 Top 50" (XLG) and
+            // "S&P 500 High Income" (SPYI, option income) with VOO, "Nasdaq-100 High Income"
+            // with QQQ, "Emerging Markets ex China" with EEM, "Bitcoin Strategy" (futures) with
+            // the spot trusts - and deleted from the list under a card calling them the same.
+            " top 50 ", " top 20 ", " high income ", " premium income ", " option income ",
+            " options ", " option ", " buywrite ", " buy write ", " high beta ", " revenue ",
+            " garp ", " fossil fuel ", " ex china ", " strategy ", " futures "
         )
         val hasTilt = tilted.any { n.contains(it) }
 
@@ -167,8 +183,17 @@ object EtfExposure {
                 maturityKey(n, "Bonds - inflation protected")
             n.contains(" treasury ") || n.contains(" treasuries ") ->
                 maturityKey(n, "Bonds - Treasuries")
-            n.contains(" municipal ") || n.contains(" muni ") -> group("Bonds - municipal")
-            n.contains(" high yield ") || n.contains(" junk ") -> group("Bonds - high yield")
+            // MUNIS BY STATE, QUALITY AND MATURITY (S-8). A single-state fund is a tax decision,
+            // a high-yield muni is a credit decision and an ultra-short one is a cash substitute;
+            // all three were "the same exposure" as MUB. A state fund is left ungrouped.
+            n.contains(" municipal ") || n.contains(" muni ") -> when {
+                MUNI_STATES.any { n.contains(it) } -> null
+                n.contains(" high yield ") -> group("Bonds - municipal high yield")
+                else -> maturityKey(n, "Bonds - municipal") ?: group("Bonds - municipal")
+            }
+            // High yield keeps its band when it states one: a 0-5 year junk fund is not HYG.
+            n.contains(" high yield ") || n.contains(" junk ") ->
+                maturityKey(n, "Bonds - high yield") ?: group("Bonds - high yield")
             n.contains(" corporate bond ") || n.contains(" investment grade ") ->
                 maturityKey(n, "Bonds - corporate")
             // ---- "US aggregate" MEANS US (Round 66 audit, ETF-3, second instance).
@@ -249,8 +274,11 @@ object EtfExposure {
                 out.add(r to emptyList())
             } else {
                 val (winner, also) = out[at]
-                // Bounded: naming three alternatives is useful, naming eleven is a wall.
-                if (also.size < 3) out[at] = winner to (also + symbol(r))
+                // EVERY FUND THAT LOST ITS PLACE IS NAMED (S-8). A cap of three meant a fourth
+                // member vanished with no mention anywhere, although the sources note promises
+                // "the rest are named on its card" - and the VM's merge of Claude's funds was
+                // already unbounded. Groups are small now that strategy funds no longer join them.
+                out[at] = winner to (also + symbol(r))
             }
         }
         return out
