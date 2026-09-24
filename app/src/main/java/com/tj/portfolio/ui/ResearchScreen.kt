@@ -1244,7 +1244,11 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
                 // WHOSE PLAN THIS IS, ALWAYS ON SCREEN. Round 69 lets Claude set these three
                 // numbers; the app's rule that a model's figure is never shown as the app's
                 // own arithmetic survives only if the label is unmissable.
-                if (byClaude) "CLAUDE'S PLAN" else "RISK PLAN - computed, not a forecast",
+                // Which engine made it, once Claude has tuned it (2026-09-24c).
+                if (byClaude) "CLAUDE'S PLAN"
+                else if (!com.tj.portfolio.net.DayTradingEngine.params.isDefault)
+                    "RISK PLAN (tuned engine v${com.tj.portfolio.net.DayTradingEngine.version}) - computed, not a forecast"
+                else "RISK PLAN - computed, not a forecast",
                 style = MaterialTheme.typography.labelSmall,
                 // `accentText`, not raw `Accent` - see Theme.kt. The brand blue measures
                 // 3.39:1 on the dark background, and this label is the one thing standing
