@@ -425,7 +425,10 @@ class DayTradingEvalTest {
         )
         assertEquals(3, s.totalRecommendations)
         assertEquals(0, s.entriesTriggered)
-        assertEquals(2, s.pending) // null (never evaluated) and PENDING both read as "pending"
+        // PENDING is "in progress"; a never-evaluated row from a session long over is "not checked
+        // yet" (2026-09-24c, UI-26) - neither is in the denominator.
+        assertEquals(1, s.pending)
+        assertEquals(1, s.unchecked)
         assertEquals(1, s.dataUnavailable)
         assertEquals(0.0, s.targetHitRate, 1e-9)
     }
