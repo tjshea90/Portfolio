@@ -3838,6 +3838,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private fun resetMarkIfEmptied() {
         if (db.txnCount() == 0) {
             db.set(Keys.LAST_TXN_COUNT, "0")
+            // Ids can be reused once the table is empty; a stale range must not claim them (A-2).
+            db.set(Keys.REPLAY_REPAIR_RANGES, "")
             _dataMissing.value = false
         }
     }
