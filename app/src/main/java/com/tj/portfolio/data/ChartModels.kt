@@ -140,10 +140,18 @@ enum class ChartRange(
             // each frame, a settings write per flip, and a fetch if either side was uncached.
             // Going finer is never forced (the current, coarser rung still covers the window),
             // so it waits until the window is clearly inside the finer rung.
-            if (current != null && current in ZOOM_LADDER &&
-                best.approxSpanMs < current.approxSpanMs &&
-                spanMs > best.approxSpanMs * FINER_MARGIN
-            ) return current
+            if (current != null && current in ZOOM_LADDER && best.approxSpanMs < current.approxSpanMs) {
+                // The finest rung from `best` up to `current` that holds the window WITH the
+                // margin - so a window near a fine rung's edge lands one rung coarser, not all
+                // the way back on `current`.
+                var pick = current
+                for (r in ZOOM_LADDER) {        // widest first: the last match is the finest
+                    if (r.approxSpanMs <= current.approxSpanMs && r.approxSpanMs >= best.approxSpanMs &&
+                        spanMs <= r.approxSpanMs * FINER_MARGIN
+                    ) pick = r
+                }
+                return pick
+            }
             return best
         }
 
