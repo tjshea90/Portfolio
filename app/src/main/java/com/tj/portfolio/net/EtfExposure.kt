@@ -189,11 +189,15 @@ object EtfExposure {
             n.contains(" municipal ") || n.contains(" muni ") -> when {
                 MUNI_STATES.any { n.contains(it) } -> null
                 n.contains(" high yield ") -> group("Bonds - municipal high yield")
-                else -> maturityKey(n, "Bonds - municipal") ?: group("Bonds - municipal")
+                else -> maturityKey(n, "Bonds - municipal")
+                    ?: if (statesBand(n)) null else group("Bonds - municipal")
             }
             // High yield keeps its band when it states one: a 0-5 year junk fund is not HYG.
+            // A band stated but not recognised is left ungrouped, never folded into the
+            // unbanded group (review 2026-09-24, R1-6: SHYG was still merged with HYG).
             n.contains(" high yield ") || n.contains(" junk ") ->
-                maturityKey(n, "Bonds - high yield") ?: group("Bonds - high yield")
+                maturityKey(n, "Bonds - high yield")
+                    ?: if (statesBand(n)) null else group("Bonds - high yield")
             n.contains(" corporate bond ") || n.contains(" investment grade ") ->
                 maturityKey(n, "Bonds - corporate")
             // ---- "US aggregate" MEANS US (Round 66 audit, ETF-3, second instance).
@@ -234,12 +238,17 @@ object EtfExposure {
      * to group two funds is one extra row; the cost of wrongly grouping them is a decision
      * removed from the page with a card that says they were the same.
      */
+    /** The name states a maturity band of some kind ("0-5 year", "3-6 month") - R1-6. */
+    private fun statesBand(n: String): Boolean = STATED_BAND.containsMatchIn(n)
+    private val STATED_BAND = Regex(" \\d+ \\d+ (year|month) ")
+
     private fun maturityKey(n: String, base: String): String? {
         val band = when {
             n.contains(" 0 3 month ") || n.contains(" 1 3 month ") ||
                 n.contains(" ultra short ") || n.contains(" 0 1 year ") -> "0-3 month"
             n.contains(" 1 3 year ") || n.contains(" short term ") ||
                 n.contains(" short duration ") -> "1-3 year"
+            n.contains(" 0 5 year ") || n.contains(" 1 5 year ") -> "0-5 year"   // R1-6
             n.contains(" 3 7 year ") || n.contains(" 5 10 year ") ||
                 n.contains(" intermediate ") -> "intermediate"
             n.contains(" 7 10 year ") -> "7-10 year"
