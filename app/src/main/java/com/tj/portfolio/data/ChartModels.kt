@@ -237,7 +237,11 @@ val ChartRange.approxSpanMs: Long
     }
 
 /** One candle close, with the moment it belongs to. */
-data class ChartPoint(val t: Long, val close: Double)
+/**
+ * One candle's close at [t] (seconds). [volume] is the shares traded in it, 0 when the feed
+ * did not say - drawn as the volume bars under 1D and 5D (chart idea 7, 2026-09-24b).
+ */
+data class ChartPoint(val t: Long, val close: Double, val volume: Double = 0.0)
 
 /**
  * A fetched price series for one symbol over one range.
@@ -312,12 +316,18 @@ object ChartJson {
         val t = JSONArray()
         val c = JSONArray()
         s.points.forEach { t.put(it.t); c.put(it.close) }
+        // Volume as a third parallel array, only when the series has any (2026-09-24b); an
+        // older row without it reads back as zero volume, never as a failed decode.
+        val vol = if (s.points.any { it.volume > 0.0 }) JSONArray().also { a ->
+            s.points.forEach { a.put(it.volume.takeIf { v -> v.isFinite() && v > 0.0 } ?: 0.0) }
+        } else null
         return JSONObject().apply {
             put("v", 1)
             put("symbol", s.symbol)
             put("range", s.range.name)
             put("t", t)
             put("c", c)
+            if (vol != null) put("vol", vol)
             put("baseline", s.baseline)
             put("currency", s.currency)
             put("fetched", s.fetched)
@@ -331,13 +341,15 @@ object ChartJson {
         val t = o.optJSONArray("t") ?: return@runCatching null
         val c = o.optJSONArray("c") ?: return@runCatching null
         val n = minOf(t.length(), c.length())
+        val vol = o.optJSONArray("vol")
         val pts = ArrayList<ChartPoint>(n)
         for (i in 0 until n) {
             val v = c.optDouble(i, Double.NaN)
             // Same rule as everywhere else in this app: a missing candle is skipped, never
             // read as a zero. A single fabricated 0.0 collapses the whole y-axis.
             if (v.isNaN() || v <= 0.0) continue
-            pts.add(ChartPoint(t.optLong(i, 0L), v))
+            val volume = vol?.optDouble(i, 0.0)?.takeIf { it.isFinite() && it > 0.0 } ?: 0.0
+            pts.add(ChartPoint(t.optLong(i, 0L), v, volume))
         }
         ChartSeries(
             symbol = o.optString("symbol").uppercase(),

@@ -1829,7 +1829,7 @@ internal fun withLiveEdge(s: ChartSeries?, livePrice: Double, liveEdge: Boolean)
     if (!s.range.intraday || !liveEdge || !(livePrice > 0.0)) return s
     val last = s.points.last()
     if (last.close == livePrice) return s
-    return s.copy(points = s.points.dropLast(1) + ChartPoint(last.t, livePrice))
+    return s.copy(points = s.points.dropLast(1) + last.copy(close = livePrice))
 }
 
 /**

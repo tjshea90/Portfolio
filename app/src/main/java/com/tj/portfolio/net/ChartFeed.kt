@@ -96,6 +96,9 @@ object ChartFeed {
         val ts = res.optJSONArray("timestamp") ?: return null
         val quote = res.optJSONObject("indicators")?.optJSONArray("quote")?.optJSONObject(0)
         val closes = quote?.optJSONArray("close") ?: return null
+        // Shares traded per candle, for the volume bars (2026-09-24b). Optional: a response
+        // without it still draws, just without bars.
+        val volumes = quote.optJSONArray("volume")
 
         val regular = regularWindows(meta)
         val onlyExtended = range == ChartRange.OVERNIGHT
@@ -134,8 +137,10 @@ object ChartFeed {
             if (t <= 0L) continue
             val inRegular = regular.any { t >= it.first && t < it.second }
             if (onlyExtended && inRegular) continue
-            if (regularOnly && !inRegular) { outside.add(ChartPoint(t, v)); continue }
-            pts.add(ChartPoint(t, v))
+            val vol = volumes?.takeIf { !it.isNull(i) }?.optDouble(i, 0.0)
+                ?.takeIf { it.isFinite() && it > 0.0 } ?: 0.0
+            if (regularOnly && !inRegular) { outside.add(ChartPoint(t, v, vol)); continue }
+            pts.add(ChartPoint(t, v, vol))
         }
         // BEFORE 09:30 THERE IS NO REGULAR SESSION YET, and an empty chart on the tab the
         // screen opens on reads as broken. Same fallback `MarketData.parseYahoo` has always
