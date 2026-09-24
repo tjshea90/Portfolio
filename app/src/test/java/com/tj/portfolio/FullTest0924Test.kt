@@ -3,7 +3,13 @@ package com.tj.portfolio
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import com.tj.portfolio.data.Db
+import com.tj.portfolio.data.Txn
+import com.tj.portfolio.data.TxnType
+import com.tj.portfolio.net.ClaudeBridge
 import com.tj.portfolio.net.MarketData
+import com.tj.portfolio.net.SharedAnswer
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import com.tj.portfolio.ui.BUSY_EXPLAINING
 import com.tj.portfolio.ui.PULL_PRICES
 import com.tj.portfolio.ui.PortfolioViewModel
@@ -86,5 +92,40 @@ class FullTest0924Test {
             """{"quoteResponse":{"result":null,"error":{"code":"Bad Request"}}}"""))
         assertFalse(MarketData.batchAnswered(
             """{"quoteResponse":{"result":[],"error":{"code":"Unauthorized"}}}"""))
+    }
+
+    // ---- A-1: a backup shared or picked into the answer importer is refused, not imported.
+
+    @Test fun `A-1 a Portfolio backup is recognised and never imported as an answer`() {
+        val db = Db(app)
+        db.insertTxn(Txn(type = TxnType.BUY, symbol = "NVDA", quantity = 10.0, price = 100.0,
+            amount = -1000.0, date = 1_726_156_800_000L))
+        val backup = db.exportJson()
+        assertEquals(SharedAnswer.Kind.BACKUP, SharedAnswer.classify(backup))
+        assertEquals(SharedAnswer.BACKUP_MESSAGE, SharedAnswer.rejection(SharedAnswer.Kind.BACKUP))
+
+        val vm = PortfolioViewModel(app).also { settle() }
+        val shared = vm.importShared(backup)
+        assertEquals(SharedAnswer.BACKUP_MESSAGE, shared.message)
+        assertNull("a refused backup opens no screen", shared.dest)
+        assertEquals(SharedAnswer.BACKUP_MESSAGE, vm.importClaudeFile(backup))
+        assertTrue("nothing may be waiting for review", vm.pendingImport.value.isEmpty())
+
+        // A real answer that merely mentions the format name is still an answer.
+        assertFalse(SharedAnswer.isBackup("""{"notes":"not a tj-portfolio-backup","transactions":[]}"""))
+    }
+
+    @Test fun `A-1 an epoch-number date in an answer is a real date, not an estimate`() {
+        val r = ClaudeBridge.parse("""{"portfolioAppResponse":1,"transactions":[
+            {"type":"BUY","symbol":"NVDA","quantity":10,"price":100,"date":1726156800000},
+            {"type":"BUY","symbol":"AAPL","quantity":1,"price":200,"date":1726156800}]}""")
+        assertEquals(2, r.transactions.size)
+        r.transactions.forEach { t ->
+            assertEquals(1_726_156_800_000L, t.date)
+            assertFalse("${t.symbol} must not be flagged estimated",
+                (t.note ?: "").contains(Txn.DATE_ESTIMATED))
+        }
+        assertNull(ClaudeBridge.epochDate(42))
+        assertNull(ClaudeBridge.epochDate("1726156800000"))
     }
 }
