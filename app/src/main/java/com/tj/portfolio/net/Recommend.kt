@@ -82,13 +82,22 @@ object Recommend {
             price = price,
             dayKey = MarketClock.dayKey(now),
             computedAt = now,
-            ratingsDated = voting != null,
+            // DATED = THE DATES CAME THROUGH AND WERE USED (full test 2026-09-24, S-1), which is
+            // `panel != null` - not "some of them vote". Tied to `voting` it was false for
+            // exactly the S-9 case (dated, no readable grade), so `freshnessNote` printed "no
+            // publication dates" under a verdict that had used them. `currentRatings` stays the
+            // VOTING firms, which is what lets the note reach its S-9 sentence.
+            ratingsDated = panel != null,
             currentRatings = voting?.firms ?: 0,
             staleRatingsDropped = voting?.droppedStale ?: 0,
             effectiveAnalysts = voting?.effectiveAnalysts ?: 0.0,
             newestRatingDays = voting?.newestAgeDays ?: -1,
+            // THE SCORER'S OWN TRUST, branch for branch (S-1): a dated-but-voteless panel caps
+            // the consensus at the panel's currency in `ResearchScore.holding`, so the popup's
+            // "counted at N%" must too.
             analystWeight = voting?.strength
-                ?: (if (c?.hasVotes == true) RatingRecency.undatedTrust(fundamentals.trend, allStale) else 0.0),
+                ?: (if (c?.hasVotes == true) RatingRecency.undatedTrust(fundamentals.trend, allStale)
+                    .let { t -> if (panel != null) minOf(t, panel.currency) else t } else 0.0),
             allRatingsStale = allStale,
             targetIsWeighted = weighted != null,
             targetAgeDays = weighted?.targetAgeDays ?: -1,
