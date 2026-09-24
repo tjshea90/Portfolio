@@ -309,6 +309,16 @@ Share the file to the Portfolio app, or import it (or your saved reply) in the a
         if (templateHits(s) > 0) "" else s
 
     /** True when this is one of the app's own prompt files rather than a reply. */
+    /** Epoch milliseconds (or seconds) between 1990 and 2100 as a date; anything else null. */
+    internal fun epochDate(v: Any?): Long? {
+        val n = (v as? Number)?.toLong() ?: return null
+        return when (n) {
+            in 631_152_000_000L..4_102_444_800_000L -> n            // ms
+            in 631_152_000L..4_102_444_800L -> n * 1000L             // seconds
+            else -> null
+        }
+    }
+
     fun isPromptFile(text: String): Boolean {
         if (text.contains(PROMPT_MARK)) return true
         val low = text.lowercase()
@@ -428,7 +438,9 @@ Share the file to the Portfolio app, or import it (or your saved reply) in the a
             if ((type == TxnType.BUY || type == TxnType.SELL) && (qty < 1e-9 || sym == null)) {
                 unusable++; continue
             }
-            val parsedDate = Fmt.parseDate(dateStr)
+            // A date given as an epoch NUMBER (A-1: any JSON export does this) is a real date,
+            // not a missing one - estimating it as "today" threw the history away.
+            val parsedDate = Fmt.parseDate(dateStr) ?: epochDate(o.opt("date"))
             val date = parsedDate ?: Fmt.todayMs()
             val note = o.optString("note").ifBlank { null }
             txns.add(

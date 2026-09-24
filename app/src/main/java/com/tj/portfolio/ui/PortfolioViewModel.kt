@@ -6326,6 +6326,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Parse a Claude-app reply file and route it to advice and/or the import review. */
     fun importClaudeFile(text: String): String {
+        // A backup picked by mistake is not an answer (A-1) - same check the share path makes.
+        if (com.tj.portfolio.net.SharedAnswer.isBackup(text)) return com.tj.portfolio.net.SharedAnswer.BACKUP_MESSAGE
         // Round 54: one file chooser, three kinds of answer. A research reply is recognised
         // by its own payload key and handled first, so importing it from the Advice tab by
         // mistake fills the Research tab instead of reporting "nothing usable".

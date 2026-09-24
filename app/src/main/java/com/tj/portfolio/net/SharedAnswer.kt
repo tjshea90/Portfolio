@@ -32,6 +32,15 @@ object SharedAnswer {
         /** One of this app's own prompt files: the question, not the answer. */
         PROMPT_FILE,
 
+        /**
+         * One of this app's own BACKUP files (full test 2026-09-24, A-1). Its root holds a
+         * `transactions` array, so it used to fall through to [CLAUDE] and be imported as an
+         * answer: every row re-dated to today (backup dates are epoch numbers) and marked
+         * "date estimated", splits dropped, cash rows offered as new. A backup is restored
+         * from Settings, where Merge/Replace are explained - never through the answer importer.
+         */
+        BACKUP,
+
         /** A Day Trading answer ([DayTradingBridge]). */
         DAY_TRADING,
 
@@ -53,6 +62,7 @@ object SharedAnswer {
         if (text == null || text.isBlank()) return Kind.EMPTY
         if (!looksLikeText(text)) return Kind.NOT_TEXT
         if (ClaudeBridge.isPromptFile(text)) return Kind.PROMPT_FILE
+        if (isBackup(text)) return Kind.BACKUP
         if (DayTradingBridge.looksLikeDayTrading(text)) return Kind.DAY_TRADING
         if (ResearchBridge.looksLikeResearch(text)) return Kind.RESEARCH
         return Kind.CLAUDE
@@ -77,11 +87,28 @@ object SharedAnswer {
         return bad * 100 <= n // at most 1%
     }
 
+    /**
+     * A Portfolio backup: a JSON object whose `format` is [com.tj.portfolio.data.Db.BACKUP_FORMAT].
+     * The substring test keeps an ordinary answer from paying for a parse.
+     */
+    fun isBackup(text: String): Boolean {
+        if (!text.contains(com.tj.portfolio.data.Db.BACKUP_FORMAT)) return false
+        return runCatching {
+            org.json.JSONObject(text.trim()).optString("format") == com.tj.portfolio.data.Db.BACKUP_FORMAT
+        }.getOrDefault(false)
+    }
+
+    /** What to say when a backup arrives where an answer was expected. */
+    const val BACKUP_MESSAGE =
+        "That's a Portfolio backup, not a Claude answer - nothing was imported. To restore it, " +
+            "use Settings > Restore from a backup file."
+
     /** The plain-language reply for a share that is not something the app can import. */
     fun rejection(kind: Kind): String? = when (kind) {
         Kind.EMPTY -> "That share was empty - nothing to import."
         Kind.NOT_TEXT ->
             "That isn't a text file. Share the .md answer file Claude wrote, not an image or PDF."
+        Kind.BACKUP -> BACKUP_MESSAGE
         Kind.PROMPT_FILE ->
             "That is the prompt file this app wrote - the question, not Claude's answer. Share " +
                 "it to a Claude chat, then share the file Claude writes back here."
