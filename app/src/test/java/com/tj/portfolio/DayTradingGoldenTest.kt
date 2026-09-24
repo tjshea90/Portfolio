@@ -25,7 +25,7 @@ import java.util.Random
  * it follows the real calendar's half days.
  *
  * To regenerate (ONLY if the ORIGINAL engine itself is deliberately changed - never to make a
- * tuning refactor pass): delete the fixture and run with -Dgolden.write=true.
+ * tuning refactor pass): delete the fixture and run with GOLDEN_WRITE=1 in the environment.
  */
 class DayTradingGoldenTest {
 
@@ -127,7 +127,7 @@ class DayTradingGoldenTest {
     @Test fun defaultEngineReproducesTheOriginalExactly() {
         val now = lines()
         val f = File(fixture)
-        if (!f.exists() && System.getProperty("golden.write") == "true") {
+        if (!f.exists() && System.getenv("GOLDEN_WRITE") == "1") {
             f.parentFile.mkdirs()
             f.writeText(now.joinToString("\n") + "\n")
         }
