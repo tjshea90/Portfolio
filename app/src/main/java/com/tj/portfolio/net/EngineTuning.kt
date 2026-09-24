@@ -570,14 +570,14 @@ object EngineTuning {
 
     /** Three decimals for a number, a whole number for a count, 0/1 for a switch - what the prompt shows. */
     private fun roundFor(v: Double, spec: DayTradingParams.Spec): Double = when (spec.kind) {
-        DayTradingParams.Kind.NUMBER -> java.math.BigDecimal(v).setScale(3, java.math.RoundingMode.HALF_UP).toDouble()
+        DayTradingParams.Kind.NUMBER -> java.math.BigDecimal.valueOf(v).setScale(3, java.math.RoundingMode.HALF_UP).toDouble()
         else -> v
     }
 
     /** A limited step, rounded TOWARD [from] - so rounding never takes it past the step it was limited to. */
     private fun towards(v: Double, from: Double, spec: DayTradingParams.Spec): Double = when (spec.kind) {
         DayTradingParams.Kind.INT -> if (v > from) kotlin.math.floor(v) else kotlin.math.ceil(v)
-        DayTradingParams.Kind.NUMBER -> java.math.BigDecimal(v).setScale(3,
+        DayTradingParams.Kind.NUMBER -> java.math.BigDecimal.valueOf(v).setScale(3,
             if (v > from) java.math.RoundingMode.FLOOR else java.math.RoundingMode.CEILING).toDouble()
         else -> v
     }
