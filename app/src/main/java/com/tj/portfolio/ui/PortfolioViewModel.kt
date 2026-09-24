@@ -2442,6 +2442,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      *  write is still owed - see its `throttleMs`. */
     private var researchPersistedAt = 0L
     @Volatile private var researchPersistOwed = false
+    /** Publish order of research-cache writes, and the newest one on disk (A-11) - see
+     *  [persistResearch]. */
+    private val researchPersistSeq = java.util.concurrent.atomic.AtomicLong(0L)
+    @Volatile private var researchWrittenSeq = 0L
+    private val researchPersistLock = kotlinx.coroutines.sync.Mutex()
     /** True once [enrichDayTradingVisible]'s one-time full-section sweep has run for the
      *  current rebuild - see its own header. Reset on every rebuild. */
     private var dayTradingSweepDone = false
@@ -6842,8 +6847,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private fun persistResearch(set: com.tj.portfolio.data.ResearchSet, now: Long) {
         researchPersistedAt = now
         researchPersistOwed = false
+        // NEWEST PUBLISH WINS, NOT LAST WRITER (full test 2026-09-24, A-11). Each publish is its
+        // own IO job; two a few milliseconds apart (a Claude import and a sweeping tick) ran in
+        // parallel, and an older set - without the just-imported answer - could land last and
+        // be what the next cold start loaded. Numbered in publish order; one writer at a time;
+        // a set older than the one already written is dropped.
+        val seq = researchPersistSeq.incrementAndGet()
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching { db.set(Keys.RESEARCH_CACHE, set.toJson().toString()) }
+            researchPersistLock.withLock {
+                if (seq < researchWrittenSeq) return@withLock
+                runCatching { db.set(Keys.RESEARCH_CACHE, set.toJson().toString()) }
+                researchWrittenSeq = seq
+            }
         }
     }
 
