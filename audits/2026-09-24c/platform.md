@@ -323,3 +323,4 @@ pending proposal text in a non-backed-up setting like `PENDING_IMPORT`.
 9. **Share routing**: a tuning answer via `importClaudeFile` (Advice/Activity) navigates to the review;
    an unreadable tuning share returns `dest = null` (PL-14).
 
+## END OF REPORT (complete)
