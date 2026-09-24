@@ -120,8 +120,9 @@ class DayTradingParamsTest {
         val rr = plan(DEFAULTS).first!!.rMultiple
         assertNull(plan(DEFAULTS.with(mapOf(DayTradingParams.MIN_RR to (rr + 0.5).coerceIn(0.5, 4.0)))).first)
         assertNotNull(plan(DEFAULTS.with(mapOf(DayTradingParams.MIN_RR to 0.5))).first)
-        // trigger 100.2 + buffer is ~0.5 ATR above the 100.0 price
-        assertNull(plan(DEFAULTS.with(mapOf(DayTradingParams.MAX_TRIGGER_ATRS to 0.5)), price = 99.5).first)
+        // trigger 100.2 + buffer is 0.75 ATR above a 99.9 price
+        assertNull(plan(DEFAULTS.with(mapOf(DayTradingParams.MAX_TRIGGER_ATRS to 0.5)), price = 99.9).first)
+        assertNotNull(plan(DEFAULTS.with(mapOf(DayTradingParams.MAX_TRIGGER_ATRS to 1.0)), price = 99.9).first)
     }
 
     @Test fun minScoreAndOpeningBarFilters() {
