@@ -1675,6 +1675,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Serialises [importSharedInbox] - see its ONE DRAIN AT A TIME note. */
     private val shareDrain = kotlinx.coroutines.sync.Mutex()
 
+    /**
+     * ONE WRITER OF THE DOWNLOADS AUTOSAVE AT A TIME (full test 2026-09-24, A-9). Each
+     * [autoBackupIfDue] was its own IO launch opening the same file with "wt", so an import
+     * committed while the launch autosave was writing could interleave two truncate-and-writes
+     * in the one uninstall-proof copy. The export runs inside the lock too, so the run that
+     * writes last also exported last.
+     */
+    private val autosaveWrite = kotlinx.coroutines.sync.Mutex()
+
     private val _models = MutableStateFlow<List<String>>(emptyList())
     val models: StateFlow<List<String>> = _models.asStateFlow()
 
@@ -8353,7 +8362,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun tidyDownloadsOnce() {
         if (db.getB(Keys.DOWNLOADS_TIDIED, false)) return
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) { autosaveWrite.withLock {   // A-9
             val app = getApplication<Application>()
             val store = com.tj.portfolio.util.Storage
             var removed = 0
@@ -8467,7 +8476,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val last = maxOf(lastAutoBackup(), db.get(Keys.AUTOSAVE_AT).toLongOrNull() ?: 0L)
         val dayMs = 24 * 60 * 60 * 1000L
         if (!force && System.currentTimeMillis() - last < dayMs) return
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(Dispatchers.IO) { autosaveWrite.withLock {
             val json = runCatching { db.exportJson() }.getOrNull() ?: return@launch
             val now = System.currentTimeMillis()
 
@@ -8506,7 +8515,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }.getOrNull()
             if (pub != null) db.set(Keys.AUTOSAVE_AT, now.toString())
-        }
+        } }
     }
 
     fun lastAutosave(): Long = db.get(Keys.AUTOSAVE_AT).toLongOrNull() ?: 0L
