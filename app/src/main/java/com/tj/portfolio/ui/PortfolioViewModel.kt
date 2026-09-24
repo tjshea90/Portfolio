@@ -1685,6 +1685,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     private var autoJob: Job? = null
 
+    /**
+     * The quote pass `refresh()` launched most recently (full test 2026-09-24, L-2). Re-entry
+     * is judged on THIS - a cancelled job reports inactive at once - not on `_ui.loading`,
+     * which a cancelled pass only clears in its `finally`, after its blocking read returns.
+     * Coming back to the app inside that window used to hit the `loading` guard and start no
+     * replacement pass, leaving prices as of before the glance for a whole interval.
+     */
+    private var quoteJob: Job? = null
+
     /** The feed pass currently in flight, so leaving the app can stop it. */
     private var feedJob: Job? = null
 
@@ -2774,7 +2783,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * rather than snapping back with nothing happening.
      */
     fun refresh(manual: Boolean = false) {
-        if (_ui.value.loading) {
+        if (_ui.value.loading && quoteJob?.isActive != false) {
             if (manual) _ui.value =
                 _ui.value.copy(manualRefresh = true, refreshSource = PULL_PRICES)
             return
@@ -2817,7 +2826,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // THE DATABASE WRITE STAYS ON `viewModelScope` (see below). That is the whole rule
         // this project follows: if the answer is only useful while the screen is up, it is
         // cancellable; if it must not be lost, it is not.
-        fgScope.launch {
+        quoteJob = fgScope.launch {
             _ui.value = _ui.value.copy(
                 loading = true,
                 manualRefresh = manual || _ui.value.manualRefresh,
@@ -2953,8 +2962,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 _ui.value = _ui.value.copy(error = "Refresh failed: ${e.message}")
             } finally {
                 // must always clear `loading`, or every later refresh() returns at the guard
-                // above and pull-to-refresh is dead for the session
-                _ui.value = _ui.value.copy(loading = false)
+                // above and pull-to-refresh is dead for the session - UNLESS a newer pass has
+                // already replaced this cancelled one (L-2): its flag is not ours to clear.
+                val superseded = quoteJob != null && quoteJob !== coroutineContext[Job]
+                if (!superseded) _ui.value = _ui.value.copy(loading = false)
                 // The spinner is DERIVED, not cleared by hand - see syncManualIndicator. This
                 // used to blank `manualRefresh` unconditionally, which is the mirror image of
                 // the bug fixed there: a quote refresh finishing would snatch the spinner away
