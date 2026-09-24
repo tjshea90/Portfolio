@@ -327,6 +327,40 @@ class Improve0924bTest {
         assertEquals(null, vm.dataShrank.value)
     }
 
+    // ---- Research and screens.
+
+    @Test fun `a Claude paragraph says how old it is by market day`() {
+        val now = ny(2026, 9, 24, 12)
+        assertEquals(", TODAY", com.tj.portfolio.ui.claudeAge(ny(2026, 9, 24, 8), now))
+        assertEquals(", YESTERDAY", com.tj.portfolio.ui.claudeAge(ny(2026, 9, 23, 23), now))
+        assertEquals(", 3 DAYS AGO", com.tj.portfolio.ui.claudeAge(ny(2026, 9, 21, 9), now))
+        assertEquals("", com.tj.portfolio.ui.claudeAge(0L, now))
+    }
+
+    @Test fun `the row badge marks old analyst input, and only when there was some`() {
+        val base = com.tj.portfolio.data.Recommendation(symbol = "AAA",
+            verdict = com.tj.portfolio.data.TradeVerdict.HOLD, score = 50, reasons = emptyList(), confidence = 60)
+        assertFalse("no analysts at all is not 'old ratings'", base.copy(analystWeight = 0.0).staleAnalystMark)
+        assertTrue(base.copy(analystWeight = 0.4, analystCount = 12, allRatingsStale = 12).staleAnalystMark)
+        assertFalse("counted in full", base.copy(analystWeight = 1.0, analystCount = 12, ratingsDated = true,
+            currentRatings = 12).staleAnalystMark)
+    }
+
+    @Test fun `a merged ETF card keeps every fund it stands for, with fee and 5Y, through the cache`() {
+        val names = listOf("Vanguard S&P 500 ETF" to "VOO", "iShares Core S&P 500 ETF" to "IVV",
+            "SPDR Portfolio S&P 500 ETF" to "SPLG", "Invesco QQQ Trust" to "QQQ")
+        val out = com.tj.portfolio.net.EtfExposure.dedupeRows(names) { it.first }
+        assertEquals(listOf("VOO", "QQQ"), out.map { it.first.second })
+        assertEquals(listOf("IVV", "SPLG"), out.first().second.map { it.second })
+        // The old symbol-only form still says the same thing.
+        assertEquals(listOf("IVV", "SPLG"),
+            com.tj.portfolio.net.EtfExposure.dedupe(names, { it.first }, { it.second }).first().second)
+        val row = ResearchRow(symbol = "VOO", alternatives = listOf(
+            com.tj.portfolio.data.EtfAlternative("IVV", "iShares Core S&P 500 ETF", 0.03, 14.8),
+            com.tj.portfolio.data.EtfAlternative("SPLG", "", -1.0, 0.0)))
+        assertEquals(row.alternatives, ResearchRow.fromJson(row.toJson())!!.alternatives)
+    }
+
     // ---- L-4: Android 14+ only ever sends 20 and 40.
 
     private fun settle() {
