@@ -2605,6 +2605,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** "sym|level|day" already announced - each level speaks once a day (2026-09-24b). */
     private val announcedLevels = java.util.Collections.synchronizedSet(HashSet<String>())
 
+    /** A private snapshot the recovery card is offering (2026-09-24b) - see checkForRecoverableBackup. */
+    @Volatile private var recoverableSnapshot: java.io.File? = null
     /** When a Claude Research answer was last imported (R1-4) - see [researchStale]. In memory:
      *  after a process death the list simply follows its own clocks again. */
     private var researchImportedAt = 0L
@@ -2833,9 +2835,23 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 !text.isNullOrBlank() &&
                     (JSONObject(text).optJSONArray("transactions")?.length() ?: 0) > 0
             }.getOrDefault(false)
-            if (found) _recoverableBackup.value = true
+            // ---- OR THE PRIVATE SNAPSHOTS ANDROID BROUGHT BACK (persistence idea 1,
+            // 2026-09-24b). Cloud backup excludes the database but not files/backups/, so a
+            // reinstall restored from Google's backup arrives with an empty ledger and last
+            // week's snapshots beside it - and only the Downloads copy used to be looked for.
+            if (!found) recoverableSnapshot = newestPortfolioSnapshot()
+            if (found || recoverableSnapshot != null) _recoverableBackup.value = true
         }
     }
+
+    /** The newest private snapshot that actually holds transactions, or null. */
+    private fun newestPortfolioSnapshot(): java.io.File? =
+        com.tj.portfolio.util.Storage.appBackups(getApplication()).firstOrNull { f ->
+            runCatching { backupTxnCount(f.readText()) > 0 }.getOrDefault(false)
+        }
+
+    /** True when the recovery card is offering a private snapshot, not the Downloads copy. */
+    fun recoverableIsSnapshot(): Boolean = recoverableSnapshot != null
 
     fun dismissRecoverableBackup() { _recoverableBackup.value = false }
 
@@ -8836,6 +8852,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     // for a deliberate restore through Settings' file picker, which is the only
                     // place a person can judge which of the two they mean.
                     com.tj.portfolio.util.Storage.readOwnDownload(getApplication(), AUTOSAVE_FILE)
+                        ?.takeIf { backupTxnCount(it) > 0 }
+                        // The snapshot the card offered when there was no Downloads copy.
+                        ?: recoverableSnapshot?.readText()
                 }.getOrNull()
             }
             onDone(text)

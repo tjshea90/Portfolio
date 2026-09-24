@@ -560,6 +560,7 @@ private fun FoundBackupCard(
     setRestoring: (Boolean) -> Unit
 ) {
     val savedAt = remember { vm.lastAutosave() }
+    val fromSnapshot = remember { vm.recoverableIsSnapshot() }
     Column(Modifier.fillMaxWidth().padding(16.dp)) {
         StatCard {
             Text(
@@ -570,13 +571,19 @@ private fun FoundBackupCard(
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "This app has no transactions yet, but the automatic copy it keeps in " +
-                    "Downloads is still here - which is what you would expect after " +
-                    "reinstalling the app or clearing its storage. Restoring brings back " +
-                    "every transaction, override and watchlist symbol.",
+                if (fromSnapshot)
+                    "This app has no transactions yet, but Android brought back one of the " +
+                        "private daily copies it keeps - which is what you would expect after " +
+                        "reinstalling from a phone backup. Restoring brings back every " +
+                        "transaction, override and watchlist symbol it holds."
+                else
+                    "This app has no transactions yet, but the automatic copy it keeps in " +
+                        "Downloads is still here - which is what you would expect after " +
+                        "reinstalling the app or clearing its storage. Restoring brings back " +
+                        "every transaction, override and watchlist symbol.",
                 style = MaterialTheme.typography.bodyMedium
             )
-            if (savedAt > 0) {
+            if (savedAt > 0 && !fromSnapshot) {
                 Text(
                     "Written ${Fmt.relative(savedAt)}",
                     style = MaterialTheme.typography.bodySmall,
