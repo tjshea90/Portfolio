@@ -119,7 +119,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         }
     }
 
-    // `infoTick++` ON THE PULL (Round 66 audit, EXP-1). The "Requests in the last hour" card
+    // A TICK ON THE PULL (Round 66 audit, EXP-1; `rateTick` since 2026-09-24, U-Q2). The "Requests in the last hour" card
     // tells the reader to pull down to update its figures, and pulling could not: the value
     // lives in a `remember(infoTick, refresh)`, and `vm.refresh(manual = true)` touches
     // neither key. The card recomposed and handed back the same cached list it captured when
