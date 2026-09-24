@@ -173,7 +173,8 @@ val redText: Color
  */
 @Composable
 /** Zero at the precision the figures are shown at is not a loss (U-7) - see [Fmt.snapZero]. */
-fun signColor(v: Double): Color = if (Fmt.snapZero(v) >= 0) greenText else redText
+fun signColor(v: Double): Color =
+    if (com.tj.portfolio.util.Fmt.snapZero(v) >= 0) greenText else redText
 
 /**
  * THE LINE BETWEEN ONE STOCK AND THE NEXT, AS A COLOUR (Round 66 audit, PUI-4).
