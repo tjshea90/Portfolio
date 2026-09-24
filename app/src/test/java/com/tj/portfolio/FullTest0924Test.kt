@@ -309,4 +309,26 @@ class FullTest0924Test {
         assertFalse(m("portfolio-autosave (1).json.bak", "portfolio-autosave.json"))
         assertFalse(m("other (1).json", "portfolio-autosave.json"))
     }
+
+    // ---- S-1: the popup describes the branch the score used for a dated, voteless panel.
+
+    @Test fun `S-1 a dated panel with no readable grade is not called undated, and its weight matches`() {
+        val now = 1_800_000_000_000L
+        val f = com.tj.portfolio.data.Fundamentals(
+            symbol = "XYZ",
+            values = mapOf("marketCap" to 1e10),
+            consensus = com.tj.portfolio.data.Consensus(mean = 2.0, analysts = 8, buy = 6, hold = 2,
+                targetMean = 120.0),
+            ratings = listOf(com.tj.portfolio.data.AnalystRating(
+                firm = "Firm", date = now - 200L * 86_400_000L, toGrade = "", target = 0.0)),
+            fetched = now
+        )
+        val rec = com.tj.portfolio.net.Recommend.build("XYZ", 100.0, f, now = now)!!
+        val note = rec.freshnessNote()
+        assertFalse("the dates were there and were used: $note", note.contains("no publication dates"))
+        assertTrue(note, note.contains("dated"))
+        val panel = com.tj.portfolio.net.RatingRecency.panel(f.ratings, now)!!
+        assertTrue("the popup's weight must be capped by the panel's currency like the score's: " +
+            "${rec.analystWeight} vs ${panel.currency}", rec.analystWeight <= panel.currency + 1e-9)
+    }
 }
