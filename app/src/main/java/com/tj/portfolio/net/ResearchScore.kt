@@ -934,7 +934,9 @@ object ResearchScore {
             target = target,
             exit = exitPlan(
                 target, minutesLeft, live,
-                closeMinute = if (live) MarketClock.closeMinuteAt(System.currentTimeMillis()) else 16 * 60
+                // The session this plan is FOR, live or not (D-7): 16:00 was assumed outside the
+                // session, so a pre-market plan on a half day said 15:50.
+                closeMinute = MarketClock.planCloseMinute(System.currentTimeMillis())
             ),
             tooLateToStart = tooLate,
             setup = setup,

@@ -160,6 +160,20 @@ object MarketClock {
         return if (trading && etMinutes(c) < closeMinute(c)) dayKey(t) else dayKey(nextOpenAfter(t))
     }
 
+    /**
+     * The close of the session a plan made at [now] is for (full test 2026-09-24, D-7): today's
+     * while today's session is still ahead or running, the next session's otherwise - so a plan
+     * made on the evening before a half day, or in its pre-market, says 12:50, not 15:50.
+     */
+    fun planCloseMinute(now: Long): Int {
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = now
+        val dow = c.get(Calendar.DAY_OF_WEEK)
+        val trading = dow != Calendar.SATURDAY && dow != Calendar.SUNDAY && !isHoliday(c)
+        return if (trading && etMinutes(c) < closeMinute(c)) closeMinute(c)
+        else closeMinuteAt(nextOpenAfter(now))
+    }
+
     /** [closeMinute] for the New York date [ms] falls on - 13:00 on a half day, else 16:00. */
     fun closeMinuteAt(ms: Long): Int {
         val c = Calendar.getInstance(ET)
