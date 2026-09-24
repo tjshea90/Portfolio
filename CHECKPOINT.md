@@ -1,13 +1,13 @@
-# CHECKPOINT 1689 — read me first, then TASKS.md
+# CHECKPOINT 1690 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T17:39:06Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/complete-code-tests-crujka` · **builds on:** `b2fc5ed9` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T17:45:50Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/complete-code-tests-crujka` · **builds on:** `12d0989a` (this checkpoint is the commit after it)
 
 ## Just done
-v7.40 shipped: run #42 green, Release published, BUILDLOG recorded; full-tests job complete. Open items for Tj listed in TASKS.md
+Recorded Tj's 09-24b request (all recommended changes + Claude app share round trip) in TASKS.md
 
 ## Do this next
-Wait for Tj's answers on the open items in TASKS.md (WAITING ON TJ); nothing else pending
+Part 2 audit first (share flow code), then Part 1 in batches with tests
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Wait for Tj's answers on the open items in TASKS.md (WAITING ON TJ); nothing els
 
 ## Last ten checkpoints
 ```
+  12d0989a ckpt 1689: v7.40 shipped: run #42 green, Release published, BUILDLOG recorded; full-tes
   dc9ffd11 ckpt 1688: gated v7.40 (code 97) and pushed it: checkinit, the full unit suite and the 
   4e28011d ckpt 1687: Review findings R1-1..9, R2-1..7 all fixed + R1-2b (or5 carried) + R2-1 exte
   5db3a9ae ckpt 1686: Both independent reviews complete: 16 findings (R1-1..9, R2-1..7) recorded
@@ -26,6 +27,3 @@ Wait for Tj's answers on the open items in TASKS.md (WAITING ON TJ); nothing els
   b4013ea0 ckpt 1682: U-4..U-8 fixed (+2 tests); all L findings done
   5c5835ab ckpt 1681: S-3, S-9..S-12 fixed (+5 tests)
 ```
-
-(1 automatic checkpoint(s) since the last deliberate one — the
-session was still mid-step. `git diff` against it shows what changed.)

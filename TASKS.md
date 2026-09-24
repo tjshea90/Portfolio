@@ -1,5 +1,54 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-24b (his own words)
+
+> I'm not picky. Add/change all the things you recommended that are good for an android 16
+> phone, good UI behavior that matches popular apps, good for performance or function, Anthony
+> to make the app better, but nothing should sacrifice accuracy or function. I have unlimited
+> fast mobile data and good device storage. I want the app to be fast and snappy but also
+> accurate. Then make it so if I do any prompt file for the Claude app (the feature shown in the
+> attached screenshot), it automatically brings up the android "share with" menu, and I can
+> select Claude in the menu. Then when Claude gets the file, it automatically knows how to
+> handle and respond to it with no explanation from me. And if possible, once Claude makes the
+> response, that also can bring up a share with menu and I can share it back to the portfolio
+> app, and the portfolio app will know exactly how to handle the imported file from the share
+> with feature and it will import all the information from the file. After any changes, run the
+> full test suite. The app should be well coded and optimized for Android 16 Moto g 2026, and
+> the new features should work well without breaking anything else.
+
+(Screenshot: the Advice tab - "Re-analyze", "Make prompt file" / "Import reply", "Generated
+Sep 8". "Anthony" = "anything". "Things you recommended" = the open-items list sent 17:30 UTC,
+recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and the audits'
+"Ideas - need Tj's approval" lists in audits/2026-09-24/*.md. Branch
+`claude/complete-code-tests-crujka`, builds on 12d0989a (v7.40 shipped).)
+
+### Part 1 - the recommended changes (skip only what would cost accuracy/function; say why)
+- [ ] Decisions: L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
+      C-7 chip-only range persistence + reset to chip, C-9 5D closed-market gaps, same-bar
+      entry/stop tie in DayTradingEval resolved with finer bars (pessimistic only if unknowable),
+      U-Q5 back from a searched stock returns to the results, U-Q6 ticking "updated" labels
+- [ ] Charts ideas 1-8 (session-compressed 5D, touch-down value, ET clock, vs SPY in full
+      screen, stale "as of" label, previous-close price label, volume bars 1D/5D, double-tap reset)
+- [ ] Day Trading ideas (Claude + app plans both logged / compared, success by setup and time
+      of day, "logged plan today" on the detail screen, in-app entry/stop alerts - battery-safe)
+- [ ] Network ideas (analyst consensus memo across rebuilds, one quoteSummary on first open,
+      D5/M1 chart finality while closed, persist insiderAt/deepNewsAt, Http test seam)
+- [ ] Data ideas (recover from Android-restored snapshots, txn ids in backups, "data shrank"
+      max-count alarm, transfer-in transaction type)
+- [ ] Research ideas ("Claude, N days ago" on cards, stale-analyst chip on the badge, "other
+      ways to hold this exposure" on de-duplicated ETF cards)
+- [ ] Screens ideas (say what is refreshing, swipe between Research sections, faster startup:
+      init's SQLite work off the first frame) + deferred perf items worth doing (C-Q1/C-Q2)
+### Part 2 - the Claude app round trip
+- [ ] Every "Make prompt file" opens the Android share sheet (Claude pickable) - audit all paths
+- [ ] The prompt file alone tells Claude exactly what to do and to answer AS A FILE (plus the
+      JSON inline as a fallback), no explanation needed from Tj
+- [ ] Claude's answer shared back (file OR text) -> Portfolio recognises the kind, imports all of
+      it and opens the right screen
+### Part 3 - verify and ship
+- [ ] Full unit suite + checkinit green after all changes; review the whole diff for breakage
+- [ ] Ship (auto-ship rule), post the Release link, summarize
+
 ## Tj's request, 2026-09-24 (his own words)
 
 > Run full tests on this app
