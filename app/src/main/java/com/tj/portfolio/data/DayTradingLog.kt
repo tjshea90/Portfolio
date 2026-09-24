@@ -36,6 +36,8 @@ data class DayTradingLogEntry(
     companion object {
         const val SOURCE_APP = "APP"
         const val SOURCE_CLAUDE = "CLAUDE"
+        /** [engine] for a Claude plan - no engine version made its levels. */
+        const val ENGINE_CLAUDE = "claude"
     }
 }
 

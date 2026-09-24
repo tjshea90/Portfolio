@@ -1330,10 +1330,33 @@ internal fun mergeDayTradingTech(
  * the log's one-row-per-day rule then locked the real live plan out for the day.
  */
 internal fun replannedLive(
-    fetched: Map<String, com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals?>
+    fetched: Map<String, com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals?>,
+    now: Long = System.currentTimeMillis()
 ): Set<String> = fetched.filterValues {
-    it != null && it.sessionLive && it.sessionDay.isNotBlank() && it.lastPrice > 0.0
+    it != null && it.sessionLive && it.sessionDay.isNotBlank() && it.lastPrice > 0.0 &&
+        // AND FROM A FEED THAT IS ACTUALLY MOVING (2026-09-24c, audit E6): a newest bar more than
+        // ten minutes old means a halted stock or a stalled feed - a plan built on that price is
+        // not one Tj could have traded at it. (0 = not reported, as in hand-built test readings.)
+        (it.lastBarAt <= 0L || now / 1000L - it.lastBarAt <= LIVE_BAR_MAX_AGE_SEC)
 }.keys
+
+/** How old the newest intraday bar may be for a plan to count as live (2026-09-24c, E6). */
+internal const val LIVE_BAR_MAX_AGE_SEC = 10L * 60L
+
+/**
+ * IS THIS PLAN STILL WAITING FOR ITS ENTRY - the only state in which the card is a clean
+ * instruction (2026-09-24c, audit E5). Stop below the price, target above it, and the price on
+ * the near side of the entry: under a buy-stop, over a buy-limit. The app's own plans always are
+ * at the moment they are made; a Claude plan made hours earlier may already be past its entry,
+ * target or stop - the card calls that "too late" or "skip", and a trade it told Tj not to take
+ * must not be graded as one he took.
+ */
+internal fun planWaiting(r: com.tj.portfolio.data.ResearchRow): Boolean {
+    if (r.price <= r.stopPrice || r.price >= r.targetPrice) return false
+    val rises = com.tj.portfolio.net.ResearchScore.planEntryRises(r.setup, r.entryPrice, loggedPlanPrice(r))
+        ?: (r.entryPrice > r.price)
+    return if (rises) r.price < r.entryPrice else r.price > r.entryPrice
+}
 
 /**
  * Whether a sweep tick refreshed the WHOLE Day Trading list from today's bars - the only tick
@@ -1431,7 +1454,10 @@ internal fun loggableDayTradingRows(
         it.price > 0.0 && it.sessionDay == today &&
         !it.tooLateToStart && it.planDeclineStreak == 0 &&
         // A tuned engine's "not yet" window (2026-09-24c): the card says wait, so it is not an instruction.
-        it.planWait.isBlank()
+        it.planWait.isBlank() &&
+        // Still a clean instruction (E5), and a price a cent tick means something on (US sub-$1
+        // stocks quote in fractions of a cent; the section's own floor is $2).
+        it.price >= 1.0 && planWaiting(it)
 }
 
 /** At most this many log rows are resolved per "Check" press - see D-6 in evaluateDayTradingLog. */
@@ -7148,8 +7174,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun captureDayTradingRecommendations(
         rows: List<com.tj.portfolio.data.ResearchRow>,
-        liveNow: Set<String>
+        fetched: Map<String, com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals?>
     ) {
+        val liveNow = replannedLive(fetched)
         if (liveNow.isEmpty()) return
         if (com.tj.portfolio.net.MarketClock.phase() != com.tj.portfolio.net.MarketClock.Phase.OPEN) return
         val today = com.tj.portfolio.net.MarketClock.dayKey()
@@ -7194,6 +7221,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val priced = loggableDayTradingRows(rows.take(shown), today, liveNow)
         if (priced.isEmpty()) return
         val recordedAt = System.currentTimeMillis()
+        // The engine that made these plans, and the moment's clock - read once for the batch.
+        val engineParams = com.tj.portfolio.net.DayTradingEngine.params
+        val engineVersion = com.tj.portfolio.net.DayTradingEngine.version
+        val mso = com.tj.portfolio.net.MarketClock.minutesSinceOpen(recordedAt)
+        val mleft = com.tj.portfolio.net.MarketClock.minutesLeftInSession(recordedAt)
+        val lull = com.tj.portfolio.net.MarketClock.inMiddayLull(recordedAt)
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 db.logDayTradingRecommendations(priced.map { r ->
@@ -7211,7 +7244,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // breakout - the opposite of what the card (D-9) told Tj.
                         priceAtRecommendation = loggedPlanPrice(r),
                         source = if (r.planByClaude) com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE
-                        else com.tj.portfolio.data.DayTradingLogEntry.SOURCE_APP
+                        else com.tj.portfolio.data.DayTradingLogEntry.SOURCE_APP,
+                        // Which engine made it and what it was made under (2026-09-24c) - the
+                        // tuning loop learns from these, and the grade uses the plan's own
+                        // cancel-by and flat-by times from them.
+                        engine = if (r.planByClaude) com.tj.portfolio.data.DayTradingLogEntry.ENGINE_CLAUDE
+                        else com.tj.portfolio.net.DayTradingEngine.label(engineVersion),
+                        features = com.tj.portfolio.net.DayTradingFeatures.build(
+                            r, today, recordedAt, fetched[r.symbol]?.lastBarAt ?: 0L, r.planByClaude,
+                            mso, mleft, lull, engineParams, engineVersion
+                        ).toString()
                     )
                 })
             }
@@ -8404,7 +8446,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // the daily leg is memoised, so a row whose intraday request failed still read as
             // "not empty" - and on a failed first 09:30 tick its pre-market plan and price were
             // logged, and the one-row-per-day rule then locked the real plan out.
-            captureDayTradingRecommendations(finalRows, replannedLive(fetched))
+            captureDayTradingRecommendations(finalRows, fetched)
             announceLevels(current, finalRows, replannedLive(fetched))
         }
     }
@@ -8470,7 +8512,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             else r.copy(
                 name = r.name.ifBlank { q.name },
                 price = q.price,
-                changePct = q.dayChangePct
+                changePct = q.dayChangePct,
+                // A PICK CLAUDE ADDED arrives with levels and no price (2026-09-24c): the first
+                // price the app sees for it is the closest thing to the price Claude planned
+                // against, and it is what says whether its entry is a buy-stop or a buy-limit.
+                planPrice = if (r.planByClaude && r.planPrice <= 0.0) q.price else r.planPrice
             )
         }
         val s = _research.value
