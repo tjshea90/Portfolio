@@ -36,10 +36,11 @@ class ShareImportActivity : Activity() {
         val shared = intent ?: run { finish(); return }
         val app = applicationContext
         Thread {
-            val text = runCatching {
-                ShareInbox.readShared(this, shared, SharedAnswer.MAX_CHARS)
-            }.getOrNull()
-            val queued = text != null && ShareInbox.put(app, text)
+            // Every file of the share, each queued as its own answer (2026-09-24b).
+            val texts = runCatching {
+                ShareInbox.readAll(this, shared, SharedAnswer.MAX_CHARS)
+            }.getOrDefault(emptyList())
+            val queued = texts.count { ShareInbox.put(app, it) } > 0
             runOnUiThread {
                 if (queued) {
                     startActivity(

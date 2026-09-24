@@ -156,6 +156,7 @@ object ShareInbox {
      * reports rather than importing a truncated answer.
      */
     fun readShared(ctx: Context, intent: Intent, maxChars: Int): String? {
+        if (intent.action == Intent.ACTION_SEND_MULTIPLE) return readAll(ctx, intent, maxChars).firstOrNull()
         val uri: Uri? = when (intent.action) {
             Intent.ACTION_VIEW -> intent.data
             Intent.ACTION_SEND ->
@@ -163,21 +164,39 @@ object ShareInbox {
                     ?: intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
             else -> null
         }
-        // CONTENT URIS FROM OTHER APPS ONLY (full test 2026-09-23, U-4). This activity is
-        // exported, so any installed app can send it anything: a `file://` path would be opened
-        // with THIS app's own permissions - its private database included - and our own
-        // provider's URIs are prompts we wrote, never answers.
-        val usable = uri?.takeIf {
-            it.scheme == android.content.ContentResolver.SCHEME_CONTENT &&
-                it.authority != PromptShare.authority(ctx)
-        }
-        // Bytes, capped: a UTF-8 character is at most 4 bytes, so this bound can never reject
-        // a file that is within [maxChars].
-        val fromFile = usable?.let { Storage.readText(ctx, it, maxBytes = maxChars * 4) }
+        val fromFile = uri?.let { readUri(ctx, it, maxChars) }
         if (fromFile != null) return fromFile.takeIf { it.length <= maxChars }
         // A share can carry the text as well as (or instead of) a file; if the file could not
         // be read, the text is the answer rather than a reason to refuse (U-7).
         return intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
             ?.takeIf { it.isNotBlank() && it.length <= maxChars }
     }
+
+    /**
+     * EVERY FILE OF A SHARE (2026-09-24b) - several answer files selected and shared at once
+     * (ACTION_SEND_MULTIPLE) arrive as one intent, and each is its own answer. A single-file
+     * share is the one-element case of [readShared]. Files that cannot be read are skipped.
+     */
+    fun readAll(ctx: Context, intent: Intent, maxChars: Int): List<String> {
+        if (intent.action != Intent.ACTION_SEND_MULTIPLE) {
+            return listOfNotNull(readShared(ctx, intent, maxChars))
+        }
+        val uris = IntentCompat.getParcelableArrayListExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
+            ?.filterNotNull()
+            ?: intent.clipData?.let { c -> (0 until c.itemCount).mapNotNull { c.getItemAt(it)?.uri } }
+            ?: emptyList()
+        return uris.distinct().mapNotNull { readUri(ctx, it, maxChars)?.takeIf { t -> t.length <= maxChars } }
+    }
+
+    /**
+     * CONTENT URIS FROM OTHER APPS ONLY (full test 2026-09-23, U-4). This activity is exported,
+     * so any installed app can send it anything: a `file://` path would be opened with THIS
+     * app's own permissions - its private database included - and our own provider's URIs are
+     * prompts we wrote, never answers. Bytes, capped: a UTF-8 character is at most 4 bytes, so
+     * this bound can never reject a file that is within [maxChars].
+     */
+    private fun readUri(ctx: Context, uri: Uri, maxChars: Int): String? = uri.takeIf {
+        it.scheme == android.content.ContentResolver.SCHEME_CONTENT &&
+            it.authority != PromptShare.authority(ctx)
+    }?.let { Storage.readText(ctx, it, maxBytes = maxChars * 4) }
 }
