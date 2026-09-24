@@ -143,3 +143,87 @@ read and may drift by a few lines.
   counting for the STOP (the conservative side, as now). Test: the scenario above -> NO_ENTRY; a real flush with a
   neighbour also through the entry -> filled.
 
+### DA-8 (M, rare trigger) — When a bar's open is unknown, fills and stop exits are priced at levels the bar never traded
+
+- Where: `net/DayTradingEval.kt:134-135` (`parseBars` sets `open = NaN` when the open is missing OR outside
+  the bar's own [low, high]); `net/DayTradingGrader.kt:294` (buy-stop `fill = if (open finite && open >= entry) open else entry`),
+  `:240` (gap-stop branch requires a finite open), `:244-247` (stop exit priced at exactly `stop`).
+- Problem: all the E2 gap logic hangs off the open. With a valid open every fill/exit price is provably
+  reachable; with `open = NaN` the code falls back to the idealised level even when the bar's whole range is
+  on the far side of it:
+  - buy-stop: a bar with low > entry (gapped completely past the trigger) fills at `entry`;
+  - stop: a later bar with high < stop (gapped completely through) exits at `stop`.
+  Both are prices no trade printed at - the optimistic direction.
+- Failing scenario: entry 10.50 / stop 10.00. Bar 10:31 arrives with an open Yahoo sent as 10.95 while
+  high = 10.90 (inconsistent OHLC - `parseBars` drops it to NaN), low 10.70. Graded fill 10.50; every trade in
+  that minute was >= 10.70, so +0.20/share (+0.4R) is phantom. Mirror case on the stop: bar h 9.80 / l 9.60,
+  open unknown -> exit 10.00 instead of <= 9.80.
+- Fix: bound by the bar's own range when the open is unknown: buy-stop `fill = max(entry, b.low)`; buy-limit
+  `fill = min(entry, b.high)` when `b.high < entry`; stop exit `min(stop, b.high)`; and in `runPosition` treat
+  `!first && b.high < stop` as a gap-stop at `b.high` when `open` is NaN. Test with NaN-open bars on both sides.
+
+### DA-9 (M) — The card can call 2-19 trades "a real edge so far, with 95% confidence" next to "Too few trades to judge"
+
+- Where: `data/DayTradingLog.kt:220-225` (`edgeVerdict` needs only `entriesTriggered >= 2`);
+  `ui/ResearchScreen.kt:1493-1499` (prints "a real edge so far, with 95% confidence." / "losing money on
+  average, with 95% confidence.").
+- Problem: E10's purpose was that a handful of trades cannot read like a verdict. A Student-t interval on a
+  few heavily skewed R-multiples can easily exclude zero: four wins at +1.8, +2.1, +1.5, +2.4R give
+  mean 1.95, sd 0.39, t(3) = 3.18 -> [+1.33, +2.57] -> "positive". The card then shows, one line apart,
+  "4 graded trades - Too few trades to judge" (red) and "a real edge so far, with 95% confidence".
+- Fix: `edgeVerdict` returns "" (and the card says "not enough trades to say") below
+  `SAMPLE_TIERS[0].first` (20); optionally also below 20 hide the interval, or use a bootstrap. Same guard for
+  any per-group interval the prompt prints (it already prints the range, so a note there is enough).
+
+### DA-10 (L) — Claude plans are graded against the app engine's lull cancel-time, which the Claude card never shows
+
+- Where: `ui/PortfolioViewModel.kt:7299-7302` (`DayTradingFeatures.build(..., r.planByClaude, ..., engineParams, ...)`
+  for Claude rows too); `net/DayTradingFeatures.kt:46-54,116` (deadline = lull start when `avoidMiddayLull` and
+  recorded before 11:30); `ui/PortfolioViewModel.kt:1296-1300` (a standing Claude plan's `planWait` is always "").
+- Problem: with `time.avoidMiddayLull = 1`, a Claude plan recorded at 10:45 gets `deadline = 11:30`, but its
+  card never turns to "not yet" at 11:30 (only the app's own plans carry `waitReason`). Following the card, Tj's
+  order stays live; a fill at 12:10 that wins or loses is graded NO_ENTRY. Only Claude plans (which do not feed
+  the tuning evidence) and only on a tuned engine - hence L - but the grade is not "what the card said".
+- Fix: for `planByClaude` rows build the deadline from `lastEntryMinutes` only (the rule the Claude card does
+  enforce through `tooLateToStart`), i.e. pass `p.with(mapOf(AVOID_LULL to 0.0))` for Claude rows.
+
+### DA-11 (L) — Engine version bookkeeping: identical engines labelled differently, versions reused, a corrupt store hides a tuned history
+
+- Where: `net/DayTradingEval.kt:619-622` (`engineLabel`), `net/EngineTuning.kt:118-127` (`load`),
+  `:149-159` (`revert` = `version + 1`), `data/Db.kt:2016-2030` (Replace restore overwrites `dt_engine*`
+  while `day_trading_log` is additive).
+- Problems: (a) after "Revert to original" the engine is DEFAULTS but plans are labelled `v3` and the card's
+  breakdown calls them "Tuned engine v3"; the prompt's per-version table lists v3 as if it were a new engine.
+  (b) A Replace restore of an older backup rolls `dt_engine`/history back to, say, v2 while the device's log
+  keeps rows labelled v3/v4; the next apply produces a second "v3" with different params, and
+  `engine:v3` evidence / the per-version table then mix two engines. (c) If `dt_engine` is unreadable but the
+  history is intact, `load` returns DEFAULTS with the history's version: the app silently runs the original,
+  and "Revert to original" is disabled (`isOriginal`) while the history says tuned.
+- Fix: label by params, not only by counter (e.g. "v3 = original" when `params.isDefault`; or record a short
+  params hash in `features`); on load, `version = max(stored, history max, max engine label in the log)`; when
+  the engine JSON is unreadable fall back to `history.last().paramsAfter`.
+
+### DA-12 (L) — Re-grading an old verdict whose bars answer "empty" overwrites it with DATA_UNAVAILABLE
+
+- Where: `ui/PortfolioViewModel.kt:7468-7473`.
+- Problem: a stale-version final row (e.g. WIN, `eval_version = 0`, day 40 days ago) is re-queued (E9). If both
+  the 1m and 5m requests are ANSWERED with no bars (404 for a renamed/delisted ticker, or Yahoo's 5m window
+  shorter than the app's 55-day assumption), `setDayTradingOutcome(id, DATA_UNAVAILABLE, null)` replaces the
+  old verdict and exit price. The DESIGN (E9) says such a row "keeps its old verdict ... flagged legacy".
+- Fix: when `isFinal(entry.outcome) && entry.evalVersion < VERSION` and no bars come back, leave the row
+  untouched (it becomes `legacyExcluded` once past the retention window).
+
+### DA-13 (L) — Entry-deadline edge: a plan logged in the last minute before the cut-off can never fill
+
+- Where: `net/ResearchScore.kt:651-652` (`tooLateToStart = minutesLeft in 1 until lastEntry`, integer minutes),
+  `net/MarketClock.kt:256-262`, `net/DayTradingGrader.kt:281,290`.
+- Problem: at 15:30:40 `minutesLeft` = 30, so the card still says startable and the row is logged, but its
+  `deadline` (15:30:00) has already passed; at 15:29:10 the only eligible 1m bar would be 15:29 (excluded - it
+  starts before `recordedAt`) and the 15:30 bar is at the deadline. Both are graded NO_ENTRY with certainty.
+  Conservative (never a win), but they inflate "never filled before their cut-off" and the fill-rate tables
+  Claude is told to use ("a setup ... that seldom fills wastes attention"). Related: on the 5-minute fallback,
+  a tuned `lastEntryMinutes`/`flatBeforeCloseMinutes` that is not a multiple of 5 lets the bar that straddles
+  the cut-off fill (or keep holding) up to 4 minutes past it - optimistic, but only for rows > 29 days old.
+- Fix: in `loggableDayTradingRows` also require `now < deadline - 60 s` (compute from ms, not whole minutes);
+  on 5m bars require `b.t + 300 <= entryDeadlineSec` for a fill and `b.t + 300 <= flatSec` for a held bar.
+
