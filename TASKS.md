@@ -72,7 +72,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       [x] S-4 Research asOf ignored / Advice undated (ClaudeBridge.answeredAt; ResearchBridge stamps
       whyAt/explained with it + notes line; advice schema asOf -> generated; +3 tests)  [x] S-5 carry freezes relative catalyst (Research.appEarningsPart/claudeCatalystPart/
       combineCatalyst in both bridges' merge + carryWhy; keeps DT earningsToday; +2 tests)
-      [ ] S-6 stale Claude fund permanent  [ ] S-7 DT paragraphs carried 14 days  [ ] S-8 ETF
+      [x] S-6 stale Claude fund permanent (evictStaleWhy drops a stale Claude-added fund; stale
+      paragraph takes conviction + Claude catalyst with it; test)  [x] S-7 DT paragraphs carried 14 days (carryWhy + evictStaleWhy gate DT paragraphs on
+      sameTradingDay; test)  [ ] S-8 ETF
       dedupe merges different products  [x] U-2 Insider all-companies pull never refetches (Feed pull also refreshMarketInsidersIfEmpty)
       [x] U-3 feed sweep runs under reader/detail (feedListVisible + readerNow key; test)
     - L: C-6..C-12, D-6..D-14, L-5..L-7, N-5..N-12, A-5..A-11, S-3, S-9..S-12, U-4..U-8
