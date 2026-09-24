@@ -3,6 +3,7 @@ package com.tj.portfolio
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import com.tj.portfolio.data.Db
+import com.tj.portfolio.net.MarketData
 import com.tj.portfolio.ui.BUSY_EXPLAINING
 import com.tj.portfolio.ui.PULL_PRICES
 import com.tj.portfolio.ui.PortfolioViewModel
@@ -69,5 +70,21 @@ class FullTest0924Test {
         assertTrue("the research job is still running", busy.value.isNotEmpty())
         assertFalse("the Portfolio circle must stop when ITS prices land, not when Claude answers",
             vm.ui.value.pulling(PULL_PRICES))
+    }
+
+    // ---- N-2: a well-formed empty v7 answer is not a broken endpoint.
+
+    @Test fun `N-2 Yahoo knowing none of the symbols is an answer, an error page is not`() {
+        // What v7 sends for SPX / VIX / a delisted ticker: the endpoint worked.
+        assertTrue(MarketData.batchAnswered("""{"quoteResponse":{"result":[],"error":null}}"""))
+        assertTrue(MarketData.batchAnswered("""{"quoteResponse":{"result":[{"symbol":"X"}]}}"""))
+        // What a broken endpoint looks like: those still count toward the disable.
+        assertFalse(MarketData.batchAnswered("<html>Service Unavailable</html>"))
+        assertFalse(MarketData.batchAnswered(""))
+        assertFalse(MarketData.batchAnswered("""{"finance":{"error":{"code":"Not Found"}}}"""))
+        assertFalse(MarketData.batchAnswered(
+            """{"quoteResponse":{"result":null,"error":{"code":"Bad Request"}}}"""))
+        assertFalse(MarketData.batchAnswered(
+            """{"quoteResponse":{"result":[],"error":{"code":"Unauthorized"}}}"""))
     }
 }
