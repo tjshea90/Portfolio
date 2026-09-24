@@ -53,11 +53,18 @@ object EngineTuningPrompt {
             val risk = e.entry - e.stop
             if (risk > 1e-9) (DayTradingEval.Costs.exitFill(e.outcome, exit) - DayTradingEval.Costs.entryFill(fill)) / risk else 0.0
         }
+        /** What the trade did to the ACCOUNT, % - sized as the card sizes it (audit DA-6). */
+        val acctPct: Double = if (!decided) 0.0 else {
+            val exit = e.outcomeExitPrice ?: e.entry
+            val fill = d?.fill?.takeIf { it > 0 } ?: e.entry
+            DayTradingGrader.accountPct(e.entry, e.stop, DayTradingEval.Costs.entryFill(fill), DayTradingEval.Costs.exitFill(e.outcome, exit))
+        }
         fun num(k: String): Double? = if (f.has(k)) f.optDouble(k, Double.NaN).takeIf { it.isFinite() } else null
     }
 
     private class Agg(val label: String) {
-        var planned = 0; var filled = 0; var wins = 0; var profitable = 0; val rs = ArrayList<Double>()
+        var planned = 0; var filled = 0; var wins = 0; var profitable = 0
+        val rs = ArrayList<Double>(); val acct = ArrayList<Double>()
         fun add(r: Row) {
             planned++
             if (!r.decided) return
@@ -65,18 +72,22 @@ object EngineTuningPrompt {
             if (r.e.outcome == DayTradingOutcome.WIN) wins++
             if (r.netR > 0) profitable++
             rs.add(r.netR)
+            acct.add(r.acctPct)
         }
         fun line(): String {
-            if (filled == 0) return "| $label | $planned | 0 | - | - | - | - | - |"
-            val (lo, hi) = DayTradingEval.meanInterval(rs)
+            if (filled == 0) return "| $label | $planned | 0 | - | - | - | - | - | - |"
+            val (lo, hi) = DayTradingEval.meanInterval(acct)
             return "| $label | $planned | $filled (${pct(filled * 100.0 / planned)}) | ${pct(wins * 100.0 / filled)} | " +
-                "${pct(profitable * 100.0 / filled)} | ${r2(rs.average())} | " +
-                (if (rs.size >= 2) "${r2(lo)} to ${r2(hi)}" else "-") + " | ${r2(rs.sum())} |"
+                "${pct(profitable * 100.0 / filled)} | ${a3(acct.average())} | " +
+                (if (acct.size >= 2) "${a3(lo)} to ${a3(hi)}" else "-") + " | ${a3(acct.sum())} | ${r2(rs.average())} |"
         }
     }
 
-    private const val AGG_HEAD = "| group | plans | filled (fill rate) | target hit | profitable after costs | avg net R | 95% range of avg R | total net R |\n" +
-        "|---|---|---|---|---|---|---|---|"
+    /** An account-% figure: "+0.123%". */
+    private fun a3(v: Double) = if (v.isFinite()) String.format(java.util.Locale.US, "%+.3f%%", v) else "n/a"
+
+    private const val AGG_HEAD = "| group | plans | filled (fill rate) | target hit | profitable after costs | avg account % per trade | 95% range of that | total account % | avg net R |\n" +
+        "|---|---|---|---|---|---|---|---|---|"
 
     private fun table(title: String, rows: List<Row>, key: (Row) -> String?): String {
         val groups = LinkedHashMap<String, Agg>()
@@ -130,8 +141,13 @@ ongoing process, and the full history of earlier rounds is below.
 
 ## The goal
 
-Make the app's own plans more profitable **after costs**, measured by the average net R per
-trade (1R = the loss if the stop is hit) and the total net R, without fooling ourselves:
+Make the app's own plans more profitable **after costs**, measured by **what they make the
+account**: the average and total account % per trade in the tables, each trade sized exactly as the
+app sizes it (1% of the account at risk, but never more than 25% of the account in one stock).
+That 25% cap is what sizes most day trades - it binds whenever the stop is less than 4% below the
+entry - and under it a tighter stop raises a trade's R without making the account a cent more
+(and stops out more often). So R (1R = the loss if the stop is hit) is shown as a secondary column
+only: never propose a change because it raises R alone. And without fooling ourselves:
 
 - Every change you propose must be supported by the graded trades in this file - not by general
   trading lore alone. Cite the group and its trade count.
@@ -152,9 +168,11 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
         sb.append("- Sample-size tiers, by graded trades of the app's own plans:\n")
         for (t in EngineTuning.Tier.values()) sb.append("  - ${t.minTrades}+: ${t.label}${if (t == tier) "  <- **this answer**" else ""}\n")
         next?.let { sb.append("- The next tier starts at ${it.minTrades} graded trades (${it.minTrades - n} to go).\n") }
-        sb.append("- A change resting on a group (its `basis`) needs at least ${EngineTuning.MIN_GROUP_FOR_CHANGE} graded trades in that group; a switch (turning a setup, level or filter on or off) needs at least ${EngineTuning.MIN_GROUP_FOR_SWITCH}. The app re-counts the group itself.\n")
+        sb.append("- A change resting on a group (its `basis`) needs at least ${EngineTuning.MIN_GROUP_FOR_CHANGE} graded trades in that group; a switch (turning a setup, level or filter on or off) needs at least ${EngineTuning.MIN_GROUP_FOR_SWITCH}. The app re-counts the group itself - and also counts the group the parameter ACTS on (`setup.<s>.*` -> that setup's trades, `level.<l>.enabled` -> trades whose entry was built on that level, `time.avoidMiddayLull` -> Midday, `time.earliestEntryMinutes` -> First hour, `time.lastEntryMinutes` -> Last two hours) and uses the smaller, so citing \"all\" does not carry a change about a small group.\n")
+        sb.append("- Switching an optional filter or a per-setup override ON (from 0) is a step like any other: it is limited to the tier's step, measured from where it changes least - the lenient end of its range (e.g. `filter.minScore` from 1, `target.capR` from 10), or for a per-setup override the global value it replaces.\n")
+        sb.append("- `time.lastEntryMinutes` must stay at least ${EngineTuning.MIN_ENTRY_TO_FLAT_MINUTES} more than `time.flatBeforeCloseMinutes`, and a setup's stop floor never above its ceiling - a change that breaks either is refused.\n")
         if (state.lastApplyAt > 0) sb.append("- The last change was applied ${Instant.ofEpochMilli(state.lastApplyAt).atZone(ET).toLocalDate()}; ${ev.sinceLastChange} graded trades since. Another change needs at least ${EngineTuning.MIN_TRADES_BETWEEN_CHANGES} since the last one, so each change can be measured on its own.\n")
-        sb.append("- A step larger than the tier allows is cut down to the allowed step (same direction). Values outside a parameter's hard range are refused. Your `from` must equal the current value in the table, and `basedOn.engineVersion` must be ${state.version}.\n")
+        sb.append("- A step larger than the tier allows is cut down to the allowed step (same direction). Values outside a parameter's hard range are refused. Values are kept to 3 decimals. **Required:** `basedOn.engineVersion` = ${state.version}, and every change's `from` = the current value in the table (a change without `from`, or an answer without `basedOn`, is refused). Give numbers as numbers - `true`/`on`/`off` are read only for 0/1 switches.\n")
         sb.append("- Position sizing (1% of the portfolio risked per trade, at most 25% of it in one position, no margin) is fixed - it is not a parameter and must not be the lever.\n")
         sb.append("- Tj confirms every change before it applies, and can undo the last change or revert to the original engine at any time.\n\n")
 
@@ -167,6 +185,7 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
         sb.append(DayTradingGrader.RULES_TEXT).append("\n\n")
         sb.append("Costs taken off every trade: ${DayTradingEval.Costs.ENTRY_BPS} bp on the entry, " +
             "${DayTradingEval.Costs.STOP_BPS} bp on a stop exit, ${DayTradingEval.Costs.CLOSE_BPS} bp on a flat-time exit, 0 on a target (a resting limit). " +
+            "**account %** = shares per dollar of account (min(1% / (entry - stop), 25% / entry)) x (exit after costs - fill after costs) x 100. " +
             "**net R** = (exit after costs - fill after costs) / (entry - stop). Only the first plan the app showed for a symbol each day is recorded.\n\n")
 
         // ---------------------------------------------------------------- history
@@ -239,8 +258,8 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
         sb.append("""
 ## What to check before you recommend anything
 
-1. **Is there an edge at all?** Look at the 95% range of the average net R, overall and for the
-   app's own plans. If it straddles zero, say so plainly in `verdict`.
+1. **Is there an edge at all?** Look at the 95% range of the average account % per trade, overall
+   and for the app's own plans. If it straddles zero, say so plainly in `verdict`.
 2. **Sample size per group.** A group with a handful of trades is noise. Do not build a change on
    it, and say which groups are too small to read.
 3. **Consistency.** A real effect shows in both halves of the history and in more than one setup or
@@ -271,7 +290,8 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
         // ---------------------------------------------------------------- data
         sb.append("## DATA FROM THE APP\n\n")
         sb.append("Generated $today. engineVersion = ${state.version}. gradedTrades (app plans) = $n. " +
-            "Trades graded under an older grader whose price history has expired, and so excluded: ${stats.legacyExcluded}.\n\n")
+            "Trades graded under an older grader whose price history has expired, and so excluded: ${stats.legacyExcluded}. " +
+            "Plans recorded before the current recording rules that the card itself said to skip (already past the target or under the stop), excluded: ${stats.oldSkipped}.\n\n")
         sb.append("### Every graded plan (newest first")
         if (graded.size > MAX_TRADE_ROWS) sb.append("; the newest $MAX_TRADE_ROWS of ${graded.size} - the tables above cover all of them")
         sb.append(")\n\n")
@@ -280,9 +300,10 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
             "atrPct (intraday ATR as % of price), vwapAtr (price minus VWAP in ATRs), rangeUsed (share of the average daily range used), chg (% day change), " +
             "score/lik/conf (blended score, likelihood, confidence), rvol (paced relative volume), mso (minutes since the open), outcome, " +
             "netR, fillMin (minutes from shown to filled), holdMin (minutes held), mfeR/maeR (best/worst move after the fill until the exit, R), " +
-            "runR (best move after the fill until the flat time, R), holdR (gross R with no target: the stop or the flat-time price), res (bar minutes it was graded on).\n\n")
+            "runR (best move after the fill until the flat time, R), holdR (gross R with no target: the stop or the flat-time price) - both blank " +
+            "when that day's bars did not reach the flat time, res (bar minutes it was graded on), acct (account % of the trade), volSrc (\"daily\" when the plan was sized on daily ATR x the factor, before six intraday bars existed).\n\n")
         sb.append("```csv\n")
-        sb.append("day,time,sym,src,eng,setup,lvl,px,entry,stop,target,rr,riskAtr,trigAtr,atrPct,vwapAtr,rangeUsed,chg,score,lik,conf,rvol,mso,outcome,netR,fillMin,holdMin,mfeR,maeR,runR,holdR,res\n")
+        sb.append("day,time,sym,src,eng,setup,lvl,px,entry,stop,target,rr,riskAtr,trigAtr,atrPct,vwapAtr,rangeUsed,chg,score,lik,conf,rvol,mso,outcome,netR,fillMin,holdMin,mfeR,maeR,runR,holdR,res,acct,volSrc\n")
         for (r in graded.sortedByDescending { it.e.recordedAt }.take(MAX_TRADE_ROWS)) {
             val t = Instant.ofEpochMilli(r.e.recordedAt).atZone(ET)
             fun o(k: String) = r.num(k)?.let { String.format(java.util.Locale.US, "%.2f", it) } ?: ""
@@ -297,8 +318,11 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
                 o("rangeUsed"), o("chg"), o("score"), o("lik"), o("conf"), o("rvol"), r.f.optString("mso", ""),
                 r.e.outcome ?: "", if (r.decided) f2(r.netR) else "", fillMin, holdMin,
                 d?.takeIf { it.fill > 0 }?.let { f2(it.mfeR) } ?: "", d?.takeIf { it.fill > 0 }?.let { f2(it.maeR) } ?: "",
-                d?.takeIf { it.fill > 0 }?.let { f2(it.mfeFlatR) } ?: "", d?.takeIf { it.fill > 0 }?.let { f2(it.holdR) } ?: "",
-                d?.res?.toString() ?: ""
+                d?.takeIf { it.fill > 0 && !it.partial }?.let { f2(it.mfeFlatR) } ?: "",
+                d?.takeIf { it.fill > 0 && !it.partial }?.let { f2(it.holdR) } ?: "",
+                d?.res?.toString() ?: "",
+                if (r.decided) String.format(java.util.Locale.US, "%.3f", r.acctPct) else "",
+                r.f.optString("volSrc", "")
             ).joinToString(",")).append("\n")
         }
         sb.append("```\n")
@@ -309,9 +333,11 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
     private fun gridSection(rows: List<Row>): String {
         if (rows.isEmpty()) return "## What other stops and targets would have done\n\nNo graded trades with a counterfactual grid yet.\n\n"
         val sb = StringBuilder("## What other stops and targets would have done (same fills, same bars)\n\n")
-        sb.append("Each cell: the average net R of the app's trades had the stop been at S x the planned risk below the entry and the " +
-            "target T x that risk above it (\"plan\" = the plan's own target, \"none\" = no target, sold at the flat time). R is measured in each " +
-            "variant's OWN risk, so cells are comparable under the app's fixed 1%-risk sizing. The (1.0, plan) cell is what actually happened.\n\n")
+        sb.append("Each cell: the average **account % per trade** of the app's trades had the stop been at S x the planned risk below the entry and the " +
+            "target T x that risk above it (\"plan\" = the plan's own target, \"none\" = no target, sold at the flat time). Each variant is sized " +
+            "on its OWN stop the way the app sizes a trade (1% risk, at most 25% of the account), so the cells are what the account would have " +
+            "made - a tighter stop only helps if it makes more money, not merely more R. The (1.0, plan) cell is what actually happened. " +
+            "Trades decided before their day's bars reached the flat time have no grid and are not in it.\n\n")
         fun block(title: String, rs: List<Row>) {
             if (rs.isEmpty()) return
             val tHead = DayTradingGrader.GRID_TARGETS.map {
@@ -322,7 +348,7 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
                 val cells = DayTradingGrader.GRID_TARGETS.indices.map { ti ->
                     rs.mapNotNull { it.d?.grid?.getOrNull(si)?.getOrNull(ti) }.takeIf { it.isNotEmpty() }?.average()
                 }
-                sb.append("| ${s}R | ${cells.joinToString(" | ") { it?.let { v -> r2(v) } ?: "-" }} |\n")
+                sb.append("| ${s}R | ${cells.joinToString(" | ") { it?.let { v -> a3(v) } ?: "-" }} |\n")
             }
             sb.append("\n")
         }
@@ -347,11 +373,11 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
         }
         return """
 **Which stocks.** A screener pass (every ~30 min) scores the market's most active, biggest-moving,
-most-shorted and most-discussed stocks ($2+ a share, 1M+ average volume, trading above their normal
-volume pace). **Likelihood** (0-100) = relative volume paced to the time of day ramped 1x -> ${v("score.rvolFullAt")}x worth ${v("score.rvolPoints")}
+most-shorted and most-discussed stocks ($2+ a share, 1M+ average volume, $50M+ market cap, trading
+above their normal volume pace). **Likelihood** (0-100) = relative volume paced to the time of day ramped 1x -> ${v("score.rvolFullAt")}x worth ${v("score.rvolPoints")}
 points + today's % move ramped 0 -> ${v("score.moveFullAt")}% worth ${v("score.movePoints")} + r/wallstreetbets mentions ${v("score.mentionPoints")} and
 news ${v("score.newsPoints")} (relative to the day's busiest) + most-shorted: ${v("score.squeezePoints")} when also rvol >= ${v("conf.rvolThreshold")} and
-up >= ${v("conf.moveThreshold")}% (a squeeze shape), else ${v("score.shortedPoints")} + within 15% of the 52-week high ${v("score.nearHighPoints")} (else above
+up >= ${v("conf.moveThreshold")}% (a squeeze shape), else ${v("score.shortedPoints")} + in the top 15% of its 52-week range (price above low + 0.85 x (high - low)) ${v("score.nearHighPoints")} (else above
 the 50-day average ${v("score.aboveFiftyDayPoints")}) + earnings today/tomorrow ${v("score.catalystPoints")}; live, every 30 s: + above VWAP
 ${v("score.vwapPoints")} + above a completed 30-minute opening range ${v("score.orbPoints")}. **Confidence** = 20 points per confirmed check of five
 (rvol >= ${v("conf.rvolThreshold")}, up >= ${v("conf.moveThreshold")}%, near high or squeeze, above VWAP, above the completed opening range).
@@ -361,11 +387,13 @@ ${v("score.vwapPoints")} + above a completed 30-minute opening range ${v("score.
 **Inputs per stock** (Yahoo, every 30 s while the tab is open): 5-minute bars today with pre-market (VWAP, the
 30-minute opening range 09:30-10:00, the first 5-minute bar, session high/low, an intraday ATR(14) on 5-minute
 bars); daily bars (ATR(14), 14-day average daily range ADR, the prior session's high/low/close, floor pivots
-PP=(H+L+C)/3, R1=2PP-L, R2=PP+(H-L), S1=2PP-H); the pre-market high. `vol` = the intraday ATR, or daily ATR x
-${v(DayTradingParams.ATR_FROM_DAILY)} before any intraday bars exist. `buffer` = max(${'$'}0.01, vol x ${v(DayTradingParams.BREAK_BUFFER)}).
+PP=(H+L+C)/3, R1=2PP-L, R2=PP+(H-L), S1=2PP-H); the pre-market high. `vol` = the intraday ATR once six
+regular-session 5-minute bars exist (about 09:55 ET), otherwise daily ATR x ${v(DayTradingParams.ATR_FROM_DAILY)} - so every plan in roughly the first
+25 minutes, and every plan before the open, is sized on the daily figure (the `volSrc` column). `buffer` = max(${'$'}0.01, vol x ${v(DayTradingParams.BREAK_BUFFER)}).
 
-**Filters first:** no plan when the score is below ${v(DayTradingParams.MIN_SCORE)}; while live, no plan when the first 5-minute bar closed
-at or below its open and ${v(DayTradingParams.REQUIRE_BULLISH_BAR)} is on.
+**Filters first:** no plan when the stock's blended score this tick is below ${v(DayTradingParams.MIN_SCORE)} (a stock Claude added, which the
+app never scored, is not filtered); while live, with ${v(DayTradingParams.REQUIRE_BULLISH_BAR)} on, no plan when the first 5-minute bar closed at or below its
+open - and until that bar has closed (09:30-09:35) plans are shown as "not yet" and not recorded.
 
 **1. Setup and entry.** (Setups enabled: $setups.) While live:
 - price below VWAP -> **VWAP reclaim**: entry = VWAP + buffer (a buy-stop).
@@ -376,8 +404,8 @@ at or below its open and ${v(DayTradingParams.REQUIRE_BULLISH_BAR)} is on.
 - else -> **Breakout**: entry = the lowest ENABLED overhead level at or above the price, + buffer (a buy-stop).
   Overhead levels (enabled: $levels): pre-market high, first 5-minute bar high, the 30-minute opening-range high
   (only once complete), the prior session's high, the high of day, R1, R2. With none: the price + buffer.
-Before the open (the plan for the coming session): Breakout only, off the pre-market high (only before today's
-session has printed), the last session's high, R1, R2. A disabled setup -> no plan.
+Outside the live session (before the open, and in the evening for the next session): Breakout only, off the
+pre-market high (only before today's session has printed), the last session's high, R1, R2. A disabled setup -> no plan.
 
 **2. Stop.** The highest support level below the entry, minus buffer; the distance is then clamped into
 [${v(DayTradingParams.MIN_RISK)}, ${v(DayTradingParams.MAX_RISK)}] x vol (with no level: 1.5 x vol, clamped the same way).
@@ -399,7 +427,9 @@ only (no effect on levels or grading): target more than ${v(DayTradingParams.WAR
 than ${v(DayTradingParams.WARN_TRIGGER_ATRS)} vol above the price, the midday lull, earnings today.
 
 **Recorded** only when the plan is live (fresh intraday data under 10 minutes old, market open), still waiting for its
-entry (stop < price < target, price on the near side of the entry), not "too late" or "not yet", $1+, and on the page I see.
+entry (stop < price < target, price on the near side of the entry), not "too late" or "not yet", at least a minute before
+its own entry cut-off, $1+, and on the page I see. A Claude plan's entry is cancelled at the last-entry time (its card
+shows no midday-lull rule).
 """.trim()
     }
 

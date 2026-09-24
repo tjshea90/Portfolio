@@ -76,7 +76,15 @@ object DayTradingFeatures {
         p: DayTradingParams = DayTradingEngine.params,
         engineVersion: Int = DayTradingEngine.version
     ): JSONObject = JSONObject().apply {
-        val atr = row.atrIntraday
+        // THE VOLATILITY THE PLAN WAS REALLY SIZED ON (audit DA-14): the intraday ATR needs six
+        // regular-session 5-minute bars (about 09:55), and before that the engine uses daily ATR x
+        // the factor - so the opening plans used to carry no ATR features at all and dropped out of
+        // exactly the tables an early-entry rule would be tuned on.
+        val atr = when {
+            row.atrIntraday > 0 -> row.atrIntraday
+            row.atr > 0 -> row.atr * p.intradayAtrFromDaily
+            else -> 0.0
+        }
         val price = row.price
         val risk = row.entryPrice - row.stopPrice
         put("v", if (claude) -1 else engineVersion)
@@ -85,6 +93,7 @@ object DayTradingFeatures {
         put("px", r(price, 4))
         if (atr > 0) {
             put("atr", r(atr, 4))
+            put("volSrc", if (row.atrIntraday > 0) "intraday" else "daily")
             if (price > 0) put("atrPct", r(atr / price * 100.0))
             put("riskAtr", r(risk / atr))
             put("trigAtr", r((row.entryPrice - price) / atr))

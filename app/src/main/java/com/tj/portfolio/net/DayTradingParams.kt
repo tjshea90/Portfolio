@@ -238,7 +238,7 @@ class DayTradingParams private constructor(private val values: Map<String, Doubl
             add(num("score.newsPoints", 8.0, 0.0, 16.0, "Likelihood points for today's news count (relative to the busiest)."))
             add(num("score.squeezePoints", 20.0, 0.0, 40.0, "Points for most-shorted AND heavy volume AND a real move (squeeze shape)."))
             add(num("score.shortedPoints", 8.0, 0.0, 16.0, "Points for being on the most-shorted screen without the squeeze shape."))
-            add(num("score.nearHighPoints", 10.0, 0.0, 20.0, "Points for trading within 15% of the 52-week high."))
+            add(num("score.nearHighPoints", 10.0, 0.0, 20.0, "Points for trading in the top 15% of the 52-week range (above low + 0.85 x (high - low))."))
             add(num("score.aboveFiftyDayPoints", 5.0, 0.0, 10.0, "Points for trading above the 50-day average (when not near the 52-week high)."))
             add(num("score.catalystPoints", 8.0, 0.0, 16.0, "Points for earnings today or tomorrow."))
             add(num("score.vwapPoints", 8.0, 0.0, 16.0, "Live bonus points for trading above session VWAP."))
