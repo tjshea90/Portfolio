@@ -101,7 +101,13 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       L-5 sparklines re-read only after a trim dropped them (sparksTrimmed; perf-only, no test);
       L-6 onCleared detaches only its own HTTP disk cache (Http.detachDiskCache; test);
       L-7 search spinner cleared when a cancelled search unwinds after searchJob=null
-      (test MUTATION-CHECKED) )
+      (test MUTATION-CHECKED); N-5 crumb invalidate is compare-and-clear (test); N-6 TLS failure
+      by exception type -> HttpResult.tls, Tradestie dead-source memo (test); N-7 no baseline
+      fetch while the window has no weekday + chartRetry "|baseline" (test); N-8 DT technicals
+      RetryClock (cleared on pull; no VM test); N-9 recent series stamped with body time,
+      same-spark no write (test); N-10 POST 403 not a throttle, error body kept, 403 message,
+      extract 600 s timeout (local-server test); N-11 insider stamps before empty return;
+      N-12 answered-empty/404 returns at once, no second host )
     - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
 - [ ] Re-run the full suite; re-check anything a fix touched
       (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
