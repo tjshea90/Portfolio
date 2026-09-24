@@ -1640,6 +1640,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     val advice: StateFlow<Advice?> = _advice.asStateFlow()
     private val _adviceLoading = MutableStateFlow(false)
     val adviceLoading: StateFlow<Boolean> = _adviceLoading.asStateFlow()
+
+    /**
+     * How many advice preparations (news preload, prompt file) are running - HERE, not in the
+     * screen's `remember` (full test 2026-09-24, U-8): a tab switch reset that flag mid-preload,
+     * the button came back live, and a second tap started a second preload and share sheet.
+     */
+    private val _advicePreparing = MutableStateFlow(0)
+    val advicePreparing: StateFlow<Int> = _advicePreparing.asStateFlow()
     private val _adviceError = MutableStateFlow<String?>(null)
     val adviceError: StateFlow<String?> = _adviceError.asStateFlow()
 
@@ -4720,6 +4728,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * Advice tab stuck on "Gathering news..." with no way back except restarting the app.
      */
     fun preloadNewsForAdvice(onDone: () -> Unit) {
+        _advicePreparing.update { it + 1 }
         fgScope.launch {
             try {
                 // ONLY THE SYMBOLS WHOSE HEADLINES ARE ACTUALLY STALE (Round 56). This ran the
@@ -4759,7 +4768,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             } catch (e: Exception) {
                 // headlines are a nice-to-have for the request, not a precondition
             } finally {
-                onDone()
+                try { onDone() } finally { _advicePreparing.update { (it - 1).coerceAtLeast(0) } }
             }
         }
     }
@@ -4772,17 +4781,22 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * On a long history that is exactly the shape of an ANR.
      */
     fun writeAdvicePrompt(onDone: (PromptOut) -> Unit) {
+        _advicePreparing.update { it + 1 }   // U-8 - counted until the share sheet is handed over
         viewModelScope.launch {
-            val out = withContext(Dispatchers.IO) {
-                runCatching {
-                    // ONE file, replaced each time. A new timestamped file per tap meant TJ's
-                    // Downloads filled with near-identical prompts - and picking the wrong one
-                    // in the file chooser is precisely the v5.2 import bug. One file cannot be
-                    // confused with an older one.
-                    deliverPrompt(ADVICE_PROMPT_FILE, advicePromptFile())
-                }.getOrElse { PromptOut("Couldn't build the prompt file: ${it.message}", null) }
+            try {
+                val out = withContext(Dispatchers.IO) {
+                    runCatching {
+                        // ONE file, replaced each time. A new timestamped file per tap meant TJ's
+                        // Downloads filled with near-identical prompts - and picking the wrong one
+                        // in the file chooser is precisely the v5.2 import bug. One file cannot be
+                        // confused with an older one.
+                        deliverPrompt(ADVICE_PROMPT_FILE, advicePromptFile())
+                    }.getOrElse { PromptOut("Couldn't build the prompt file: ${it.message}", null) }
+                }
+                onDone(out)
+            } finally {
+                _advicePreparing.update { (it - 1).coerceAtLeast(0) }
             }
-            onDone(out)
         }
     }
 

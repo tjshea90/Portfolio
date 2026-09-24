@@ -45,7 +45,11 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
     val advice by vm.advice.collectAsState()
     val loading by vm.adviceLoading.collectAsState()
     val error by vm.adviceError.collectAsState()
-    var preloading by remember { mutableStateOf(false) }
+    // In the ViewModel, so a tab switch cannot reset it mid-preload (U-8).
+    val preloading = vm.advicePreparing.collectAsState().value > 0
+    // Watch-only rows are not a portfolio to advise on (U-8): with only a watchlist both
+    // buttons sent Claude an empty portfolio, and "Add some holdings first." was hidden.
+    val hasHoldings = state.rows.any { !it.watchOnly }
     val ctx = LocalContext.current
 
     val filePicker = rememberLauncherForActivityResult(
@@ -75,13 +79,9 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Button(
                         onClick = {
-                            preloading = true
-                            vm.preloadNewsForAdvice {
-                                preloading = false
-                                vm.requestAdvice()
-                            }
+                            vm.preloadNewsForAdvice { vm.requestAdvice() }
                         },
-                        enabled = !loading && !preloading && state.rows.isNotEmpty()
+                        enabled = !loading && !preloading && hasHoldings
                     ) {
                         Text(
                             when {
@@ -97,7 +97,7 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
                         CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     }
                 }
-                if (state.rows.isEmpty()) {
+                if (!hasHoldings) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "Add some holdings first.",
@@ -110,18 +110,16 @@ fun AdviceScreen(vm: PortfolioViewModel, state: UiState) {
                 Row {
                     OutlinedButton(
                         onClick = {
-                            preloading = true
                             vm.preloadNewsForAdvice {
                                 // building the prompt reads every transaction and writes a
                                 // file, so it goes off the main thread rather than running
                                 // here in the click handler
                                 vm.writeAdvicePrompt { out ->
-                                    preloading = false
                                     launchPromptShare(ctx, out) { vm.toast(it) }
                                 }
                             }
                         },
-                        enabled = !preloading && state.rows.isNotEmpty(),
+                        enabled = !preloading && hasHoldings,
                         modifier = Modifier.weight(1f)
                     ) { Text("Make prompt file") }
                     Spacer(Modifier.width(8.dp))
