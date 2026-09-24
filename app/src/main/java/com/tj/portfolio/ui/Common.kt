@@ -1,5 +1,7 @@
 package com.tj.portfolio.ui
 
+import androidx.lifecycle.repeatOnLifecycle
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -334,7 +336,7 @@ fun rememberTickingNow(periodMs: Long = 30_000L): Long {
     }
     val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     androidx.compose.runtime.LaunchedEffect(owner, periodMs) {
-        owner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+        owner.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
             while (true) {
                 now = System.currentTimeMillis()
                 kotlinx.coroutines.delay(periodMs)
