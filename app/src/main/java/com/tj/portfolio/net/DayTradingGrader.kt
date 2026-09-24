@@ -119,7 +119,7 @@ object DayTradingGrader {
         val fill: Double = 0.0,
         val fillAt: Long = 0L,
         val exitAt: Long = 0L,
-        /** "target", "stop", "gap-stop", "flat", or "unfilled" (the entry never filled before its cut-off). */
+        /** "target", "stop", "gap-stop", "gap-target" (filled above the target, sold at once), "flat", or "unfilled". */
         val why: String = "",
         /** Best / worst excursion from the fill to the exit, in R of the plan's risk (gross). */
         val mfeR: Double = 0.0,
@@ -223,6 +223,12 @@ object DayTradingGrader {
     ): Exit {
         // A limit that filled at an open already under the stop is stopped out at once.
         if (fill <= stop) return Exit(DayTradingOutcome.LOSS, fill, fillIdx, false, "gap-stop")
+        // AND A BUY-STOP THAT FILLED AT AN OPEN ALREADY ABOVE THE TARGET (a jump straight through
+        // both) is sold at once too: the attached sell-limit is below the market, so it fills at
+        // the market - about the fill price - not at the target. Crediting that as a target WIN
+        // counted a trade that lost its costs as a success.
+        if (target != null && fill >= target)
+            return Exit(DayTradingOutcome.CLOSED_LOSS, fill, fillIdx, false, "gap-target")
         var deferred = false
         val need = target?.let { it + tick }
         for (i in fillIdx until bars.size) {

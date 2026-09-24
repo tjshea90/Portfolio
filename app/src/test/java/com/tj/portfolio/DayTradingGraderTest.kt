@@ -72,6 +72,20 @@ class DayTradingGraderTest {
         assertEquals((11.50 - 10.80) / 10.80 * 100.0, s.avgReturnPct, 1e-6)
     }
 
+    @Test fun `a buy-stop that jumps straight past its target is no win - it is sold at once, for its costs`() {
+        // the first bar after the recommendation opens at 11.70, above the 11.50 target
+        val bars = listOf(b(31, 11.70, 11.90, 11.60, 11.80)) + flatBars(32, 380, 11.8)
+        val g = DayTradingGrader.grade(breakout(), bars, settled, res = 1)
+        assertEquals(DayTradingOutcome.CLOSED_LOSS, g.outcome)
+        assertEquals(11.70, g.exitPrice!!, 1e-9)
+        assertEquals("gap-target", g.detail!!.why)
+        val row = DayTradingLogEntry(1, "T", "20260915", m(30) * 1000L, "Breakout", 10.50, 10.00, 11.50, 10.4,
+            "APP", g.outcome, g.exitPrice, 1L, "v0", "", DayTradingGrader.VERSION, g.detail!!.toJson())
+        val s = DayTradingEval.stats(listOf(row))
+        assertEquals(0, s.targetHit)
+        assertTrue("it lost its costs", s.avgR < 0.0 && s.avgR > -0.05)
+    }
+
     @Test fun `E2 a gap through the stop fills at the open, below the stop`() {
         val bars = listOf(b(31, 10.44, 10.60, 10.44, 10.55)) + flatBars(32, 50, 10.4) +
             listOf(b(50, 9.70, 9.80, 9.60, 9.75)) + flatBars(51, 380, 9.8)
