@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.tj.portfolio.data.Db
 import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
+import com.tj.portfolio.domain.Ledger
 import com.tj.portfolio.net.ClaudeBridge
 import com.tj.portfolio.net.FundamentalsFeed
 import com.tj.portfolio.net.HttpResult
@@ -239,5 +240,38 @@ class FullTest0924Test {
         assertFalse("a stock opened from a Feed row",
             com.tj.portfolio.ui.feedListVisible(onFeedTab = true, detail = "NVDA", readerOpen = false))
         assertFalse(com.tj.portfolio.ui.feedListVisible(onFeedTab = false, detail = null, readerOpen = false))
+    }
+
+    // ---- A-2: a Merge restore re-arms the replay repair only for the rows it inserted.
+
+    @Test fun `A-2 rows a merge inserted are repair candidates, rows already here are not`() {
+        val session = 1_756_909_800_000L
+        fun pair(sellId: Long, buyId: Long) = listOf(
+            Txn(id = sellId, type = TxnType.SELL, symbol = "NVDA", quantity = 100.0, price = 180.0,
+                amount = 18_000.0, date = session, source = "SCREENSHOT"),
+            Txn(id = buyId, type = TxnType.BUY, symbol = "NVDA", quantity = 100.0, price = 175.0,
+                amount = -17_500.0, date = session, source = "SCREENSHOT"))
+        // Mark = 5; a merge inserted ids 50..60.
+        val ranges = com.tj.portfolio.ui.parseRepairRanges("50-60")
+        listOf(Ledger.FIFO, Ledger.AVERAGE).forEach { m ->
+            // Entered chronologically after the fix (ids 10-11, between the mark and the merge):
+            // kept as stored - 100 shares, the missing earlier buy reported, NOT erased to 0.
+            val kept = Ledger.positions(pair(10, 11), method = m, sessionInstant = session,
+                repairBelowId = 5, repairRanges = ranges).single()
+            assertEquals("$m kept shares", 100.0, kept.shares, 1e-9)
+            assertEquals("$m kept oversold", 100.0, kept.oversold, 1e-9)
+            // The merged pair (ids 51-52) may be a pre-fix device's screen order: repaired.
+            val merged = Ledger.positions(pair(51, 52), method = m, sessionInstant = session,
+                repairBelowId = 5, repairRanges = ranges).single()
+            assertEquals("$m merged repaired", 0.0, merged.oversold, 1e-9)
+        }
+    }
+
+    @Test fun `A-2 repair ranges round-trip and ignore junk`() {
+        val r = listOf(1L..5L, 9L..12L)
+        assertEquals(r, com.tj.portfolio.ui.parseRepairRanges(com.tj.portfolio.ui.formatRepairRanges(r)))
+        assertEquals(emptyList<LongRange>(), com.tj.portfolio.ui.parseRepairRanges(""))
+        assertEquals(emptyList<LongRange>(), com.tj.portfolio.ui.parseRepairRanges(null))
+        assertEquals(listOf(3L..4L), com.tj.portfolio.ui.parseRepairRanges("x-y;9-2;3-4;7"))
     }
 }
