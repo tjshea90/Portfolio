@@ -46,8 +46,15 @@ internal object YahooAuth {
         if (!installed.compareAndSet(false, true)) return
         runCatching {
             if (java.net.CookieHandler.getDefault() == null) {
+                // YAHOO'S COOKIES ONLY (full test 2026-09-24, N-Q5). The jar is process-wide, so
+                // ACCEPT_ALL stored and replayed cookies for every host the app talks to (Google
+                // News, SEC, Nasdaq, Finviz) - linkable and larger requests, for nothing: only
+                // Yahoo needs its A3 cookie, and every other provider worked before this jar
+                // existed (it is installed at the first mint, not at launch).
                 java.net.CookieHandler.setDefault(
-                    java.net.CookieManager(null, java.net.CookiePolicy.ACCEPT_ALL)
+                    java.net.CookieManager(null) { uri, _ ->
+                        uri?.host?.let { it == "yahoo.com" || it.endsWith(".yahoo.com") } == true
+                    }
                 )
             }
         }
