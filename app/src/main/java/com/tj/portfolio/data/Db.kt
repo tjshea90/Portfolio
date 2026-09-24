@@ -33,7 +33,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     companion object {
         const val DB_NAME = "portfolio.db"
         /** Bump only alongside an additive block in onUpgrade. */
-        const val DB_VERSION = 9
+        const val DB_VERSION = 10
         const val BACKUP_FORMAT = "tj-portfolio-backup"
 
         /**
@@ -297,10 +297,28 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 outcome TEXT,
                 outcome_exit_price REAL,
                 outcome_evaluated_at INTEGER,
+                engine TEXT NOT NULL DEFAULT '',
+                features TEXT,
+                eval_version INTEGER NOT NULL DEFAULT 0,
+                eval_detail TEXT,
                 UNIQUE(symbol, trading_day)
             )"""
         )
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_dtlog_day ON day_trading_log(trading_day)")
+    }
+
+    /**
+     * DB v10 (2026-09-24c) - what the tuning loop needs on every logged plan, ADDED, never
+     * rebuilt: which engine version made it (`engine`), the conditions it was made under
+     * (`features`, JSON), and the grader's working (`eval_version` + `eval_detail`, JSON: the
+     * real fill, exit, 1- or 5-minute resolution, excursions and the stop x target grid). Shared
+     * by the upgrade and the `onOpen` repair, and idempotent.
+     */
+    private fun ensureDayTradingLogV10(db: SQLiteDatabase) {
+        ensureColumn(db, "day_trading_log", "engine", "TEXT NOT NULL DEFAULT ''")
+        ensureColumn(db, "day_trading_log", "features", "TEXT")
+        ensureColumn(db, "day_trading_log", "eval_version", "INTEGER NOT NULL DEFAULT 0")
+        ensureColumn(db, "day_trading_log", "eval_detail", "TEXT")
     }
 
     private fun createImports(db: SQLiteDatabase) {
@@ -378,7 +396,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // forever - see [watchlistEntries]/[setWatchBaseline].
         if (oldV < 8) addColumn(db, "watchlist", "added_price", "REAL NOT NULL DEFAULT 0")
         if (oldV < 9) createDayTradingLog(db)
-        // future: if (oldV < 10) { ...additive changes only... }
+        if (oldV < 10) ensureDayTradingLogV10(db)
+        // future: if (oldV < 11) { ...additive changes only... }
     }
 
     /**
@@ -409,6 +428,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // open costs one PRAGMA per table rather than a thrown "duplicate column".
         runCatching { ensureColumn(db, "quotes", "quote_time", "INTEGER NOT NULL DEFAULT 0") }
         runCatching { ensureColumn(db, "watchlist", "added_price", "REAL NOT NULL DEFAULT 0") }
+        runCatching { ensureDayTradingLogV10(db) }
     }
 
     private fun ensureColumn(db: SQLiteDatabase, table: String, col: String, decl: String) {
@@ -1539,7 +1559,11 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         val target: Double,
         val priceAtRecommendation: Double,
         val source: String,
-        val recordedAt: Long
+        val recordedAt: Long,
+        /** Engine version that made the plan ("v3"), or "claude" (2026-09-24c). */
+        val engine: String = "",
+        /** The conditions the plan was made under, JSON (2026-09-24c) - see DayTradingFeatures. */
+        val features: String = ""
     )
 
     /**
@@ -1558,7 +1582,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             entries.forEach {
                 writeDayTradingRecommendation(
                     db, it.symbol, it.tradingDay, it.setup, it.entry, it.stop, it.target,
-                    it.priceAtRecommendation, it.source, it.recordedAt
+                    it.priceAtRecommendation, it.source, it.recordedAt, it.engine, it.features
                 )
             }
             db.setTransactionSuccessful()
@@ -1577,7 +1601,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         target: Double,
         priceAtRecommendation: Double,
         source: String,
-        recordedAt: Long
+        recordedAt: Long,
+        engine: String = "",
+        features: String = ""
     ) {
         if (entry <= 0.0 || stop <= 0.0 || target <= 0.0 || tradingDay.isBlank()) return
         val cv = ContentValues().apply {
@@ -1588,6 +1614,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             put("entry", entry); put("stop", stop); put("target", target)
             put("price_at_recommendation", priceAtRecommendation)
             put("source", source)
+            put("engine", engine)
+            if (features.isNotBlank()) put("features", features)
         }
         db.insertWithOnConflict("day_trading_log", null, cv, SQLiteDatabase.CONFLICT_IGNORE)
     }
@@ -1607,7 +1635,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         val out = ArrayList<DayTradingLogEntry>()
         readableDatabase.rawQuery(
             """SELECT id, symbol, trading_day, recorded_at, setup, entry, stop, target,
-                price_at_recommendation, source, outcome, outcome_exit_price, outcome_evaluated_at
+                price_at_recommendation, source, outcome, outcome_exit_price, outcome_evaluated_at,
+                engine, features, eval_version, eval_detail
                FROM day_trading_log $where ORDER BY recorded_at DESC""",
             args
         ).use { c ->
@@ -1626,7 +1655,11 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                         source = c.getString(9),
                         outcome = if (c.isNull(10)) null else c.getString(10),
                         outcomeExitPrice = if (c.isNull(11)) null else c.getDouble(11),
-                        outcomeEvaluatedAt = if (c.isNull(12)) null else c.getLong(12)
+                        outcomeEvaluatedAt = if (c.isNull(12)) null else c.getLong(12),
+                        engine = c.getString(13) ?: "",
+                        features = if (c.isNull(14)) "" else c.getString(14),
+                        evalVersion = c.getInt(15),
+                        evalDetail = if (c.isNull(16)) "" else c.getString(16)
                     )
                 )
             }
@@ -1640,12 +1673,22 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      * [DayTradingOutcome.PENDING] and [DayTradingOutcome.DATA_UNAVAILABLE], and a plain
      * overwrite is exactly right for both - see [DayTradingOutcome.isFinal].
      */
-    fun setDayTradingOutcome(id: Long, outcome: String, exitPrice: Double?) {
+    fun setDayTradingOutcome(
+        id: Long,
+        outcome: String,
+        exitPrice: Double?,
+        /** Which grader decided it (2026-09-24c) - null leaves the stored one alone. */
+        evalVersion: Int? = null,
+        /** The grader's working, JSON - null leaves the stored one alone, "" clears it. */
+        evalDetail: String? = null
+    ) {
         val cv = ContentValues().apply {
             put("outcome", outcome)
             if (exitPrice != null && exitPrice.isFinite()) put("outcome_exit_price", exitPrice)
             else putNull("outcome_exit_price")
             put("outcome_evaluated_at", System.currentTimeMillis())
+            if (evalVersion != null) put("eval_version", evalVersion)
+            if (evalDetail != null) { if (evalDetail.isBlank()) putNull("eval_detail") else put("eval_detail", evalDetail) }
         }
         writableDatabase.update("day_trading_log", cv, "id=?", arrayOf(id.toString()))
     }
@@ -1761,6 +1804,12 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 put("outcome", e.outcome)
                 put("outcomeExitPrice", e.outcomeExitPrice)
                 put("outcomeEvaluatedAt", e.outcomeEvaluatedAt)
+                // 2026-09-24c: which engine made it, what it was made under, how it was graded -
+                // the tuning history cannot be rebuilt either once the bars are gone.
+                if (e.engine.isNotBlank()) put("engine", e.engine)
+                if (e.features.isNotBlank()) put("features", e.features)
+                if (e.evalVersion > 0) put("evalVersion", e.evalVersion)
+                if (e.evalDetail.isNotBlank()) put("evalDetail", e.evalDetail)
             })
         }
         root.put("dayTradingLog", dt)
@@ -2039,6 +2088,10 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                         put("outcome_exit_price", o.optDouble("outcomeExitPrice"))
                     if (!o.isNull("outcomeEvaluatedAt"))
                         put("outcome_evaluated_at", o.optLong("outcomeEvaluatedAt"))
+                    put("engine", o.optString("engine", ""))
+                    o.optString("features", "").takeIf { it.isNotBlank() }?.let { put("features", it) }
+                    put("eval_version", o.optInt("evalVersion", 0).coerceAtLeast(0))
+                    o.optString("evalDetail", "").takeIf { it.isNotBlank() }?.let { put("eval_detail", it) }
                 }
                 if (db.insertWithOnConflict(
                         "day_trading_log", null, cv, SQLiteDatabase.CONFLICT_IGNORE

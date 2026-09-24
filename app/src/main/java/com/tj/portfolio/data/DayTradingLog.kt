@@ -23,7 +23,15 @@ data class DayTradingLogEntry(
     /** Null until `PortfolioViewModel.evaluateDayTradingLog` has resolved it once. */
     val outcome: String? = null,
     val outcomeExitPrice: Double? = null,
-    val outcomeEvaluatedAt: Long? = null
+    val outcomeEvaluatedAt: Long? = null,
+    /** Which engine made the plan - "v0" is the original, "claude" a Claude plan, "" an older row (2026-09-24c). */
+    val engine: String = "",
+    /** The conditions the plan was made under, JSON ([com.tj.portfolio.net.DayTradingFeatures]); "" on older rows. */
+    val features: String = "",
+    /** Which grader decided [outcome] - 0 = the pre-2026-09-24c rules ([com.tj.portfolio.net.DayTradingGrader.VERSION]). */
+    val evalVersion: Int = 0,
+    /** The grader's working, JSON ([com.tj.portfolio.net.DayTradingGrader.Detail]); "" when none. */
+    val evalDetail: String = ""
 ) {
     companion object {
         const val SOURCE_APP = "APP"
