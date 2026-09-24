@@ -1483,6 +1483,20 @@ internal const val DT_AUTO_EVAL_MS = 15L * 60_000L
 /** Batches of [DAY_TRADING_EVAL_CAP] the tab's own check may take in one go (2026-09-24c). */
 internal const val DT_AUTO_EVAL_BATCHES = 3
 
+/**
+ * THE TAB'S OWN CHECK IS POLITE (audit PL-3): it starts a few seconds after the tab opens (the
+ * list's own first sweep goes first), asks two days at a time rather than five, pauses between
+ * batches, and stops at the first request Yahoo does not answer or the moment either Yahoo host is
+ * cooling down - the rest waits for the next check, which costs nothing (one-minute bars last
+ * about 30 days).
+ */
+internal const val DT_AUTO_EVAL_DELAY_MS = 4_000L
+internal const val DT_AUTO_EVAL_PAUSE_MS = 5_000L
+internal const val DT_AUTO_EVAL_PARALLEL = 2
+
+/** Cached settled bars older than this are past any re-grade window ([DayTradingEval.INTRADAY_RETENTION_DAYS]) and dropped. */
+internal const val DT_BARS_KEEP_DAYS = 60L
+
 /** A row whose day's bars came back missing is asked again at most this often (audit PL-13). */
 internal const val DT_RETRY_EMPTY_MS = 24L * 3_600_000L
 
@@ -2722,8 +2736,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** [startDayTradingLive]/[stopDayTradingLive]'s job handle. */
     private var dayTradingLiveJob: Job? = null
-    /** When the Day Trading tab last graded the log on its own (2026-09-24c) - see [evaluateDayTradingLog]. */
-    private var dayTradingAutoEvalAt = 0L
+    /**
+     * When the Day Trading tab's own check last FINISHED (2026-09-24c) - see [evaluateDayTradingLog].
+     * Stamped at the end, not the start (audit PL-7): a run cancelled a second in (the tab closed,
+     * the app left the screen) must not hold off the next one for 15 minutes.
+     */
+    @Volatile private var dayTradingAutoEvalAt = 0L
+    /** The tab's own check, so closing the tab stops it (audit PL-7) - a pressed check is not in here. */
+    private var dayTradingAutoEvalJob: Job? = null
+    /**
+     * Decided rows whose re-grade just came back with no bars (id -> when): they keep their verdict
+     * (audit PL-2) and are not asked again for [DT_RETRY_EMPTY_MS]. In memory only - at worst one
+     * wasted pair of requests per row after the process restarts.
+     */
+    private val dtEmptyAnswers = java.util.concurrent.ConcurrentHashMap<Long, Long>()
     /**
      * An engine change asks the list to re-plan once even with the market closed (UI-6) - the
      * closed-market loop otherwise only sweeps once per rebuild, and plans from the previous engine
@@ -7370,70 +7396,120 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // knows at once, and anything a closed session has settled is graded while Yahoo still
             // has its ONE-MINUTE bars (about 30 days) - waiting for a press risked grading on the
             // coarser 5-minute bars, which cannot see inside a bar (audit E1). At most once per
-            // [DT_AUTO_EVAL_MS], and never while offline.
-            val now = System.currentTimeMillis()
-            if (now - dayTradingAutoEvalAt < DT_AUTO_EVAL_MS || !online()) {
+            // [DT_AUTO_EVAL_MS], never while offline, and never two at once.
+            if (dayTradingAutoEvalJob?.isActive == true) return
+            if (System.currentTimeMillis() - dayTradingAutoEvalAt < DT_AUTO_EVAL_MS || !online()) {
                 if (_dayTradingStats.value == null) refreshDayTradingStats()
                 return
             }
-            dayTradingAutoEvalAt = now
+        } else {
+            // A press takes over from an automatic run still waiting to start.
+            dayTradingAutoEvalJob?.cancel()
+            dayTradingAutoEvalJob = null
         }
-        fgScope.launch {
-            _dayTradingStatsLoading.value = true
+        val job = fgScope.launch {
             try {
-                val all = withContext(Dispatchers.IO) { db.dayTradingLog() }
-                if (auto && _dayTradingStats.value == null) _dayTradingStats.value = dayTradingStatsOf(all)
-                val needsEval = dayTradingRowsNeedingGrade(all)
-                // ---- AND A ROW THAT AGED OUT BEFORE IT WAS EVER DECIDED IS SAID TO BE SO
-                // (full-tests audit 2026-09-22, D-L5). The gate above rightly stops fetching it,
-                // but it was left null/PENDING - so the card counted it "still in progress" for
-                // ever, a recommendation from two months ago described as live. Its bars are gone
-                // for good, which is exactly what DATA_UNAVAILABLE ("no price history") means.
-                val expired = all.filter {
-                    (it.outcome == null || it.outcome == com.tj.portfolio.data.DayTradingOutcome.PENDING) &&
-                        !com.tj.portfolio.net.DayTradingEval.intradayStillAvailable(it.tradingDay)
+                if (auto) {
+                    if (_dayTradingStats.value == null) refreshDayTradingStats()
+                    delay(DT_AUTO_EVAL_DELAY_MS)
                 }
-                if (expired.isNotEmpty()) withContext(Dispatchers.IO) {
-                    expired.forEach {
-                        db.setDayTradingOutcome(it.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
-                    }
-                }
-                // ---- CAPPED PER PRESS, OLDEST FIRST (full test 2026-09-23, D-6). One request per
-                // unresolved row with no cap meant a press after two weeks away fired hundreds
-                // of Yahoo chart requests at once - enough to arm the host cooldown the quote
-                // loop and every chart share, leaving the whole app on stale prices for minutes.
-                // The tab's own check takes up to [DT_AUTO_EVAL_BATCHES] batches one after another
-                // (2026-09-24c) - the first run after this update re-grades the whole log, and
-                // one batch at a time, never all at once, is what keeps that polite.
-                var pendingRows = needsEval
-                var left = 0
-                var batchCount = 0
-                repeat(if (auto) DT_AUTO_EVAL_BATCHES else 1) { round ->
-                    if (pendingRows.isEmpty()) return@repeat
-                    val batch = dayTradingRowsToResolve(pendingRows)
-                    batchCount += batch.size
-                    withContext(Dispatchers.IO) {
-                        val gate = Semaphore(MAX_PARALLEL_REQUESTS)
-                        batch.map { entry ->
-                            async {
-                                gate.withPermit { resolveOneDayTradingEntry(entry) }
-                            }
-                        }.awaitAll()
-                    }
-                    val done = batch.map { it.id }.toSet()
-                    pendingRows = pendingRows.filterNot { it.id in done }
-                    left = pendingRows.size
-                    if (round == 0 && auto && pendingRows.isNotEmpty())
-                        _dayTradingStats.value = dayTradingStatsOf(withContext(Dispatchers.IO) { db.dayTradingLog() })
-                }
-                val refreshed = withContext(Dispatchers.IO) { db.dayTradingLog() }
-                _dayTradingStats.value = dayTradingStatsOf(refreshed)
-                if (left > 0 && !auto) toast("Checked $batchCount - $left more to check, tap again")
-            } finally {
-                _dayTradingStatsLoading.value = false
+                runDayTradingEval(auto)
+                if (auto) dayTradingAutoEvalAt = System.currentTimeMillis()
+            } catch (c: kotlinx.coroutines.CancellationException) {
+                throw c
+            } catch (t: Throwable) {
+                // NEVER A CRASH (audit PL-8): this now runs by itself when the tab opens, and the tab
+                // is restored at launch - an uncaught SQLite error here was a crash on every start.
+                android.util.Log.w("Portfolio", "day-trading check failed", t)
+                if (auto) dayTradingAutoEvalAt = System.currentTimeMillis()
+                else toast("Couldn't check the day-trading results - try again later")
             }
         }
+        if (auto) dayTradingAutoEvalJob = job
     }
+
+    /** One grading run over the log - [evaluateDayTradingLog]'s body. */
+    private suspend fun runDayTradingEval(auto: Boolean) {
+        _dayTradingStatsLoading.value = true
+        try {
+            val now = System.currentTimeMillis()
+            val all = withContext(Dispatchers.IO) { db.dayTradingLog() }
+            if (auto && _dayTradingStats.value == null) _dayTradingStats.value = dayTradingStatsOf(all)
+            dtEmptyAnswers.entries.removeIf { now - it.value >= DT_RETRY_EMPTY_MS }
+            val needsEval = dayTradingRowsNeedingGrade(all, now, dtEmptyAnswers.keys.toSet())
+            // ---- AND A ROW THAT AGED OUT BEFORE IT WAS EVER DECIDED IS SAID TO BE SO
+            // (full-tests audit 2026-09-22, D-L5). The gate above rightly stops fetching it,
+            // but it was left null/PENDING - so the card counted it "still in progress" for
+            // ever, a recommendation from two months ago described as live. Its bars are gone
+            // for good, which is exactly what DATA_UNAVAILABLE ("no price history") means.
+            val expired = all.filter {
+                (it.outcome == null || it.outcome == com.tj.portfolio.data.DayTradingOutcome.PENDING) &&
+                    !com.tj.portfolio.net.DayTradingEval.intradayStillAvailable(it.tradingDay, now)
+            }
+            withContext(Dispatchers.IO) {
+                expired.forEach {
+                    db.setDayTradingOutcome(it.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
+                }
+                db.purgeDayBars(com.tj.portfolio.net.MarketClock.dayKey(now - DT_BARS_KEEP_DAYS * 86_400_000L))
+            }
+            // ---- CAPPED PER PRESS, OLDEST FIRST (full test 2026-09-23, D-6). One request per
+            // unresolved row with no cap meant a press after two weeks away fired hundreds
+            // of Yahoo chart requests at once - enough to arm the host cooldown the quote
+            // loop and every chart share, leaving the whole app on stale prices for minutes.
+            // The tab's own check takes up to [DT_AUTO_EVAL_BATCHES] batches, paced (PL-3).
+            var pendingRows = needsEval
+            var left = 0
+            var checked = 0
+            var failed = 0
+            var stop = false
+            val parallel = if (auto) DT_AUTO_EVAL_PARALLEL else MAX_PARALLEL_REQUESTS
+            for (round in 0 until (if (auto) DT_AUTO_EVAL_BATCHES else 1)) {
+                if (stop || pendingRows.isEmpty()) break
+                if (round > 0) delay(DT_AUTO_EVAL_PAUSE_MS)
+                val batch = dayTradingRowsToResolve(pendingRows)
+                val results = withContext(Dispatchers.IO) {
+                    val gate = Semaphore(parallel)
+                    batch.map { entry ->
+                        async {
+                            gate.withPermit {
+                                if (auto && yahooChartCoolingDown()) DtResolve.FAILED
+                                else try {
+                                    resolveOneDayTradingEntry(entry)
+                                } catch (c: kotlinx.coroutines.CancellationException) {
+                                    throw c
+                                } catch (t: Throwable) {
+                                    android.util.Log.w("Portfolio", "grading ${entry.symbol} failed", t)
+                                    DtResolve.FAILED
+                                }
+                            }
+                        }
+                    }.awaitAll()
+                }
+                checked += results.count { it != DtResolve.FAILED }
+                failed += results.count { it == DtResolve.FAILED }
+                if (auto && results.any { it == DtResolve.FAILED }) stop = true
+                val done = batch.map { it.id }.toSet()
+                pendingRows = pendingRows.filterNot { it.id in done }
+                left = pendingRows.size
+                if (auto && !stop && pendingRows.isNotEmpty())
+                    _dayTradingStats.value = dayTradingStatsOf(withContext(Dispatchers.IO) { db.dayTradingLog() })
+            }
+            val refreshed = withContext(Dispatchers.IO) { db.dayTradingLog() }
+            _dayTradingStats.value = dayTradingStatsOf(refreshed)
+            if (!auto) when {
+                failed > 0 -> toast("Couldn't reach the price history for $failed - try again in a few minutes" +
+                    if (left > 0) " ($left more waiting)" else "")
+                left > 0 -> toast("Checked $checked - $left more to check, tap again")
+            }
+        } finally {
+            _dayTradingStatsLoading.value = false
+        }
+    }
+
+    /** Either Yahoo host is being left alone for a while - an automatic run stops asking (PL-3). */
+    private fun yahooChartCoolingDown(): Boolean =
+        Http.cooldownRemaining("https://query1.finance.yahoo.com/v8/finance/chart/SPY") > 0L ||
+            Http.cooldownRemaining("https://query2.finance.yahoo.com/v8/finance/chart/SPY") > 0L
 
     /** The stats card's numbers from the log as it stands - no network (2026-09-24c). */
     fun refreshDayTradingStats() {
@@ -7482,52 +7558,66 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             runCatching { db.dayTradingLogFor(symbol, com.tj.portfolio.net.MarketClock.dayKey()) }.getOrNull()
         }
 
+    /** What [resolveOneDayTradingEntry] got: a grade written, no bars for the day, or no answer at all. */
+    private enum class DtResolve { DONE, EMPTY, FAILED }
+
     /** One log row's own fetch-and-decide step, split out of [evaluateDayTradingLog] so the
      *  gate above bounds it the same way every other per-symbol network loop in this file is
      *  bounded. */
-    private suspend fun resolveOneDayTradingEntry(entry: com.tj.portfolio.data.DayTradingLogEntry) {
+    private suspend fun resolveOneDayTradingEntry(entry: com.tj.portfolio.data.DayTradingLogEntry): DtResolve {
         val E = com.tj.portfolio.net.DayTradingEval
         val G = com.tj.portfolio.net.DayTradingGrader
-        val bounds = E.sessionBoundsMs(entry.tradingDay)
-        // An unparseable trading_day can only mean a corrupt row - nothing to evaluate, and
-        // retrying it every press would be pointless. Marked unavailable rather than left null
-        // forever, which would otherwise look identical to "never tried yet".
-        if (bounds == null) {
-            db.setDayTradingOutcome(entry.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
-            return
-        }
+        val O = com.tj.portfolio.data.DayTradingOutcome
         val now = System.currentTimeMillis()
+        // A DECIDED ROW BEING RE-GRADED KEEPS ITS VERDICT unless the new grade is a real one
+        // (audit DA-12 / PL-2): a re-grade whose bars come back missing - a renamed or delisted
+        // symbol, a window Yahoo no longer serves - used to overwrite an old WIN with "no price
+        // history", losing it for good. Only a row that was never decided becomes DATA_UNAVAILABLE.
+        val decided = O.isFinal(entry.outcome)
+        fun noBars(): DtResolve {
+            if (decided) dtEmptyAnswers[entry.id] = now
+            else db.setDayTradingOutcome(entry.id, O.DATA_UNAVAILABLE, null)
+            return DtResolve.EMPTY
+        }
+        // An unparseable trading_day can only mean a corrupt row - nothing to evaluate, and
+        // retrying it every press would be pointless.
+        if (E.sessionBoundsMs(entry.tradingDay) == null) return noBars()
         // Open until the bars are trustworthy, not merely until the bell - see SETTLE_GRACE_MS.
         val settled = E.sessionSettled(entry.tradingDay, now)
+        // ---- A SETTLED DAY'S BARS ARE READ FROM THE PHONE WHEN IT HAS THEM (audit PL-6): they never
+        // change, so a re-grade costs no request and keeps its one-minute resolution after Yahoo's
+        // one-minute window has passed.
+        fun cached(res: Int) = if (settled) db.cachedDayBars(entry.symbol, entry.tradingDay, res) else null
         // ---- ONE-MINUTE BARS FIRST (2026-09-24c, audit E1). A five-minute bar hides up to five
         // minutes after the recommendation and cannot say what happened first inside itself; one-
         // minute bars shrink both to under a minute. A FAILED one-minute request is asked again
         // next time rather than settled on the coarser bars; only when Yahoo no longer keeps them
         // (or has none for this symbol) does the grade fall back to five-minute bars, marked so.
         var res = 1
-        var bars: List<com.tj.portfolio.net.DayTradingEval.IntradayBar>? = null
-        if (E.oneMinuteStillAvailable(entry.tradingDay, now)) {
-            bars = runCatching { E.fetchDaySeries(entry.symbol, entry.tradingDay, interval = "1m") }.getOrNull()
+        var bars = cached(1)
+        var fromCache = bars != null
+        if (bars == null && E.oneMinuteStillAvailable(entry.tradingDay, now)) {
             // A REQUEST THAT FAILED says nothing about the day (D-12) - the row stays as it was
             // and the next check asks again.
-            if (bars == null) return
+            bars = E.fetchDaySeries(entry.symbol, entry.tradingDay, interval = "1m") ?: return DtResolve.FAILED
         }
         if (bars.isNullOrEmpty()) {
             res = 5
-            bars = runCatching { E.fetchDaySeries(entry.symbol, entry.tradingDay) }.getOrNull() ?: return
+            bars = cached(5)
+            fromCache = bars != null
+            if (bars == null) bars = E.fetchDaySeries(entry.symbol, entry.tradingDay) ?: return DtResolve.FAILED
         }
         if (bars.isEmpty()) {
             // A day still in progress with no bars yet is simply too early to say anything -
             // left as whatever it already was rather than written over. Once the day has closed,
             // an ANSWER with no bars really does mean the data is gone.
-            if (settled) db.setDayTradingOutcome(entry.id, com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE, null)
-            return
+            return if (settled) noBars() else DtResolve.EMPTY
         }
         // THE PLAN'S OWN CANCEL-BY AND FLAT-BY TIMES (2026-09-24c, E4) - from the engine that made
         // it (its features), or the original engine's for a row logged before they were recorded.
         val (deadline, flat) = com.tj.portfolio.net.DayTradingFeatures.timesFor(
             entry.tradingDay, entry.recordedAt, entry.features)
-        val spec = com.tj.portfolio.net.DayTradingGrader.Spec(
+        val spec = G.Spec(
             entry = entry.entry, stop = entry.stop, target = entry.target,
             rises = E.entryRises(entry.setup, entry.entry, entry.priceAtRecommendation),
             recordedAt = entry.recordedAt,
@@ -7536,13 +7626,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         )
         // Mid-session only a stop or a target can decide a trade - "never filled" and "closed at
         // the flat time" wait until the session has settled, so a late-arriving bar can never be
-        // missed by a verdict that is final.
+        // missed by a verdict that is final. A verdict reached mid-session carries a PARTIAL
+        // working and is graded once more after the close (DA-1).
         val g = G.grade(spec, bars, decidedThroughSec = if (settled) Long.MAX_VALUE else 0L, res = res)
-        if (g.outcome == com.tj.portfolio.data.DayTradingOutcome.PENDING) {
+        if (g.outcome == O.PENDING) {
+            // A SETTLED day that still cannot be decided has a series that stops short of the
+            // flat time (DA-17) - not a verdict; asked again later like a missing day.
+            if (settled) return noBars()
             db.setDayTradingOutcome(entry.id, g.outcome, null, G.VERSION, "")
         } else {
             db.setDayTradingOutcome(entry.id, g.outcome, g.exitPrice, G.VERSION, g.detail?.toJson() ?: "")
+            if (settled && !fromCache) db.cacheDayBars(entry.symbol, entry.tradingDay, res, bars)
         }
+        dtEmptyAnswers.remove(entry.id)
+        return DtResolve.DONE
     }
 
     /**
@@ -8607,6 +8704,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         dayTradingLiveOnly = null
         dayTradingLiveJob?.cancel()
         dayTradingLiveJob = null
+        // The tab's own grading run stops with the tab (audit PL-7) - "asleep when I'm not using
+        // it". A pressed "Check" is left to finish: that was asked for.
+        dayTradingAutoEvalJob?.cancel()
+        dayTradingAutoEvalJob = null
     }
 
     /**
