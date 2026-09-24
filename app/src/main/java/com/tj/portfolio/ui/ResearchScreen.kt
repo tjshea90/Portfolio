@@ -1389,13 +1389,74 @@ private fun androidx.compose.foundation.layout.RowScope.FactCell(
 internal fun fmtR(v: Double): String =
     if (!v.isFinite()) "n/a" else String.format(java.util.Locale.US, "%+.2fR", if (kotlin.math.abs(v) < 0.005) 0.0 else v)
 
+/** "1 recommendation" / "3 recommendations". */
+private fun plural(n: Int, word: String): String = "$n $word" + if (n == 1) "" else "s"
+
+/** The success card's count footnote, with only the clauses that are not zero (UI-26). */
+internal fun dayTradingCounts(stats: com.tj.portfolio.data.DayTradingStats): String {
+    val parts = ArrayList<String>()
+    if (stats.entriesTriggered > 0) parts.add(
+        "${stats.entriesTriggered} filled (${stats.targetHit} hit target, ${stats.stopHit} hit stop, " +
+            "${stats.closedProfit + stats.closedLoss} sold without hitting either - at the flat time, or at once " +
+            "when the price jumped past both)"
+    )
+    if (stats.noEntry > 0) parts.add("${stats.noEntry} never filled before their cut-off")
+    if (stats.pending > 0) parts.add("${stats.pending} still in progress")
+    if (stats.unchecked > 0) parts.add("${stats.unchecked} not checked yet")
+    if (stats.dataUnavailable > 0) parts.add("${stats.dataUnavailable} with no price history available")
+    if (stats.regrading > 0) parts.add("${stats.regrading} being re-checked under the current, stricter rules")
+    val head = plural(stats.totalRecommendations, "recommendation") + " recorded"
+    return (if (parts.isEmpty()) "$head." else "$head - ${parts.joinToString(", ")}.") +
+        (if (stats.graded5m > 0)
+            " ${stats.graded5m} graded on 5-minute bars (their 1-minute history had expired) - any bar " +
+                "that could be read either way was read as a loss."
+        else "") +
+        (if (stats.legacyExcluded > 0)
+            " ${plural(stats.legacyExcluded, "older result")} graded under the previous, less strict rules " +
+                (if (stats.legacyExcluded == 1) "is" else "are") + " no longer re-checkable (the price history " +
+                "has expired), so " + (if (stats.legacyExcluded == 1) "it is" else "they are") + " not counted."
+        else "")
+}
+
+/** What the card says when no trade has a decided result yet (UI-5) - never "none has an outcome" when some are being re-checked. */
+internal fun dayTradingNothingYet(stats: com.tj.portfolio.data.DayTradingStats): String = when {
+    stats.totalRecommendations == 0 && stats.legacyExcluded == 0 ->
+        "No recommendations recorded yet. Keep using the Day Trading tab while the market is open - it " +
+            "only records the plans it actually shows you - then check again."
+    stats.regrading > 0 ->
+        "${plural(stats.regrading, "earlier result")} " + (if (stats.regrading == 1) "is" else "are") +
+            " being re-checked under the current, stricter rules - " + (if (stats.regrading == 1) "it appears" else "they appear") +
+            " here as soon as that is done."
+    stats.noEntry > 0 && stats.pending == 0 && stats.unchecked == 0 ->
+        "None of the ${plural(stats.totalRecommendations, "recorded recommendation")} filled before its cut-off, " +
+            "so there is no trade to measure yet - an unfilled order is no trade, not a loss."
+    else -> "Nothing to measure yet - no recorded recommendation has filled and finished. Keep using the " +
+        "Day Trading tab (this only records what it actually shows you), then check again."
+}
+
+/** The line under the expectancy - a verdict only where the sample can bear one (UI-1). */
+internal fun expectancyNote(stats: com.tj.portfolio.data.DayTradingStats): String {
+    if (stats.entriesTriggered < 2) return "In units of the risk each trade was sized on (1R = the loss at the stop)."
+    val range = "95% range ${fmtR(stats.avgRLow)} to ${fmtR(stats.avgRHigh)}"
+    val first = com.tj.portfolio.data.DayTradingStats.SAMPLE_TIERS[0].first
+    val early = com.tj.portfolio.data.DayTradingStats.SAMPLE_TIERS[1].first
+    return "In units of the risk each trade was sized on (1R = the loss at the stop). " + when {
+        stats.entriesTriggered < first -> "$range - with under $first trades this range is not reliable yet."
+        stats.edgeVerdict == "positive" && stats.entriesTriggered < early -> "$range - above zero so far, but an early read."
+        stats.edgeVerdict == "positive" -> "$range - a real edge so far, with 95% confidence."
+        stats.edgeVerdict == "negative" -> "$range - losing money on average, with 95% confidence."
+        else -> "$range - not yet distinguishable from zero."
+    }
+}
+
 /**
  * Tj's "separate button" - every recommendation this section has ever shown is already being
  * recorded silently (`PortfolioViewModel.captureDayTradingRecommendations`); this is where it is
  * surfaced. Since 2026-09-24c the tab also grades what has settled whenever it opens, so the card
  * is current without a press; the button re-checks on demand. Every figure is graded from the
  * stock's own real prices after the recommendation was shown, traded exactly as the card said
- * ([com.tj.portfolio.net.DayTradingGrader]) - and says how much data it rests on.
+ * ([com.tj.portfolio.net.DayTradingGrader]) - and says how much data it rests on. The headline
+ * numbers stay open; the long explanations sit behind "Details" (UI-21).
  */
 @Composable
 internal fun DayTradingSuccessRate(
@@ -1404,6 +1465,8 @@ internal fun DayTradingSuccessRate(
     onCheck: () -> Unit
 ) {
     var howGraded by rememberSaveable { mutableStateOf(false) }
+    var details by rememberSaveable { mutableStateOf(false) }
+    val muted = MaterialTheme.colorScheme.onSurfaceVariant
     Column {
         OutlinedButton(
             onClick = onCheck,
@@ -1424,25 +1487,21 @@ internal fun DayTradingSuccessRate(
                 Text(
                     "Graded on the stocks' real prices from AFTER each recommendation was shown - " +
                         "as if you had placed the order right then, exactly as the card said",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodySmall,
+                    color = muted
                 )
                 Spacer(Modifier.height(8.dp))
                 if (stats.entriesTriggered == 0) {
-                    Text(
-                        "Nothing to measure yet - none of the ${stats.totalRecommendations} " +
-                            "recorded recommendation" +
-                            (if (stats.totalRecommendations == 1) "" else "s") +
-                            " has a decided outcome. Keep using the Day Trading tab (this " +
-                            "only records what it actually shows you), then check again.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(dayTradingNothingYet(stats), style = MaterialTheme.typography.bodyMedium, color = muted)
+                    Spacer(Modifier.height(6.dp))
+                    Text(dayTradingCounts(stats), style = MaterialTheme.typography.bodySmall, color = muted)
                 } else {
-                    // ---- HOW MUCH THE NUMBERS BELOW CAN BEAR, FIRST (2026-09-24c, audit E10).
+                    // ---- HOW MUCH THE NUMBERS BELOW CAN BEAR, FIRST (2026-09-24c, audit E10), and
+                    // whose plans they are (UI-20) - the card below counts only the app's own.
                     Text(
-                        "${stats.entriesTriggered} graded trade" +
-                            (if (stats.entriesTriggered == 1) "" else "s") + " - " + stats.sampleNote,
+                        plural(stats.entriesTriggered, "graded trade") +
+                            (if (stats.claudeTrades > 0) " (${stats.appTrades} from the app's own plans, " +
+                                "${stats.claudeTrades} from Claude's)" else "") + " - " + stats.sampleNote,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = if (stats.entriesTriggered < com.tj.portfolio.data.DayTradingStats.SAMPLE_TIERS[0].first)
@@ -1461,8 +1520,8 @@ internal fun DayTradingSuccessRate(
                     )
                     if (stats.entriesTriggered >= 2) Text(
                         "Likely true rate: ${Fmt.oneDp(stats.profitableLow)}% to ${Fmt.oneDp(stats.profitableHigh)}% (95% range)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.bodySmall,
+                        color = muted
                     )
                     KeyValue(
                         "Target hit rate",
@@ -1481,122 +1540,95 @@ internal fun DayTradingSuccessRate(
                         bold = true
                     )
                     Text(
-                        "${stats.entriesTriggered - stats.unfundedTrades} trade" +
-                            (if (stats.entriesTriggered - stats.unfundedTrades == 1) "" else "s") +
-                            " across ${stats.sessions} session" +
-                            (if (stats.sessions == 1) "" else "s") +
-                            ", each sized the way this app sizes them - 1% of the portfolio " +
-                            "risked per trade, and never more than 25% of it in one position" +
-                            (if (stats.cappedTrades > 0)
-                                " (the cap sized ${stats.cappedTrades} of them - a tight stop " +
-                                    "would otherwise have meant a bigger position)"
-                            else "") + ". " +
+                        plural(stats.fundedTrades, "trade") + " across " + plural(stats.sessions, "session") +
+                            ", each sized the way this app sizes them (1% of the portfolio at risk, at most 25% " +
+                            "in one position)" +
                             (if (stats.unfundedTrades > 0)
-                                "${stats.unfundedTrades} more could not have been bought: earlier picks " +
-                                    "already had the whole portfolio in play at the time, and this assumes no " +
-                                    "margin, so they are left out (all ${stats.entriesTriggered} would have " +
-                                    "made ${Fmt.pctSigned(stats.accountReturnAllPct)}). "
-                            else "") +
-                            "Profits are not reinvested.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                "; ${stats.unfundedTrades} more could not have been bought - the portfolio was " +
+                                    "already fully in other picks at the time (no margin), so they are left out"
+                            else "") + ".",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = muted
                     )
                     Spacer(Modifier.height(8.dp))
                     // ---- EXPECTANCY, THE NUMBER A SYSTEM LIVES OR DIES BY (2026-09-24c).
-                    KeyValue("Average result per trade", fmtR(stats.avgR), signColor(stats.avgR))
-                    Text(
-                        "In units of the risk each trade was sized on (1R = the loss at the stop). " +
-                            (if (stats.entriesTriggered >= 2)
-                                "95% range ${fmtR(stats.avgRLow)} to ${fmtR(stats.avgRHigh)} - " +
-                                    when (stats.edgeVerdict) {
-                                        "positive" -> "a real edge so far, with 95% confidence."
-                                        "negative" -> "losing money on average, with 95% confidence."
-                                        else -> "not yet distinguishable from zero."
-                                    }
-                            else ""),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    KeyValue("Average per trade, in R (risk units)", fmtR(stats.avgR), signColor(stats.avgR))
+                    Text(expectancyNote(stats), style = MaterialTheme.typography.bodySmall, color = muted)
+                    val hasWin = stats.targetHit + stats.closedProfit > 0 && stats.avgWinR > 0.0
+                    val hasLoss = stats.avgLossR < 0.0 || stats.stopHit > 0
+                    KeyValue(
+                        "Average win / average loss",
+                        (if (hasWin) fmtR(stats.avgWinR) else "none yet") + " / " +
+                            (if (hasLoss) fmtR(stats.avgLossR) else "none yet")
                     )
-                    KeyValue("Average win / average loss", "${fmtR(stats.avgWinR)} / ${fmtR(stats.avgLossR)}")
                     KeyValue(
                         "Profit factor",
-                        if (stats.profitFactor.isInfinite()) "no losing trade yet" else Fmt.priceBare(stats.profitFactor)
+                        when {
+                            stats.profitFactor.isInfinite() -> "no losing trade yet"
+                            else -> String.format(java.util.Locale.US, "%.2f", stats.profitFactor)
+                        }
                     )
-                    KeyValue("Worst losing streak (drawdown)", fmtR(-stats.maxDrawdownR))
-                    Spacer(Modifier.height(6.dp))
+                    Text("Dollars won for every dollar lost - above 1 made money.",
+                        style = MaterialTheme.typography.bodySmall, color = muted)
                     KeyValue(
-                        "Average per trade",
-                        Fmt.pctSigned(stats.netAvgReturnPct),
-                        signColor(stats.netAvgReturnPct)
+                        "Biggest drop from a high",
+                        if (stats.maxDrawdownR <= 0.005) "none yet" else fmtR(-stats.maxDrawdownR)
                     )
-                    KeyValue(
-                        "Total on a fixed stake",
-                        Fmt.pctSigned(stats.netTotalReturnPct),
-                        signColor(stats.netTotalReturnPct)
-                    )
-                    KeyValue(
-                        "Before trading costs",
-                        Fmt.pctSigned(stats.totalReturnPct),
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        "Percent figures: the same dollar amount into every pick, profits not " +
-                            "reinvested. Costs assumed: " +
-                            // `Fmt.pct` (two decimals), NOT `oneDp` - these are fractions of a
-                            // percent, and one decimal place rounds 0.05% to "0.1%".
-                            Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.ENTRY_BPS / 100.0) +
-                            " getting in, " +
-                            Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.STOP_BPS / 100.0) +
-                            " when a stop fires, " +
-                            Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.CLOSE_BPS / 100.0) +
-                            " selling at the flat time; commission zero.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "${stats.totalRecommendations} recommendations recorded - " +
-                            "${stats.entriesTriggered} filled " +
-                            "(${stats.targetHit} hit target, ${stats.stopHit} hit stop, " +
-                            "${stats.closedProfit + stats.closedLoss} sold without hitting " +
-                            "either - at the flat time, or at once when the price jumped past both), ${stats.noEntry} never filled before " +
-                            "their cut-off, ${stats.pending} still in progress" +
-                            (if (stats.dataUnavailable > 0)
-                                ", ${stats.dataUnavailable} with no price history available"
-                            else "") + "." +
-                            (if (stats.regrading > 0)
-                                " ${stats.regrading} earlier result" + (if (stats.regrading == 1) " is" else "s are") +
-                                    " being re-checked under the current, stricter rules and will count once done."
-                            else "") +
-                            (if (stats.graded5m > 0)
-                                " ${stats.graded5m} graded on 5-minute bars (their 1-minute history " +
-                                    "had expired) - any bar that could be read either way was read as a loss."
-                            else "") +
-                            (if (stats.legacyExcluded > 0)
-                                " ${stats.legacyExcluded} older result" +
-                                    (if (stats.legacyExcluded == 1) " was" else "s were") +
-                                    " graded under the previous, less strict rules and can no longer be " +
-                                    "re-checked (the price history has expired), so " +
-                                    (if (stats.legacyExcluded == 1) "it is" else "they are") + " not counted."
-                            else ""),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text("The worst run you would have sat through, from a high point to the low after it, in R.",
+                        style = MaterialTheme.typography.bodySmall, color = muted)
                     DayTradingBreakdown(stats.breakdown)
+                    Spacer(Modifier.height(4.dp))
+                    ExpandLink(if (details) "Hide details" else "Details: sizing, percent figures, costs, counts", details) {
+                        details = !details
+                    }
+                    if (details) {
+                        Text(
+                            "Sizing: every trade risks 1% of the portfolio at its stop, but never more than 25% " +
+                                "of the portfolio goes into one position" +
+                                (if (stats.cappedTrades > 0)
+                                    " - the cap sized ${stats.cappedTrades} of the ${plural(stats.fundedTrades, "trade")} " +
+                                        "above (a tight stop would otherwise have meant a bigger position)"
+                                else "") +
+                                (if (stats.unfundedTrades > 0)
+                                    ". Had every trade been fundable, the figure would be ${Fmt.pctSigned(stats.accountReturnAllPct)}"
+                                else "") + ". Trades on the same day share one portfolio; profits are not reinvested.",
+                            style = MaterialTheme.typography.bodySmall, color = muted
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        KeyValue(
+                            "Average per trade, % of the money in it",
+                            Fmt.pctSigned(stats.netAvgReturnPct),
+                            signColor(stats.netAvgReturnPct)
+                        )
+                        KeyValue(
+                            "Total, same dollars in every pick",
+                            Fmt.pctSigned(stats.netTotalReturnPct),
+                            signColor(stats.netTotalReturnPct)
+                        )
+                        KeyValue("Same, before trading costs", Fmt.pctSigned(stats.totalReturnPct), muted)
+                        Text(
+                            "Costs assumed: " +
+                                // `Fmt.pct` (two decimals), NOT `oneDp` - these are fractions of a
+                                // percent, and one decimal place rounds 0.05% to "0.1%".
+                                Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.ENTRY_BPS / 100.0) +
+                                " getting in, " +
+                                Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.STOP_BPS / 100.0) +
+                                " when a stop fires, " +
+                                Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.CLOSE_BPS / 100.0) +
+                                " selling at the flat time; commission zero.",
+                            style = MaterialTheme.typography.bodySmall, color = muted
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(dayTradingCounts(stats), style = MaterialTheme.typography.bodySmall, color = muted)
+                    }
                 }
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    if (howGraded) "Hide how trades are graded" else "How are trades graded?",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = accentText,
-                    modifier = Modifier.minTapTarget().clickable { howGraded = !howGraded }.padding(vertical = 6.dp)
-                )
+                ExpandLink(if (howGraded) "Hide how trades are graded" else "How are trades graded?", howGraded) {
+                    howGraded = !howGraded
+                }
                 if (howGraded) Text(
                     DAY_TRADING_GRADING_RULES,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = muted
                 )
             }
         }
@@ -1623,10 +1655,15 @@ private fun DayTradingBreakdown(slices: List<com.tj.portfolio.data.StatSlice>) {
         Text(group, style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         rows.forEach { sl ->
+            // A SLICE THIS SMALL IS NOT A FINDING (UI-16) - shown, muted, and said so, the same rule
+            // the headline follows.
+            val few = sl.decided < com.tj.portfolio.data.DayTradingStats.SAMPLE_TIERS[0].first
             KeyValue(
                 sl.label,
-                "${fmtR(sl.avgR)} avg, ${Fmt.oneDp(sl.profitableRate)}% profitable " +
-                    "(${sl.decided} trade" + (if (sl.decided == 1) ")" else "s)")
+                "${fmtR(sl.avgR)} avg, ${Math.round(sl.profitableRate)}% profitable " +
+                    "(${sl.decided} trade" + (if (sl.decided == 1) ")" else "s)") +
+                    (if (few) " - too few to judge" else ""),
+                if (few) MaterialTheme.colorScheme.onSurfaceVariant else null
             )
         }
     }
