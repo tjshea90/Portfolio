@@ -202,6 +202,82 @@ class Improve0924bTest {
         } finally { java.util.TimeZone.setDefault(was) }
     }
 
+    // ---- Day Trading: the unknowable bar, the breakdown, the logged plan, the alerts.
+
+    private fun bar(t: Long, h: Double, l: Double, c: Double) =
+        com.tj.portfolio.net.DayTradingEval.IntradayBar(t, h, l, c)
+
+    @Test fun `a bar that touched entry and stop together is flagged, and one-minute bars settle it`() {
+        val E = com.tj.portfolio.net.DayTradingEval
+        val t0 = ny(2026, 9, 21, 10) / 1000
+        // Breakout: entry 10.50 above a 10.00 price, stop 9.80, target 11.20.
+        val five = listOf(bar(t0, 10.60, 9.75, 10.40), bar(t0 + 300, 10.70, 10.30, 10.60))
+        val coarse = E.evaluateResolved("Breakout", 10.50, 9.80, 11.20, 10.00, t0 * 1000, five, false)
+        assertEquals(com.tj.portfolio.data.DayTradingOutcome.LOSS, coarse.outcome)
+        assertTrue("the order inside that bar is unknowable", coarse.ambiguous)
+        // One-minute bars: it dipped to 9.75 FIRST, then broke out and never came back to 9.80.
+        val one = listOf(bar(t0, 10.0, 9.75, 9.9), bar(t0 + 60, 10.1, 9.9, 10.0),
+            bar(t0 + 120, 10.6, 10.0, 10.55), bar(t0 + 180, 10.6, 10.4, 10.5), bar(t0 + 300, 10.7, 10.3, 10.6))
+        val fine = E.evaluateResolved("Breakout", 10.50, 9.80, 11.20, 10.00, t0 * 1000, one, false)
+        assertEquals("filled after the dip, never stopped", com.tj.portfolio.data.DayTradingOutcome.CLOSED_PROFIT, fine.outcome)
+        assertFalse(fine.ambiguous)
+        // A stop hit on a LATER bar, with no target in it, is a plain loss - nothing to ask again.
+        val plain = listOf(bar(t0, 10.60, 10.10, 10.55), bar(t0 + 300, 10.55, 9.70, 9.75))
+        assertFalse(E.evaluateResolved("Breakout", 10.50, 9.80, 11.20, 10.00, t0 * 1000, plain, false).ambiguous)
+        // Stop and target in the same bar: flagged.
+        val both = listOf(bar(t0, 10.60, 10.10, 10.55), bar(t0 + 300, 11.30, 9.70, 10.0))
+        assertTrue(E.evaluateResolved("Breakout", 10.50, 9.80, 11.20, 10.00, t0 * 1000, both, false).ambiguous)
+        // The older API still answers the same way.
+        assertEquals(com.tj.portfolio.data.DayTradingOutcome.LOSS to 9.80,
+            E.evaluate("Breakout", 10.50, 9.80, 11.20, 10.00, t0 * 1000, five, false))
+    }
+
+    private fun logged(source: String, setup: String, outcome: String, hour: Int, exit: Double) =
+        com.tj.portfolio.data.DayTradingLogEntry(id = 0, symbol = "X", tradingDay = "20260921",
+            recordedAt = ny(2026, 9, 21, hour, 5), setup = setup, entry = 10.0, stop = 9.5, target = 11.0,
+            priceAtRecommendation = 9.8, source = source, outcome = outcome, outcomeExitPrice = exit)
+
+    @Test fun `the success card splits by who planned it, setup and time of day`() {
+        val O = com.tj.portfolio.data.DayTradingOutcome
+        val rows = listOf(
+            logged("APP", "Breakout", O.WIN, 9, 11.0),
+            logged("APP", "Pullback", O.LOSS, 12, 9.5),
+            logged("CLAUDE", "Gap and go", O.WIN, 15, 11.0),
+            logged("CLAUDE", "Gap and go", O.NO_ENTRY, 15, 0.0))
+        val b = com.tj.portfolio.net.DayTradingEval.stats(rows).breakdown
+        val who = b.filter { it.group == "Who planned it" }.associateBy { it.label }
+        assertEquals(2, who.getValue("The app's plans").decided)
+        assertEquals("a never-triggered plan is not a decided trade", 1, who.getValue("Claude's plans").decided)
+        assertEquals(100.0, who.getValue("Claude's plans").targetHitRate, 1e-9)
+        assertEquals(listOf("Breakout", "Pullback", "Claude's own setups"),
+            b.filter { it.group == "Setup" }.map { it.label })
+        assertEquals(listOf("First hour", "Midday", "Last two hours"),
+            b.filter { it.group == "When it was recommended" }.map { it.label })
+    }
+
+    @Test fun `today's logged plan can be read back for one stock`() {
+        val db = Db(app)
+        db.logDayTradingRecommendation("GME", "20260921", 1_000L, "Breakout", 23.0, 21.5, 26.0, 22.5,
+            com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE)
+        val e = db.dayTradingLogFor("gme", "20260921")!!
+        assertEquals(23.0, e.entry, 1e-9)
+        assertEquals(com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE, e.source)
+        assertEquals(null, db.dayTradingLogFor("GME", "20260922"))
+        db.close()
+    }
+
+    @Test fun `a level alert fires on a real crossing only, never for a changed plan`() {
+        val plan = ResearchRow(symbol = "GME", price = 22.9, entryPrice = 23.0, stopPrice = 21.5, targetPrice = 26.0)
+        val up = com.tj.portfolio.ui.planCrossings(plan, plan.copy(price = 23.1))
+        assertEquals(listOf("entry"), up.map { it.first })
+        assertTrue(up.single().second.contains("buy price"))
+        assertEquals(listOf("stop"), com.tj.portfolio.ui.planCrossings(plan.copy(price = 21.6), plan.copy(price = 21.4)).map { it.first })
+        assertEquals(listOf("target"), com.tj.portfolio.ui.planCrossings(plan.copy(price = 25.9), plan.copy(price = 26.2)).map { it.first })
+        assertTrue("already past: nothing new", com.tj.portfolio.ui.planCrossings(plan.copy(price = 23.2), plan.copy(price = 23.4)).isEmpty())
+        assertTrue("a re-planned row is not a crossing",
+            com.tj.portfolio.ui.planCrossings(plan, plan.copy(price = 23.1, entryPrice = 23.05)).isEmpty())
+    }
+
     // ---- L-4: Android 14+ only ever sends 20 and 40.
 
     private fun settle() {
