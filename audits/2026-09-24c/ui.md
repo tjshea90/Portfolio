@@ -97,8 +97,10 @@ Status: IN PROGRESS (findings appended as confirmed)
   labelled as the original. Evening is the natural time to run a tuning round, so this is the common case.
 - Fix: stamp the version on the row when the app plans it (`planEngine = DayTradingEngine.version` in
   `mergeDayTradingTech`, persisted in `ResearchRow.toJson`, cleared with the plan) and build the label from
-  `r.planEngine`; in `replanDayTradingNow` also set `dayTradingSweepDone = false` so a closed-market list
-  re-plans once under the new engine. That also removes the non-snapshot read from composition.
+  `r.planEngine`; in `replanDayTradingNow` make a closed-market list re-plan once under the new engine
+  (a one-shot "replan owed" flag - resetting `dayTradingSweepDone` itself would also trigger the
+  once-per-rebuild actionability re-sort at PortfolioViewModel.kt:8679-8681). The row stamp also
+  removes the non-snapshot volatile read from composition.
 
 ### UI-7 (M) - The tuning card's four buttons go grey during automatic grading, with no reason shown
 - Where: ui/ResearchScreen.kt:719 (`busy = dayTradingStatsLoading`), ui/EngineTuningUi.kt:82-118.
