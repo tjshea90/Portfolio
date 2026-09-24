@@ -111,3 +111,87 @@ Status: IN PROGRESS (findings appended as confirmed)
 - Fix: disable only "Make tuning prompt" (it would miss fresh grades) and show a caption under the row:
   "Grading new results... the prompt is ready when that finishes." Keep Import/Undo/Revert enabled.
 
+### UI-8 (M) - Two "average per trade" rows in different units; profit factor and drawdown unexplained; "losing streak" is not what is measured
+- Where: ui/ResearchScreen.kt:1490-1525.
+- Problem: "Average result per trade +0.12R" and, four rows later, "Average per trade +0.08%" - near-identical
+  labels, different units, different trade sets (the % rows include unfunded trades). R is explained in one
+  10sp line; "Profit factor" and "drawdown" are not explained at all, and this card is read by a
+  non-expert. "Worst losing streak (drawdown)" is mislabelled: `maxDrawdown` is the largest peak-to-trough
+  fall of cumulative R, which can span winning trades, not a run of consecutive losers. And a zero
+  drawdown prints `fmtR(-0.0)` = "+0.00R" - a plus sign on a drawdown.
+- Fix: labels "Average per trade, in R (risk units)" / "Average per trade, % of the money in it" /
+  "Total, same $ in every pick"; one muted line each: "Profit factor - dollars won for every dollar
+  lost; above 1 made money", "Largest drop from a high point - the worst run you would have sat
+  through, in R". Rename to "Biggest drop from a high (in R)" and print "none yet" when it is 0.
+
+### UI-9 (L) - "+0.00R" for an average loss that does not exist; profit factor decimals vary
+- Where: ui/ResearchScreen.kt:1504-1508; DayTradingEval.kt:491-494.
+- Problem: with no losing trade, "Average win / average loss" reads "+1.52R / +0.00R" (avgLossR defaults
+  to 0.0), and with no win "+0.00R / -1.00R". Profit factor uses `Fmt.priceBare`, which prints 3 decimals
+  below 1 ("0.842") and 2 above ("1.35") - a money formatter for a ratio.
+- Fix: "none yet" for an empty side; `String.format(Locale.US, "%.2f", pf)` for the ratio.
+
+### UI-10 (M) - After Undo or Revert the card says "so this one can be measured" about a change that is no longer in force
+- Where: ui/EngineTuningUi.kt:72-77; net/EngineTuning.kt:111 (`lastApplyAt` includes undone applies), 378-381 (same rule in the review blocker).
+- Problem: `lastApplyAt` is the time of the last APPLY even when it was later undone or reverted, so after a
+  revert the card reads "4 since the last change - the next change waits for 20, so this one can be
+  measured." There is no change in force to measure. The review sheet's blocker then says "The last
+  change has only been measured on 4 graded trades since it was applied" about a change Tj already threw
+  away. Whether the 20-trade wait should apply after a revert is a policy question (unsure - it may be
+  deliberate); the wording is wrong either way.
+- Fix (wording, if the wait is intended): when `state.undoable == null && state.lastApplyAt > 0` say
+  "The last change (v3) was taken back. A new change still waits for 20 graded trades after it - 4 so far."
+  Same branch in the review blocker.
+
+### UI-11 (M) - Settings has Revert but no "Undo last change", and its dialog state is not saveable
+- Where: ui/SettingsScreen.kt:405-431; DESIGN.md:91-93 ("Undo last change" and "Revert to original
+  engine" - "both confirmed ... available on the Day Trading tab and in Settings").
+- Problem: only Revert is in Settings, so the lighter-weight way back is missing where the design put it.
+  `confirmRevert` is `remember`, while the tab's equivalent is `rememberSaveable` - the confirm dialog
+  vanishes on rotation. "1 settings changed" (no plural handling, line 417).
+- Fix: add an "Undo last change" TextButton (enabled on `engine.undoable != null`) with the same confirm
+  text as EngineTuningCard; `rememberSaveable` for the dialog flag (a String like the card's `confirm`);
+  plural "setting"/"settings".
+
+### UI-12 (M) - Apply runs the whole review on the main thread
+- Where: ui/PortfolioViewModel.kt:8262-8267.
+- Problem: `importEngineTuning` deliberately runs `EngineTuning.review` on `Dispatchers.Default`
+  ("off the main thread"), but `applyEngineReview` calls it again inside `viewModelScope.launch`
+  (Main) after `engineEvidenceNow()` returns. `review` calls `Evidence.count` per proposed change;
+  a "level:..." basis parses every decided row's `features` JSON (`levelOf`), a "time:..." basis builds a
+  ZonedDateTime per row. With 8 changes and a year of log that is thousands of JSON parses on the UI
+  thread at the moment of the tap - a visible freeze on the Moto's small cores, with the dialog still
+  up and Apply still enabled (see UI-13).
+- Fix: `val fresh = withContext(Dispatchers.Default) { EngineTuning.review(...) }` and the same for
+  `apply`; cache `levelOf` per row id if it is called repeatedly.
+
+### UI-13 (L) - Apply stays enabled while it works; a double tap applies twice
+- Where: ui/EngineTuningUi.kt:254; ui/PortfolioViewModel.kt:8260-8275.
+- Problem: `_engineReview` is nulled only after the IO log read and the review, so the sheet stays up
+  with Apply enabled; a second tap launches a second coroutine that reviews and applies against the
+  same pre-apply `_engine.value` (it is only updated after `saveEngine`'s IO write). Result: the same
+  version saved twice, the first history entry overwritten, two toasts, two re-plans. Harmless to the
+  params, confusing to watch.
+- Fix: set `_engineReview.value = null` (or an `applying` flag that disables the button and shows
+  "Applying...") synchronously before `launch`, and restore the review if `next == null`; or guard with a Mutex.
+
+### UI-14 (L) - Review-sheet wording: "Refused: Not applied: ...", "1 graded trades", refused rows look like changes
+- Where: ui/EngineTuningUi.kt:190, 207-219; net/EngineTuning.kt:395.
+- Problem: (a) a blocker-refused item prints "Refused: Not applied: Only 12 graded trades from the app's own
+  plans so far." (two prefixes, and it repeats the red blocker already shown above for every item);
+  (b) "1 graded trades from the app's own plans" (no plural handling), and with tier NONE the line reads
+  "12 graded trades from the app's own plans - not enough graded trades yet - no changes can be applied.";
+  (c) a REFUSED item's heading is "stop.minRiskAtrs: 1.5 -> 2.2", the same shape as an accepted change -
+  only the next line says it will not happen; (d) LIMITED is drawn muted and never says it WILL apply
+  ("Limited to 1.65 - ..."), while UNCHANGED ("Already 1.5.") is drawn in the green of an accepted change.
+- Fix: blocker items -> "Not applied (see above)."; plural; REFUSED heading "stop.minRiskAtrs: 1.5 (Claude
+  proposed 2.2)"; LIMITED text "Will apply, limited to 1.65 - ..." in the accepted colour; UNCHANGED muted.
+
+### UI-15 (L) - A non-whole number for a whole-number or on/off setting gets a self-contradicting refusal
+- Where: net/EngineTuning.kt:347-352, 400-401.
+- Problem: `fmt` rounds INT (`toInt()`) and BOOL (`>= 0.5 -> on`) before printing, so `spec.allows`
+  refusing 0.7 for a switch prints "on is outside what this parameter allows (off to on)", and 45.5 for
+  `filter.minScore` prints "45 is outside what this parameter allows (1 to 80, or off)".
+- Fix: for a kind mismatch print the raw value and the rule: "0.7 - this setting is on/off only (0 or 1)",
+  "45.5 - this setting takes whole numbers only".
+
