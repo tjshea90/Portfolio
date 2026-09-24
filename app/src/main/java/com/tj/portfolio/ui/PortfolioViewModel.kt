@@ -8155,10 +8155,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         else runCatching {
                             com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
                         }.getOrNull().also { t ->
-                            // A sweep cancelled by leaving the tab is not the symbol failing (R2-4).
-                            if (coroutineContext[Job]?.isActive == false) Unit
-                            else if (t == null || t.isEmpty) dayTradingTechRetry.failure(row.symbol)
-                            else dayTradingTechRetry.success(row.symbol)
+                            // A sweep cancelled by leaving the tab is not the symbol failing
+                            // (review 2026-09-24, R2-4): counted, it backed off the in-flight
+                            // symbols and the one-time sort buried them until the next rebuild.
+                            if (coroutineContext[Job]?.isActive != false) {
+                                if (t == null || t.isEmpty) dayTradingTechRetry.failure(row.symbol)
+                                else dayTradingTechRetry.success(row.symbol)
+                            }
                         }
                         val chartJob = withContext(Dispatchers.Main) {
                             if (adoptRecentD1(row.symbol)) null
