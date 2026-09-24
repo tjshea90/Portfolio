@@ -935,7 +935,13 @@ private fun carryWhy(
     val base = r.copy(
         why = p.why,
         whyAt = p.whyAt,
-        catalyst = if (claude && p.catalyst.isNotBlank()) p.catalyst else r.catalyst,
+        // CLAUDE'S OWN WORDS ONLY, on top of TODAY's earnings phrase (full test 2026-09-24,
+        // S-5). A row Claude answered without a catalyst kept the app's "Earnings in 6 days -
+        // Sep 27", and this carried that frozen, relative-date string over every fresh one
+        // for up to 14 days - announcing a print that had already happened.
+        catalyst = if (claude && com.tj.portfolio.net.Research.claudeCatalystPart(p.catalyst).isNotBlank())
+            com.tj.portfolio.net.Research.combineCatalyst(r.catalyst, p.catalyst)
+        else r.catalyst,
         conviction = if (claude) p.conviction else r.conviction
     )
     if (!dayTrading || !p.planByClaude || !sameTradingDay(p.whyAt, now)) return base

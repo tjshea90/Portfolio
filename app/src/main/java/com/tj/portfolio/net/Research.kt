@@ -774,6 +774,39 @@ object Research {
         // It keeps the floor rule above: anything already past is at least -1.
         MarketClock.daysUntil(earningsAt, now)
 
+    /**
+     * The part of a catalyst line that [catalystFor] wrote - "Earnings today", "Earnings in 3
+     * days - Sep 27 (estimated)", "Reported earnings Sep 20" - or null (full test 2026-09-24,
+     * S-5). Those phrases are relative to the day they were built, so they must be rebuilt
+     * every rebuild, never carried or frozen as if they were Claude's words.
+     */
+    internal fun appEarningsPart(s: String): String? = APP_EARNINGS.find(s)?.value
+
+    private val APP_EARNINGS = Regex(
+        "^(" + Regex.escape(CATALYST_EARNINGS_TODAY) + "|Earnings tomorrow|Earnings in \\d+ days - \\S+ \\d{1,2}|" +
+            "Reported earnings \\S+ \\d{1,2})( \\(estimated\\))?"
+    )
+
+    /** What is left of a catalyst line once the app's own earnings phrase is taken off it. */
+    internal fun claudeCatalystPart(s: String): String {
+        val app = appEarningsPart(s) ?: return s.trim()
+        return s.removePrefix(app).trim().removePrefix("-").trim()
+    }
+
+    /**
+     * Claude's catalyst line with TODAY's earnings phrase in front of it (S-5). Claude's text
+     * used to REPLACE the app's line, and `mergeDayTradingTech` reads "earnings are due today"
+     * off the start of that line - so any Claude-answered row lost its "cancel unfilled buys
+     * before the close" warning on the one day it existed for. A blank Claude part keeps the
+     * app's line alone.
+     */
+    internal fun combineCatalyst(app: String, claude: String): String {
+        val own = claudeCatalystPart(claude)
+        if (own.isBlank()) return app
+        val earnings = appEarningsPart(app)
+        return if (earnings != null) "$earnings - $own" else own
+    }
+
     /** The nearest dated event the screener knows about - almost always the next earnings.
      * `internal` (not `private`) so a test can pin the day-boundary math directly. */
     internal fun catalystFor(r: ScreenRow?, now: Long = System.currentTimeMillis()): String {

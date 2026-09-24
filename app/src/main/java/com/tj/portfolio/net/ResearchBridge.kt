@@ -441,7 +441,7 @@ $SHAPE
             row.copy(
                 why = c.why.ifBlank { row.why },
                 whyAt = if (c.why.isNotBlank()) now else row.whyAt,
-                catalyst = c.catalyst.ifBlank { row.catalyst },
+                catalyst = Research.combineCatalyst(row.catalyst, c.catalyst),   // S-5
                 // The app's own score survives untouched - see [ResearchRow.conviction].
                 conviction = if (c.conviction > 0) c.conviction else row.conviction
             )

@@ -483,7 +483,7 @@ $SHAPE
             app.copy(
                 why = c.why.ifBlank { app.why },
                 whyAt = if (c.why.isNotBlank()) now else app.whyAt,
-                catalyst = c.catalyst.ifBlank { app.catalyst },
+                catalyst = Research.combineCatalyst(app.catalyst, c.catalyst),   // S-5
                 conviction = if (c.conviction > 0) c.conviction else app.conviction,
                 // ALL SIX MOVE TOGETHER OR NONE DO - the same rule the live technicals pass
                 // follows. A Claude entry over an app stop is a trade neither of them planned.
