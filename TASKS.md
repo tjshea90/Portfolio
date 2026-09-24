@@ -46,8 +46,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
     - H: [x] U-1 spinner surface-blind (spinnerShouldShow source + sync on every research-busy
       clear; SpinnerTest +2, FullTest0924Test U-1 MUTATION-CHECKED)  [x] L-1(=N-1) cancel never
       reaches socket (Http.onCancelling = invokeOnCompletion(onCancelling=true), disconnect on IO
-      thread, ensureActive re-check; HttpCancelTest 3/0, MUTATION-CHECKED; also closes L-Q1)  [ ] N-2 one unknown symbol kills
-      v7 batch for session  [ ] A-1 backup JSON shared in = Claude answer re-dated today
+      thread, ensureActive re-check; HttpCancelTest 3/0, MUTATION-CHECKED; also closes L-Q1)  [x] N-2 one unknown symbol kills
+      v7 batch for session (well-formed empty = INCONCLUSIVE; MarketData.batchAnswered; FullTest0924Test)  [x] A-1 backup JSON shared in = Claude answer re-dated today (SharedAnswer.Kind.BACKUP refused on
+      share + button paths; ClaudeBridge.epochDate for numeric dates; FullTest0924Test +2)
       [ ] C-1 pinch/pan into unfetched range kills gesture + blanks chart  [ ] D-1 stale plans
       logged with later timestamp/old price
     - M: [ ] C-2 5D "truncated" Fridays  [ ] C-3 vs-SPY All range different starts  [ ] C-4 zoom

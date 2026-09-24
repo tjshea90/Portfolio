@@ -1,13 +1,13 @@
-# CHECKPOINT 1657 — read me first, then TASKS.md
+# CHECKPOINT 1658 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T13:46:10Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `096fdf3d` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T13:49:03Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `b0d9e2e8` (this checkpoint is the commit after it)
 
 ## Just done
-L-1/N-1 fixed: Http cancel hook now fires on cancelling (was on completion = never mid-read); disconnect off main thread; HttpCancelTest 3/0 mutation-checked
+N-2 fixed (empty well-formed v7 answer no longer disables batch) + A-1 fixed (backup refused as answer, epoch dates kept); FullTest0924Test 4/0, ShareFlowTest 13/0
 
 ## Do this next
-N-2 (unknown symbol kills v7 batch), then A-1, C-1, D-1, then Ms
+C-1 (pinch into unfetched range), D-1 (stale DT plans logged), then Ms
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ N-2 (unknown symbol kills v7 batch), then A-1, C-1, D-1, then Ms
 
 ## Last ten checkpoints
 ```
+  3a66627f ckpt 1657: L-1/N-1 fixed: Http cancel hook now fires on cancelling (was on completion =
   6fe3086d ckpt 1656: All 7 audit reports complete (7H/~25M/~50L). U-1 fixed: per-surface spinner 
   f993b5be ckpt 1655: Resumed after usage cap: 7 audit agents died 07:43 with partial reports (net
   d1129bc4 ckpt 1654: T-1 fixed: unit tests offline (Http gate via portfolio.test.offline, loopbac
@@ -26,7 +27,6 @@ N-2 (unknown symbol kills v7 batch), then A-1, C-1, D-1, then Ms
   b8c15e9c ckpt 1650: Recorded Tj request 2026-09-24: full tests
   370bfa4c ckpt 1649: v7.39 shipped: run green on rerun, Release published, BUILDLOG recorded, TAS
   3243632a ckpt 1648: v7.39 run 35894509527 failed in emulator SDK download (infra, before any tes
-  a8f3dfb6 ckpt 1647: v7.39 ship.sh passed; build run 35894509527 triggered
 ```
 
 (5 automatic checkpoint(s) since the last deliberate one — the
