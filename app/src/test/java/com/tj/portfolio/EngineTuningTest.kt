@@ -282,6 +282,39 @@ class EngineTuningTest {
 
     private fun settle() { ShadowLooper.idleMainLooper(); Thread.sleep(150); ShadowLooper.idleMainLooper() }
 
+    /** UI-3: evidence that moves while the sheet is open never installs a value the sheet did not show. */
+    @Test fun applyRefusesToInstallWhatTheSheetDidNotShow() {
+        val db = Db(app)
+        fun insert(rows: List<DayTradingLogEntry>) {
+            db.logDayTradingRecommendations(rows.map {
+                Db.PendingDayTradingLog(it.symbol, it.tradingDay, it.setup, it.entry, it.stop, it.target,
+                    it.priceAtRecommendation, it.source, it.recordedAt, it.engine, it.features)
+            })
+            db.dayTradingLog().filter { it.outcome == null }.forEach { e ->
+                db.setDayTradingOutcome(e.id, DayTradingOutcome.WIN, 11.5, DayTradingGrader.VERSION,
+                    DayTradingGrader.Detail(res = 1, fill = 10.5).toJson())
+            }
+        }
+        insert(log(40))
+        val vm = PortfolioViewModel(app)
+        settle()
+        vm.importEngineTuning(answer(0, change(DayTradingParams.MIN_RISK, 1.5, 3.0)))
+        repeat(20) { if (vm.engineReview.value == null) settle() }
+        val shown = vm.engineReview.value!!
+        assertEquals(1.85, shown.items.single().applied!!, 1e-9)       // SMALL tier: 10% step
+        // 40 more graded trades land while the sheet is open -> MEDIUM tier (20% step)
+        insert(log(40, startId = 500).map { it.copy(symbol = "T" + it.symbol) })
+        vm.applyEngineReview()
+        repeat(20) { if (vm.engineReview.value === shown) settle() }
+        assertEquals("nothing installed", 0, vm.engine.value.version)
+        assertEquals(2.2, vm.engineReview.value!!.items.single().applied!!, 1e-9)
+        // the fresh sheet, applied, installs exactly what it shows
+        vm.applyEngineReview()
+        repeat(20) { if (vm.engine.value.version == 0) settle() }
+        assertEquals(1, vm.engine.value.version)
+        assertEquals(2.2, DayTradingEngine.params[DayTradingParams.MIN_RISK], 1e-9)
+    }
+
     @Test fun importApplyAndRevertThroughTheViewModel() {
         val db = Db(app)
         // 40 graded trades of the app's own plans in the log

@@ -83,14 +83,43 @@ class DayTradingLearnUiTest {
         assertTrue(t, t.contains("12 graded trades - Too few trades to judge"))
         assertTrue(t, t.contains("Likely true rate: 19.3% to 68.0%"))
         assertTrue(t, t.contains("+0.12R"))
-        assertTrue(t, t.contains("not yet distinguishable from zero"))
+        // UI-1: under 20 trades, a range and a caution - never a verdict
+        assertTrue(t, t.contains("with under 20 trades this range is not reliable yet"))
+        assertFalse(t, t.contains("real edge"))
         assertTrue(t, t.contains("2 more could not have been bought"))
-        assertTrue(t, t.contains("3 older results were graded under the previous"))
-        assertTrue(t, t.contains("2 graded on 5-minute bars"))
-        assertTrue(t, t.contains("4 earlier results are being re-checked"))
         assertTrue(t, t.contains("+0.20R avg"))   // the slice: 1.6R over 8 trades
+        assertTrue("a small slice says so (UI-16)", t.contains("too few to judge"))
+        assertTrue(t, t.contains("Biggest drop from a high"))
+        // the long notes sit behind Details (UI-21)
+        rule.onNodeWithText("Details: sizing, percent figures, costs, counts").performClick()
+        val d = texts().joinToString(" | ")
+        assertTrue(d, d.contains("3 older results graded under the previous, less strict rules are no longer re-checkable"))
+        assertTrue(d, d.contains("2 graded on 5-minute bars"))
+        assertTrue(d, d.contains("4 being re-checked under the current, stricter rules"))
+        assertTrue(d, d.contains("the cap sized"))
         rule.onNodeWithText("How are trades graded?").performClick()
         assertTrue(texts().any { it.contains("buy-stop at the buy price") })
+    }
+
+    @Test fun `a first open after the update says results are being re-checked, not that none exist`() {
+        show { DayTradingSuccessRate(DayTradingStats(totalRecommendations = 40, regrading = 40), loading = false, onCheck = {}) }
+        val t = texts().joinToString(" | ")
+        assertTrue(t, t.contains("40 earlier results are being re-checked"))
+        assertFalse(t, t.contains("has a decided outcome"))
+    }
+
+    @Test fun `plans that all expired unfilled are no trade, not missing data`() {
+        show { DayTradingSuccessRate(DayTradingStats(totalRecommendations = 3, noEntry = 3), loading = false, onCheck = {}) }
+        val t = texts().joinToString(" | ")
+        assertTrue(t, t.contains("None of the 3 recorded recommendations filled before its cut-off"))
+        assertTrue(t, t.contains("3 never filled before their cut-off"))
+    }
+
+    @Test fun `a verdict needs twenty trades`() {
+        val small = stats.copy(entriesTriggered = 10, avgRLow = 0.06, avgRHigh = 2.1, avgR = 1.1)
+        assertEquals("", small.edgeVerdict)
+        val big = small.copy(entriesTriggered = 60)
+        assertEquals("positive", big.edgeVerdict)
     }
 
     @Test fun `the success card still lays out at a large font scale`() {
@@ -99,14 +128,42 @@ class DayTradingLearnUiTest {
     }
 
     @Test fun `the tuning card says what the sample allows and only offers what can be done`() {
-        show { EngineTuningCard(EngineTuning.State(), graded = 12, sinceLastChange = 0,
+        show { EngineTuningCard(EngineTuning.State(), evidence = 12 to 0,
             onMakePrompt = {}, onImport = {}, onUndo = {}, onRevert = {}) }
         val t = texts().joinToString(" | ")
         assertTrue(t, t.contains("Running the original engine"))
+        assertTrue(t, t.contains("12 graded trades from the app's own plans"))
         assertTrue(t, t.contains("not changed until there are 30"))
+        assertTrue(t, t.contains("Nothing to undo - this is the original engine."))
         rule.onNodeWithText("Make tuning prompt").assertIsEnabled()
         rule.onNodeWithText("Undo last change").assertIsNotEnabled()
         rule.onNodeWithText("Revert to original").assertIsNotEnabled()
+    }
+
+    @Test fun `while grading only the prompt waits, and says why`() {
+        val tuned = DayTradingParams.DEFAULTS.with(mapOf(DayTradingParams.MIN_RISK to 1.8))
+        show { EngineTuningCard(EngineTuning.State(tuned, 1), evidence = null,
+            onMakePrompt = {}, onImport = {}, onUndo = {}, onRevert = {}, grading = true) }
+        val t = texts().joinToString(" | ")
+        assertTrue(t, t.contains("Counting graded trades..."))
+        assertTrue(t, t.contains("Grading new results"))
+        rule.onNodeWithText("Make tuning prompt").assertIsNotEnabled()
+        rule.onNodeWithText("Import answer").assertIsEnabled()
+        rule.onNodeWithText("Revert to original").assertIsEnabled()
+    }
+
+    @Test fun `the plan label names the engine that made the plan, and NOT YET reads as a wait`() {
+        show { Column {
+            com.tj.portfolio.ui.TradeLevelsGrid(com.tj.portfolio.data.ResearchRow(symbol = "A", price = 10.0,
+                entryPrice = 10.2, stopPrice = 9.8, targetPrice = 10.9, setup = "Breakout", planEngine = "v3"))
+            com.tj.portfolio.ui.TradeLevelsGrid(com.tj.portfolio.data.ResearchRow(symbol = "B", price = 10.0,
+                entryPrice = 10.2, stopPrice = 9.8, targetPrice = 10.9, setup = "Breakout",
+                planWait = "Too early - the tuned engine starts no new trade in the first 15 minutes after the open."))
+        } }
+        val t = texts().joinToString(" | ")
+        assertTrue(t, t.contains("RISK PLAN (tuned engine v3) - computed, not a forecast"))
+        assertTrue(t, t.contains("RISK PLAN - computed, not a forecast"))
+        assertTrue(t, t.contains("NOT YET - Too early"))
     }
 
     @Test fun `a tuned engine shows its history and asks before reverting`() {
@@ -115,11 +172,16 @@ class DayTradingLearnUiTest {
             EngineTuning.KIND_APPLY, listOf(EngineTuning.Change(DayTradingParams.MIN_RISK, 1.5, 1.8)),
             summary = "Stops were too tight.", gradedTrades = 80, paramsAfter = tuned)))
         var reverted = false
-        show { EngineTuningCard(st, graded = 95, sinceLastChange = 15, onMakePrompt = {}, onImport = {},
-            onUndo = {}, onRevert = { reverted = true }) }
+        show {
+            var ask by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+            EngineTuningCard(st, evidence = 95 to 15, onMakePrompt = {}, onImport = {},
+                onUndo = { ask = com.tj.portfolio.ui.ENGINE_UNDO }, onRevert = { ask = com.tj.portfolio.ui.ENGINE_REVERT })
+            if (ask.isNotEmpty()) com.tj.portfolio.ui.EngineConfirmDialog(ask,
+                onConfirm = { if (ask == com.tj.portfolio.ui.ENGINE_REVERT) reverted = true; ask = "" }, onDismiss = { ask = "" })
+        }
         val t = texts().joinToString(" | ")
         assertTrue(t, t.contains("Running tuned engine v1 - 1 setting differs from the original"))
-        assertTrue(t, t.contains("15 since the last change - the next change waits for 20"))
+        assertTrue(t, t.contains("15 since the change now in force - the next change waits for 20"))
         rule.onNodeWithText("Engine history (1)").performClick()
         assertTrue(texts().any { it.contains("stop.minRiskAtrs: 1.5 -> 1.8") })
         rule.onNodeWithText("Revert to original").performClick()
@@ -143,8 +205,11 @@ class DayTradingLearnUiTest {
         show { EngineReviewDialog(review, onApply = { applied++ }, onDismiss = {}) }
         val t = texts().joinToString(" | ")
         assertTrue(t, t.contains("Marginal edge."))
-        assertTrue(t, t.contains("Limited to 1.85"))
+        assertTrue(t, t.contains("Will apply, limited to 1.85"))
         assertTrue(t, t.contains("Refused:"))
+        // UI-4: the app's own count beside Claude's claim; UI-14: a refused change does not read as one
+        assertTrue(t, t.contains("Evidence (setup:Pullback): 0 graded trades by the app's count - Claude cited 12"))
+        assertTrue(t, t.contains("setup.pullback.enabled: stays on (Claude proposed off)"))
         assertTrue(t, t.contains("Trail under VWAP"))
         assertEquals(0, applied)
         rule.onNodeWithText("Apply 1 change").performClick()
