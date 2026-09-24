@@ -519,9 +519,9 @@ class FullTest0924Test {
     @Test fun `D-5 the opening bar counts only once it has closed`() {
         val T = com.tj.portfolio.net.DayTradingTechnicals
         val open930 = ny(2026, 9, 28, 9, 30) / 1000
-        val first = T.Bar(t = open930, open = 20.0, high = 20.07, low = 19.95, close = 19.98, volume = 1000)
+        val first = com.tj.portfolio.net.DayTradingTechnicals.Bar(t = open930, open = 20.0, high = 20.07, low = 19.95, close = 19.98, volume = 1000.0)
         assertFalse("09:32 - the 09:30 bar is still printing", T.openingBarComplete(listOf(first)))
-        val second = T.Bar(t = open930 + 300, open = 19.98, high = 20.2, low = 19.9, close = 20.1, volume = 900)
+        val second = com.tj.portfolio.net.DayTradingTechnicals.Bar(t = open930 + 300, open = 19.98, high = 20.2, low = 19.9, close = 20.1, volume = 900.0)
         assertTrue(T.openingBarComplete(listOf(first, second)))
     }
 
