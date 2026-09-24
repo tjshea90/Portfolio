@@ -23,7 +23,7 @@ Summary (15 findings): 1 H, 5 M, 9 L.
 | PL-9 | L | Engine version labels can repeat after a restore, mixing engines in "engine:vN" evidence |
 | PL-10 | L | Apply/undo/revert not serialised; engine + history written non-atomically |
 | PL-11 | L | Apply re-review parses every row's features on Main; stats parse eval_detail ~8x per row |
-| PL-12 | L | Whole log (with JSON blobs) loaded ~7 times per tab open; backup check loads it for a count |
+| PL-12 | L | Whole log (with JSON blobs) loaded 4-7 times per tab open; backup check loads it for a count |
 | PL-13 | L | Perpetual retries of DATA_UNAVAILABLE rows / 1m 4xx with no 5m fallback, oldest-first starvation |
 | PL-14 | L | Tuning-answer routing nits (navigates on error; Advice/Activity import has no review screen) |
 | PL-15 | L | Minor notes (no undo after revert, corrupt-engine load, busy-disabled buttons, per-tick features) |
@@ -32,8 +32,8 @@ Summary (15 findings): 1 H, 5 M, 9 L.
 
 ### PL-1 (H) — Rows decided MID-SESSION get a permanently truncated counterfactual grid / holdR / runR
 **Where:** `ui/PortfolioViewModel.kt:7450-7494` (`resolveOneDayTradingEntry`) + `net/DayTradingGrader.kt:282,333-348` (`grade`).
-**Problem.** The auto-eval now runs whenever the Day Trading tab opens (every 15 min while it is used),
-so most of today's rows are graded while the session is still open (`settled == false` →
+**Problem.** The auto-eval now runs whenever the Day Trading tab is opened or the app returns to it
+(at most once per 15 min), so most of today's rows are graded while the session is still open (`settled == false` →
 `decidedThroughSec = 0`). A stop or target hit decides the verdict (correct), but `grade()` then
 computes `hold` and every grid cell with `runPosition(..., complete = true, ...)` over `day` — which
 for today only contains the bars printed SO FAR. So "no target, hold to flat" (`GRID_NONE`), the
@@ -120,9 +120,11 @@ strings inside a `toString(1)` document); `util/Storage.kt:260` `readText(maxByt
 records, that is ~3-6.5 MB of log per year, on top of the ledger. Once the file passes 8,000,000
 bytes: "Backup" reports "Wrote ... but couldn't read it back to verify" every time; the Downloads
 autosave can no longer be read back by the one-tap recovery card; the Settings restore picker
-returns null ("couldn't read that file"); and the shrink guard reads `oldJson = null`, so a
-shrinking autosave is no longer preserved as `-previous`. The copy that survives an uninstall
-becomes unrestorable in-app — in roughly 1-3 years of normal use.
+returns null ("couldn't read that file"); `checkForRecoverableBackup` (2919-2937) reads the
+autosave the same way, so after an uninstall/reinstall the recovery card never appears; and the
+shrink guard reads `oldJson = null`, so a shrinking autosave is no longer preserved as
+`-previous`. The copy that survives an uninstall becomes unrestorable in-app — in roughly 1-3
+years of normal use (a latent H: nothing is deleted, but no in-app path can read it back).
 **Fix.** Give backup reads their own, much larger cap (e.g. 64 MB; `readPickedFile` for restore,
 `readOwnDownload` for AUTOSAVE_FILE, the verification read), and export the day-trading log
 compactly (nested objects rather than escaped strings, or `toString()` without indentation for
@@ -216,7 +218,7 @@ cost is off-main but is paid ~3 times per auto-eval plus on every restore and pr
 each row's `features`/`eval_detail` once (a map or a lazily parsed field on a wrapper) in `stats`,
 `breakdown` and `Evidence`.
 
-### PL-12 (L) — The whole log (with every `features` + `eval_detail` string) is loaded ~7 times per tab open
+### PL-12 (L) — The whole log (with every `features` + `eval_detail` string) is loaded 4-7 times per tab open
 **Where:** `evaluateDayTradingLog` (7340, 7383, 7385), `engineEvidenceNow` (8201) re-triggered by
 `ResearchScreen.kt:246` `LaunchedEffect(section, dayTradingStats, engine.version)` — `DayTradingStats`
 carries `evaluatedAt = now`, so every publish is a new key → another full read; `backupToDownloads`
