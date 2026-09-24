@@ -18,7 +18,7 @@ import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLooper
 
 /**
- * Regression tests for the 2026-09-24 full test (audits/2026-09-24/*.md). One section per
+ * Regression tests for the 2026-09-24 full test (the reports in audits/2026-09-24). One section per
  * finding ID; the pure-logic halves live next to the code they test where a file exists.
  */
 @RunWith(RobolectricTestRunner::class)
