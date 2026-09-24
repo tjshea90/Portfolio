@@ -401,6 +401,33 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                 onCheckedChange = { dtAlerts = it; vm.setSettingB(Keys.DT_ALERTS, it) }
             )
         }
+        // THE ENGINE, AND THE WAY BACK TO THE ORIGINAL (2026-09-24c) - also here, so the revert
+        // is findable without knowing it lives under the Day Trading success card.
+        val engine by vm.engine.collectAsState()
+        var confirmRevert by remember { mutableStateOf(false) }
+        Spacer(Modifier.height(10.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Day-trading engine")
+                Text(
+                    if (engine.isOriginal) "The original engine" + (if (engine.version > 0) " (v${engine.version})." else ".") +
+                        " Claude can tune it from its graded results - Watch > Research > Day Trading."
+                    else "Tuned by Claude - v${engine.version}, " +
+                        "${engine.params.diffFrom(com.tj.portfolio.net.DayTradingParams.DEFAULTS).size} settings changed. " +
+                        "Reverting brings back the original exactly; the history is kept.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            TextButton(onClick = { confirmRevert = true }, enabled = !engine.isOriginal) { Text("Revert") }
+        }
+        if (confirmRevert) AlertDialog(
+            onDismissRequest = { confirmRevert = false },
+            title = { Text("Revert to the original engine?") },
+            text = { Text("Every change Claude made to the day-trading engine is taken back. Recorded plans and their grades are not touched.") },
+            confirmButton = { TextButton(onClick = { confirmRevert = false; vm.revertEngine() }) { Text("Revert") } },
+            dismissButton = { TextButton(onClick = { confirmRevert = false }) { Text("Cancel") } }
+        )
 
         SectionHeader("News")
         Row(verticalAlignment = Alignment.CenterVertically) {
