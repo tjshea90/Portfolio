@@ -8,7 +8,7 @@ FundamentalsJson/Insider/Etf models; the VM paths that build/carry research and 
 and import Claude answers. Yesterday's S-1..S-10 were re-read. S-1, S-3 (stock carry), S-4, S-6,
 S-8 and S-10 hold. **S-2, S-7 and S-9 are only partly fixed** (see S-2, S-3 and S-1 below).
 
-STATUS: IN PROGRESS
+STATUS: COMPLETE. 0 H, 7 M, 5 L, plus 5 quality items. Summary table at the end.
 
 ---
 
