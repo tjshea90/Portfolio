@@ -419,7 +419,13 @@ fun DetailScreen(
     // AND ON WHETHER A PRICE HAS ARRIVED (full-tests audit 2026-09-22, U-L4). A verdict needs
     // both; when the fundamentals landed first this fired at price 0, `Recommend.build` refused
     // it, and nothing ever fired again - the badge sat on "..." for the rest of the session.
-    LaunchedEffect(symbol, fundamentals != null, price > 0.0) {
+    // KEYED ON THE DATA, NOT ON ITS PRESENCE (full test 2026-09-24, S-2). `fundamentals != null`
+    // flipped once - when the RATINGS row landed - so a verdict scored from analysts alone was
+    // never recomputed when the core numbers arrived seconds later: yesterday's S-2 fix
+    // ("provisional, recomputed when the fundamentals change") only worked on the Portfolio
+    // tab, which is not composed under this screen. `loadRecommendation` returns at once when
+    // today's verdict is already settled, so a re-fire per merge costs nothing.
+    LaunchedEffect(symbol, fundamentals, price > 0.0) {
         if (fundamentals != null && price > 0.0) vm.loadRecommendation(symbol, price)
     }
 
