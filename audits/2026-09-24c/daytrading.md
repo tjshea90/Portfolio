@@ -311,3 +311,26 @@ read and may drift by a few lines.
   part of E5 that the row itself can prove: `stop < priceAtRecommendation < target`; a row that fails is
   excluded like a legacy row (count it, say why, never grade it). Test: such a row -> not in `entriesTriggered`.
 
+### DA-20 (L) — `filter.requireBullishOpeningBar` cannot act before 09:35, so the plans it exists to stop are logged in the first five minutes
+
+- Where: `net/ResearchScore.kt` `planInternal` (`requireBullishOpeningBar && sessionLive && tech.or5High > 0.0 && !openingBarBullish`);
+  `or5High` is 0 until the 09:30 bar has closed (`DayTradingTechnicals.fetch`, D-5).
+- Problem: with the filter on, a plan made 09:30-09:34 is neither declined nor "not yet" - it is logged under the
+  filtered engine's version even on a day whose first bar then closes down, which is exactly the trade the
+  switch is meant to remove. The per-version results Claude uses to judge the switch are diluted by it.
+- Fix: when the filter is on and the opening bar is not complete yet, return the plan with a `waitReason`
+  ("waiting for the first 5-minute bar to close") so it is shown but not logged.
+
+### DA-21 (L) — A Claude-added pick's `planPrice` is set by the later quote fill, not by the first live tick that priced it
+
+- Where: `ui/PortfolioViewModel.kt` `mergeDayTradingTech` (`planPrice = if (plan != null) price else keepOrClear(row.planPrice, ...)` -
+  a standing Claude plan keeps 0); `fillPricesNow` (`planPrice = if (planByClaude && planPrice <= 0) q.price`);
+  `loggedPlanPrice` falls back to `r.price` when `planPrice` is 0.
+- Problem: for a Claude pick that arrived without a price, the first live tick prices the row and can LOG it
+  (direction from that tick's price), while `planPrice` - which fixes the card's direction (D-9) - is only set
+  when the batched quote fill lands, possibly minutes later at a different price. If the price crossed the entry
+  in between, the card's "climbs to / drops to" instruction and the logged order direction disagree. Until the
+  fill lands, a free-text Claude setup's card direction also flips with the live price.
+- Fix: in `mergeDayTradingTech`, when `claudePlanStands && row.planPrice <= 0 && livePrice != null`, set
+  `planPrice = livePrice` (the first price the app saw), and let `fillPricesNow` only fill it if still 0.
+
