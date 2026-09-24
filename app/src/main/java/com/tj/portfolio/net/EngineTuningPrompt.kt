@@ -114,7 +114,7 @@ object EngineTuningPrompt {
         now: Long = System.currentTimeMillis()
     ): String {
         val p = state.params
-        val current = log.filter { it.evalVersion >= DayTradingGrader.VERSION }
+        val current = log.filter { it.evalVersion >= DayTradingGrader.VERSION && !DayTradingEval.notTradeableOldRow(it) }
         val rows = current.map { e ->
             Row(e, runCatching { JSONObject(e.features) }.getOrElse { JSONObject() }, DayTradingGrader.Detail.parse(e.evalDetail))
         }
@@ -444,7 +444,7 @@ shows no midday-lull rule).
         "param": <string - a param name from the parameter table>,
         "from": <number - its CURRENT value, copied from the table>,
         "to": <number - the new value; 0 or 1 for a switch; 0 turns an optional filter off>,
-        "basis": <string - the group whose graded trades justify it: "all", "setup:Breakout", "setup:Pullback", "setup:VWAP reclaim", "level:<level name from the tables>", "time:First hour", "time:Midday", "time:Last two hours", or "engine:v<n>">,
+        "basis": <string - the group whose graded trades justify it: "all", "setup:Breakout", "setup:Pullback", "setup:VWAP reclaim", "level:<a level key such as prevHigh, or a level name from the tables>", "time:First hour", "time:Midday", "time:Last two hours", or "engine:v<n>">,
         "evidenceTrades": <integer - graded trades in that group>,
         "expectedEffect": <string - what should improve, and roughly how much, per the tables>,
         "rationale": <string - the specific evidence, quoting the numbers>
