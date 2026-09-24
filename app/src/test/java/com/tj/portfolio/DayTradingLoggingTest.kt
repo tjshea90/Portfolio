@@ -200,9 +200,17 @@ class DayTradingLoggingTest {
             else com.tj.portfolio.net.HttpResult(-1, "offline")
         }
         try {
+            // The automatic check never runs offline - give the test a network with internet.
+            val cm = app.getSystemService(android.net.ConnectivityManager::class.java)
+            val net = cm.activeNetwork ?: org.robolectric.shadows.ShadowNetwork.newInstance(7).also {
+                org.robolectric.Shadows.shadowOf(cm).addNetwork(it, cm.activeNetworkInfo)
+            }
+            val caps = org.robolectric.shadows.ShadowNetworkCapabilities.newInstance()
+            org.robolectric.Shadows.shadowOf(caps).addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            org.robolectric.Shadows.shadowOf(cm).setNetworkCapabilities(net, caps)
+            assertTrue("online for the test", com.tj.portfolio.util.Connectivity.isOnline(app))
             val vm = PortfolioViewModel(app)
             settle()
-            if (!com.tj.portfolio.util.Connectivity.isOnline(app)) return   // the auto check never runs offline
             vm.evaluateDayTradingLog(auto = true)
             repeat(80) { if (!vm.dayTradingStatsLoading.value && seen.isEmpty()) settle() else if (vm.dayTradingStatsLoading.value) settle() }
             repeat(5) { settle() }
