@@ -2508,11 +2508,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** When set, the live loop sweeps ONLY this symbol - a detail screen showing its plan,
      *  not the Day Trading list. See [startDayTradingLive]'s `only`. */
     private var dayTradingLiveOnly: String? = null
-    /** When [cacheResearch] last wrote the research set to disk, and whether a throttled
-     *  write is still owed - see its `throttleMs`. */
     /** When a Claude Research answer was last imported (R1-4) - see [researchStale]. In memory:
      *  after a process death the list simply follows its own clocks again. */
     private var researchImportedAt = 0L
+    /** When [cacheResearch] last wrote the research set to disk, and whether a throttled
+     *  write is still owed - see its `throttleMs`. */
     private var researchPersistedAt = 0L
     @Volatile private var researchPersistOwed = false
     /** Publish order of research-cache writes, and the newest one on disk (A-11) - see
@@ -4039,8 +4039,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * Insert an already-built Txn (its amount is already signed by the editor). [savedMsg] is
      * the caller's "saved" toast - passed in rather than shown after this returns, because a
      * toast set afterwards would overwrite the override warning below before anyone saw it.
+     * False when the write failed - the caller keeps its editor open, so the typed entry is not
+     * lost (review 2026-09-24, R2-7).
      */
-    /** False when the write failed - the caller keeps its editor open (R2-7). */
     fun addTxnRecord(t: Txn, savedMsg: String? = null): Boolean {
         // A failed write says so (A-5), instead of the caller's "saved".
         runCatching { db.insertTxn(t) }.exceptionOrNull()?.let {
@@ -4049,6 +4050,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         recompute()
         refresh()
         warnIfOverridden(t.type, t.symbol, savedMsg)
+        return true
     }
 
     fun updateTxn(t: Txn, savedMsg: String? = null) {
