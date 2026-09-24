@@ -115,7 +115,12 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       sequenced under one Mutex; S-3 coreDataAt = disk core row's real age (VM test);
       S-9 FundamentalsFeed.coreFill drops Finviz rating rows from core (test); S-10 Trending
       price line session-aware (test); S-11 Claude-added rows inserted at page end +
-      claudeSourced badge "CLAUDE -" (test); S-12 insider price averaged over priced lines (test) )
+      claudeSourced badge "CLAUDE -" (test); S-12 insider price averaged over priced lines (test);
+      U-4 busy Research pull toasts why; U-5 watch sub-tabs under a SaveableStateProvider;
+      U-6 one LazyListState per Feed filter; U-7 Fmt.snapZero + sign outside $ + compact unit
+      after rounding + signColor (test; RangeChipTest's "+-0.00%" pin updated to "+0.00%");
+      U-8 advicePreparing counter in VM + gate on non-watch holdings (test).
+      ALL Ls DONE. )
     - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
 - [ ] Re-run the full suite; re-check anything a fix touched
       (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
