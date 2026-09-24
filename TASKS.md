@@ -302,6 +302,7 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
   phone; told him R1-2b did the 09-19 deferred "or5/orComplete on ResearchRow" item (revert
   if he wants); the audits' "Ideas - need Tj's approval" lists in audits/2026-09-24/*.md.
   Nothing started on any of these without his answer.
+  -> ANSWERED 2026-09-24b ("add/change all the things you recommended..."): see that section.
       17:19 UTC: v7.40 / code 97 gated by ship.sh (checkinit ok, suite 1425/0) and pushed
       (dc9ffd11). android.yml full_build triggered: run 36033444388 (run #42). NEXT: when it
       is green -> get_release_by_tag v7.40 -> tools/record-release.sh (command in ckpt 1688)
