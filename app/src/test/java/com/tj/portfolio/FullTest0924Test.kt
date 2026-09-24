@@ -1006,9 +1006,11 @@ class FullTest0924Test {
     @Test fun `U-8 the advice preload is counted in the ViewModel until its work is done`() {
         val vm = PortfolioViewModel(app).also { settle() }
         var done = false
-        vm.preloadNewsForAdvice { done = true }
-        assertTrue("busy from the tap, whatever screen is showing", vm.advicePreparing.value > 0)
+        var busyDuring = -1
+        // Still counted while the follow-up (requestAdvice / the prompt file) is being started.
+        vm.preloadNewsForAdvice { busyDuring = vm.advicePreparing.value; done = true }
         repeat(40) { if (!done) settle() }
+        assertTrue("busy until the follow-up has run: $busyDuring", busyDuring > 0)
         settle()
         assertTrue(done)
         assertEquals(0, vm.advicePreparing.value)
