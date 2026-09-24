@@ -65,7 +65,8 @@ fun SettingsScreen(vm: PortfolioViewModel) {
     var refresh by remember { mutableStateOf(vm.refreshSecs().toString()) }
     var webSearch by remember { mutableStateOf(vm.webSearch()) }
     var useCash by remember { mutableStateOf(vm.useCashOverride()) }
-    var cash by remember { mutableStateOf(if (vm.cashOverrideValue() == 0.0) "" else vm.cashOverrideValue().toString()) }
+    // Fmt.exact, like every other editor (U-Q3): `toString()` seeded "1.0E7" for $10M.
+    var cash by remember { mutableStateOf(if (vm.cashOverrideValue() == 0.0) "" else Fmt.exact(vm.cashOverrideValue())) }
     var showKey by remember { mutableStateOf(false) }
     // rememberSaveable below: these hold pasted/picked backup JSON that isn't written
     // anywhere until the user confirms, and process death would otherwise drop it silently -
@@ -95,6 +96,11 @@ fun SettingsScreen(vm: PortfolioViewModel) {
     // composition they ran on every keystroke in the fields above; remember them and bump
     // [infoTick] on the events that can actually change them.
     var infoTick by remember { mutableIntStateOf(0) }
+    // THE PULL'S OWN TICK (full test 2026-09-24, U-Q2): only the in-memory request meter and
+    // status line need re-reading on a pull. `infoTick` also re-runs the snapshot listing, the
+    // crash-log read and four cache-stat queries in composition - the work the note below
+    // says must not be re-run from casual events.
+    var rateTick by remember { mutableIntStateOf(0) }
     val modelChosen = remember(model, infoTick) { vm.modelChosen() }
     val snapshotAt = remember(infoTick) { vm.lastAutoBackup() }
     val snapshotCount = remember(infoTick) { vm.snapshotCount() }
@@ -124,7 +130,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
     // note further down warns against bumping the tick from the text field.
     Refreshable(
         refreshing = ui.pulling(PULL_PRICES),
-        onRefresh = { vm.refresh(manual = true); infoTick++ }
+        onRefresh = { vm.refresh(manual = true); rateTick++ }
     ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
@@ -237,7 +243,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         // What the app is ACTUALLY doing right now. The interval below is the market-hours
         // one; outside those hours the app slows itself down, and it should say so rather
         // than leaving the user to wonder why prices are not ticking at 3am.
-        val refreshStatus = remember(refresh, infoTick) { vm.refreshStatus() }
+        val refreshStatus = remember(refresh, infoTick, rateTick) { vm.refreshStatus() }
         Text(
             refreshStatus,
             style = MaterialTheme.typography.bodySmall,
@@ -268,7 +274,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         // Every other claim on this screen is an argument; this is the measurement. If a
         // feed ever does start refusing, "how hard are we actually hitting them?" should be
         // answerable on the phone rather than estimated from the source.
-        val rate = remember(infoTick, refresh) {
+        val rate = remember(infoTick, rateTick, refresh) {
             com.tj.portfolio.net.Http.requestsLastHour()
         }
         // ---- the headline cache
