@@ -207,7 +207,7 @@ Findings are listed most severe first.
 - Plan maths: long only throughout (stop < entry < target is guaranteed by the engine and by `levelsSane`); the stop is clamped to 1.5-2.5 intraday ATR; the target is always above `max(entry, price)`.
 - D-2 (09-23) is intact: `merge` and `mergeDayTradingTech` reset `planDeclineStreak` for a Claude plan.
 - D-4 (09-23) is intact: the whole list goes into the prompt.
-- D-5/R-9 are intact: ISO `asOf` is parsed, and the legacy "MMM d, yyyy" form too. D-3 below fixes only the non-trading-day gap.
+- D-5/R-9 are intact: ISO `asOf` is parsed, and the legacy "MMM d, yyyy" form too. D-3 above fixes only the non-trading-day gap.
 - D-6/D-7 are intact: capped oldest-first press; only rows in the shown window are captured.
 - R-3 is intact: eviction is keyed on `max(generated, dtExplained)`.
 - R-7 is intact: a detail-only run does not poll while closed.
