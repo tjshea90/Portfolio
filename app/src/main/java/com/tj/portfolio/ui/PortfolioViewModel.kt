@@ -976,9 +976,10 @@ internal fun dropUnusableClaudeLevels(
  * those stale numeric levels would sit on screen with nothing marking them as stale - a more
  * direct "recommendation" than the explanatory `why` paragraph the rest of this sweep fixes.
  *
- * NEVER MISLOGGED, ONLY MISDISPLAYED WITHOUT THIS. `captureDayTradingRecommendations`'s own
- * `it.sessionDay == today` gate already keeps a stale row like this out of the PERMANENT
- * recommendation log regardless of this fix - this closes the narrower, display-only gap.
+ * NEVER MISLOGGED, ONLY MISDISPLAYED WITHOUT THIS. `captureDayTradingRecommendations` only
+ * logs rows the live sweep re-planned this tick (D-1, `loggableDayTradingRows`), so a stale row
+ * like this stays out of the PERMANENT recommendation log regardless of this fix - this closes
+ * the narrower, display-only gap.
  */
 internal fun evictStaleDayTradingPlan(
     rows: List<com.tj.portfolio.data.ResearchRow>,

@@ -653,7 +653,26 @@ class ResearchPriceFillTest {
         val tooLate = extended().copy(symbol = "LATE", tooLateToStart = true)
         val declining = extended().copy(symbol = "DECL", planDeclineStreak = 1)
         val yesterday = extended().copy(symbol = "OLD", sessionDay = "2026-09-10")
+        val everyone = setOf("GME", "LATE", "DECL", "OLD")
         assertEquals(listOf("GME"),
-            loggableDayTradingRows(listOf(live, tooLate, declining, yesterday), TODAY).map { it.symbol })
+            loggableDayTradingRows(listOf(live, tooLate, declining, yesterday), TODAY, everyone)
+                .map { it.symbol })
+    }
+
+    /**
+     * Full test 2026-09-24, D-1: A PLAN IS ONLY LOGGED ON THE TICK THAT RE-PLANNED IT LIVE.
+     * This morning's pre-market plan carries `sessionDay == today` too, so the date cannot
+     * tell them apart; the sweep's own "fetched live this tick" set can. A row whose fetch
+     * failed on the busy first open tick, or any row published by a caller that did not
+     * re-plan it (Best's analyst pass, an ETF rebuild, an import), is not in that set.
+     */
+    @Test fun `D-1 a same-day plan that was not re-planned live this tick is not logged`() {
+        val premarket = extended()   // sessionDay = TODAY, levels set: indistinguishable by date
+        assertEquals(emptyList<String>(),
+            loggableDayTradingRows(listOf(premarket), TODAY, liveNow = emptySet()).map { it.symbol })
+        assertEquals(emptyList<String>(),
+            loggableDayTradingRows(listOf(premarket), TODAY, liveNow = setOf("OTHER")).map { it.symbol })
+        assertEquals(listOf("GME"),
+            loggableDayTradingRows(listOf(premarket), TODAY, liveNow = setOf("GME")).map { it.symbol })
     }
 }
