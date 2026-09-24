@@ -210,4 +210,23 @@ class FullTest0924Test {
         settle(); awaitQuotesIdle(vm)
         assertFalse("the replacement pass must clear the flag when it ends", vm.ui.value.loading)
     }
+
+    // ---- L-3: a price fill asked for in the background runs on return.
+
+    @Test fun `L-3 a research price fill requested in the background runs when the app returns`() {
+        val vm = PortfolioViewModel(app).also { settle() }
+        @Suppress("UNCHECKED_CAST")
+        val pending = field(vm, "pendingPriceFill").get(vm) as MutableSet<String>
+        val fill = PortfolioViewModel::class.java
+            .getDeclaredMethod("fillResearchPrices", List::class.java).apply { isAccessible = true }
+
+        vm.setForeground(false)
+        fill.invoke(vm, listOf("NEWCO"))
+        settle()
+        assertTrue("the fill must be owed, not dropped into the cancelled scope", "NEWCO" in pending)
+
+        vm.setForeground(true)
+        repeat(40) { if (pending.isEmpty()) return@repeat; settle() }
+        assertTrue("returning must run the owed fill: $pending", pending.isEmpty())
+    }
 }
