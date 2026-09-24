@@ -23,7 +23,7 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
 `claude/complete-code-tests-crujka`, builds on 12d0989a (v7.40 shipped).)
 
 ### Part 1 - the recommended changes (skip only what would cost accuracy/function; say why)
-- [ ] Decisions: [x] L-4  [x] C-7  [x] C-9  [x] tie  [ ] U-Q5  [ ] U-Q6 -- L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
+- [ ] Decisions: [x] L-4  [x] C-7  [x] C-9  [x] tie  [x] U-Q5  [x] U-Q6 -- L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
       C-7 chip-only range persistence + reset to chip, C-9 5D closed-market gaps, same-bar
       entry/stop tie in DayTradingEval resolved with finer bars (pessimistic only if unknowable),
       U-Q5 back from a searched stock returns to the results, U-Q6 ticking "updated" labels
@@ -74,10 +74,24 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
       accuracy gain) and a TRANSFER_IN type (BUY + same-day DEPOSIT of the same amount already
       records a transfer exactly; a new type would touch the FIFO/average replay, cash and
       today-lot rules for a rare event).
-- [ ] Research ideas ("Claude, N days ago" on cards, stale-analyst chip on the badge, "other
+- [x] Research ideas ("Claude, N days ago" on cards, stale-analyst chip on the badge, "other
       ways to hold this exposure" on de-duplicated ETF cards)
-- [ ] Screens ideas (say what is refreshing, swipe between Research sections, faster startup:
+      DONE: "CLAUDE, 3 DAYS AGO" label (claudeAge, NY days; test); "old ratings" line in the
+      Portfolio row's BUY/HOLD/SELL chip (Recommendation.staleAnalystMark; test); ETF card
+      "Other ways to hold this exposure (N)" expander - fee + 5Y/yr per fund (EtfAlternative on
+      ResearchRow, persisted as "alts"; EtfExposure.dedupeRows; screener + VM merge paths; test).
+- [x] Screens ideas (say what is refreshing, swipe between Research sections, faster startup:
       init's SQLite work off the first frame) + deferred perf items worth doing (C-Q1/C-Q2)
+      DONE: "Updating prices..." (Portfolio/Watchlist, while a pull runs) and "Updating
+      headlines..." (Feed) - Research already named its work; U-Q6 rememberTickingNow() (30 s,
+      only while STARTED) on every "Updated X ago" header; U-Q5 search query hoisted +
+      detailFromSearch, Back returns to the results; Research swipes between its sections
+      (swipeBetweenTabs nested, claims first); C-Q1 chart paths built in drawWithCache, scrub
+      frames only redraw. UI classes 576/0 (40 classes). SKIPPED: init off the first frame -
+      recompute() runs before the first frame on purpose (PortfolioScreen's own note): moved
+      off it, "No holdings yet"/the recovery card would flash over a real portfolio, and ~40
+      tests rely on it; C-Q2 (pan/pinch recomposition) needs on-device profiling to change
+      safely - C-Q1 took the per-frame allocation hot path.
 ### Part 2 - the Claude app round trip
 - [x] Every "Make prompt file" opens the Android share sheet (Claude pickable) - audit all paths
       (already true since v7.37: all 4 buttons end in launchPromptShare -> PromptShare.chooser)
