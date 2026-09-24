@@ -98,7 +98,9 @@ object Social {
         // offline is the phone, not the source, and must not switch it off for six hours.
         if (!r.ok) {
             val b = r.body.lowercase()
-            val sourceRefused = r.code >= 400 ||
+            // `r.tls` by exception type (N-6): Android words an expired certificate "Chain
+            // validation failed", which none of the substrings below ever matched.
+            val sourceRefused = r.code >= 400 || r.tls ||
                 b.contains("certificate") || b.contains("ssl") || b.contains("handshake")
             return if (sourceRefused) null else emptyList()
         }

@@ -13,7 +13,17 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.zip.GZIPInputStream
 
-data class HttpResult(val code: Int, val body: String) {
+data class HttpResult(
+    val code: Int,
+    val body: String,
+    /**
+     * The connection failed in TLS - an expired or untrusted certificate, a failed handshake
+     * (full test 2026-09-24, N-6). Classified by exception TYPE in [Http.isTlsFailure]: the
+     * message is platform wording ("Chain validation failed" on Android) that no substring
+     * test reliably catches. The source refused us; the phone is not offline.
+     */
+    val tls: Boolean = false
+) {
     val ok: Boolean get() = code in 200..299
     /** True when the request was skipped locally because the host is in a cooldown. */
     val throttledLocally: Boolean get() = code == CODE_COOLDOWN
@@ -364,6 +374,13 @@ object Http {
 
     @Volatile private var disk: DiskCache? = null
 
+    /** An SSL/certificate failure anywhere in [e]'s cause chain - see [HttpResult.tls]. */
+    internal fun isTlsFailure(e: Throwable): Boolean =
+        generateSequence(e) { it.cause }.take(8).any {
+            it is javax.net.ssl.SSLException || it is java.security.cert.CertificateException ||
+                it is java.security.cert.CertPathValidatorException
+        }
+
     @Synchronized fun attachDiskCache(cache: DiskCache?) { disk = cache }
 
     /** Detach [cache] only if it is still the attached one - a later owner's stays (L-6). */
@@ -683,7 +700,7 @@ object Http {
             // away, then show "last known prices" for minutes on the way back in.
             if (coroutineContext[Job]?.isActive == false) throw e
             noteUnreachable(host)
-            HttpResult(-1, e.message ?: "network error")
+            HttpResult(-1, e.message ?: "network error", tls = isTlsFailure(e))
         } finally {
             // Disposed first: leaving it registered would keep this closure - and the
             // connection it captures - reachable from the ViewModel's Job for as long as
