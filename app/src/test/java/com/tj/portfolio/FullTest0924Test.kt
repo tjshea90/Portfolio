@@ -461,4 +461,56 @@ class FullTest0924Test {
         assertEquals(1, out.size)
         assertEquals(listOf("IVV", "SPLG", "SPY", "OTHR"), out.single().second)
     }
+
+    // ---- D-3: a weekend or holiday plan is for the next session.
+
+    private fun ny(y: Int, mo: Int, d: Int, h: Int, mi: Int = 0) = java.time.ZonedDateTime.of(
+        y, mo, d, h, mi, 0, 0, java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
+
+    @Test fun `D-3 weekend plans survive to Monday, a Friday session plan does not`() {
+        // 2026-09-25 is a Friday.
+        val keep = com.tj.portfolio.ui.planStillForSession(ny(2026, 9, 25, 22), ny(2026, 9, 26, 10))
+        assertTrue("Fri 22:00 -> Sat 10:00", keep)
+        assertTrue("Sat 10:00 -> Mon 08:00",
+            com.tj.portfolio.ui.planStillForSession(ny(2026, 9, 26, 10), ny(2026, 9, 28, 8)))
+        assertTrue("Sun 11:00 -> Mon 08:00",
+            com.tj.portfolio.ui.planStillForSession(ny(2026, 9, 27, 11), ny(2026, 9, 28, 8)))
+        assertFalse("Friday's own session plan is not Monday's",
+            com.tj.portfolio.ui.planStillForSession(ny(2026, 9, 25, 10), ny(2026, 9, 28, 10)))
+        assertEquals(com.tj.portfolio.net.MarketClock.dayKey(ny(2026, 9, 28, 12)),
+            com.tj.portfolio.net.MarketClock.sessionFor(ny(2026, 9, 26, 12)))
+    }
+
+    @Test fun `D-3 Friday's answer imported over the weekend is current until Monday's open`() {
+        val b = com.tj.portfolio.net.DayTradingBridge
+        assertTrue(b.answerIsCurrent("2026-09-25", ny(2026, 9, 26, 11)))
+        assertTrue(b.answerIsCurrent("2026-09-25", ny(2026, 9, 28, 8)))
+        assertFalse("not once Monday's session has started",
+            b.answerIsCurrent("2026-09-25", ny(2026, 9, 28, 10)))
+        assertFalse("Thursday's answer is not Monday's",
+            b.answerIsCurrent("2026-09-24", ny(2026, 9, 26, 11)))
+    }
+
+    // ---- D-2: an evening Claude plan is not replaced by the next pre-market tick.
+
+    @Test fun `D-2 a plan imported after the close survives the post-close stamp and the 04 00 tick`() {
+        val imported = ny(2026, 9, 28, 17, 10)          // Monday evening
+        val claude = com.tj.portfolio.data.ResearchRow(symbol = "GME", price = 22.5,
+            entryPrice = 23.0, stopPrice = 21.5, targetPrice = 26.0, setup = "Claude breakout",
+            planByClaude = true, why = "Plan for tomorrow.", whyAt = imported,
+            // What the 18:00 post-close sweep left on it: today's date.
+            sessionDay = com.tj.portfolio.net.MarketClock.dayKey(imported))
+        val tuesday = com.tj.portfolio.net.MarketClock.dayKey(ny(2026, 9, 29, 4, 5))
+        val tech = com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals(
+            atr14 = 2.5, adr = 1.1, prevHigh = 23.0, sessionDay = tuesday, intradayFetched = true,
+            lastPrice = 22.6)
+        val out = com.tj.portfolio.ui.mergeDayTradingTech(claude, tech, minutesLeft = 390,
+            now = ny(2026, 9, 29, 4, 5))
+        assertTrue("Claude's plan for Tuesday was replaced at Tuesday 04:05", out.planByClaude)
+        assertEquals(23.0, out.entryPrice, 1e-9)
+        // A plan made during Monday's session does roll over.
+        val mondaySession = claude.copy(whyAt = ny(2026, 9, 28, 11))
+        assertFalse(com.tj.portfolio.ui.mergeDayTradingTech(mondaySession, tech, minutesLeft = 390,
+            now = ny(2026, 9, 29, 4, 5)).planByClaude)
+    }
 }
