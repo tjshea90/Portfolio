@@ -1422,12 +1422,18 @@ internal fun dayTradingCounts(stats: com.tj.portfolio.data.DayTradingStats): Str
             " ${plural(stats.legacyExcluded, "older result")} graded under the previous, less strict rules " +
                 (if (stats.legacyExcluded == 1) "is" else "are") + " no longer re-checkable (the price history " +
                 "has expired), so " + (if (stats.legacyExcluded == 1) "it is" else "they are") + " not counted."
+        else "") +
+        (if (stats.oldSkipped > 0)
+            " ${plural(stats.oldSkipped, "older recommendation")} recorded before these rules " +
+                (if (stats.oldSkipped == 1) "was" else "were") + " already past the target or under the stop when " +
+                "shown (a plan the card said to skip), so " + (if (stats.oldSkipped == 1) "it is" else "they are") +
+                " not counted."
         else "")
 }
 
 /** What the card says when no trade has a decided result yet (UI-5) - never "none has an outcome" when some are being re-checked. */
 internal fun dayTradingNothingYet(stats: com.tj.portfolio.data.DayTradingStats): String = when {
-    stats.totalRecommendations == 0 && stats.legacyExcluded == 0 ->
+    stats.totalRecommendations == 0 && stats.legacyExcluded == 0 && stats.oldSkipped == 0 ->
         "No recommendations recorded yet. Keep using the Day Trading tab while the market is open - it " +
             "only records the plans it actually shows you - then check again."
     stats.regrading > 0 ->
