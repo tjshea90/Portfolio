@@ -105,6 +105,15 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
 ### Part C - verify and ship
 - [ ] C1 Full tests protocol (CLAUDE.md): floor, parallel audits (<=3 agents at once),
       fix everything, re-run, repeat until confident; Moto G 2026 / Android 16 perf focus
+    - [x] Floor: checkinit ok; full suite 1501/0 (after Parts A+B, before the audits)
+    - [ ] 3 read-only audits (launched together, at most 3 at once), each writing its FULL report
+          to audits/2026-09-24c/{daytrading,platform,ui}.md; a report is complete ONLY if its last
+          line is `## END OF REPORT (complete)` - a missing/partial one = re-run that agent alone.
+          daytrading = grading/logging/stats/tuning correctness + prompt-vs-code; platform =
+          network/caching/persistence/backup/battery/threading + whole-app regressions; ui =
+          Compose screens, wording, perf on the Moto G, accessibility.
+    - [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
+          tests; tick IDs here. Then full suite again; second audit round if anything major.
 - [ ] C2 Ship (auto-ship rule), post the Release link, summarize
 
 ## Tj's request, 2026-09-24b (his own words)
