@@ -14,8 +14,11 @@ import kotlin.math.abs
  * yield garbled output or throw. Every formatter is therefore held in a ThreadLocal.
  */
 object Fmt {
+    // US SYMBOLS, NOT THE DEVICE'S (full test 2026-09-24, U-Q4): `pct`/`compact` already pin
+    // Locale.US, so on a non-US phone one row read "$1.234,56 ... +1.23%". A US-market app.
     private fun dec(pattern: String) = object : ThreadLocal<java.text.DecimalFormat>() {
-        override fun initialValue() = java.text.DecimalFormat(pattern)
+        override fun initialValue() =
+            java.text.DecimalFormat(pattern, java.text.DecimalFormatSymbols(Locale.US))
     }
 
     private fun date(pattern: String) = object : ThreadLocal<SimpleDateFormat>() {
