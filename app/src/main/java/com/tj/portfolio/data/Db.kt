@@ -35,6 +35,18 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         /** Bump only alongside an additive block in onUpgrade. */
         const val DB_VERSION = 9
         const val BACKUP_FORMAT = "tj-portfolio-backup"
+
+        /**
+         * How far two amounts for the same symbol, day and share count may differ and still be
+         * ONE trade (full test 2026-09-24, A-3): rounding, not price movement. A price derived
+         * as amount / quantity and rounded to the cent moves the recomputed amount by at most
+         * half a cent a share; SEC and TAF fees on a sale add well under 0.01% of it. The old
+         * "0.5% of the trade, or within a dollar" called a second 10 NVDA fill at $180.80 the
+         * same trade as one at $180.00 ($8 apart, $9 of slack) - unticked in the review, so
+         * the real trade was never imported, a day trader's commonest pattern.
+         */
+        fun duplicateTolerance(quantity: Double, amount: Double): Double =
+            maxOf(0.02, kotlin.math.abs(quantity) * 0.005 + 0.01, kotlin.math.abs(amount) * 0.0001)
         // 4: adds `dayTradingLog`. A v3 file simply has no such key and restores exactly as
         // it always did - the restore loop reads an absent array as empty.
         const val BACKUP_VERSION = 4
@@ -850,8 +862,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         val dayStart = startOfDay(t.date)
         val dayEnd = dayStart + 86_400_000L
         val amt = kotlin.math.abs(t.amount)
-        // a cent of slack, or 0.5% on larger trades, whichever is bigger
-        val tol = maxOf(0.02, amt * 0.005)
+        val tol = duplicateTolerance(t.quantity, amt)
 
         // `IFNULL(symbol,'')=?` MADE `idx_txn_symbol` UNUSABLE. Wrapping an indexed column in
         // a function forces SQLite to evaluate it for every row, so this was a full table
@@ -879,9 +890,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 val sameQty = kotlin.math.abs(q - kotlin.math.abs(t.quantity)) < 0.0001
                 val sameAmt = kotlin.math.abs(a - amt) <= tol
                 if (sameQty && sameAmt) return id
-                // a share-count match on the same day for the same symbol is already a
-                // strong signal; accept it when the amounts are within a dollar
-                if (sameQty && q > 0 && kotlin.math.abs(a - amt) <= 1.0) return id
+                // (A "same share count, amounts within a dollar" fallback used to follow. It
+                // made a second same-size fill a few cents a share away read as the first one
+                // - see [duplicateTolerance], A-3.)
             }
         }
         return null
@@ -903,7 +914,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         val sym = (t.symbol ?: "").uppercase()
         if (sym.isBlank()) return null
         val amt = kotlin.math.abs(t.amount)
-        val tol = maxOf(0.02, amt * 0.005)
+        val tol = duplicateTolerance(t.quantity, amt)
         readableDatabase.rawQuery(
             // Same index fix as [findDuplicateId]. `sym` is non-blank here (checked above),
             // so a bare equality is both correct and index-usable.

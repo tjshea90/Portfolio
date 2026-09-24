@@ -183,7 +183,8 @@ say so in notes. Numbers must not contain commas or currency symbols."""
                 if (alreadyHave.isBlank()) EXTRACT_PROMPT
                 else EXTRACT_PROMPT +
                     "\n\nTRANSACTIONS ALREADY RECORDED - do not return any of these again. " +
-                    "A row matches if date + symbol + quantity are the same. Only report rows " +
+                    "A row matches if date + symbol + quantity + amount are the same (to the " +
+                    "cent, allowing only rounding). Only report rows " +
                     "that are NOT listed here. Each line below accounts for ONE row: if the " +
                     "screenshots show more identical rows than are listed (two fills of the " +
                     "same size on the same day), return the extra ones. " +

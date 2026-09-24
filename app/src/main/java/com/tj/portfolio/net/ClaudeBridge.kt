@@ -197,7 +197,8 @@ Known symbols already in the app: ${if (knownSymbols.isEmpty()) "(none yet)" els
 ## Transactions I ALREADY have - do not send these back
 
 Every line below is already recorded. If a row in the screenshots matches one of these on
-date + symbol + quantity, **leave it out entirely**. Only send rows that are not in this
+date + symbol + quantity + amount (to the cent, allowing only rounding), **leave it out
+entirely** - a same-size fill at a different price is a different trade. Only send rows that are not in this
 list. Each line accounts for ONE row: if the screenshots show more identical rows than are
 listed (two fills of the same size on the same day), send the extra ones. If a screenshot is
 entirely made up of rows I already have, return an empty "transactions" array and say so in
