@@ -325,4 +325,54 @@ are at the end.
   the in-permit cooldown re-check and 304/validator handling can be unit-tested on the JVM.
 
 ---
-IN PROGRESS
+
+## Checked and fine
+
+- **Yesterday's fixes hold:** N-1 (Day Trading sweep fetches technicals first, then publishes
+  the D1 chart from the same body via `RecentBodies`/`adoptRecentD1`; `loadChart` only on a
+  failed leg; see N-9 for a side effect), N-2 (`shouldRetryWithoutTools` = 400 naming the
+  tool; 600 s timeout on the three 16k calls; the 403 half is N-10), N-3 (cooldown re-checked
+  inside the permit in `get`), N-4 (sparklines only on Portfolio/Watchlist scope), N-5 (SPY
+  refreshed in the `lastRefresh` effect), N-6 (D1 finality uses `sparkIsFinal`), N-7
+  (`answered` set; empty-pass gap is N-11), N-8 (`Research.build(headlines, social)` reuses
+  the Feed's copies), N-10 (core row chosen by kind), N-11 (`deepNewsAt` stamped on empty,
+  disk repaint inside the window). N-9's memo exists but is likely inert (N-6 here).
+- **Source order:** quotes are v7 batched (50/chunk) -> per-symbol chart -> Finnhub -> Stooq,
+  with `fallbackRetry` and no fallback while both Yahoo hosts cool; charts are Yahoo v8 with
+  both hosts tried; news is Yahoo RSS -> Nasdaq -> Google News -> Finnhub (cascade) or all at
+  once for one opened stock (deep). Matches BRIEF.
+- **Chart cache:** `loadChart` reads `chart_cache` (one query per symbol) before any request,
+  honours the per-range TTL and `chartRetry`, never writes an empty series, writes on
+  `viewModelScope`; in-flight guard is effectively synchronous because every caller is on
+  `Main.immediate`. `chart_cache` is purged to 400 rows once per launch.
+- **http_cache:** keyed by URL (quoteSummary by its crumb-less URL); stored only with a
+  validator and a verified-complete body; 304 touches retention; stale entries dropped;
+  30-day and 24M-char bounds with a looped purge; no credential-bearing URL is conditional
+  (Finnhub token URLs, v7 crumb URL and Claude are unconditional).
+- **Lifecycle:** `refresh`, sparklines, charts, news, fundamentals, ratings, holdings,
+  insider, research, ETFs, price fills and the Day Trading loop all run on `fgScope` (or
+  have their Job cancelled in `setForeground(false)`); the auto loop and the Day Trading
+  loop skip when offline, and the quote pass skips on `VisibleScope.None` and
+  `pricesAreFinal()`. The scope itself is correct - what is broken is only the socket-level
+  disconnect underneath it (N-1).
+- **Gzip/charset:** no caller sets `Accept-Encoding`, so Android's transparent gzip applies
+  and `Content-Length` checks stay consistent; bodies are capped at 4M chars.
+- **YahooAuth:** the 60 s mint guard holds with a blank crumb and after `invalidate()`; no
+  401 loop is possible (but see N-3 and N-5).
+
+## Summary
+
+| Severity | Count | IDs |
+|---|---|---|
+| H | 1 | N-2 |
+| M | 3 | N-1, N-3, N-4 |
+| L | 8 | N-5, N-6, N-7, N-8, N-9, N-10, N-11, N-12 |
+| Quality | 5 | N-Q1..N-Q5 |
+| Ideas (need approval) | 5 | consensus memo, merged quoteSummary, closed-market chart finality, persisted fetch marks, Http transport seam |
+
+Missing tests worth adding with the fixes: a blocking-socket cancellation test for `Http`
+(N-1), a pure batch-verdict test for an empty-but-valid v7 answer (N-2), an injectable
+`yahooFetch` asserting no re-mint on 404 (N-3), an SEC pacing helper (N-4), and a TLS failure
+classifier (N-6).
+
+## END OF REPORT (complete)
