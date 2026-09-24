@@ -180,7 +180,7 @@ object ChartFeed {
         // A stock that listed last year has no five-year chart, and the caption should say
         // so rather than relabelling one year as five.
         val spanDays = (overnightPts.last().t - overnightPts.first().t) / 86_400.0
-        val truncated = spanDays > 0 && spanDays < expectedDays(range) * TRUNCATION_RATIO
+        val truncated = truncatedSpan(range, spanDays)
 
         return ChartSeries(
             symbol = symbol.uppercase(),
@@ -207,9 +207,18 @@ object ChartFeed {
      */
     private const val TRUNCATION_RATIO = 0.6
 
+    /** Whether a series spanning [spanDays] is shorter than [range] should be. Pure, for the test. */
+    internal fun truncatedSpan(range: ChartRange, spanDays: Double): Boolean =
+        spanDays > 0 && spanDays < expectedDays(range) * TRUNCATION_RATIO
+
     private fun expectedDays(range: ChartRange): Double = when (range) {
         ChartRange.D1, ChartRange.OVERNIGHT -> 0.0     // never flagged
-        ChartRange.D5 -> 7.0
+        // FOUR, NOT SEVEN (full test 2026-09-24, C-2). Five sessions with no weekend inside
+        // them - Monday's open to Friday morning - span about four calendar days, under the old
+        // 7 x 0.6 = 4.2 threshold, so every Friday until about 14:18 the 5D chart said "this is
+        // the whole history on record, shorter than 5D" and its chip lost its figure. At 4 x 0.6
+        // a stock that listed two days ago is still caught.
+        ChartRange.D5 -> 4.0
         ChartRange.M1 -> 30.0
         ChartRange.M6 -> 182.0
         ChartRange.Y1 -> 365.0

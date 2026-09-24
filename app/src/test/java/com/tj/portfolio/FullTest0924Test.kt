@@ -535,4 +535,13 @@ class FullTest0924Test {
         if (plan != null) assertFalse("planned off a range still printing: ${plan.trigger}",
             plan.trigger.contains("opening-range"))
     }
+
+    // ---- C-2: five weekday sessions are not a truncated 5D chart.
+
+    @Test fun `C-2 Monday open to Friday morning is a whole 5D chart, two days is not`() {
+        val f = com.tj.portfolio.net.ChartFeed
+        assertFalse("Mon 09:30 -> Fri 09:35", f.truncatedSpan(com.tj.portfolio.data.ChartRange.D5, 4.0))
+        assertFalse(f.truncatedSpan(com.tj.portfolio.data.ChartRange.D5, 6.3))
+        assertTrue("listed two days ago", f.truncatedSpan(com.tj.portfolio.data.ChartRange.D5, 1.3))
+    }
 }
