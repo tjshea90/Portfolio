@@ -1,7 +1,9 @@
 package com.tj.portfolio.net
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
@@ -91,6 +93,20 @@ object Http {
 
     private fun blockedForTests(host: String): Boolean =
         offlineForTests && !host.startsWith("127.") && host != "localhost"
+
+    /**
+     * Disconnects [connRef]'s connection the moment the calling coroutine is CANCELLED - not
+     * when it completes, which a coroutine blocked in `read()` cannot do (L-1/N-1). The
+     * handler runs on whichever thread calls `cancel()`; `disconnect()` only closes the socket.
+     * The caller disposes the handle in its `finally`.
+     */
+    @OptIn(InternalCoroutinesApi::class)
+    private suspend fun cancelWatch(
+        connRef: java.util.concurrent.atomic.AtomicReference<HttpURLConnection?>
+    ): kotlinx.coroutines.DisposableHandle? =
+        kotlin.coroutines.coroutineContext[Job]?.invokeOnCompletion(
+            onCancelling = true, invokeImmediately = true
+        ) { cause -> if (cause != null) runCatching { connRef.get()?.disconnect() } }
 
     // ------------------------------------------------------------ rate meter
 
@@ -552,9 +568,15 @@ object Http {
         // nothing would ever draw. `disconnect()` is the one thing that unblocks that read;
         // calling it on an already-finished connection is a documented no-op, so the handler
         // is safe on every path.
-        val cancelWatch = coroutineContext[Job]?.invokeOnCompletion { cause ->
-            if (cause != null) runCatching { connRef.get()?.disconnect() }
-        }
+        //
+        // ON CANCELLING, NOT ON COMPLETION (full test 2026-09-24, L-1/N-1). This used the public
+        // `invokeOnCompletion { }`, whose handler runs when the job reaches its FINAL state - and
+        // a job blocked in `read()` cannot reach it until the read returns by itself (whole body
+        // downloaded, or the read timeout). So the disconnect only ever landed on a connection
+        // that was already finished, and the whole mechanism described above did nothing.
+        // `onCancelling = true` runs the handler at the moment of `cancel()`, which is the only
+        // moment it is useful. HttpCancelTest pins it with a loopback server that stalls mid-body.
+        val cancelWatch = cancelWatch(connRef)
         try {
             conn = (URL(url).openConnection() as HttpURLConnection).also { connRef.set(it) }.apply {
                 requestMethod = "GET"
@@ -568,6 +590,9 @@ object Http {
                 prior?.lastModified?.let { setRequestProperty("If-Modified-Since", it) }
                 headers.forEach { (k, v) -> setRequestProperty(k, v) }
             }
+            // A cancel that landed between registering the watch and publishing `connRef` found
+            // nothing to disconnect - so look once more before the first blocking call.
+            coroutineContext.ensureActive()
             val code = conn.responseCode
 
             if (code == 304 && prior != null) {
@@ -683,9 +708,7 @@ object Http {
             // guaranteed to see the connection the IO thread assigned.
             val connRef = java.util.concurrent.atomic.AtomicReference<HttpURLConnection?>(null)
             var conn: HttpURLConnection? = null
-            val cancelWatch = coroutineContext[Job]?.invokeOnCompletion { cause ->
-                if (cause != null) runCatching { connRef.get()?.disconnect() }
-            }
+            val cancelWatch = cancelWatch(connRef)   // on CANCELLING - see get()
             try {
                 conn = (URL(url).openConnection() as HttpURLConnection).also { connRef.set(it) }.apply {
                     requestMethod = "POST"
@@ -696,6 +719,7 @@ object Http {
                     setRequestProperty("User-Agent", UA)
                     headers.forEach { (k, v) -> setRequestProperty(k, v) }
                 }
+                coroutineContext.ensureActive()   // same window as get()
                 conn.outputStream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
                 val code = conn.responseCode
                 if (code == 429 || code == 503 || code == 403) {
