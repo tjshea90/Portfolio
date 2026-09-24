@@ -225,8 +225,16 @@ class EngineTuningTest {
         assertEquals(DEFAULTS, reverted.params)
         assertTrue(reverted.isOriginal)
         assertTrue(reverted.history.filter { it.kind == EngineTuning.KIND_APPLY }.all { it.undoneAt == 6000L })
-        assertNull(EngineTuning.undo(reverted, 7000L, 200))
         assertNull("already original", EngineTuning.revert(reverted, 8000L, 200))
+        // A MISTAKEN REVERT CAN BE UNDONE (PL-15): back to the tuned engine, its changes in force again.
+        val unreverted = EngineTuning.undo(reverted, 7000L, 200)!!
+        assertEquals(st.params, unreverted.params)
+        assertEquals(EngineTuning.KIND_UNDO, unreverted.history.last().kind)
+        assertTrue(unreverted.history.single { it.kind == EngineTuning.KIND_REVERT }.undoneAt == 7000L)
+        assertTrue(unreverted.history.filter { it.kind == EngineTuning.KIND_APPLY }.all { it.undoneAt == 0L })
+        assertEquals("the change in force is measured from its own apply again", 2000L, unreverted.lastApplyAt)
+        // ...and the next undo takes back the latest apply, as before the revert
+        assertEquals(0.15, EngineTuning.undo(unreverted, 7500L, 200)!!.params[DayTradingParams.BREAK_BUFFER], 1e-9)
         // and the whole history survives storage
         val back = EngineTuning.load(reverted.engineJson(), reverted.historyJson())
         assertEquals(reverted.version, back.version)
