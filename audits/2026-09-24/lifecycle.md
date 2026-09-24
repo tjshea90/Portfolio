@@ -4,7 +4,8 @@ Auditor: L- (lifecycle / battery / concurrency), read-only pass. First dedicated
 area. Line numbers are as of the tree at audit time (the parent session was editing
 `net/Http.kt` concurrently — T-1 offline gate — so Http.kt lines are post-T-1).
 
-IN PROGRESS — findings below are verified; more areas still being checked.
+Status: complete (resumed after the 07:43 usage cap; L-1..L-6 were written before it, L-7 and
+the sections after it were added on resume).
 
 ## Findings
 
