@@ -180,26 +180,51 @@ object Storage {
     private fun findOwnDownload(ctx: Context, fileName: String, subDir: String?): Uri? = try {
         val uri = MediaStore.Downloads.EXTERNAL_CONTENT_URI
         val want = relPath(subDir).trimEnd('/') + "/"
+        // THE EXACT NAME OR MEDIASTORE'S NUMBERED COPY OF IT (full test 2026-09-24, A-4). An
+        // uninstall orphans this app's Downloads rows, so after a reinstall the old
+        // `portfolio-autosave.json` is invisible, and inserting that name again is stored as
+        // `portfolio-autosave (1).json`. Looking only for the exact name then never found it:
+        // every later save inserted (2), (3)... without bound, and reading the autosave back
+        // (the A-1 larger-copy check, the recovery card) found nothing at all. The newest own
+        // match wins, so saves go back to updating one file in place.
+        val dot = fileName.lastIndexOf('.')
+        val numbered = if (dot > 0) fileName.substring(0, dot) + " (%)" + fileName.substring(dot)
+        else "$fileName (%)"
         ctx.contentResolver.query(
             uri,
-            arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.RELATIVE_PATH),
-            "${MediaStore.Downloads.DISPLAY_NAME}=?",
-            arrayOf(fileName),
+            arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.RELATIVE_PATH,
+                MediaStore.Downloads.DISPLAY_NAME),
+            "${MediaStore.Downloads.DISPLAY_NAME}=? OR ${MediaStore.Downloads.DISPLAY_NAME} LIKE ?",
+            arrayOf(fileName, numbered),
             null
         )?.use { c ->
-            var found: Uri? = null
+            var bestId = -1L
             val pathCol = c.getColumnIndex(MediaStore.Downloads.RELATIVE_PATH)
+            val nameCol = c.getColumnIndex(MediaStore.Downloads.DISPLAY_NAME)
             while (c.moveToNext()) {
                 val rel = if (pathCol >= 0) c.getString(pathCol).orEmpty() else ""
                 val norm = rel.trimEnd('/') + "/"
-                if (norm.equals(want, true)) {
-                    found = android.content.ContentUris.withAppendedId(uri, c.getLong(0))
-                    break
+                val name = if (nameCol >= 0) c.getString(nameCol).orEmpty() else fileName
+                if (norm.equals(want, true) && matchesOwnName(name, fileName)) {
+                    bestId = maxOf(bestId, c.getLong(0))
                 }
             }
-            found
+            if (bestId >= 0) android.content.ContentUris.withAppendedId(uri, bestId) else null
         }
     } catch (e: Exception) { null }
+
+    /**
+     * [candidate] is [fileName] itself or MediaStore's de-duplicated copy of it,
+     * "name (n).ext" (A-4). The SQL LIKE above narrows; this decides - LIKE's `%` would also
+     * accept "name (anything).ext".
+     */
+    internal fun matchesOwnName(candidate: String, fileName: String): Boolean {
+        if (candidate == fileName) return true
+        val dot = fileName.lastIndexOf('.')
+        val base = if (dot > 0) fileName.substring(0, dot) else fileName
+        val ext = if (dot > 0) fileName.substring(dot) else ""
+        return Regex(Regex.escape(base) + " \\(\\d{1,4}\\)" + Regex.escape(ext)).matches(candidate)
+    }
 
     /**
      * Read back a Downloads file this app wrote.
