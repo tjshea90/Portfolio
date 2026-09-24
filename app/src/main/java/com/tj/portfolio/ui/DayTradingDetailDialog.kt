@@ -114,7 +114,10 @@ internal fun DayTradingPlanContent(
                                 else
                                     "a fraction of its daily ATR, until enough 5-minute bars " +
                                         "have printed to measure the intraday one directly") +
-                                "; the target is the next real resistance above the entry. " +
+                                (if (r.planCapped)
+                                    "; the target is set by the tuned engine as a fixed multiple of " +
+                                        "the risk, below the next resistance. "
+                                else "; the target is the next real resistance above the entry. ") +
                                 "Computed from real levels - not a forecast of where the price " +
                                 "is going.",
                         style = MaterialTheme.typography.bodySmall,
@@ -250,7 +253,8 @@ internal fun DayTradingPlanContent(
                 if (r.why.isNotBlank()) {
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        "CLAUDE",
+                        // Its age, as on the list card (S-2) - a 3-day-old paragraph must not read as today's.
+                        "CLAUDE" + claudeAge(r.whyAt),
                         style = MaterialTheme.typography.labelSmall,
                         color = accentText,
                         fontWeight = FontWeight.Bold

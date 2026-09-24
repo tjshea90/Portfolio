@@ -402,32 +402,31 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                 onCheckedChange = { dtAlerts = it; vm.setSettingB(Keys.DT_ALERTS, it) }
             )
         }
-        // THE ENGINE, AND THE WAY BACK TO THE ORIGINAL (2026-09-24c) - also here, so the revert
-        // is findable without knowing it lives under the Day Trading success card.
+        // THE ENGINE, AND THE WAYS BACK (2026-09-24c) - also here, so undo and revert are findable
+        // without knowing they live under the Day Trading success card (UI-11: both, as designed).
         val engine by vm.engine.collectAsState()
-        var confirmRevert by remember { mutableStateOf(false) }
+        var engineConfirm by rememberSaveable { mutableStateOf("") }
         Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text("Day-trading engine")
-                Text(
-                    if (engine.isOriginal) "The original engine" + (if (engine.version > 0) " (v${engine.version})." else ".") +
-                        " Claude can tune it from its graded results - Watch > Research > Day Trading."
-                    else "Tuned by Claude - v${engine.version}, " +
-                        "${engine.params.diffFrom(com.tj.portfolio.net.DayTradingParams.DEFAULTS).size} settings changed. " +
-                        "Reverting brings back the original exactly; the history is kept.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            TextButton(onClick = { confirmRevert = true }, enabled = !engine.isOriginal) { Text("Revert") }
+        Text("Day-trading engine")
+        val differs = engine.params.diffFrom(com.tj.portfolio.net.DayTradingParams.DEFAULTS).size
+        Text(
+            if (engine.isOriginal) "The original engine" + (if (engine.version > 0) " (now v${engine.version}, after earlier changes were taken back)." else ".") +
+                " Claude can tune it from its graded results - Watch > Research > Day Trading."
+            else "Tuned by Claude - v${engine.version}, $differs setting" + (if (differs == 1) "" else "s") + " changed. " +
+                "Undo takes back the last change; Revert brings back the original exactly. The history is kept.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
+            TextButton(onClick = { engineConfirm = ENGINE_UNDO }, enabled = engine.undoable != null,
+                modifier = Modifier.weight(1f)) { Text("Undo last change") }
+            TextButton(onClick = { engineConfirm = ENGINE_REVERT }, enabled = !engine.isOriginal,
+                modifier = Modifier.weight(1f)) { Text("Revert to original") }
         }
-        if (confirmRevert) AlertDialog(
-            onDismissRequest = { confirmRevert = false },
-            title = { Text("Revert to the original engine?") },
-            text = { Text("Every change Claude made to the day-trading engine is taken back. Recorded plans and their grades are not touched.") },
-            confirmButton = { TextButton(onClick = { confirmRevert = false; vm.revertEngine() }) { Text("Revert") } },
-            dismissButton = { TextButton(onClick = { confirmRevert = false }) { Text("Cancel") } }
+        if (engineConfirm.isNotEmpty()) EngineConfirmDialog(
+            kind = engineConfirm,
+            onConfirm = { if (engineConfirm == ENGINE_UNDO) vm.undoEngineChange() else vm.revertEngine(); engineConfirm = "" },
+            onDismiss = { engineConfirm = "" }
         )
 
         SectionHeader("News")

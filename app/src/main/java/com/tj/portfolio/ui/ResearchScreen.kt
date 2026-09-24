@@ -582,7 +582,8 @@ fun ResearchScreen(
                             // is what actually fetches this while the tab is open; the card only draws
                             // whatever has already arrived.
                             dayChart = dayChart,
-                            dayChartLoading = dayChartLoading
+                            dayChartLoading = dayChartLoading,
+                            dayTrading = section == Section.DAY_TRADING
                         )
                     }
                     item(key = "more") {
@@ -820,7 +821,9 @@ internal fun ResearchCard(
      * [PortfolioViewModel.enrichDayTradingVisible] has actually fetched it.
      */
     dayChart: com.tj.portfolio.data.ChartSeries? = null,
-    dayChartLoading: Boolean = false
+    dayChartLoading: Boolean = false,
+    /** A Day Trading row - its catalyst line is Claude's "specific risk", and says so (S-2). */
+    dayTrading: Boolean = false
 ) {
     // Colour is by score. See `scoreColor`, and the note there about why it no longer takes
     // a direction. This colour is printed as the score itself, on a 16%-alpha tint that
@@ -1042,8 +1045,10 @@ internal fun ResearchCard(
                         if (allReasons) "Show fewer" else "$hidden more reason${if (hidden == 1) "" else "s"}",
                         style = MaterialTheme.typography.labelMedium,
                         color = accentText,
+                        // A full-size tap target with a button role (S-1), like every other expander here.
                         modifier = Modifier
-                            .clickable { allReasons = !allReasons }
+                            .minTapTarget()
+                            .clickable(role = androidx.compose.ui.semantics.Role.Button) { allReasons = !allReasons }
                             .padding(vertical = 4.dp)
                     )
                 }
@@ -1052,9 +1057,10 @@ internal fun ResearchCard(
             if (r.catalyst.isNotBlank()) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    r.catalyst,
+                    // On a Day Trading card this is the RISK to the setup, not a highlight (S-2).
+                    if (dayTrading) "Risk: ${r.catalyst}" else r.catalyst,
                     style = MaterialTheme.typography.bodySmall,
-                    color = accentText,
+                    color = if (dayTrading) MaterialTheme.colorScheme.onSurfaceVariant else accentText,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -1301,7 +1307,8 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
                 "NOT YET - " + r.planWait.removeSuffix("."),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = redText
+                // A wait, not a failure (UI-27): the levels stand.
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Spacer(Modifier.height(6.dp))
