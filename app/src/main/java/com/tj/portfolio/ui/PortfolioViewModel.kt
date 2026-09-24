@@ -8244,8 +8244,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 toast("Nothing was applied - the checks changed since the review opened")
                 return@launch
             }
-            saveEngine(next)
             _engineReview.value = null
+            saveEngine(next)
             engineEvidenceNow()
             toast("Engine v${next.version} applied - ${fresh.applicable.size} change" +
                 "${if (fresh.applicable.size == 1) "" else "s"}. New plans use it from the next refresh; " +

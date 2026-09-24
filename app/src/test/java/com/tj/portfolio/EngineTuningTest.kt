@@ -301,7 +301,7 @@ class EngineTuningTest {
         assertNotNull(vm.engineReview.value)
         assertEquals("nothing changes before Apply", DEFAULTS, DayTradingEngine.params)
         vm.applyEngineReview()
-        repeat(20) { if (vm.engine.value.version == 0) settle() }
+        repeat(20) { if (vm.engine.value.version == 0 || vm.engineReview.value != null) settle() }
         assertEquals(1, vm.engine.value.version)
         assertEquals(1.6, DayTradingEngine.params[DayTradingParams.MIN_RISK], 1e-9)
         assertEquals(1, DayTradingEngine.version)
