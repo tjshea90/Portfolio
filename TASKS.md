@@ -23,12 +23,23 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
 `claude/complete-code-tests-crujka`, builds on 12d0989a (v7.40 shipped).)
 
 ### Part 1 - the recommended changes (skip only what would cost accuracy/function; say why)
-- [ ] Decisions: L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
+- [ ] Decisions: [x] L-4  [x] C-7  [x] C-9  [ ] tie  [ ] U-Q5  [ ] U-Q6 -- L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
       C-7 chip-only range persistence + reset to chip, C-9 5D closed-market gaps, same-bar
       entry/stop tie in DayTradingEval resolved with finer bars (pessimistic only if unknowable),
       U-Q5 back from a searched stock returns to the results, U-Q6 ticking "updated" labels
-- [ ] Charts ideas 1-8 (session-compressed 5D, touch-down value, ET clock, vs SPY in full
+- [x] Charts ideas 1-8 (session-compressed 5D, touch-down value, ET clock, vs SPY in full
       screen, stale "as of" label, previous-close price label, volume bars 1D/5D, double-tap reset)
+      DONE: C-7 (DetailScreen chosenRange: only chip taps persist, Reset zoom returns to the
+      chip; no UI test - composable state); C-9 via closedGaps(): intraday lines break at
+      closed-market gaps with a faint dashed bridge, fill per segment (NOT session-compressed x:
+      zoom/pan/scrub/compare all map time linearly, compressing only the drawing would move the
+      zoom away from the fingers - the break removes the false diagonals honestly); touch-down
+      value (pressShows on unzoomed charts, nothing consumed); double-tap reset (only when
+      moved); ET clock (Fmt.clockEt/shortDayEt/isoEt, "ET" on end + scrub labels, day
+      boundaries by market day); vs SPY switch in FullScreenChart; "last updated" note on an old
+      chart not loading and not final; "Prev close $X" pill on the dotted baseline; volume bars
+      on 1D/5D (ChartPoint.volume parsed + cached as optional "vol" array). Tests:
+      ChartIdeasUiTest (6), Improve0924bTest (+4); all 23 chart/gesture classes 298/0.
 - [ ] Day Trading ideas (Claude + app plans both logged / compared, success by setup and time
       of day, "logged plan today" on the detail screen, in-app entry/stop alerts - battery-safe)
 - [x] Network ideas (analyst consensus memo across rebuilds, one quoteSummary on first open,
