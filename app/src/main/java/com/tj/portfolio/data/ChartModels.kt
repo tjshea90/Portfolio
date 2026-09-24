@@ -144,7 +144,7 @@ enum class ChartRange(
                 // The finest rung from `best` up to `current` that holds the window WITH the
                 // margin - so a window near a fine rung's edge lands one rung coarser, not all
                 // the way back on `current`.
-                var pick = current
+                var pick: ChartRange = current
                 for (r in ZOOM_LADDER) {        // widest first: the last match is the finest
                     if (r.approxSpanMs <= current.approxSpanMs && r.approxSpanMs >= best.approxSpanMs &&
                         spanMs <= r.approxSpanMs * FINER_MARGIN
