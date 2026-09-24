@@ -7012,8 +7012,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     if (kind == com.tj.portfolio.net.SharedAnswer.Kind.RESEARCH ||
                         kind == com.tj.portfolio.net.SharedAnswer.Kind.DAY_TRADING
                     ) kotlinx.coroutines.withTimeoutOrNull(90_000) { _researchBusy.first { it.isEmpty() } }
-                    // A tuning answer is reviewed against the log - make sure the log is loaded
-                    // and graded as far as it can be first (it is a local read; grading is not waited on).
                     val r = runCatching { importShared(item.text) }
                         .getOrElse { ShareImport("Couldn't import that share: ${it.message}", null) }
                     _toast.value = r.message
