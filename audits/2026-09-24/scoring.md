@@ -160,3 +160,25 @@ EtfScore's header says it is "pure ... no clock", but `EtfRow.ageYears` calls `S
 - Show on each Best/Trending card when its Claude paragraph was written ("Claude, 3 days ago"), as the Day Trading card effectively does with session wording. It makes S-4/S-6-type staleness visible even when the stamps are right.
 - A "stale analyst coverage" chip on the Portfolio-tab BUY/HOLD/SELL badge when `analystDiscounted` is true, so a discounted verdict is visible without opening the popup (similar to Morningstar's "rating last updated" line).
 - An "Other ways to hold this exposure" expander under a de-duplicated ETF card listing every grouped fund with its fee and 5y return, instead of a three-ticker sentence. This also resolves the S-8 cap.
+
+## Test coverage gaps (risky logic with no test today)
+- `Recommendation.freshnessNote()`: no test for any branch other than through UI. The S-9 branch is unreachable (S-1). Needed: one test per branch, built through `Recommend.build`.
+- `Recommend.build` `analystWeight` equals the trust `holding` actually applied, for all four analyst paths (dated votes / dated no-votes / all-stale / undated) (S-1, S-Q2).
+- DetailScreen or VM: a ratings-first then core-second arrival recomputes the verdict (S-2).
+- Stale disk core + failed network + fresh ratings gives `fundamentalsAt` = the old core stamp (S-3).
+- `ResearchBridge` with an old `asOf` (S-4). `carryWhy` with a screener-derived catalyst and conviction > 0 (S-5). `evictStaleWhy` then `carryEtfExplanations` on a categorised Claude-added fund (S-6). A week-old Day Trading paragraph evicted on rebuild (S-7).
+- `EtfExposure.keyOf` negative cases for strategy/sub-index names and munis; the `dedupe` cap (S-8).
+- A panel with Yahoo and Finviz spellings of the same firm (S-9). `trending()` session wording (S-10). `holding` symmetry at +/-12.5 (S-Q1). `headlineTrade` with a zero-price line (S-12).
+
+## Summary
+
+| Severity | Count | IDs |
+|---|---|---|
+| H | 0 | - |
+| M | 7 | S-1 (popup freshness note dead branch / wrong weight), S-2 (DetailScreen never recomputes provisional verdict), S-4 (research/advice `asOf` ignored), S-5 (screener catalyst frozen as Claude's; DT earnings-today warning lost), S-6 (stale Claude-added fund becomes permanent), S-7 (DT paragraphs carried across sessions), S-8 (ETF over-grouping + silent drop past 3) |
+| L | 5 | S-3 (S-7 fix incomplete), S-9 (Yahoo+Finviz firm double-vote), S-10 (Trending "today" when closed), S-11 (Claude-added rows buried / "SCORE 0"), S-12 (insider price diluted by unpriced lines) |
+| Quality | 5 | S-Q1..S-Q5 |
+
+Yesterday's fixes: S-2, S-7 and S-9 are incomplete (reported here as S-2, S-3 and S-1). All others hold.
+
+## END OF REPORT (complete)
