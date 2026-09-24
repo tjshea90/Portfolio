@@ -109,7 +109,8 @@ class FullTest0924Test {
         assertEquals(SharedAnswer.BACKUP_MESSAGE, shared.message)
         assertNull("a refused backup opens no screen", shared.dest)
         assertEquals(SharedAnswer.BACKUP_MESSAGE, vm.importClaudeFile(backup))
-        assertTrue("nothing may be waiting for review", vm.pendingImport.value.isEmpty())
+        assertTrue("nothing may be waiting for review",
+            vm.importResult.value?.transactions.isNullOrEmpty())
 
         // A real answer that merely mentions the format name is still an answer.
         assertFalse(SharedAnswer.isBackup("""{"notes":"not a tj-portfolio-backup","transactions":[]}"""))
