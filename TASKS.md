@@ -65,8 +65,13 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
 - [ ] A3 Report real P&L terms, not just a hit rate (avg R, expectancy, net % after a
       realistic cost/slippage), sample size shown, "not enough data" honest
 ### Part B - Claude "learn" round trip for the day-trading engine
-- [ ] B1 Engine parameters extracted into one versioned, validated settings object
+- [x] B1 Engine parameters extracted into one versioned, validated settings object
       (defaults = today's engine exactly; tests prove default output unchanged)
+      DONE: net/DayTradingParams.kt (82 specs: plan geometry, stops, targets, new off-by-default
+      filters, time windows, setup/level switches, per-setup overrides, score weights) +
+      DayTradingEngine holder; ResearchScore reads params via default args. Proof:
+      DayTradingGoldenTest (fixture from pre-refactor v7.41 code, 2538 lines) + DT suites 177/0;
+      DayTradingParamsTest (13) covers each knob. Row gains planWait/planLevel/dt* inputs.
 - [ ] B2 "Make Claude tuning prompt" button -> prompt file via the share sheet: goal, how the
       engine works, current parameters + full change history, graded trade data + breakdowns,
       sample-size rules, exact answer schema, "start now" line
