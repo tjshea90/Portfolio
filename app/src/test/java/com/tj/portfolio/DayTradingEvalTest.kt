@@ -405,7 +405,9 @@ class DayTradingEvalTest {
         id = 0L, symbol = "TST", tradingDay = "20260101", recordedAt = 0L, setup = "Breakout",
         entry = entry, stop = stop, target = target, priceAtRecommendation = 9.0,
         source = DayTradingLogEntry.SOURCE_APP, outcome = outcome, outcomeExitPrice = exitPrice,
-        outcomeEvaluatedAt = if (outcome != null) 1L else null
+        outcomeEvaluatedAt = if (outcome != null) 1L else null,
+        // Graded by the current grader - an older one's verdicts are excluded (2026-09-24c, E9).
+        evalVersion = com.tj.portfolio.net.DayTradingGrader.VERSION
     )
 
     @Test fun statsOnAnEmptyLogIsAllZero() {
