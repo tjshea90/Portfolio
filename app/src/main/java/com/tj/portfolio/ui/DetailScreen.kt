@@ -362,10 +362,10 @@ fun DetailScreen(
     var compareOn by remember { mutableStateOf(vm.chartCompare()) }
     val compareKey = vm.chartKey(BENCHMARK_SYMBOL, chartRange)
     val compareSeries = if (compareOn && !isBenchmark) chartMap[compareKey] else null
-    // The benchmark's own live price, when the app happens to hold a quote for it - it does
-    // whenever SPY is held or watched, and after any research pass that touched it. See the
-    // note on `PriceChart.compareLivePrice` for why the two tips have to be the same moment.
-    val benchmarkQuote = if (compareSeries == null) null else quotesMap[BENCHMARK_SYMBOL]
+    // The benchmark's own live price (`quotesMap[BENCHMARK_SYMBOL]`, below with `drawnCompare`),
+    // when the app happens to hold a quote for it - it does whenever SPY is held or watched,
+    // and after any research pass that touched it. See the note on `PriceChart.compareLivePrice`
+    // for why the two tips have to be the same moment.
 
 
     // The "News" chip on a holding row used to open this screen and then try to SCROLL to
