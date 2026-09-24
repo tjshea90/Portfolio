@@ -112,7 +112,10 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       A-7 mergeIntoPendingReview for screenshot path + share path (test); A-8 finite-only restore
       numbers (Infinity test); A-9 autosaveWrite Mutex (autoBackupIfDue + tidyDownloadsOnce);
       A-10 onOpen ensureColumn for both added columns (test); A-11 research cache writes
-      sequenced under one Mutex )
+      sequenced under one Mutex; S-3 coreDataAt = disk core row's real age (VM test);
+      S-9 FundamentalsFeed.coreFill drops Finviz rating rows from core (test); S-10 Trending
+      price line session-aware (test); S-11 Claude-added rows inserted at page end +
+      claudeSourced badge "CLAUDE -" (test); S-12 insider price averaged over priced lines (test) )
     - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
 - [ ] Re-run the full suite; re-check anything a fix touched
       (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
