@@ -1483,29 +1483,49 @@ internal const val DT_AUTO_EVAL_MS = 15L * 60_000L
 /** Batches of [DAY_TRADING_EVAL_CAP] the tab's own check may take in one go (2026-09-24c). */
 internal const val DT_AUTO_EVAL_BATCHES = 3
 
+/** A row whose day's bars came back missing is asked again at most this often (audit PL-13). */
+internal const val DT_RETRY_EMPTY_MS = 24L * 3_600_000L
+
 /**
- * The log rows a check should (re-)grade (2026-09-24c): anything not yet final, and anything a
- * previous version of the grader decided (audit E9 - the old rules could credit fills that did not
- * happen) - in both cases only while Yahoo still has the day's bars. A row graded by an older
- * grader whose bars are gone keeps its verdict and is left out of the headline figures instead
- * (see `DayTradingEval.stats`).
+ * The log rows a check should (re-)grade (2026-09-24c), while Yahoo still has the day's bars:
+ *  - anything not yet decided - a row whose bars came back missing (DATA_UNAVAILABLE) at most once
+ *    every [DT_RETRY_EMPTY_MS], not on every check for eight weeks (audit PL-13);
+ *  - anything a previous version of the grader decided (audit E9 - the old rules could credit
+ *    fills that did not happen);
+ *  - once, after the close, a row decided mid-session, whose grid and hold measures still need the
+ *    rest of the day (audit DA-1, [com.tj.portfolio.net.DayTradingGrader.needsSettledRegrade]).
+ * Never a row logged before these rules that the card itself said to skip (DA-19), and never one
+ * in [recentlyEmpty] (a decided row whose re-grade just came back with no bars - it keeps its
+ * verdict, PL-2). A row graded by an older grader whose bars are gone keeps its verdict and is
+ * left out of the headline figures instead (see `DayTradingEval.stats`).
  */
 internal fun dayTradingRowsNeedingGrade(
     all: List<com.tj.portfolio.data.DayTradingLogEntry>,
-    now: Long = System.currentTimeMillis()
+    now: Long = System.currentTimeMillis(),
+    recentlyEmpty: Set<Long> = emptySet()
 ): List<com.tj.portfolio.data.DayTradingLogEntry> = all.filter {
-    val stale = com.tj.portfolio.data.DayTradingOutcome.isFinal(it.outcome) &&
-        it.evalVersion < com.tj.portfolio.net.DayTradingGrader.VERSION
-    (!com.tj.portfolio.data.DayTradingOutcome.isFinal(it.outcome) || stale) &&
-        com.tj.portfolio.net.DayTradingEval.intradayStillAvailable(it.tradingDay, now)
+    val E = com.tj.portfolio.net.DayTradingEval
+    val O = com.tj.portfolio.data.DayTradingOutcome
+    if (it.id in recentlyEmpty || E.notTradeableOldRow(it) || !E.intradayStillAvailable(it.tradingDay, now)) return@filter false
+    when {
+        !O.isFinal(it.outcome) -> it.outcome != O.DATA_UNAVAILABLE || now - (it.outcomeEvaluatedAt ?: 0L) >= DT_RETRY_EMPTY_MS
+        it.evalVersion < com.tj.portfolio.net.DayTradingGrader.VERSION -> true
+        else -> com.tj.portfolio.net.DayTradingGrader.needsSettledRegrade(it.evalDetail, it.outcomeEvaluatedAt, it.tradingDay, now)
+    }
 }
 
-/** The rows one press resolves: the oldest [cap] of them, oldest first. */
+/**
+ * The rows one check resolves: the oldest [cap] of them, oldest first (their one-minute bars
+ * expire first) - but rows being asked AGAIN because their bars were missing come after every
+ * row never graded, so a backlog of those can never starve today's trades (audit PL-13).
+ */
 internal fun dayTradingRowsToResolve(
     rows: List<com.tj.portfolio.data.DayTradingLogEntry>,
     cap: Int = DAY_TRADING_EVAL_CAP
 ): List<com.tj.portfolio.data.DayTradingLogEntry> =
-    rows.sortedWith(compareBy({ it.tradingDay }, { it.recordedAt })).take(cap)
+    rows.sortedWith(compareBy(
+        { it.outcome == com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE }, { it.tradingDay }, { it.recordedAt }
+    )).take(cap)
 
 /** How many consecutive live ticks [ResearchScore.tradePlan] must decline before
  *  [mergeDayTradingTech] actually withdraws a level - see its own note on why. */
