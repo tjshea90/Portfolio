@@ -397,7 +397,9 @@ fun ResearchScreen(
             }
         }
 
+        // A 2 dp placeholder when idle, so the list does not jump (U-Q1).
         if (busy.isNotEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
+        else Spacer(Modifier.height(2.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
         // An error belongs at the top, not buried under twenty cards.

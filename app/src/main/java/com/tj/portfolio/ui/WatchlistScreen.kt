@@ -149,7 +149,9 @@ fun WatchlistScreen(
             BigIconButton(Icons.Filled.Refresh, "Refresh prices") { vm.refresh(manual = true) }
         }
 
+        // A 2 dp placeholder when idle, so the list does not jump on every tick (U-Q1).
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
+        else Spacer(Modifier.height(2.dp))
 
         // PortfolioScreen already surfaces state.error for the same refresh path
         // (vm.refresh()) - this screen was reading the same UiState without ever showing it,

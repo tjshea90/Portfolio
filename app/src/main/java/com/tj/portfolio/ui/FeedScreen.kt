@@ -192,9 +192,10 @@ fun FeedScreen(
         // it sat with no indication of anything happening while EDGAR was being read.
         val insiderBusy = filter == F_INSIDER &&
             (if (source == InsiderSource.ALL_COMPANIES) marketFilingsLoading else filingsLoading)
+        // A 2 dp placeholder when idle, so the list does not jump on every pass (U-Q1).
         if (loading || insiderBusy) {
             LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
-        }
+        } else Spacer(Modifier.height(2.dp))
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
         Refreshable(refreshing = state.pulling(PULL_FEED), onRefresh = {

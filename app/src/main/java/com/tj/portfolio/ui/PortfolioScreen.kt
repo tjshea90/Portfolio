@@ -138,7 +138,9 @@ fun PortfolioScreen(
             }
         }
 
+        // A 2 dp placeholder when idle, so the list does not jump on every tick (U-Q1).
         if (state.loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
+        else Spacer(Modifier.height(2.dp))
 
         Refreshable(refreshing = state.pulling(PULL_PRICES), onRefresh = { vm.refresh(manual = true) }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
