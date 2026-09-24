@@ -54,8 +54,8 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       a no-bridge control that reproduces the dead gesture)  [x] D-1 stale plans
       logged with later timestamp/old price (capture only from the DT sweep, only rows re-planned
       live THIS tick: loggableDayTradingRows(liveNow); ResearchPriceFillTest +1). ALL H DONE.
-    - M: [ ] C-2 5D "truncated" Fridays  [ ] C-3 vs-SPY All range different starts  [ ] C-4 zoom
-      hysteresis missing at 4 boundaries  [ ] C-5 stale benchmark carried flat  [x] D-2 evening
+    - M: [x] C-2 5D "truncated" Fridays (D5 expected span 4 days; ChartFeed.truncatedSpan; test)  [x] C-3 vs-SPY All range different starts (anchor = later of both first candles; test)  [x] C-4 zoom
+      hysteresis missing at 4 boundaries (FINER_MARGIN 0.85 on the way down; wobble test all pairs)  [x] C-5 stale benchmark carried flat (no overlay if SPY ends before window / 1D other session; test)  [x] D-2 evening
       Claude plan replaced at 04:00 (post-close sweep re-stamps) (claudePlanStands also by the plan's
       own whyAt session; levels kept; mergeDayTradingTech now param; test)  [x] D-3 weekend/holiday Claude
       plans dropped (MarketClock.sessionFor; planStillForSession + answerIsCurrent extended; +2 tests)  [x] D-4 no plans after rebuild until next tick (rebuild restarts the live loop;
