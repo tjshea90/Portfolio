@@ -184,6 +184,10 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       [x] R2-7 addTxnRecord returns Boolean; all 3 editors close only on true (VM test)
 - [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
       record-release) and post the Release link; summarize for Tj
+      17:19 UTC: v7.40 / code 97 gated by ship.sh (checkinit ok, suite 1425/0) and pushed
+      (dc9ffd11). android.yml full_build triggered: run 36033444388 (run #42). NEXT: when it
+      is green -> get_release_by_tag v7.40 -> tools/record-release.sh (command in ckpt 1688)
+      -> post https://github.com/tjshea90/Portfolio/releases/tag/v7.40
 
 ## Tj's request, 2026-09-23d (his own words)
 
