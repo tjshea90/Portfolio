@@ -340,3 +340,83 @@ read and may drift by a few lines.
 - Fix: in `mergeDayTradingTech`, when `claudePlanStands && row.planPrice <= 0 && livePrice != null`, set
   `planPrice = livePrice` (the first price the app saw), and let `fillPricesNow` only fill it if still 0.
 
+## Checked and found sound (so the fixer need not re-verify)
+
+- No look-ahead: `grade()` starts at the first bar whose START is >= `recordedAt`; units are consistent
+  everywhere (bars and `fillAt`/`exitAt`/`dataAt` in epoch s, `recordedAt`/`deadline`/`flat` in ms, divided
+  once in `resolveOneDayTradingEntry`; `replannedLive` compares seconds; the prompt's fillMin/holdMin are right).
+- Half days and DST: `DayTradingFeatures` takes the close from `closeMinuteAt(noon of the trading day)`, so
+  the 13:00 days get 12:30 / 12:50; DST changes fall on Sundays, so `atStartOfDay().plusMinutes()` is safe.
+- In-bar ordering: stop before target; a buy-stop's own fill bar may credit the target (its high must come
+  after the crossing - sound); a buy-limit's fill bar defers the target (sound). With a VALID open every fill
+  and exit price the grader uses is one the bar actually traded (see DA-8 for the NaN-open hole). The new
+  "gap-target" branch (fill already above target -> sold at once, CLOSED_LOSS) is right.
+- Finality: NO_ENTRY and CLOSED_* are never written before `sessionSettled` (+20 min); PENDING is written with
+  the current `eval_version`; stale-version finals are re-queued while bars exist and become `legacyExcluded`
+  after 55 days (but see DA-12, DA-19); a failed 1m request never falls back to 5m within 29 days.
+- Stats arithmetic: net R, Wilson (clamped 0-100), t-interval (df rounded down = conservative), profit factor,
+  drawdown in exit order, capital simulation (fill order, cash freed only after the exit bar, notional =
+  shares-per-equity x paid) all compute what they say. `totalRecommendations` includes the "being re-checked"
+  rows, and the card's sentence names them, so the buckets do add up.
+- Logging gates in `loggableDayTradingRows` + `captureDayTradingRecommendations`: market phase OPEN (holidays
+  and half days modelled), row session == today, re-planned from a live fetch THIS tick, newest bar <= 10 min
+  old, not too-late, decline streak 0, no "not yet" reason, price >= $1, still waiting for its entry (E5), only
+  the shown window; the app's own `priceAtRecommendation` is the price the plan was computed from.
+- Tuning store: undo restores exactly `paramsBefore` of the latest apply still in force, revert installs
+  DEFAULTS and marks every apply undone, history is capped at 200, `load` is total, the engine is installed at
+  start-up before research loads and again after a restore, and no parameter can touch position sizing.
+  `applyEngineReview` now re-reviews at the tap and refuses if the decisions differ from what the sheet showed
+  (fixed while this audit ran).
+- Default engine: every new filter/override defaults to off, and `DayTradingGoldenTest` pins plans, decline
+  reasons, notes, exit text, beginner summaries, scores and confidence against the pre-refactor fixture.
+
+## Test gaps worth adding
+
+1. DA-1: grade a trade mid-session (bars to 11:00, `decidedThroughSec = 0`), then after settle with the full
+   day - assert the stored grid / holdR / mfeFlatR are the full-day values (today they never change).
+2. DA-2: `mergeDayTradingTech` with `filter.minScore = 20` and a row with `dtLikelihood 45, dtConfidence 0,
+   score 0` -> no plan (VM-level; `DayTradingParamsTest` only covers `planInternal` with an explicit score).
+3. DA-3 / DA-4: MEDIUM-tier review of `setup.reclaim.enabled 1 -> 0` with `basis: "all"` and 4 reclaim trades,
+   and of `filter.minScore 0 -> 80` / `setup.breakout.minRiskAtrs 0 -> 2.5` - both should be refused/limited.
+4. DA-5 / DA-18: answers with no `basedOn`, no `from`, and `"to": true` on a NUMBER param.
+5. DA-7: a lone low spike through a pullback's entry followed by a rally -> NO_ENTRY.
+6. DA-8: bars with NaN opens that gap wholly past the entry and wholly through the stop.
+7. DA-9: `edgeVerdict` with 4 consistent winners -> "" (not "positive").
+8. DA-10: Claude row logged at 10:45 under an `avoidMiddayLull` engine keeps the 15:30 cut-off.
+9. DA-12: re-grading a stale WIN whose bars answer empty leaves the WIN in place.
+10. DA-13: plans recorded at 15:29:30 and 15:30:30 are not logged (or not guaranteed NO_ENTRY).
+11. DA-16: apply `vol.intradayAtrFromDaily = 0.1875`, build the prompt, feed back `from: 0.188` -> accepted.
+12. DA-17: a settled series ending at 13:40 is not decided.
+13. DA-19: an old (no-features) Claude row whose `priceAtRecommendation` is above its target is excluded.
+14. Capital simulation with a 5m-graded exit and a 1m-graded fill inside the same 5 minutes (documents the
+    current "freed early" behaviour), and with two fills in the same bar.
+15. A prompt/algorithm consistency test that reads the numbers the text states from the code (52-week rule,
+    the 6-bar intraday-ATR rule, the stop fallback `1.5 x vol`) rather than only checking every key is named.
+
+## Summary
+
+| id | sev | one line |
+|---|---|---|
+| DA-1 | H | Mid-session WIN/LOSS stored FINAL with grid/holdR/runR from a partial day; never re-graded - corrupts the tuning evidence |
+| DA-2 | M | `filter.minScore` skipped for blended-score-0 rows (the weakest ones) and uses last tick's score |
+| DA-3 | M | Group-size rule satisfied by `basis: "all"`; setup/level switches can rest on a handful of trades |
+| DA-4 | M | Switching an optional filter/override ON is not step-limited (minScore 0 -> 80 in one import) |
+| DA-5 | M | Missing `basedOn` / `from` bypasses both staleness checks |
+| DA-6 | M | Objective "net R" (and the grid's "comparable under 1% sizing") ignores the 25% cap that sizes most trades; tighter stops inflate R without profit |
+| DA-7 | M | Bad-print filter only on targets; a lone low print can fill a pullback and credit a WIN |
+| DA-8 | M | Unknown open -> fills/stop exits at prices the bar never traded |
+| DA-9 | M | "a real edge ... with 95% confidence" possible on 2-19 trades beside "Too few trades to judge" |
+| DA-10 | L | Claude plans get the app engine's lull cancel-time the Claude card never shows |
+| DA-11 | L | Version labels: revert labelled "Tuned", versions reused after Replace restore, corrupt store hides tuned history |
+| DA-12 | L | Re-grade with empty bars overwrites an old verdict with DATA_UNAVAILABLE |
+| DA-13 | L | Plans logged in the last minute before the cut-off are guaranteed NO_ENTRY; 5m bars can overrun an off-grid cut-off |
+| DA-14 | L | Prompt text: "within 15% of the 52-week high", "daily ATR before any intraday bars", minScore; early plans lack ATR features |
+| DA-15 | L | No consistency rule between last-entry and flat minutes |
+| DA-16 | L | Values with >3 decimals can never be changed again (prompt rounds, `from` needs 1e-6) |
+| DA-17 | L (unsure) | Truncated settled series decided as complete |
+| DA-18 | L | `true`/"on" accepted as 1.0 for numeric params |
+| DA-19 | M | Pre-E5 rows re-graded into the headline, incl. Claude plans the card said to skip |
+| DA-20 | L | Bullish-opening-bar filter cannot act before 09:35; first-5-minute plans logged under it |
+| DA-21 | L | Claude pick's `planPrice` set by the later quote fill, not the first live tick |
+
+## END OF REPORT (complete)
