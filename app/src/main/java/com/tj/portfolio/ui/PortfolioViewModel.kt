@@ -8400,7 +8400,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             runCatching {
                 val saved = if (stored) null else readEngineBackupFiles(logVersion)
                 if (saved != null && (!saved.isOriginal || saved.history.isNotEmpty())) {
-                    engineMutex.withLock { if (_engine.value === st) saveEngine(saved) }
+                    engineMutex.withLock { if (_engine.value == st) saveEngine(saved) }
                     if (!saved.isOriginal) toast("Restored the tuned day-trading engine (v${saved.version}) from its backup file in app storage")
                 } else writeEngineBackupFiles(st, replace = stored)
             }
