@@ -105,48 +105,82 @@ object EngineTuning {
         val history: List<HistoryEntry> = emptyList()
     ) {
         val isOriginal: Boolean get() = params.isDefault
-        /** The most recent apply still in force - what "Undo last change" takes back. */
-        val undoable: HistoryEntry? get() = history.lastOrNull { it.kind == KIND_APPLY && it.undoneAt == 0L }
+        /** The most recent apply still in force - when the change now in force was made. */
+        private val applyInForce: HistoryEntry? get() = history.lastOrNull { it.kind == KIND_APPLY && it.undoneAt == 0L }
+        /**
+         * What "Undo last change" takes back: a "Revert to original" that was the last thing done
+         * (audit PL-15 - a mistaken revert used to be final, with the tuned engine sitting in its own
+         * history), else the most recent apply still in force.
+         */
+        val undoable: HistoryEntry? get() =
+            history.lastOrNull()?.takeIf { it.kind == KIND_REVERT && it.undoneAt == 0L } ?: applyInForce
         /**
          * When the change now IN FORCE was applied (0 = none: never tuned, or every change taken back)
          * - the start of the "since then" count. An undone or reverted change is not being measured
          * any more, so it no longer holds the next one back (UI-10).
          */
-        val lastApplyAt: Long get() = undoable?.at ?: 0L
+        val lastApplyAt: Long get() = applyInForce?.at ?: 0L
 
         fun engineJson(): String = JSONObject().put("version", version).put("params", params.toJson()).toString()
         fun historyJson(): String = JSONArray().apply { history.forEach { put(it.toJson()) } }.toString()
     }
 
-    /** TOTAL - a missing or corrupt store reads as the original engine, never as an exception. */
-    fun load(engineJson: String?, historyJson: String?): State {
+    /**
+     * TOTAL - a missing or corrupt store reads as the original engine, never as an exception.
+     *
+     * [logVersion] is the highest `vN` label already in the day-trading log (audit DA-11 / PL-9): a
+     * restore of an older backup rolls the engine store back while the log keeps rows made by the
+     * later versions, and re-issuing "v3" for a different set of values would mix two engines in
+     * every per-version figure. The next version is always above anything the log has seen.
+     *
+     * An unreadable engine row with an intact history runs what the history says is in force (its
+     * last entry's result), not the original under a tuned version number (DA-11 c).
+     */
+    fun load(engineJson: String?, historyJson: String?, logVersion: Int = 0): State {
         val e = runCatching { JSONObject(engineJson ?: "") }.getOrNull()
         val h = runCatching { JSONArray(historyJson ?: "") }.getOrNull()
         val history = h?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(HistoryEntry::fromJson) } }.orEmpty()
+        val stored = e?.optJSONObject("params")
         return State(
-            params = DayTradingParams.fromJson(e?.optJSONObject("params")),
-            version = (e?.optInt("version", 0) ?: 0).coerceAtLeast(history.maxOfOrNull { it.version } ?: 0),
+            params = if (stored != null) DayTradingParams.fromJson(stored) else history.lastOrNull()?.paramsAfter ?: DayTradingParams.DEFAULTS,
+            version = maxOf(e?.optInt("version", 0) ?: 0, history.maxOfOrNull { it.version } ?: 0, logVersion),
             history = history
         )
     }
+
+    /** The version number in an engine label ("v3" -> 3), or 0. */
+    fun versionOfLabel(label: String?): Int =
+        label?.trim()?.takeIf { it.length > 1 && (it[0] == 'v' || it[0] == 'V') }?.substring(1)?.toIntOrNull() ?: 0
 
     private fun record(state: State, entry: HistoryEntry, mark: (HistoryEntry) -> HistoryEntry = { it }): State {
         val history = (state.history.map(mark) + entry).takeLast(HISTORY_MAX)
         return State(entry.paramsAfter, entry.version, history)
     }
 
-    /** "Undo last change": back to the parameters before the most recent apply still in force. */
+    /**
+     * "Undo last change": back to the parameters before the most recent apply still in force - or,
+     * when the last thing done was a revert, back to the tuned engine that revert replaced, with the
+     * changes it took back in force again.
+     */
     fun undo(state: State, now: Long, gradedTrades: Int): State? {
         val target = state.undoable ?: return null
+        val day = java.time.Instant.ofEpochMilli(target.at).atZone(java.time.ZoneId.of("America/New_York")).toLocalDate()
         val entry = HistoryEntry(
             version = state.version + 1, at = now, kind = KIND_UNDO,
             changes = target.paramsBefore.diffFrom(state.params).map { Change(it.first, it.second, it.third) },
-            summary = "Undid the change applied ${java.time.Instant.ofEpochMilli(target.at)
-                .atZone(java.time.ZoneId.of("America/New_York")).toLocalDate()} (engine v${target.version})",
+            summary = if (target.kind == KIND_REVERT) "Undid the revert to the original made $day (back to the engine before it)"
+                else "Undid the change applied $day (engine v${target.version})",
             gradedTrades = gradedTrades,
             paramsBefore = state.params, paramsAfter = target.paramsBefore
         )
-        return record(state, entry) { if (it === target) it.copy(undoneAt = now) else it }
+        return record(state, entry) {
+            when {
+                it === target -> it.copy(undoneAt = now)
+                // The applies that revert took back are in force again.
+                target.kind == KIND_REVERT && it.kind == KIND_APPLY && it.undoneAt == target.at -> it.copy(undoneAt = 0L)
+                else -> it
+            }
+        }
     }
 
     /** "Revert to the original engine": every change ever applied, taken back in one step. */
