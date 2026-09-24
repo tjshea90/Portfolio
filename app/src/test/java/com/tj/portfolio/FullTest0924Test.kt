@@ -513,4 +513,26 @@ class FullTest0924Test {
         assertFalse(com.tj.portfolio.ui.mergeDayTradingTech(mondaySession, tech, minutesLeft = 390,
             now = ny(2026, 9, 29, 4, 5)).planByClaude)
     }
+
+    // ---- D-5: a bar or range still printing is not a trigger level.
+
+    @Test fun `D-5 the opening bar counts only once it has closed`() {
+        val T = com.tj.portfolio.net.DayTradingTechnicals
+        val open930 = ny(2026, 9, 28, 9, 30) / 1000
+        val first = T.Bar(t = open930, open = 20.0, high = 20.07, low = 19.95, close = 19.98, volume = 1000)
+        assertFalse("09:32 - the 09:30 bar is still printing", T.openingBarComplete(listOf(first)))
+        val second = T.Bar(t = open930 + 300, open = 19.98, high = 20.2, low = 19.9, close = 20.1, volume = 900)
+        assertTrue(T.openingBarComplete(listOf(first, second)))
+    }
+
+    @Test fun `D-5 an incomplete 30-minute range is not offered as the breakout level`() {
+        val tech = com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals(
+            atr14 = 2.0, adr = 1.0, atrIntraday = 0.3, sessionLive = true, sessionDay = "20260928",
+            openingRangeHigh = 20.07, openingRangeLow = 19.9, openingRangeComplete = false,
+            prevHigh = 21.5, prevClose = 19.8, vwap = 19.95, sessionHigh = 20.07, sessionLow = 19.9,
+            lastPrice = 20.0)
+        val (plan, _) = com.tj.portfolio.net.ResearchScore.planInternal(20.0, tech, minutesLeft = 385)
+        if (plan != null) assertFalse("planned off a range still printing: ${plan.trigger}",
+            plan.trigger.contains("opening-range"))
+    }
 }
