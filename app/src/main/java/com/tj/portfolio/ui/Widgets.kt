@@ -296,7 +296,9 @@ fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
                 price = Fmt.price(ext),
                 change = Fmt.changeMoney(ext, q.extChange),
                 percent = Fmt.pctSignedBeside(q.extChangePct, q.extChange, ext),   // R2-1
-                pct = q.extChangePct
+                pct = q.extChangePct,
+                move = q.extChange,
+                moveEps = Fmt.changeEps(ext)
             )
         else null
     val hasExt = extCell != null
@@ -365,7 +367,7 @@ fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
                     // previous day's; after hours it is measured from today's close. Same
                     // arithmetic, different day, so the wording has to differ too.
                     basis = if (isPre) "vs last close" else "vs today's close",
-                    color = extCell.color,
+                    color = signColor(extCell.move, extCell.moveEps),
                     firstIsNeutral = true,
                     big = big
                 )
@@ -379,7 +381,10 @@ private data class ExtCell(
     val price: String,
     val change: String,
     val percent: String,
-    val pct: Double
+    val pct: Double,
+    /** The dollar change and its print precision - what the cell's colour follows (R2-1). */
+    val move: Double = pct,
+    val moveEps: Double = 0.005
 )
 
 /**
