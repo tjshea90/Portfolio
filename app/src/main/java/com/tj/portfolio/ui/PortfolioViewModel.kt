@@ -2845,10 +2845,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /** The newest private snapshot that actually holds transactions, or null. */
-    private fun newestPortfolioSnapshot(): java.io.File? =
-        com.tj.portfolio.util.Storage.appBackups(getApplication()).firstOrNull { f ->
+    private fun newestPortfolioSnapshot(): java.io.File? {
+        // The daily copies first: an undo copy taken "before a delete" still holds what was
+        // deliberately deleted, so it is the fallback, not the choice.
+        val all = com.tj.portfolio.util.Storage.appBackups(getApplication())
+        val (undo, daily) = all.partition { it.name.startsWith(com.tj.portfolio.util.Storage.BEFORE_PREFIX) }
+        return (daily + undo).firstOrNull { f ->
             runCatching { backupTxnCount(f.readText()) > 0 }.getOrDefault(false)
         }
+    }
 
     /** True when the recovery card is offering a private snapshot, not the Downloads copy. */
     fun recoverableIsSnapshot(): Boolean = recoverableSnapshot != null
