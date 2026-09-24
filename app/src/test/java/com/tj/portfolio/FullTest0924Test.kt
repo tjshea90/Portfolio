@@ -774,7 +774,7 @@ class FullTest0924Test {
         fun day(y: Int, m: Int, d: Int) = java.util.Calendar.getInstance().apply {
             clear(); set(y, m - 1, d)
         }.timeInMillis
-        val has = com.tj.portfolio.ui::baselineWindowHasSession
+        val has = { a: Long, b: Long -> com.tj.portfolio.ui.baselineWindowHasSession(a, b) }
         assertFalse("added today", has(day(2026, 9, 24), day(2026, 9, 24)))
         assertTrue("added yesterday (Wed)", has(day(2026, 9, 23), day(2026, 9, 24)))
         // Added Saturday 26 Sep: Sunday and Monday have nothing closed yet; Tuesday does.
@@ -798,23 +798,39 @@ class FullTest0924Test {
     // ---- N-10: a Claude 403 is an answer with a reason, not a throttle.
 
     @Test fun `N-10 a 403 from a POST keeps its error body and arms no cooldown`() {
-        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
-        server.createContext("/") { ex ->
-            ex.requestBody.readBytes()
-            val b = """{"error":{"type":"permission_error","message":"no access to this model"}}"""
-                .toByteArray()
-            ex.sendResponseHeaders(403, b.size.toLong()); ex.responseBody.use { it.write(b) }
+        val server = java.net.ServerSocket(0, 4, java.net.InetAddress.getLoopbackAddress())
+        kotlin.concurrent.thread(isDaemon = true) {
+            repeat(2) {
+                runCatching {
+                    server.accept().use { sock ->
+                        val input = sock.getInputStream().bufferedReader()
+                        var len = 0
+                        while (true) {
+                            val line = input.readLine() ?: break
+                            if (line.isEmpty()) break
+                            if (line.startsWith("Content-Length:", ignoreCase = true))
+                                len = line.substringAfter(':').trim().toInt()
+                        }
+                        repeat(len) { input.read() }
+                        val b = """{"error":{"type":"permission_error","message":"no access to this model"}}"""
+                        sock.getOutputStream().apply {
+                            write(("HTTP/1.1 403 Forbidden\r\nContent-Type: application/json\r\n" +
+                                "Content-Length: ${b.length}\r\nConnection: close\r\n\r\n$b").toByteArray())
+                            flush()
+                        }
+                    }
+                }
+            }
         }
-        server.start()
         try {
-            val url = "http://127.0.0.1:${server.address.port}/v1/messages"
+            val url = "http://127.0.0.1:${server.localPort}/v1/messages"
             val first = kotlinx.coroutines.runBlocking { com.tj.portfolio.net.Http.postJson(url, "{}") }
             assertEquals(403, first.code)
             assertTrue(first.body, first.body.contains("no access to this model"))
             val again = kotlinx.coroutines.runBlocking { com.tj.portfolio.net.Http.postJson(url, "{}") }
             assertEquals("the retry must reach the server, not a local cooldown", 403, again.code)
         } finally {
-            server.stop(0)
+            server.close()
             com.tj.portfolio.net.Http.clearCooldowns()
         }
     }
