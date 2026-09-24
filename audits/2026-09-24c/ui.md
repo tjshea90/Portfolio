@@ -6,7 +6,13 @@ ui/SettingsScreen.kt (Day-trading engine row), ui/PortfolioViewModel.kt (engine/
 engineEvidence flows), shared widgets. Severity: H = wrong info / crash / unexpected action;
 M = real usability or perf problem; L = polish.
 
-Status: IN PROGRESS (findings appended as confirmed)
+Status: COMPLETE. 27 findings on today's work (3 H, 10 M, 14 L) plus 2 secondary; test gaps and
+"checked and fine" at the end.
+
+Top priorities, in order: UI-3 (Apply can install values the sheet did not show), UI-1 and UI-2
+(contradictory / non-adding numbers on the success card), UI-5 (card says nothing was decided on the
+first open after this update), UI-6 (plan label names the wrong engine), UI-12 (Apply's review on the
+main thread).
 
 ## Findings
 
