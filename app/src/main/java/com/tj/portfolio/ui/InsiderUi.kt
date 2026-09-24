@@ -258,6 +258,9 @@ fun ScopeChips(
             Box(
                 Modifier
                     .weight(1f)
+                    // The app's 48 dp tap-target rule (full test 2026-09-24, C-Q5) - these were
+                    // about 36 dp tall.
+                    .minTapTarget()
                     .background(
                         if (on) Accent.copy(alpha = 0.18f)
                         else MaterialTheme.colorScheme.surfaceVariant,
@@ -293,6 +296,9 @@ fun SourceChips(
             Box(
                 Modifier
                     .weight(1f)
+                    // The app's 48 dp tap-target rule (full test 2026-09-24, C-Q5) - these were
+                    // about 36 dp tall.
+                    .minTapTarget()
                     .background(
                         if (on) Accent.copy(alpha = 0.18f)
                         else MaterialTheme.colorScheme.surfaceVariant,
