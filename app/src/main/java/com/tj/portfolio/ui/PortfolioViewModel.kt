@@ -393,6 +393,7 @@ fun spinnerShouldShow(
  */
 private const val TRIM_RUNNING_CRITICAL = 15
 
+/** `ComponentCallbacks2.TRIM_MEMORY_BACKGROUND` - the highest level Android 14+ delivers (L-4). */
 private const val TRIM_BACKGROUND = 40
 
 /**
@@ -402,8 +403,6 @@ private const val TRIM_BACKGROUND = 40
  * long note in `onTrimMemory`.
  */
 private const val TRIM_MODERATE = 60
-/** ComponentCallbacks2.TRIM_MEMORY_BACKGROUND - the highest level Android 14+ delivers (L-4). */
-private const val TRIM_BACKGROUND = 40
 
 /**
  * How many headlines the feed holds in memory at once.
