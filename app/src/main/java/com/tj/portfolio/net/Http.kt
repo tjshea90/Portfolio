@@ -84,13 +84,13 @@ object Http {
      * news requests from whatever machine ran the suite - the container's proxy, a GitHub
      * runner - which made results depend on the market and the network (2026-09-23's
      * WatchSinceAddedTest flake) while the tests themselves assume "no network in a unit test".
-     * Loopback stays open: NetLogicTest drives the real failure/cooldown paths against
-     * 127.0.0.1:1, which never leaves the machine.
+     * Loopback (all of 127.0.0.0/8) stays open: NetLogicTest drives the real failure and
+     * cooldown paths against 127.0.0.1..5 port 1, which never leaves the machine.
      */
     private val offlineForTests: Boolean = System.getProperty("portfolio.test.offline") == "true"
 
     private fun blockedForTests(host: String): Boolean =
-        offlineForTests && host != "127.0.0.1" && host != "localhost"
+        offlineForTests && !host.startsWith("127.") && host != "localhost"
 
     // ------------------------------------------------------------ rate meter
 
