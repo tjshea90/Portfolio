@@ -31,8 +31,17 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
       screen, stale "as of" label, previous-close price label, volume bars 1D/5D, double-tap reset)
 - [ ] Day Trading ideas (Claude + app plans both logged / compared, success by setup and time
       of day, "logged plan today" on the detail screen, in-app entry/stop alerts - battery-safe)
-- [ ] Network ideas (analyst consensus memo across rebuilds, one quoteSummary on first open,
+- [x] Network ideas (analyst consensus memo across rebuilds, one quoteSummary on first open,
       D5/M1 chart finality while closed, persist insiderAt/deepNewsAt, Http test seam)
+      DONE: Research consensus memo 12h (answers only, failures never; test); Quote.quoteType from
+      the v7 batch -> loadHoldings skips the request for EQUITY (holdingsNotNeeded, test); D5+M1
+      final after the close until the next open, newest candle from the latest session (test;
+      ChartTest's "never fires for non-intraday" pin narrowed to >1M); Http.scriptedForTests
+      seam (offline-gate only) + R1-9 test. SKIPPED insiderAt/deepNewsAt persistence: a fresh
+      persisted insider stamp would blank a searched stock's Form 4 section after a cold start
+      (its filings are memory-only), and deep news is only a 5-minute window - no real saving.
+- [x] L-4 (from Decisions): trim at TRIM_BACKGROUND(40) releases only invisible caches (Http
+      heap cache, SymbolSearch memo, storyKeys); BRIEF.md row updated; test.
 - [ ] Data ideas (recover from Android-restored snapshots, txn ids in backups, "data shrank"
       max-count alarm, transfer-in transaction type)
 - [ ] Research ideas ("Claude, N days ago" on cards, stale-analyst chip on the badge, "other
@@ -40,11 +49,19 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
 - [ ] Screens ideas (say what is refreshing, swipe between Research sections, faster startup:
       init's SQLite work off the first frame) + deferred perf items worth doing (C-Q1/C-Q2)
 ### Part 2 - the Claude app round trip
-- [ ] Every "Make prompt file" opens the Android share sheet (Claude pickable) - audit all paths
-- [ ] The prompt file alone tells Claude exactly what to do and to answer AS A FILE (plus the
+- [x] Every "Make prompt file" opens the Android share sheet (Claude pickable) - audit all paths
+      (already true since v7.37: all 4 buttons end in launchPromptShare -> PromptShare.chooser)
+- [x] The prompt file alone tells Claude exactly what to do and to answer AS A FILE (plus the
       JSON inline as a fallback), no explanation needed from Tj
-- [ ] Claude's answer shared back (file OR text) -> Portfolio recognises the kind, imports all of
-      it and opens the right screen
+      (ClaudeBridge.startNow(): first line of all 4 prompts - "this attached file is my whole
+      message ... start now ... without asking me anything"; screenshots prompt may ask for the
+      images only. fileDelivery/SHARE_BACK_LINE already asked for the file + share-back line)
+- [x] Claude's answer shared back (file OR text) -> Portfolio recognises the kind, imports all of
+      it and opens the right screen (already routed by content; NEW: SEND_MULTIPLE - every file
+      of a multi-file share is queued; a shared chat LINK gets a plain "share the file" message
+      instead of "no JSON found"). Tests: Improve0924bTest (3).
+      LIMIT (tell Tj): nothing in a prompt can make the Claude app open a share sheet by itself -
+      Claude ends its reply with "tap the file above, then Share and pick Portfolio".
 ### Part 3 - verify and ship
 - [ ] Full unit suite + checkinit green after all changes; review the whole diff for breakage
 - [ ] Ship (auto-ship rule), post the Release link, summarize
