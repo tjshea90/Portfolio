@@ -1,5 +1,86 @@
 # TASKS — the current job
 
+## Tj's request, 2026-09-24c (his own words)
+
+> For this app, make sure the check day trading success rate is an accurate representation of
+> the profits if I were to trade using the day trading system in real life. Make sure it is
+> logical and tracks trades that I could have made in real life and that it doesn't track
+> anything illogical such as counting a success when I couldn't have traded it in real life,
+> counting a success based on a profitable movement that was realized before the app actually
+> recommended it (so I couldn't have traded it in real life), or any other error or anomaly.
+> This section should show a true representation of the success of the day trading section if
+> I were to use it as designed. Make a button that when I press it, it makes a prompt file that
+> I can export to Claude app using the android "share with" feature which makes Claude analyze
+> which day trading methods were successful and help the app "learn" which algorithms or
+> methods to use based on actual successful methods. The Claude app should be able to analyze
+> the data and tweak the app as needed to maximize the accuracy and profitability of the day
+> trading system in the app by "learning" from the data and altering the app logic engine for
+> day trading recommendations and numbers. Once Claude app processes the data, it will make an
+> export file that I can share with or import back into the portfolio app that makes the
+> changes in the day trading engine. For this feature, there needs to be a mechanism in the
+> portfolio app which allows the imported Claude file to change the settings and algorithms in
+> the day trading section. The feature must follow these rules:
+>
+> 1) do not make any major changes based on small sample sizes (low number of data in the
+> success tracking). Wait for the sample size to get large enough that Claude can properly
+> learn from it
+>
+> 2) the success tracking data itself absolutely must be accurate. If it is counting successes
+> based on anomalies or errors or trades I could not have made in real life, then the system is
+> broken.
+>
+> 3) include an option for me to manually revert the app back to its original day trading
+> section engine, which will automatically revert all changes made at any point to revert the
+> section to the original system it has right now. There probably needs to be a backup file in
+> the app storage for this.
+>
+> 4) each Claude prompt should make the prompt file that includes the current algorithms and
+> all changes already made to the engine and Claude should consider what changes need to be
+> made. The goal is to improve the system with every Claude input. Make the Claude prompt
+> understand the goal of improving the system. It should have all of the data and history
+> needed for a thorough and accurate review and optimization of the system. Include any
+> information in the prompt file that would explain to Claude from a fresh chat what is
+> needed, what has already been done, what to check, the goals, etc. then make sure the Claude
+> export file can properly alter the app as needed.
+>
+> This is a large job so make sure rugged checkpoint system is in place in case of usage
+> running out.
+>
+> After all of this is finished, run a full test according to the full test protocol. Continue
+> running tests until you are confident the app is well made and all features work and it is
+> optimal for speed and snappiness and accuracy on a moto g 2026 Android 16 phone. Usage and
+> time are no concern for this task, the release should be a major upgrade and well designed,
+> using the full power of opus 5.5 ultracode
+
+Branch `claude/day-trading-success-claude-learn-t9ot3u`, builds on afb40a4d (v7.41 shipped).
+Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written before code).
+
+### Part A - success tracking must be a true, tradeable record (rule 2)
+- [ ] A1 Audit every path that logs a plan and grades it: what counts as a trade, entry time,
+      fill price, stop/target order, same-bar ties, gaps, halts, stale/late logging, re-plans,
+      post-hoc levels, weekends/holidays, duplicates, symbols the app never showed Tj
+- [ ] A2 Fix every way a success can be counted that Tj could not really have traded
+      (move realised before the recommendation time, entry filled before logging, entry
+      price not reachable, levels changed after the fact, etc.) - with regression tests
+- [ ] A3 Report real P&L terms, not just a hit rate (avg R, expectancy, net % after a
+      realistic cost/slippage), sample size shown, "not enough data" honest
+### Part B - Claude "learn" round trip for the day-trading engine
+- [ ] B1 Engine parameters extracted into one versioned, validated settings object
+      (defaults = today's engine exactly; tests prove default output unchanged)
+- [ ] B2 "Make Claude tuning prompt" button -> prompt file via the share sheet: goal, how the
+      engine works, current parameters + full change history, graded trade data + breakdowns,
+      sample-size rules, exact answer schema, "start now" line
+- [ ] B3 Import of Claude's tuning file (share-in + Import button): schema check, bounds,
+      small-sample guard enforced IN THE APP (not just asked of Claude), preview/confirm,
+      applied to the engine, history recorded
+- [ ] B4 Original engine backup in app storage + "Revert to original engine" (one tap, undoes
+      every change ever applied); also revert just the last change
+- [ ] B5 Tests for all of B (defaults identical, bounds, guard, revert, history, round trip)
+### Part C - verify and ship
+- [ ] C1 Full tests protocol (CLAUDE.md): floor, parallel audits (<=3 agents at once),
+      fix everything, re-run, repeat until confident; Moto G 2026 / Android 16 perf focus
+- [ ] C2 Ship (auto-ship rule), post the Release link, summarize
+
 ## Tj's request, 2026-09-24b (his own words)
 
 > I'm not picky. Add/change all the things you recommended that are good for an android 16
