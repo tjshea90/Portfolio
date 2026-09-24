@@ -1024,6 +1024,18 @@ fun PriceChart(
                     // meaning, and that is the only place worth spending the words.
                     if (canPanNow) append(", drag to move, hold to scrub")
                 }
+                // ---- AN OLD CHART SAYS SO (chart idea 5, 2026-09-24b). Past its range's TTL,
+                // not loading, and not final after the close means the refresh that should have
+                // replaced it failed - the line is real, but it is not now.
+                val nowMs = System.currentTimeMillis()
+                val f = shown.fetched
+                if (!loading && f > 0L && nowMs - f > range.ttlMs + 60_000L &&
+                    !intradayChartIsFinal(range, shown.endMs, f, nowMs)
+                ) {
+                    append("  -  last updated ")
+                    if (Fmt.iso(f) != Fmt.iso(nowMs)) append(Fmt.shortDay(f)).append(", ")
+                    append(Fmt.clock(f))
+                }
                 if (shown.truncated) {
                     // Said out loud rather than drawn as if it were the full window. A stock
                     // that listed eighteen months ago has no five-year chart, and relabelling
