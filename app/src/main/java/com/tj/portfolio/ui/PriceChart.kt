@@ -1609,7 +1609,12 @@ private fun ChartCanvas(
         base?.let { measurer.measure("Prev close " + Fmt.price(it), labelStyle) }
     }
 
-    Canvas(modifier) {
+    // ---- PATHS BUILT ONCE PER INPUT, NOT ONCE PER FRAME (full test 2026-09-24, C-Q1). The
+    // crosshair reads `scrub` in the draw phase, and on a plain Canvas that re-ran this whole
+    // block - every path rebuilt, O(n) allocations - at the display's refresh rate while a
+    // finger scrubbed. `drawWithCache` builds them when the size or an input changes; the
+    // scrub frames only re-run `onDrawBehind`.
+    androidx.compose.foundation.layout.Spacer(modifier.drawWithCache {
         val w = size.width
         val h = size.height
         val pad = h * 0.08f
@@ -1630,88 +1635,10 @@ private fun ChartCanvas(
         // hours in which nothing traded.
         fun x(p: ChartPoint) = w * ((p.t - t0).toFloat() / tSpan.toFloat())
 
-        // faint gridlines, so the eye has something to measure the line against
-        for (i in 1..2) {
-            val gy = pad + (h - pad * 2) * i / 3f
-            drawLine(
-                grid.copy(alpha = 0.55f), Offset(0f, gy), Offset(w, gy),
-                strokeWidth = gridStroke
-            )
-        }
-
-        if (base != null) {
-            val by = y(base)
-            // The dash pitch is in dp too, or the dotted baseline is a solid line on a
-            // high-density screen and a row of far-apart specks on a low-density one.
-            val dash = 4.dp.toPx()
-            val gap = 4.dp.toPx()
-            var sx = 0f
-            while (sx < w) {
-                drawLine(
-                    Color.Gray.copy(alpha = 0.55f),
-                    Offset(sx, by), Offset(minOf(sx + dash, w), by), strokeWidth = baseStroke
-                )
-                sx += dash + gap
-            }
-            // Labelled at the right edge, above the line (below it when there is no room), on
-            // a pill in the surface colour so it reads over the fill and the gridlines.
-            baseLabel?.let { lbl ->
-                val lw = lbl.size.width.toFloat()
-                val lh = lbl.size.height.toFloat()
-                val px = 3.dp.toPx()
-                val left = (w - lw - px * 2f).coerceAtLeast(0f)
-                val top = (by - lh - px * 1.5f).let { if (it < 0f) by + px else it }
-                drawRoundRect(
-                    dot.copy(alpha = 0.85f), Offset(left, top),
-                    androidx.compose.ui.geometry.Size(lw + px * 2f, lh),
-                    androidx.compose.ui.geometry.CornerRadius(px, px)
-                )
-                drawText(lbl, topLeft = Offset(left + px, top))
-            }
-        }
-
-        // ---- VOLUME, as faint bars along the bottom fifth (chart idea 7). Drawn before the
-        // line so the price stays the subject; not with a benchmark, whose second line would
-        // make "whose volume?" a fair question.
-        if (maxVolume > 0.0 && cmp == null) {
-            val band = (h - pad) * 0.2f
-            val candlePx = w * (s.range.candleMs / 1000f) / tSpan.toFloat()
-            val barW = (candlePx * 0.7f).coerceIn(1f, 10.dp.toPx())
-            val barColor = grid.copy(alpha = 0.45f)
-            for (p in pts) {
-                if (p.volume <= 0.0) continue
-                val bh = (band * (p.volume / maxVolume)).toFloat().coerceAtLeast(1f)
-                drawRect(barColor, Offset(x(p) - barW / 2f, h - bh),
-                    androidx.compose.ui.geometry.Size(barW, bh))
-            }
-        }
-
         // WHAT EACH POINT IS WORTH ON THE AXIS. Price normally; percent change when a
         // benchmark is drawn beside it. One function, so the fill, the stroke and the
         // crosshair below cannot end up reading different scales.
         fun value(i: Int): Double = cmp?.own?.get(i) ?: pts[i].close
-
-        // ---- THE ZERO LINE, in comparison mode only. It replaces the dotted previous-close
-        // baseline rather than joining it, and it is what both lines are measured from.
-        //
-        // DASHED, LIKE THAT BASELINE, AND NOT LIKE THE GRIDLINES. Drawn solid in the grid
-        // colour it was a third horizontal line among three, distinguishable only by being
-        // slightly darker - and on a chart where the stock is below the market the zero line
-        // lands near the top, right beside a real gridline, exactly where the difference
-        // matters most. A dash pattern is unmistakable at a glance and needs no colour.
-        if (cmp != null && 0.0 in lo..hi) {
-            val zy = y(0.0)
-            val dash = 4.dp.toPx()
-            val gap = 4.dp.toPx()
-            var zx = 0f
-            while (zx < w) {
-                drawLine(
-                    Color.Gray.copy(alpha = 0.75f),
-                    Offset(zx, zy), Offset(minOf(zx + dash, w), zy), strokeWidth = baseStroke
-                )
-                zx += dash + gap
-            }
-        }
 
         // ONE PATH, BROKEN AT EVERY CLOSED-MARKET GAP (C-9): a straight line across a night
         // or a weekend drew trading that never happened. The gap itself gets a faint dashed
@@ -1736,77 +1663,145 @@ private fun ChartCanvas(
                 segFirst = i + 1
             }
         }
-        if (fill != null) {
-            drawPath(fill, Brush.verticalGradient(listOf(line.copy(alpha = 0.22f), line.copy(alpha = 0f))))
+        val fillBrush = Brush.verticalGradient(listOf(line.copy(alpha = 0.22f), line.copy(alpha = 0f)))
+        val bridgeEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+            floatArrayOf(3.dp.toPx(), 4.dp.toPx()))
+        val bridges = (0 until pts.lastIndex).filter { gapAfter[it] }.map { i ->
+            Offset(x(pts[i]), y(value(i))) to Offset(x(pts[i + 1]), y(value(i + 1)))
         }
-        for (i in 0 until pts.lastIndex) {
-            if (!gapAfter[i]) continue
-            val a = Offset(x(pts[i]), y(value(i)))
-            val b = Offset(x(pts[i + 1]), y(value(i + 1)))
-            drawLine(line.copy(alpha = 0.35f), a, b, strokeWidth = baseStroke,
-                pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
-                    floatArrayOf(3.dp.toPx(), 4.dp.toPx())))
-        }
-
-        // ---- THE BENCHMARK, DRAWN FIRST AND THINNER, so the stock stays the subject of its
-        // own chart. Broken into segments at every gap: the benchmark can be missing points
-        // the stock has - a fund that did not trade in an extended session, a stock that
-        // listed mid-window - and joining across a gap would draw a straight line through
-        // days that were never measured.
+        // The benchmark's segments - see the note where they are drawn.
+        val benchSegs = ArrayList<Path>()
         cmp?.let { c ->
-            var started = false
-            var seg = Path()
+            var seg: Path? = null
             for (i in pts.indices) {
                 val v = c.other[i]
-                if (!v.isFinite()) {
-                    if (started) {
-                        drawPath(
-                            seg, benchmarkColor.copy(alpha = 0.85f),
-                            style = Stroke(width = baseStroke * 1.4f, cap = StrokeCap.Round)
-                        )
-                        seg = Path()
-                        started = false
-                    }
-                    continue
+                if (!v.isFinite()) { seg?.let { benchSegs.add(it) }; seg = null; continue }
+                val cur = seg ?: Path().also { seg = it; it.moveTo(x(pts[i]), y(v)) }
+                if (cur !== seg || benchSegs.isEmpty() && false) Unit
+                cur.lineTo(x(pts[i]), y(v))
+            }
+            seg?.let { benchSegs.add(it) }
+        }
+        val benchStroke = Stroke(width = baseStroke * 1.4f, cap = StrokeCap.Round)
+        val lineStyle = Stroke(width = lineStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        onDrawBehind {
+            // faint gridlines, so the eye has something to measure the line against
+            for (i in 1..2) {
+                val gy = pad + (h - pad * 2) * i / 3f
+                drawLine(
+                    grid.copy(alpha = 0.55f), Offset(0f, gy), Offset(w, gy),
+                    strokeWidth = gridStroke
+                )
+            }
+
+            if (base != null) {
+                val by = y(base)
+                // The dash pitch is in dp too, or the dotted baseline is a solid line on a
+                // high-density screen and a row of far-apart specks on a low-density one.
+                val dash = 4.dp.toPx()
+                val gap = 4.dp.toPx()
+                var sx = 0f
+                while (sx < w) {
+                    drawLine(
+                        Color.Gray.copy(alpha = 0.55f),
+                        Offset(sx, by), Offset(minOf(sx + dash, w), by), strokeWidth = baseStroke
+                    )
+                    sx += dash + gap
                 }
-                if (!started) { seg.moveTo(x(pts[i]), y(v)); started = true }
-                else seg.lineTo(x(pts[i]), y(v))
+                // Labelled at the right edge, above the line (below it when there is no room), on
+                // a pill in the surface colour so it reads over the fill and the gridlines.
+                baseLabel?.let { lbl ->
+                    val lw = lbl.size.width.toFloat()
+                    val lh = lbl.size.height.toFloat()
+                    val px = 3.dp.toPx()
+                    val left = (w - lw - px * 2f).coerceAtLeast(0f)
+                    val top = (by - lh - px * 1.5f).let { if (it < 0f) by + px else it }
+                    drawRoundRect(
+                        dot.copy(alpha = 0.85f), Offset(left, top),
+                        androidx.compose.ui.geometry.Size(lw + px * 2f, lh),
+                        androidx.compose.ui.geometry.CornerRadius(px, px)
+                    )
+                    drawText(lbl, topLeft = Offset(left + px, top))
+                }
             }
-            if (started) drawPath(
-                seg, benchmarkColor.copy(alpha = 0.85f),
-                style = Stroke(width = baseStroke * 1.4f, cap = StrokeCap.Round)
-            )
-        }
 
-        drawPath(
-            path, line,
-            style = Stroke(width = lineStroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
+            // ---- VOLUME, as faint bars along the bottom fifth (chart idea 7). Drawn before the
+            // line so the price stays the subject; not with a benchmark, whose second line would
+            // make "whose volume?" a fair question.
+            if (maxVolume > 0.0 && cmp == null) {
+                val band = (h - pad) * 0.2f
+                val candlePx = w * (s.range.candleMs / 1000f) / tSpan.toFloat()
+                val barW = (candlePx * 0.7f).coerceIn(1f, 10.dp.toPx())
+                val barColor = grid.copy(alpha = 0.45f)
+                for (p in pts) {
+                    if (p.volume <= 0.0) continue
+                    val bh = (band * (p.volume / maxVolume)).toFloat().coerceAtLeast(1f)
+                    drawRect(barColor, Offset(x(p) - barW / 2f, h - bh),
+                        androidx.compose.ui.geometry.Size(barW, bh))
+                }
+            }
 
-        // ---- the crosshair, drawn last so it sits over the line
-        val i = scrub.intValue
-        if (i in pts.indices) {
-            val p = pts[i]
-            val px = x(p)
-            val py = y(value(i))
-            drawLine(
-                grid.copy(alpha = 0.9f),
-                Offset(px, 0f), Offset(px, h),
-                strokeWidth = lineStroke
-            )
-            // A ring in the surface colour under the dot, so it reads clearly wherever it
-            // lands - over the filled gradient, over a gridline, or over the line itself.
-            drawCircle(dot, radius = 5.dp.toPx(), center = Offset(px, py))
-            drawCircle(line, radius = 3.5.dp.toPx(), center = Offset(px, py))
-            // A second, smaller dot on the benchmark, so the crosshair reads BOTH lines at
-            // the moment under the finger rather than only one of them.
-            cmp?.other?.getOrNull(i)?.takeIf { it.isFinite() }?.let { v ->
-                val by2 = y(v)
-                drawCircle(dot, radius = 4.dp.toPx(), center = Offset(px, by2))
-                drawCircle(benchmarkColor, radius = 2.5.dp.toPx(), center = Offset(px, by2))
+            // ---- THE ZERO LINE, in comparison mode only. It replaces the dotted previous-close
+            // baseline rather than joining it, and it is what both lines are measured from.
+            //
+            // DASHED, LIKE THAT BASELINE, AND NOT LIKE THE GRIDLINES. Drawn solid in the grid
+            // colour it was a third horizontal line among three, distinguishable only by being
+            // slightly darker - and on a chart where the stock is below the market the zero line
+            // lands near the top, right beside a real gridline, exactly where the difference
+            // matters most. A dash pattern is unmistakable at a glance and needs no colour.
+            if (cmp != null && 0.0 in lo..hi) {
+                val zy = y(0.0)
+                val dash = 4.dp.toPx()
+                val gap = 4.dp.toPx()
+                var zx = 0f
+                while (zx < w) {
+                    drawLine(
+                        Color.Gray.copy(alpha = 0.75f),
+                        Offset(zx, zy), Offset(minOf(zx + dash, w), zy), strokeWidth = baseStroke
+                    )
+                    zx += dash + gap
+                }
+            }
+
+            if (fill != null) drawPath(fill, fillBrush)
+            for ((a, b) in bridges) {
+                drawLine(line.copy(alpha = 0.35f), a, b, strokeWidth = baseStroke, pathEffect = bridgeEffect)
+            }
+
+            // ---- THE BENCHMARK, DRAWN FIRST AND THINNER, so the stock stays the subject of its
+            // own chart. Broken into segments at every gap: the benchmark can be missing points
+            // the stock has - a fund that did not trade in an extended session, a stock that
+            // listed mid-window - and joining across a gap would draw a straight line through
+            // days that were never measured.
+            benchSegs.forEach { drawPath(it, benchmarkColor.copy(alpha = 0.85f), style = benchStroke) }
+
+            drawPath(path, line, style = lineStyle)
+
+            // ---- the crosshair, drawn last so it sits over the line
+            val i = scrub.intValue
+            if (i in pts.indices) {
+                val p = pts[i]
+                val px = x(p)
+                val py = y(value(i))
+                drawLine(
+                    grid.copy(alpha = 0.9f),
+                    Offset(px, 0f), Offset(px, h),
+                    strokeWidth = lineStroke
+                )
+                // A ring in the surface colour under the dot, so it reads clearly wherever it
+                // lands - over the filled gradient, over a gridline, or over the line itself.
+                drawCircle(dot, radius = 5.dp.toPx(), center = Offset(px, py))
+                drawCircle(line, radius = 3.5.dp.toPx(), center = Offset(px, py))
+                // A second, smaller dot on the benchmark, so the crosshair reads BOTH lines at
+                // the moment under the finger rather than only one of them.
+                cmp?.other?.getOrNull(i)?.takeIf { it.isFinite() }?.let { v ->
+                    val by2 = y(v)
+                    drawCircle(dot, radius = 4.dp.toPx(), center = Offset(px, by2))
+                    drawCircle(benchmarkColor, radius = 2.5.dp.toPx(), center = Offset(px, by2))
+                }
             }
         }
-    }
+    })
 }
 
 /**
