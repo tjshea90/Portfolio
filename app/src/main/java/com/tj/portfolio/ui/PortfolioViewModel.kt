@@ -1197,9 +1197,21 @@ internal fun mergeDayTradingTech(
  */
 internal fun loggableDayTradingRows(
     rows: List<com.tj.portfolio.data.ResearchRow>,
-    today: String
+    today: String,
+    /**
+     * The symbols re-planned THIS TICK from a live (market-open) intraday fetch (full test
+     * 2026-09-24, D-1). `sessionDay == today` cannot tell a live plan from this morning's
+     * pre-market one - a 04:00 sweep stamps today on a plan built from prior-session levels -
+     * and capture used to run on every `cacheResearch` from any caller (the Best analyst pass,
+     * an ETF rebuild, an import, the price fill, a detail screen's single-symbol tick, a row
+     * whose fetch failed on the busy first open tick). Each logged that stale plan with
+     * `recordedAt = now` and the pre-market price, and `INSERT OR IGNORE` then locked the real
+     * live plan out of the log for the day.
+     */
+    liveNow: Set<String>
 ): List<com.tj.portfolio.data.ResearchRow> = rows.filter {
-    it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 &&
+    it.symbol in liveNow &&
+        it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 &&
         it.price > 0.0 && it.sessionDay == today &&
         !it.tooLateToStart && it.planDeclineStreak == 0
 }
@@ -6542,7 +6554,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // [captureDayTradingRecommendations]'s own header for why this is safe to call on
         // every publish rather than only on a change: the DB's own uniqueness constraint is
         // what actually decides whether anything gets written.
-        captureDayTradingRecommendations(set.dayTrading)
+        // (Recommendations are NOT captured here any more - see D-1 on [loggableDayTradingRows].
+        // Only the Day Trading sweep knows which rows it just re-planned from live bars.)
         // ---- THE LIVE TICK DOES NOT REWRITE THE WHOLE CACHE EVERY 30 SECONDS (full-tests
         // audit 2026-09-22, D-L8). This serialises every list - up to a few hundred KB - and
         // writes it to SQLite; the Day Trading loop called it on every tick that moved a level,
@@ -6602,7 +6615,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * function actually observed the row - usually milliseconds apart, but a real gap all the
      * same or a wrong lesson for the next thing that copies this pattern.
      */
-    private fun captureDayTradingRecommendations(rows: List<com.tj.portfolio.data.ResearchRow>) {
+    private fun captureDayTradingRecommendations(
+        rows: List<com.tj.portfolio.data.ResearchRow>,
+        liveNow: Set<String>
+    ) {
+        if (liveNow.isEmpty()) return
         if (com.tj.portfolio.net.MarketClock.phase() != com.tj.portfolio.net.MarketClock.Phase.OPEN) return
         val today = com.tj.portfolio.net.MarketClock.dayKey()
         // ---- GUARD 3: THE ROW'S OWN SESSION HAS TO BE TODAY'S.
@@ -6643,7 +6660,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         //    rows inside the shown window count as a recommendation made to Tj.
         val shown = _researchShown.value[com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING]
             ?: com.tj.portfolio.data.ResearchSet.PAGE
-        val priced = loggableDayTradingRows(rows.take(shown), today)
+        val priced = loggableDayTradingRows(rows.take(shown), today, liveNow)
         if (priced.isEmpty()) return
         val recordedAt = System.currentTimeMillis()
         viewModelScope.launch(Dispatchers.IO) {
@@ -7741,6 +7758,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             _research.value = _research.value.withSection(name, finalRows)
             // A completed sweep re-sorted the list - worth writing now; an ordinary tick is not.
             cacheResearch(_research.value, throttleMs = if (sweeping) 0L else DAY_TRADING_PERSIST_MS)
+            // THE ONE PLACE A RECOMMENDATION IS LOGGED (D-1): the rows this tick re-planned from
+            // a live, market-open fetch - never a row whose fetch failed and kept an older plan.
+            captureDayTradingRecommendations(
+                finalRows,
+                fetched.filterValues { it != null && !it.isEmpty && it.sessionLive }.keys
+            )
         }
     }
 
