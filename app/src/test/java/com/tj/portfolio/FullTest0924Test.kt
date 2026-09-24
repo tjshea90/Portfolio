@@ -570,4 +570,25 @@ class FullTest0924Test {
         val stale = cseries("SPY", com.tj.portfolio.data.ChartRange.M1, 1_000_000L, 1000L, listOf(5.0, 6.0, 7.0))
         assertNull(com.tj.portfolio.ui.comparePercents(stock, stale))
     }
+
+    // ---- C-4: a window held on a boundary does not flip the range every frame.
+
+    @Test fun `C-4 wobbling around every ladder boundary settles instead of flipping`() {
+        val R = com.tj.portfolio.data.ChartRange
+        val ladder = R.ZOOM_LADDER
+        for (i in 0 until ladder.size - 1) {
+            val fine = ladder[i]; val coarse = ladder[i + 1]
+            val edge = fine.approxSpanMs
+            var cur = R.rangeForSpan((edge * 1.01).toLong(), fine)
+            assertEquals("just past ${fine.label} needs ${coarse.label}", coarse, cur)
+            // The wobble back and forth across the edge must not flip back.
+            repeat(6) { k ->
+                val span = if (k % 2 == 0) (edge * 0.99).toLong() else (edge * 1.01).toLong()
+                cur = R.rangeForSpan(span, cur)
+                assertEquals("frame $k at ${fine.label}/${coarse.label}", coarse, cur)
+            }
+            // Clearly inside the finer rung, it does go finer.
+            assertEquals(fine, R.rangeForSpan((edge * 0.5).toLong(), coarse))
+        }
+    }
 }

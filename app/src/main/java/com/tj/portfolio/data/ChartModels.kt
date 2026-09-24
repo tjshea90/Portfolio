@@ -133,8 +133,22 @@ enum class ChartRange(
             // the finest one that does.
             var best = MAX
             for (r in ZOOM_LADDER) if (r.approxSpanMs >= spanMs) best = r
+            // A MARGIN ON THE WAY DOWN TOO (full test 2026-09-24, C-4). [KEEP_DOWN] only helps
+            // where 0.22 of the coarser rung falls BELOW the finer rung's coverage, and at four
+            // of six boundaries (5D/1D, 6M/1M, 5Y/1Y, All/5Y) it does not - so a window held at
+            // about one day flipped 1D -> 5D -> 1D on successive frames: a different candle size
+            // each frame, a settings write per flip, and a fetch if either side was uncached.
+            // Going finer is never forced (the current, coarser rung still covers the window),
+            // so it waits until the window is clearly inside the finer rung.
+            if (current != null && current in ZOOM_LADDER &&
+                best.approxSpanMs < current.approxSpanMs &&
+                spanMs > best.approxSpanMs * FINER_MARGIN
+            ) return current
             return best
         }
+
+        /** How far inside a finer rung's coverage a window must be before switching to it (C-4). */
+        private const val FINER_MARGIN = 0.85
 
         /**
          * THE RANGE THAT CAN ACTUALLY DRAW A WINDOW, WHICH IS NOT THE SAME AS ITS SPAN.
