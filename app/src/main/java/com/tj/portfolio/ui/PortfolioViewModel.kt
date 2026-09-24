@@ -1788,6 +1788,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private var foreground = true
 
+    /**
+     * Symbols a research price fill was asked for and has not yet completed (full test
+     * 2026-09-24, L-3). A Claude answer runs on `viewModelScope` so it survives the app being
+     * left; when it lands in the background its fill used to launch into the CANCELLED
+     * `fgScope` and silently never run - and nothing asked again on return, so Claude's added
+     * rows sat priceless (and its funds unfiltered for leverage) until the next rebuild.
+     * Flushed by `setForeground(true)`; an entry leaves only when its fill has finished.
+     */
+    private val pendingPriceFill: MutableSet<String> =
+        java.util.Collections.synchronizedSet(LinkedHashSet())
+
     // ---- what a full replay produced, reused by every price-only rebuild
     //
     // THESE MUST BE DECLARED ABOVE `init`. Kotlin runs property initialisers and init
@@ -3356,6 +3367,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // and only relaunching it here (never unconditionally - only when the tab was
             // actually left running) brings it back for a Day Trading tab still on screen.
             if (dayTradingLiveWanted) startDayTradingLive(dayTradingLiveOnly)
+            // A research answer that landed while the app was away gets its prices now (L-3).
+            val owed = synchronized(pendingPriceFill) { pendingPriceFill.toList() }
+            if (owed.isNotEmpty()) fillResearchPrices(owed.take(MAX_PRICE_FILL))
         } else {
             wentBackgroundAt = System.currentTimeMillis()
             // Read BEFORE the cancellation below, which is what makes it true.
@@ -7800,7 +7814,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Fire-and-forget wrapper for [fillPricesNow], for the callers that cannot suspend. */
     private fun fillResearchPrices(symbols: List<String>) {
-        fgScope.launch { fillPricesNow(symbols) }
+        if (symbols.isEmpty()) return
+        pendingPriceFill.addAll(symbols)
+        // In the background the fill waits for `setForeground(true)` (L-3): `fgScope` is
+        // cancelled, and fetching prices nobody can see is what that scope exists to prevent.
+        if (!foreground) return
+        fgScope.launch {
+            fillPricesNow(symbols)
+            pendingPriceFill.removeAll(symbols.toSet())
+        }
     }
 
     /**
