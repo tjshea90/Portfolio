@@ -205,8 +205,10 @@ object EngineTuning {
     class Evidence(val rows: List<DayTradingLogEntry>, since: Long) {
         val decided: List<DayTradingLogEntry> = rows.filter {
             it.source != DayTradingLogEntry.SOURCE_CLAUDE && it.evalVersion >= DayTradingGrader.VERSION &&
-                it.outcome in DECIDED
+                it.outcome in DECIDED && !DayTradingEval.notTradeableOldRow(it)
         }
+        /** Each decided row's trigger level, parsed once (audit PL-11) - not once per proposed change. */
+        private val levels: List<String> by lazy { decided.map { levelOf(it) } }
         val total: Int get() = decided.size
         /** Graded since the last applied change - what that change has been measured on. */
         val sinceLastChange: Int = decided.count { it.recordedAt > since }
@@ -221,7 +223,10 @@ object EngineTuning {
             return when (kind) {
                 "setup" -> decided.count { it.setup.equals(value, true) ||
                     DayTradingParams.setupKey(it.setup)?.equals(value, true) == true }
-                "level" -> decided.count { levelOf(it).equals(value, true) }
+                // A level's KEY ("prevHigh") counts every label it is shown under; a label counts itself.
+                "level" -> DayTradingParams.LEVELS.firstOrNull { it.equals(value, true) }
+                    ?.let { key -> DayTradingParams.LEVEL_LABELS.getValue(key).let { labels -> levels.count { it in labels } } }
+                    ?: levels.count { it.equals(value, true) }
                 "time" -> decided.count { timeBucket(it.recordedAt).equals(value, true) }
                 "engine" -> decided.count { it.engine.equals(value, true) }
                 else -> null
@@ -234,6 +239,25 @@ object EngineTuning {
 
     fun levelOf(e: DayTradingLogEntry): String =
         runCatching { JSONObject(e.features).optString("lvl", "") }.getOrDefault("")
+
+    /**
+     * THE GROUP A PARAMETER ACTS ON (audit DA-3) - the trades whose evidence a change to [key] has
+     * to rest on, whatever group the answer cites: a setup's settings on that setup's trades, a
+     * level's switch on the trades that triggered off it, a time rule on the trades of its window.
+     * Null = the whole sample. The review uses the SMALLER of this and the cited group, so citing
+     * "all" can no longer carry a switch that rests on four trades.
+     */
+    fun groupFor(key: String): String? {
+        val parts = key.split('.')
+        return when {
+            parts.size == 3 && parts[0] == "setup" -> "setup:${parts[1]}"
+            parts.size == 3 && parts[0] == "level" -> "level:${parts[1]}"
+            key == DayTradingParams.AVOID_LULL -> "time:Midday"
+            key == DayTradingParams.EARLIEST_ENTRY_MIN -> "time:First hour"
+            key == DayTradingParams.LAST_ENTRY_MIN -> "time:Last two hours"
+            else -> null
+        }
+    }
 
     /** The same three buckets the success card uses. */
     fun timeBucket(recordedAt: Long): String {
@@ -302,16 +326,21 @@ object EngineTuning {
     fun looksLikeTuning(text: String): Boolean =
         ClaudeBridge.findObject(text, WANTED)?.has(PAYLOAD_KEY) == true
 
-    private fun num(o: JSONObject, key: String): Double? {
+    /**
+     * A number, or null when absent. [onOff] also reads true/false/"on"/"off" as 1/0 - only for an
+     * on/off setting (audit DA-18: `"to": true` on a target cap used to become a 1R cap nobody
+     * wrote). Anything else present but unreadable is NaN, which the review refuses by name.
+     */
+    private fun num(o: JSONObject, key: String, onOff: Boolean = false): Double? {
         if (!o.has(key) || o.isNull(key)) return null
         val v = o.opt(key)
         return when (v) {
             is Number -> v.toDouble()
-            is Boolean -> if (v) 1.0 else 0.0
-            is String -> v.trim().let { t -> t.toDoubleOrNull() ?: when (t.lowercase()) {
-                "true", "on", "yes" -> 1.0; "false", "off", "no" -> 0.0; else -> null } }
-            else -> null
-        }?.takeIf { it.isFinite() }
+            is Boolean -> if (onOff) (if (v) 1.0 else 0.0) else Double.NaN
+            is String -> v.trim().let { t -> t.toDoubleOrNull() ?: if (!onOff) Double.NaN else when (t.lowercase()) {
+                "true", "on", "yes" -> 1.0; "false", "off", "no" -> 0.0; else -> Double.NaN } }
+            else -> Double.NaN
+        }?.let { if (it.isFinite()) it else Double.NaN }
     }
 
     fun parse(text: String): Proposal {
@@ -329,10 +358,11 @@ object EngineTuning {
         for (i in 0 until arr.length()) {
             val c = arr.optJSONObject(i) ?: continue
             val key = c.text("param").ifBlank { c.text("key") }.trim()
-            val to = num(c, "to") ?: continue
+            val onOff = DayTradingParams.SPEC_BY_KEY[key]?.kind == DayTradingParams.Kind.BOOL
+            val to = num(c, "to", onOff) ?: continue
             if (key.isBlank()) continue
             changes.add(ProposedChange(
-                key = key, from = num(c, "from"), to = to,
+                key = key, from = num(c, "from", onOff), to = to,
                 basis = c.text("basis").ifBlank { "all" },
                 evidenceTrades = c.optInt("evidenceTrades", 0),
                 expectedEffect = ClaudeBridge.scrub(c.text("expectedEffect")),
