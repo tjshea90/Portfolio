@@ -1,23 +1,22 @@
-# CHECKPOINT 1669 — read me first, then TASKS.md
+# CHECKPOINT 1670 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T14:16:39Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `1fd924bb` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T14:20:13Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `4db0bf75` (this checkpoint is the commit after it)
 
 ## Just done
-S-8 fixed: ETF groups exclude strategy/state/HY-band funds; every deduped fund named; Etf suites green
+D-2 (evening Claude plan survives post-close stamp + 04:00) + D-3 (weekend/holiday plans and answers are for the next session; MarketClock.sessionFor) fixed; DT suites green
 
 ## Do this next
-D-2..D-5, then C-2..C-5, then full suite + L items
+D-4 (rebuild waits for loop tick), D-5 (forming opening bar), then C-2..C-5
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
-     M TASKS.md
-     M app/src/test/java/com/tj/portfolio/EtfExposureTest.kt
 
 ## Last ten checkpoints
 ```
+  1c69d494 ckpt 1669: S-8 fixed: ETF groups exclude strategy/state/HY-band funds; every deduped fu
   36a766f8 ckpt 1668: S-6 (stale Claude fund dropped, stale words expire together) + S-7 (DT parag
   4bf2d7a7 ckpt 1667: S-5 fixed: app's relative earnings phrase rebuilt each time, Claude's words 
   d1de6713 ckpt 1666: S-4 fixed: old Research/Advice answers age from their asOf (answeredAt), not
@@ -27,8 +26,7 @@ D-2..D-5, then C-2..C-5, then full suite + L items
   ef549bf9 ckpt 1662: L-2 (quote re-entry judged on job + generation counter) + L-3 (background pr
   004f4a8f ckpt 1661: N-3 (quoteSummary retry only on 401) + N-4 (SEC requests paced 8/s) fixed; F
   0ffc1803 ckpt 1660: D-1 fixed: DT recommendations logged only from the live sweep for rows re-pl
-  73878ac1 ckpt 1659: C-1 fixed: zoom into unfetched range keeps last series drawn (bridgedChart) 
 ```
 
-(2 automatic checkpoint(s) since the last deliberate one — the
+(4 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
