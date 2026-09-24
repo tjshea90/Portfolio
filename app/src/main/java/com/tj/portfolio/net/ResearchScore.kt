@@ -740,6 +740,8 @@ object ResearchScore {
         // hours this plans the only thing that is actually plannable: the break of prior-session
         // structure, which is the gap-and-go trader's overnight homework.
         val live = tech.sessionLive
+        val orHigh = if (tech.openingRangeComplete) tech.openingRangeHigh else 0.0
+        val orLow = if (tech.openingRangeComplete) tech.openingRangeLow else 0.0
         val overhead = if (live) levelsOf(
             tech.premarketHigh to "the premarket high",
             // THE FIVE-MINUTE OPENING RANGE COMES FIRST (Round 73) - it is the lowest of the
@@ -749,7 +751,9 @@ object ResearchScore {
             // own to stay honest: price passes it within minutes on any stock actually in play,
             // and the `>= price` filter below then drops it automatically.
             tech.or5High to "the first 5-minute bar's high",
-            tech.openingRangeHigh to "the opening-range high",
+            // A RANGE STILL PRINTING IS NOT A LEVEL (D-5): before 10:00 "the opening-range high"
+            // is only the high of day so far. The score side already required completion.
+            orHigh to "the opening-range high",
             tech.prevHigh to "the prior session's high",
             tech.sessionHigh to "the high of day",
             tech.r1 to "pivot R1",
@@ -768,10 +772,10 @@ object ResearchScore {
         )
         val below = if (live) levelsOf(
             tech.vwap to "VWAP",
-            tech.openingRangeHigh to "the opening-range high, now support",
+            orHigh to "the opening-range high, now support",
             tech.or5High to "the first 5-minute bar's high, now support",
             tech.or5Low to "the first 5-minute bar's low",
-            tech.openingRangeLow to "the opening-range low",
+            orLow to "the opening-range low",
             tech.prevHigh to "the prior session's high, now support",
             tech.prevClose to "the prior close",
             tech.pivot to "the daily pivot",

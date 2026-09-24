@@ -293,7 +293,12 @@ object DayTradingTechnicals {
         // intraday bar list, and calling it twice (once for the high, once for the low) did
         // that work twice for no reason on every symbol, every 30-second tick.
         val or = regular?.let { openingRange(it) }
-        val or5 = regular?.let { openingBar(it) }
+        // ONLY ONCE THE BAR HAS CLOSED (full test 2026-09-24, D-5). Between 09:30 and 09:35 the
+        // 09:30 bar is the one still printing: its high is "the high so far" and its close is the
+        // current price. Used then, the plan's trigger was "a few cents above the first fifteen
+        // seconds" labelled as the opening bar's high, and a bar still forming below its open was
+        // declared to have "not closed up".
+        val or5 = regular?.takeIf { openingBarComplete(it) }?.let { openingBar(it) }
         val completed = daily?.let { completedSessions(it, now) }
         val prev = completed?.lastOrNull()
         return DayTechnicals(
@@ -609,6 +614,10 @@ object DayTradingTechnicals {
      * study only takes a long when the opening bar closed ABOVE its open (a doji is no trade) -
      * direction information that a range alone throws away. See [DayTechnicals.openingBarBullish].
      */
+    /** True once a bar timestamped 09:35 ET or later exists - the opening bar has closed (D-5). */
+    internal fun openingBarComplete(intraday: List<Bar>): Boolean =
+        intraday.any { etMinutes(it.t) >= OR5_END_MIN }
+
     internal fun openingBar(intraday: List<Bar>): Bar? =
         intraday.filter { etMinutes(it.t) in OR_START_MIN until OR5_END_MIN }
             .maxByOrNull { it.t }
