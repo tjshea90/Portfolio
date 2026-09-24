@@ -59,7 +59,6 @@ object DayTradingEval {
         val bounds = sessionBoundsMs(tradingDay) ?: return null
         val period1 = bounds.first / 1000L
         val period2 = bounds.second / 1000L
-        var answeredEmpty = false
         for (host in listOf("query1", "query2")) {
             val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
                 MarketData.enc(symbol) + "?period1=$period1&period2=$period2&interval=5m"
@@ -68,21 +67,22 @@ object DayTradingEval {
             // press (N-1); what bounds the cost is the per-press cap in `evaluateDayTradingLog`.
             val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
             if (r.throttledLocally) continue
-            // A 404 IS AN ANSWER: "no data found, symbol may be delisted" (D-12).
-            if (r.code == 404) { answeredEmpty = true; continue }
+            // A 404 IS AN ANSWER: "no data found, symbol may be delisted" (D-12) - and an
+            // answer needs no second host asking the same question (N-12).
+            if (r.code == 404) return emptyList()
             if (!r.ok) continue
             // `continue`, NOT `return`: a 200 that parses to nothing (a truncated body, a
             // proxy error page) used to end the loop, so query2 never got its turn and the
             // caller wrote DATA_UNAVAILABLE against a day whose bars the other host had.
             val bars = parseBars(r.body)
             if (bars.isNotEmpty()) return bars
-            if (answeredNoBars(r.body)) answeredEmpty = true
+            if (answeredNoBars(r.body)) return emptyList()   // answered: nothing there (N-12)
         }
         // NULL = ASKED AND NOT ANSWERED; EMPTY = ANSWERED, NOTHING THERE (full test 2026-09-24,
         // D-12). Both came back null, so a press that tripped a host cooldown wrote every
         // remaining settled row as "no price history available" - which is what the doc above
         // promised only a real answer could mean.
-        return if (answeredEmpty) emptyList() else null
+        return null
     }
 
     /** A well-formed chart reply for the window - `chart.result[0]` present, no error - with no bars in it. */
