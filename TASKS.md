@@ -144,6 +144,10 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       (370bfa4..5feb55dc, the H/M fixes) and review-lq.md (5feb55dc..ckpt 1685, the L/Q
       fixes). Complete only with the `## END OF REPORT (complete)` last line; a resumed
       session re-runs just the missing/partial one, then verifies + fixes every finding.
+      BOTH COMPLETE (~17:15 UTC). review-hm: R1-1..R1-3 [M], R1-4..R1-9 [L]. review-lq: R2-1 [M],
+      R2-2..R2-7 [L]. Verify + fix each; tick here:
+      [ ] R1-1 [ ] R1-2 [ ] R1-3 [ ] R1-4 [ ] R1-5 [ ] R1-6 [ ] R1-7 [ ] R1-8 [ ] R1-9
+      [ ] R2-1 [ ] R2-2 [ ] R2-3 [ ] R2-4 [ ] R2-5 [ ] R2-6 [ ] R2-7
 - [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
       record-release) and post the Release link; summarize for Tj
 
