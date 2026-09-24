@@ -1,13 +1,13 @@
-# CHECKPOINT 1693 — read me first, then TASKS.md
+# CHECKPOINT 1694 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T18:12:55Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/complete-code-tests-crujka` · **builds on:** `f18ae99b` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T18:16:45Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/complete-code-tests-crujka` · **builds on:** `de3f33c4` (this checkpoint is the commit after it)
 
 ## Just done
-Day Trading batch done: 1-minute resolution of unknowable bars, What-worked breakdown (app vs Claude, setup, time), logged plan on detail, level alerts + setting - Improve0924bTest 16/0, DT classes green
+Data batch: restored-snapshot recovery, silent-shrink warning (MAX_TXN_COUNT) - Improve0924bTest 18/0; skipped txn ids + TRANSFER_IN with reasons
 
 ## Do this next
-Data batch: restored-snapshot recovery, txn ids in backups, max-count shrink alarm, transfer-in txn type
+Research+Screens batch: Claude N days ago on cards, stale-analyst chip, other ways to hold, refreshing label, swipe Research sections, U-Q5, U-Q6, startup, chart perf
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Data batch: restored-snapshot recovery, txn ids in backups, max-count shrink ala
 
 ## Last ten checkpoints
 ```
+  17451054 ckpt 1693: Day Trading batch done: 1-minute resolution of unknowable bars, What-worked 
   1d12cca5 ckpt 1692: Charts batch done: C-7, C-9 gap breaks, touch-down value, double-tap reset, 
   67ef6641 ckpt 1691: Part 2 done (start-now line in all prompts, SEND_MULTIPLE, chat-link message
   f3fbea81 ckpt 1690: Recorded Tj's 09-24b request (all recommended changes + Claude app share rou
@@ -26,8 +27,7 @@ Data batch: restored-snapshot recovery, txn ids in backups, max-count shrink ala
   5db3a9ae ckpt 1686: Both independent reviews complete: 16 findings (R1-1..9, R2-1..7) recorded
   a620881c ckpt 1685: Independent review launched (2 agents -> review-hm.md, review-lq.md)
   60a20536 ckpt 1684: Full suite after Ls+Qs: 1411/0, checkinit ok
-  99ba0189 ckpt 1683: Q items: 17 fixed (C-Q3/5/7, L-Q2, N-Q1..5, A-Q3, S-Q1/3, U-Q1..4), rest rec
 ```
 
-(9 automatic checkpoint(s) since the last deliberate one — the
+(4 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)

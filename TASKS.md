@@ -63,8 +63,17 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
       (its filings are memory-only), and deep news is only a 5-minute window - no real saving.
 - [x] L-4 (from Decisions): trim at TRIM_BACKGROUND(40) releases only invisible caches (Http
       heap cache, SymbolSearch memo, storyKeys); BRIEF.md row updated; test.
-- [ ] Data ideas (recover from Android-restored snapshots, txn ids in backups, "data shrank"
+- [x] Data ideas (recover from Android-restored snapshots, txn ids in backups, "data shrank"
       max-count alarm, transfer-in transaction type)
+      DONE: recovery card also offers the newest restored private snapshot (daily copies before
+      "before-" undo copies) when Downloads has none (VM test); MAX_TXN_COUNT + warning card on
+      Portfolio when the ledger loses >= max(10, a fifth) of its rows without an in-app delete -
+      warning only, points at autosave-previous + Settings Merge; every delete/wipe/Replace
+      acknowledges (tests). SKIPPED txn ids in backups (a restored row's repair status is
+      device-local, ids alone do not carry it; reorder of restore would risk the replay for no
+      accuracy gain) and a TRANSFER_IN type (BUY + same-day DEPOSIT of the same amount already
+      records a transfer exactly; a new type would touch the FIFO/average replay, cash and
+      today-lot rules for a rare event).
 - [ ] Research ideas ("Claude, N days ago" on cards, stale-analyst chip on the badge, "other
       ways to hold this exposure" on de-duplicated ETF cards)
 - [ ] Screens ideas (say what is refreshing, swipe between Research sections, faster startup:
