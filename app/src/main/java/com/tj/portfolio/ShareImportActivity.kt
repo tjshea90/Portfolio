@@ -27,6 +27,9 @@ class ShareImportActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // A process started by a share runs HERE before MainActivity exists, so a crash in the
+        // copy below would leave no trace (full test 2026-09-24, L-Q2). Idempotent.
+        com.tj.portfolio.util.CrashLog.install(this)
         // A recreation (rotation, process restore) would read the share a second time; the
         // first run already handed it over.
         if (savedInstanceState != null) { finish(); return }
