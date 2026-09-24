@@ -2484,6 +2484,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** Failure backoff for the intraday candle series, keyed by symbol. */
     private val sparkRetry = RetryClock()
 
+    /** Failure backoff for the Day Trading technicals, keyed by symbol (N-8): a ticker Yahoo
+     *  cannot chart cost four requests every 30 s for as long as the tab was open. */
+    private val dayTradingTechRetry = RetryClock()
+
     /** Failure backoff for fund-holdings lookups, keyed by symbol. */
     private val holdingsRetry = RetryClock()
 
@@ -7920,9 +7924,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // minutes behind a plan computed from a 30-second-old copy of the same
                         // series. `adoptRecentD1` publishes the body the technicals just fetched;
                         // `loadChart` is left to fetch only when there was none (a failed leg).
-                        val tech = runCatching {
+                        // BACKED OFF WHEN NEITHER LEG ANSWERS (full test 2026-09-24, N-8).
+                        val tech = if (dayTradingTechRetry.blocked(row.symbol)) null
+                        else runCatching {
                             com.tj.portfolio.net.DayTradingTechnicals.fetch(row.symbol)
-                        }.getOrNull()
+                        }.getOrNull().also { t ->
+                            if (t == null || t.isEmpty) dayTradingTechRetry.failure(row.symbol)
+                            else dayTradingTechRetry.success(row.symbol)
+                        }
                         val chartJob = withContext(Dispatchers.Main) {
                             if (adoptRecentD1(row.symbol)) null
                             else loadChart(row.symbol, com.tj.portfolio.data.ChartRange.D1)
