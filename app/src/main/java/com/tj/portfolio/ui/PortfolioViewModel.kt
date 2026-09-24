@@ -4897,23 +4897,27 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // save and throw the discovery away. That is the precise scenario the skip set
             // exists for, surviving in its worst form.
             saveInsiderSkip()
+            // EVERY SYMBOL THIS PASS COVERED IS FRESH, filings or not (full-tests audit
+            // 2026-09-22, N-L6). `publishInsiders` stamps only symbols that HAD filings, so a
+            // followed stock with a quiet month looked unchecked, and opening it spent an EDGAR
+            // listing request this pass had just made. SEC.gov is the one host here with a
+            // published fair-use policy.
+            //
+            // ONLY THE ONES EDGAR ANSWERED (full test 2026-09-23, N-7): a 403/429 part-way
+            // through arms the host cooldown, and every later listing in the pass was never
+            // made - stamping those as checked hid them for half an hour.
+            //
+            // AND BEFORE THE EMPTY-RESULT RETURN BELOW (full test 2026-09-24, N-11): a quiet
+            // month for every symbol is an empty result too, and returning first stamped
+            // nothing - each detail open then re-listed its symbol. An outage leaves
+            // `answered` empty, so it still stamps nothing.
+            val now = System.currentTimeMillis()
+            answered.forEach { insiderAt[it.uppercase()] = now }
             // An empty result means EDGAR was unreachable, not that a month of filings
             // vanished overnight - keep what is on screen rather than blanking the tab.
             if (filings.isEmpty()) return
             rememberInsiderDocs(filings)
             publishInsiders(filings)
-            // EVERY SYMBOL THIS PASS COVERED IS FRESH, filings or not (full-tests audit
-            // 2026-09-22, N-L6). `publishInsiders` stamps only symbols that HAD filings, so a
-            // followed stock with a quiet month looked unchecked, and opening it spent an EDGAR
-            // listing request this pass had just made. SEC.gov is the one host here with a
-            // published fair-use policy. (An empty pass returned above: that one may be an
-            // outage, so nothing is stamped for it.)
-            //
-            // ONLY THE ONES EDGAR ANSWERED (full test 2026-09-23, N-7): a 403/429 part-way
-            // through arms the host cooldown, and every later listing in the pass was never
-            // made - stamping those as checked hid them for half an hour.
-            val now = System.currentTimeMillis()
-            answered.forEach { insiderAt[it.uppercase()] = now }
             // Real open-market trades also belong in the All and My-stocks lists, where a
             // headline-shaped row saying "CEO bought 40,000 shares" reads as news - because
             // it is. The machinery (grants, tax withholding, option exercises) stays in the
