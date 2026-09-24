@@ -106,6 +106,18 @@ object Http {
         offlineForTests && !host.startsWith("127.") && host != "localhost"
 
     /**
+     * A SCRIPTED NETWORK FOR TESTS (2026-09-24b) - the answer a unit test wants a remote URL to
+     * give, so the code that CALLS [get] (host fallbacks, "an answer needs no second host",
+     * retries) can be tested on the JVM against Yahoo's real URLs. Consulted only while the
+     * offline test gate above is on, so it cannot exist on a device; null from it means
+     * "not scripted", which is the ordinary offline answer.
+     */
+    @Volatile internal var scriptedForTests: ((url: String) -> HttpResult?)? = null
+
+    private fun scripted(url: String): HttpResult? =
+        if (!offlineForTests) null else scriptedForTests?.invoke(url)
+
+    /**
      * Runs [action] the moment the calling coroutine is CANCELLED - synchronously, inside
      * `cancel()` - rather than when it completes, which a coroutine blocked in `read()` cannot
      * do (full test 2026-09-24, L-1/N-1). Not run on a normal completion. The caller disposes
@@ -553,6 +565,7 @@ object Http {
     ): HttpResult = withContext(Dispatchers.IO) {
         val cacheKey = cacheAs ?: url
         val host = hostOf(url)
+        scripted(url)?.let { return@withContext it }
         if (blockedForTests(host)) return@withContext HttpResult(-1, "offline (unit test)")
         val st = hosts[host]
         if (st != null && System.currentTimeMillis() < st.until) {
@@ -730,6 +743,7 @@ object Http {
         timeoutMs: Int = 180000
     ): HttpResult = withContext(Dispatchers.IO) {
         val host = hostOf(url)
+        scripted(url)?.let { return@withContext it }
         if (blockedForTests(host)) return@withContext HttpResult(-1, "offline (unit test)")
         val st = hosts[host]
         if (st != null && System.currentTimeMillis() < st.until) {
