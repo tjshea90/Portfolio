@@ -7728,6 +7728,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // about rows the screener produced, it did not re-screen anything.
             generated = cur.generated
         )
+        // AND THE PAGE GROWS BY WHAT WAS ADDED (review 2026-09-24, R2-2): inserted at the page
+        // end they were the first HIDDEN rows - still behind "Load more", and still left out of
+        // the next prompt, which is built from the rows on screen.
+        for ((section, before, after) in listOf(
+            Triple(com.tj.portfolio.data.ResearchSet.SECTION_TRENDING, cur.trending.size, merged.trending.size),
+            Triple(com.tj.portfolio.data.ResearchSet.SECTION_BEST, cur.best.size, merged.best.size)
+        )) {
+            val grew = after - before
+            if (grew > 0) _researchShown.value = _researchShown.value + (section to pageEnd(section) + grew)
+        }
         cacheResearch(merged)
         _researchError.value = null
         val known = (cur.trending + cur.best + cur.etfs).map { r -> r.symbol }.toSet()
