@@ -399,4 +399,35 @@ class FullTest0924Test {
         assertEquals("Earnings in 4 days - Sep 27 - Guidance risk",
             com.tj.portfolio.ui.carryExplanations(old2, fresh, now).best.single().catalyst)
     }
+
+    // ---- S-6: a stale fund Claude added does not become a permanent row.
+
+    @Test fun `S-6 a Claude-added fund with a stale paragraph is gone after a cold launch and a rebuild`() {
+        val now = System.currentTimeMillis()
+        val vti = com.tj.portfolio.data.ResearchRow(symbol = "VTI", why = "Broad US market.",
+            whyAt = now - 20 * 86_400_000L, catalyst = "broad US equity", conviction = 9)
+        val set = com.tj.portfolio.data.ResearchSet(etfs = listOf(vti))
+        val launched = com.tj.portfolio.ui.evictStaleWhy(set, now)
+        assertTrue("dropped outright at launch", launched.etfs.none { it.symbol == "VTI" })
+        // And even if a row reached a rebuild blanked, the rebuild does not resurrect a stale one.
+        val rebuilt = com.tj.portfolio.ui.carryEtfExplanations(launched.etfs, emptyList(), now)
+        assertTrue(rebuilt.none { it.symbol == "VTI" })
+    }
+
+    // ---- S-7: a Day Trading paragraph lives for its own session only.
+
+    @Test fun `S-7 a previous session's Day Trading paragraph is not carried onto today's row`() {
+        val now = System.currentTimeMillis()
+        val weekOld = com.tj.portfolio.data.ResearchRow(symbol = "GME", why = "In play today.",
+            whyAt = now - 7 * 86_400_000L, conviction = 8, catalyst = "Halt risk")
+        val old = com.tj.portfolio.data.ResearchSet(dayTrading = listOf(weekOld), generated = now - 3_600_000L)
+        val fresh = com.tj.portfolio.data.ResearchSet(dayTrading = listOf(
+            com.tj.portfolio.data.ResearchRow(symbol = "GME")), generated = now)
+        val row = com.tj.portfolio.ui.carryExplanations(old, fresh, now).dayTrading.single()
+        assertEquals("", row.why)
+        assertEquals(0, row.conviction)
+        val launched = com.tj.portfolio.ui.evictStaleWhy(old, now).dayTrading.single()
+        assertEquals("the cold launch expires it too", "", launched.why)
+        assertEquals(0, launched.conviction)
+    }
 }
