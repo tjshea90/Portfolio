@@ -195,3 +195,119 @@ Status: IN PROGRESS (findings appended as confirmed)
 - Fix: for a kind mismatch print the raw value and the rule: "0.7 - this setting is on/off only (0 or 1)",
   "45.5 - this setting takes whole numbers only".
 
+### UI-16 (M) - The "What worked" breakdown shows 1-to-5-trade slices with the same confidence the headline now avoids
+- Where: ui/ResearchScreen.kt:1598-1617 (`DayTradingBreakdown`).
+- Problem: the headline was reworked (E10) so a handful of trades cannot read like a verdict, but the
+  breakdown directly under it prints every slice at full precision with no caution: "Pullback +0.80R avg,
+  75.0% profitable (4 trades)", "Claude's plans 100.0% profitable (1 trade)". These slices are where Tj is
+  most likely to draw a conclusion ("pullbacks work, Claude beats the app") and where the samples are
+  smallest. Also the engine-version group is sorted by label as a string, so "Tuned engine v10" sorts
+  before "Tuned engine v2" (net/DayTradingEval.kt:615).
+- Fix: for `decided < SAMPLE_TIERS[0].first`, draw the row muted and append " - too few to judge"
+  (or hide avg R below 5 trades); whole-number percentages; sort engine slices by the numeric version.
+
+### UI-17 (L) - Repeated full-log reads for the tuning card's counts
+- Where: ui/ResearchScreen.kt:246-248; ui/PortfolioViewModel.kt:8200-8207, 7340/7383/7385.
+- Problem: `LaunchedEffect(section, dayTradingStats, engine.version)` calls `refreshEngineEvidence()`,
+  a full `db.dayTradingLog()` read (every row with its `features` and `eval_detail` grid, ~1 KB each), on
+  every tab entry and every stats emission. `DayTradingStats` is never equal to the previous value
+  (`evaluatedAt = now`), so each publish restarts the effect. One auto-grading run already reads the log
+  3 times (7340, 7383, 7385) and publishes 2-3 times, so opening the tab costs ~5-6 full reads. Off the
+  main thread, and not per 30-second tick, so not jank - but allocation churn (MBs on a year-old log) on a
+  mid-range phone for two integers.
+- Fix: compute `Evidence(rows, lastApplyAt)` inside `dayTradingStatsOf(rows)` from the rows already read
+  and publish both together; key the effect on `engine.version` only (lastApplyAt changes with it).
+
+### UI-18 (L) - Before the first count lands, the tuning card says "0 graded trades"
+- Where: ui/PortfolioViewModel.kt:1961 (`MutableStateFlow(0 to 0)`), ui/EngineTuningUi.kt:66-71.
+- Problem: until `refreshEngineEvidence` finishes, the card reads "0 graded trades from the app's own
+  plans. Claude can review them now, but the engine is not changed until there are 30." - a false count,
+  and "Claude can review them now" is odd wording when there are none.
+- Fix: make the flow nullable and show "Counting graded trades..." until the first read; with 0 say
+  "No graded trades from the app's own plans yet - the engine is not changed until there are 30."
+
+### UI-19 (L) - The tuning card's "Import answer" is gated differently from the identical button at the top, and its errors land elsewhere
+- Where: ui/EngineTuningUi.kt:86; ui/ResearchScreen.kt:496-497 vs 716-719.
+- Problem: both buttons launch the same picker and the same content router (`importResearchFile`). The
+  top one is disabled while a research build runs (RES-7: a Day Trading/research answer applied under a
+  running build is overwritten); the card's is enabled then, and is disabled during grading while the
+  top one is not. A wrong file picked from the card gets a research-worded error ("No research JSON
+  found in that file ...") in the red banner at the TOP of the list, far from the card at the bottom.
+- Fix: give the card its own picker that calls `importEngineTuning` and toasts its own error ("That file
+  has no engine-tuning answer - share Claude's reply to the tuning prompt"), or at least use the same
+  `enabled` rule as the top button.
+
+### UI-20 (L) - Terminology drift between the two adjacent cards
+- Where: ui/ResearchScreen.kt:1428-1433 (sample tiers 20/50/100), ui/EngineTuningUi.kt:64-79 (tiers 30/75/150).
+- Problem: the success card says "45 graded trades - An early read" (all plans, Claude's included); the card
+  directly below says "38 graded trades from the app's own plans ... Small, gradual changes only ... More
+  unlocks at 75". Two counts of "graded trades" and two tier ladders side by side; the reconciling split
+  (app vs Claude) is only in the breakdown further up. "Graded trade", "tier" and "R" are never defined on
+  the tuning card itself.
+- Fix: on the success card's first line add "(38 from the app's own plans, 7 from Claude's)"; on the tuning
+  card say "graded trades (plans that filled and finished) from the app's own plans".
+
+### UI-21 (L) - Long always-open footnotes; load-bearing sentences in 10sp muted text
+- Where: ui/ResearchScreen.kt:1467-1487, 1526-1539, 1543-1570.
+- Problem: with the new notes (unfunded, regrading, 5-minute, legacy) the recommendations footnote alone
+  runs ~10 lines at 11sp, the account note ~6 lines at 10sp; at 1.6x the card is several screens tall.
+  The statements that qualify the headline numbers (unfundable trades, the 95% verdict, the cost model)
+  are `labelSmall` (10sp) in `onSurfaceVariant` on `surfaceVariant`, which measures 4.43:1 in the light
+  theme (#6B7280 on #F3F5F8) - just under AA 4.5:1 (dark theme is fine at ~6.4:1).
+- Fix: keep the headline rows and the sample line open; put the counts footnote, cost model and account
+  explanation behind one "Details" expander (the card already has the pattern for grading rules); use
+  bodySmall (11sp) minimum for sentences that change how a number should be read.
+
+### UI-22 (L) - Expanders and disabled buttons say nothing to TalkBack
+- Where: ui/EngineTuningUi.kt:90-94, 108-112; ui/ResearchScreen.kt:1574-1579.
+- Problem: "How does this work?", "Engine history (n)", "How are trades graded?" are clickable Texts with no
+  role and no expanded/collapsed state; TalkBack says "double-tap to activate" with nothing about what
+  opens. The disabled "Undo last change" / "Revert to original" give no reason. Expander links use
+  `accentText`, 4.41:1 on the light surfaceVariant at 14sp (below AA for non-large text; app-wide, not new).
+- Fix: `Modifier.clickable(role = Role.Button, onClickLabel = if (open) "collapse" else "expand")` plus
+  `semantics { stateDescription = if (open) "Expanded" else "Collapsed" }`; a muted line under the
+  Undo/Revert row when both are disabled: "Nothing to undo - this is the original engine."
+
+### UI-23 (L) - Button rows at large font scale
+- Where: ui/EngineTuningUi.kt:81-89, 115-119.
+- Problem: "Make tuning prompt" / "Import answer" are two weight(1f) OutlinedButtons (~123dp of text each):
+  "Make tuning prompt" wraps to 2 lines at ~1.1x and 3 at 1.6x while "Import answer" stays at 1-2, so the
+  pair renders at different heights (the Row has no `IntrinsicSize.Min`/`fillMaxHeight`). The Undo/Revert
+  row is two unweighted TextButtons around a weighted Spacer: Compose measures Undo first, so at 2.0x
+  "Revert to original" is left ~100dp and breaks to 3-4 lines. Still tappable; looks broken.
+- Fix: `Row(Modifier.height(IntrinsicSize.Min))` + `fillMaxHeight()` on both buttons; for Undo/Revert use
+  a `FlowRow` (or stack them) so each keeps its natural width.
+
+### UI-24 (L, unsure) - A confirm dialog saved inside the lazy "tools" item can pop up later after rotation
+- Where: ui/EngineTuningUi.kt:50, 121-142 (confirm state lives in the LazyColumn item "tools").
+- Problem: `confirm` is `rememberSaveable` inside a lazy item. If Tj rotates with the Undo/Revert confirm
+  open and the restored scroll position leaves the (tall) "tools" item outside the landscape viewport, the
+  dialog is not composed; it then appears by itself when he later scrolls down. Not confirmed on device.
+- Fix: hoist the confirm flag to ResearchScreen (screen-level `rememberSaveable`) and render the
+  AlertDialog there, like `EngineReviewDialog`.
+
+### UI-25 (L) - Engine history: raw keys, and all 200 entries composed at once in one lazy item
+- Where: ui/EngineTuningUi.kt:107-114, 145-166; net/EngineTuning.kt:100 (`HISTORY_MAX = 200`).
+- Problem: history lines print raw keys ("setup.pullback.minRiskAtrs: off -> 0.8") without the plain-words
+  `Spec.doc` the review sheet shows under the same key; "Running the original engine (v5)." after a revert
+  can read as "the original is v5". Expanded, every entry (summary up to 600 chars each) is composed inside
+  the single "tools" LazyColumn item.
+- Fix: show the last 10 entries with "Show all (n)"; add the spec doc as a muted second line; word the
+  header "Running the original engine (after 5 engine changes, now v5)."
+
+### UI-26 (L) - Small wording slips in the success card
+- Where: ui/ResearchScreen.kt:1544-1549; 1417-1421.
+- Problem: "1 recommendations recorded" (no plural handling); zero clauses always printed ("0 never filled
+  before their cut-off, 0 still in progress"); a null (never evaluated) row from a past day is counted as
+  "still in progress" (DayTradingEval.kt:446) until the next grading run.
+- Fix: plural helper; drop zero clauses; call null past-day rows "not checked yet".
+
+### UI-27 (L) - Plain-English plan text says "the target is the next real resistance" even when a tuned cap set it
+- Where: ui/DayTradingDetailDialog.kt:103-119 (shown on DetailScreen for every app plan).
+- Problem: with `target.capR` (or a per-setup cap) switched on by a tuning, the target can be entry + N R,
+  not a resistance level; the explanation still asserts resistance. Also "NOT YET" (a wait, levels still
+  valid) is drawn in the same red, error-tinted style as "Skip this one - the plan already fell apart"
+  (ResearchScreen.kt:1187-1204, 1281-1289) - a wait reads as a failure.
+- Fix: when the engine's cap is active (or the plan carries a `targetCapped` flag) say "the target is the
+  next resistance, capped at N R by the tuned engine"; draw NOT YET in the muted/amber tone, not error red.
+
