@@ -1174,7 +1174,7 @@ internal fun mergeDayTradingTech(
         else -> row.planDeclineStreak
     }
     val confirmedDecline = (declined && declineStreak >= DAY_TRADING_DECLINE_CONFIRM_TICKS) ||
-        (sessionChanged && plan == null)
+        (sessionChanged && plan == null && !claudePlanStands)   // D-2: a standing plan is kept
     return row.copy(
         price = price,
         // Only while the regular session is open is "vs the previous close" today's move;
