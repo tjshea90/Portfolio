@@ -243,8 +243,9 @@ class EngineTuningTest {
         assertTrue(r.paramsAfter.let { EngineTuning.inconsistency(it) } == null)
         val ceiling = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.breakout.maxRiskAtrs", 0, 1.0, "setup:breakout"))),
             EngineTuning.State(), rows).items.single()
-        assertEquals(Status.LIMITED, ceiling.status)
-        assertEquals(2.5 - 1.2, ceiling.applied!!, 1e-9)                                              // from the global 2.5
+        // limited from the global 2.5 to 1.3 - which is under the 1.5 floor, so refused, never installed
+        assertEquals(Status.REFUSED, ceiling.status)
+        assertTrue(ceiling.reason, ceiling.reason.contains("floor above its ceiling"))
         // switching OFF is not limited - it is the original behaviour
         val on = DEFAULTS.with(mapOf(DayTradingParams.MIN_SCORE to 40.0))
         val off = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_SCORE, 40, 0))),
