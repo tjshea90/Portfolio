@@ -1429,7 +1429,9 @@ internal fun loggableDayTradingRows(
     it.symbol in liveNow &&
         it.entryPrice > 0.0 && it.stopPrice > 0.0 && it.targetPrice > 0.0 &&
         it.price > 0.0 && it.sessionDay == today &&
-        !it.tooLateToStart && it.planDeclineStreak == 0
+        !it.tooLateToStart && it.planDeclineStreak == 0 &&
+        // A tuned engine's "not yet" window (2026-09-24c): the card says wait, so it is not an instruction.
+        it.planWait.isBlank()
 }
 
 /** At most this many log rows are resolved per "Check" press - see D-6 in evaluateDayTradingLog. */

@@ -1153,7 +1153,7 @@ internal fun claudeSourced(r: com.tj.portfolio.data.ResearchRow): Boolean =
 internal fun BeginnerSummaryCard(r: ResearchRow) {
     val s = com.tj.portfolio.net.ResearchScore.beginnerSummary(
         r.symbol, r.price, r.entryPrice, r.stopPrice, r.targetPrice, r.tooLateToStart,
-        setup = r.setup, planPrice = r.planPrice
+        setup = r.setup, planPrice = r.planPrice, waitReason = r.planWait
     ) ?: return
     Spacer(Modifier.height(9.dp))
     Column(
@@ -1246,6 +1246,15 @@ internal fun TradeLevelsGrid(r: ResearchRow) {
             Spacer(Modifier.height(6.dp))
             Text(
                 "TOO LATE TO START TODAY - not enough of the session left",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = redText
+            )
+        } else if (r.planWait.isNotBlank()) {
+            // A TUNED ENGINE'S "NOT YET" WINDOW (2026-09-24c) - same place, same weight.
+            Spacer(Modifier.height(6.dp))
+            Text(
+                "NOT YET - " + r.planWait.removeSuffix("."),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = redText
