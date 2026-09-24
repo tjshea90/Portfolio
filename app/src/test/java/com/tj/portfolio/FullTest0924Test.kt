@@ -430,4 +430,35 @@ class FullTest0924Test {
         assertEquals("the cold launch expires it too", "", launched.why)
         assertEquals(0, launched.conviction)
     }
+
+    // ---- S-8: strategy products and state/HY munis are not "the same exposure".
+
+    @Test fun `S-8 strategy funds, state munis and banded junk no longer join the plain index group`() {
+        val k = com.tj.portfolio.net.EtfExposure::keyOf
+        val voo = k("Vanguard S&P 500 ETF")
+        assertEquals("US large cap - S&P 500", voo)
+        listOf("Invesco S&P 500 Top 50 ETF", "NEOS S&P 500 High Income ETF",
+            "Invesco S&P 500 High Beta ETF", "Invesco S&P 500 Revenue ETF",
+            "Invesco S&P 500 GARP ETF", "SPDR S&P 500 Fossil Fuel Reserves Free ETF"
+        ).forEach { assertTrue("$it keyed with VOO", k(it) != voo) }
+        assertTrue(k("NEOS Nasdaq-100 High Income ETF") != k("Invesco QQQ Trust"))
+        assertTrue(k("iShares MSCI Emerging Markets ex China ETF") != k("iShares MSCI Emerging Markets ETF"))
+        assertTrue(k("ProShares Bitcoin Strategy ETF") != k("iShares Bitcoin Trust ETF"))
+        val mub = k("iShares National Muni Bond ETF")
+        assertEquals("Bonds - municipal", mub)
+        assertNull(k("iShares California Muni Bond ETF"))
+        assertTrue(k("VanEck High Yield Muni ETF") != mub)
+        assertTrue(k("JPMorgan Ultra-Short Municipal Income ETF") != mub)
+        assertTrue(k("SPDR Bloomberg Short Term High Yield Bond ETF") !=
+            k("iShares iBoxx High Yield Corporate Bond ETF"))
+    }
+
+    @Test fun `S-8 every fund a survivor beat is named on its card`() {
+        val names = listOf("Vanguard S&P 500 ETF" to "VOO", "iShares Core S&P 500 ETF" to "IVV",
+            "SPDR Portfolio S&P 500 ETF" to "SPLG", "SPDR S&P 500 ETF Trust" to "SPY",
+            "Some Other S&P 500 Index Fund" to "OTHR")
+        val out = com.tj.portfolio.net.EtfExposure.dedupe(names, { it.first }, { it.second })
+        assertEquals(1, out.size)
+        assertEquals(listOf("IVV", "SPLG", "SPY", "OTHR"), out.single().second)
+    }
 }
