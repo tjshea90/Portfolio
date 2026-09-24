@@ -51,8 +51,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       share + button paths; ClaudeBridge.epochDate for numeric dates; FullTest0924Test +2)
       [x] C-1 pinch/pan into unfetched range kills gesture + blanks chart (DetailScreen bridgedChart:
       keep last series+range while a live zoom's series is coming; ZoomIntoUnfetchedUiTest 3/0 incl.
-      a no-bridge control that reproduces the dead gesture)  [ ] D-1 stale plans
-      logged with later timestamp/old price
+      a no-bridge control that reproduces the dead gesture)  [x] D-1 stale plans
+      logged with later timestamp/old price (capture only from the DT sweep, only rows re-planned
+      live THIS tick: loggableDayTradingRows(liveNow); ResearchPriceFillTest +1). ALL H DONE.
     - M: [ ] C-2 5D "truncated" Fridays  [ ] C-3 vs-SPY All range different starts  [ ] C-4 zoom
       hysteresis missing at 4 boundaries  [ ] C-5 stale benchmark carried flat  [ ] D-2 evening
       Claude plan replaced at 04:00 (post-close sweep re-stamps)  [ ] D-3 weekend/holiday Claude
