@@ -212,8 +212,11 @@ class DayTradingLoggingTest {
             val vm = PortfolioViewModel(app)
             settle()
             vm.evaluateDayTradingLog(auto = true)
-            repeat(80) { if (!vm.dayTradingStatsLoading.value && seen.isEmpty()) settle() else if (vm.dayTradingStatsLoading.value) settle() }
-            repeat(5) { settle() }
+            // The check waits a few seconds and pauses between batches - on the main looper's clock.
+            repeat(30) {
+                ShadowLooper.idleMainLooper(2, java.util.concurrent.TimeUnit.SECONDS)
+                Thread.sleep(50)
+            }
             // two rows at once, each asked of both Yahoo hosts once - then it stops, 28 rows untouched
             assertTrue("sent ${seen.size}", seen.size in 1..4)
             assertEquals(30, db.dayTradingLog().count { it.outcome == null })
