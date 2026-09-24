@@ -373,19 +373,24 @@ object DayTradingEval {
      * The "success rate" button's other half - turns a pile of resolved log rows into the
      * headline numbers on [DayTradingStats]. See that class's own header for what each means
      * and why, including what 2026-09-18 added and the two real gaps it closed.
+     *
+     * 2026-09-24c: only rows graded by the CURRENT grader count ([DayTradingGrader.VERSION] - an
+     * older verdict whose bars are gone is counted as [DayTradingStats.legacyExcluded] instead);
+     * each trade's P&L runs from its REAL fill, not the entry it was aiming for; the account
+     * figure only counts trades the account could actually have funded at the time (audit E8);
+     * and the rates carry 95% intervals, so a handful of trades cannot read like a verdict (E10).
      */
-    fun stats(entries: List<DayTradingLogEntry>): DayTradingStats {
+    fun stats(entries: List<DayTradingLogEntry>, now: Long = System.currentTimeMillis()): DayTradingStats {
         var targetHit = 0; var stopHit = 0; var closedProfit = 0; var closedLoss = 0
-        var noEntry = 0; var pending = 0; var dataUnavailable = 0
+        var noEntry = 0; var pending = 0; var dataUnavailable = 0; var legacy = 0
+        var res1 = 0; var res5 = 0
         val returns = ArrayList<Double>()
         val netReturns = ArrayList<Double>()
         val rMultiples = ArrayList<Double>()
-        // Each trade's result as a fraction of the account, sized exactly as positionSize sizes
-        // it - see [ResearchScore.dayTradeSharesPerEquity].
-        var account = 0.0
+        var accountAll = 0.0
         var capped = 0
-        // Trades that made money AFTER the modelled costs - see `profitableRate`.
         var netProfitable = 0
+        val trades = ArrayList<Trade>()
 
         fun pctReturn(entry: Double, exit: Double): Double =
             if (entry > 1e-9) (exit - entry) / entry * 100.0 else 0.0
@@ -396,9 +401,12 @@ object DayTradingEval {
          * cost model cannot update the percentage figures and leave the R figures behind
          * describing a different trade.
          */
-        fun record(e: DayTradingLogEntry, exit: Double) {
-            returns.add(pctReturn(e.entry, exit))
-            val paid = Costs.entryFill(e.entry)
+        fun record(e: DayTradingLogEntry, exit: Double, d: DayTradingGrader.Detail?) {
+            // THE REAL FILL (2026-09-24c, E2): a buy-stop that gapped through its entry filled at
+            // the open, not at the entry; the grade recorded which.
+            val fill = d?.fill?.takeIf { it > 0.0 } ?: e.entry
+            returns.add(pctReturn(fill, exit))
+            val paid = Costs.entryFill(fill)
             val got = Costs.exitFill(e.outcome, exit)
             netReturns.add(pctReturn(paid, got))
             if (got > paid) netProfitable++
@@ -408,19 +416,27 @@ object DayTradingEval {
             // result against a risk budget that was never actually set.
             val risk = e.entry - e.stop
             if (risk > 1e-9) {
-                rMultiples.add((got - paid) / risk)
+                val r = (got - paid) / risk
+                rMultiples.add(r)
                 val perEquity = ResearchScore.dayTradeSharesPerEquity(e.entry, e.stop)
-                account += perEquity * (got - paid)
+                accountAll += perEquity * (got - paid)
                 if (perEquity < ResearchScore.dayTradeRiskFraction() / risk - 1e-12) capped++
+                trades.add(Trade(e, r, perEquity * (got - paid), perEquity * paid,
+                    d?.fillAt ?: (e.recordedAt / 1000L), d?.exitAt ?: (e.recordedAt / 1000L)))
             }
+            if (d?.res == 1) res1++ else res5++
         }
 
         for (e in entries) {
+            val final = DayTradingOutcome.isFinal(e.outcome)
+            // GRADED UNDER THE OLD RULES AND NO LONGER RE-GRADABLE (E9) - kept, counted, not used.
+            if (final && e.evalVersion < DayTradingGrader.VERSION) { legacy++; continue }
+            val d = DayTradingGrader.Detail.parse(e.evalDetail)
             when (e.outcome) {
-                DayTradingOutcome.WIN -> { targetHit++; record(e, e.outcomeExitPrice ?: e.target) }
-                DayTradingOutcome.LOSS -> { stopHit++; record(e, e.outcomeExitPrice ?: e.stop) }
-                DayTradingOutcome.CLOSED_PROFIT -> { closedProfit++; record(e, e.outcomeExitPrice ?: e.entry) }
-                DayTradingOutcome.CLOSED_LOSS -> { closedLoss++; record(e, e.outcomeExitPrice ?: e.entry) }
+                DayTradingOutcome.WIN -> { targetHit++; record(e, e.outcomeExitPrice ?: e.target, d) }
+                DayTradingOutcome.LOSS -> { stopHit++; record(e, e.outcomeExitPrice ?: e.stop, d) }
+                DayTradingOutcome.CLOSED_PROFIT -> { closedProfit++; record(e, e.outcomeExitPrice ?: e.entry, d) }
+                DayTradingOutcome.CLOSED_LOSS -> { closedLoss++; record(e, e.outcomeExitPrice ?: e.entry, d) }
                 DayTradingOutcome.NO_ENTRY -> noEntry++
                 DayTradingOutcome.DATA_UNAVAILABLE -> dataUnavailable++
                 else -> pending++ // null (never evaluated) reads the same as an explicit PENDING
@@ -428,8 +444,13 @@ object DayTradingEval {
         }
         val decided = targetHit + stopHit + closedProfit + closedLoss
         val totalR = rMultiples.sum()
+        val wins = rMultiples.filter { it > 0.0 }
+        val losses = rMultiples.filter { it <= 0.0 }
+        val (rLow, rHigh) = meanInterval(rMultiples)
+        val (pLow, pHigh) = wilson(netProfitable, decided)
+        val funded = fundable(trades)
         return DayTradingStats(
-            totalRecommendations = entries.size,
+            totalRecommendations = entries.size - legacy,
             entriesTriggered = decided,
             targetHit = targetHit,
             stopHit = stopHit,
@@ -450,15 +471,86 @@ object DayTradingEval {
             netTotalReturnPct = netReturns.sum(),
             totalR = totalR,
             avgR = if (rMultiples.isNotEmpty()) totalR / rMultiples.size else 0.0,
-            accountReturnPct = account * 100.0,
+            accountReturnPct = funded.sumOf { it.account } * 100.0,
             cappedTrades = capped,
             // EVERY row's session, not just the decided ones - "42 picks across 9 sessions" is
             // the context an average per trade needs, and a day whose picks all expired without
             // triggering is still a day the system was followed.
-            sessions = entries.mapTo(HashSet()) { it.tradingDay }.size,
-            evaluatedAt = System.currentTimeMillis(),
-            breakdown = breakdown(entries)
+            sessions = entries.filterNot { DayTradingOutcome.isFinal(it.outcome) && it.evalVersion < DayTradingGrader.VERSION }
+                .mapTo(HashSet()) { it.tradingDay }.size,
+            evaluatedAt = now,
+            breakdown = breakdown(entries.filterNot { DayTradingOutcome.isFinal(it.outcome) && it.evalVersion < DayTradingGrader.VERSION }),
+            legacyExcluded = legacy,
+            graded1m = res1,
+            graded5m = res5,
+            avgWinR = if (wins.isNotEmpty()) wins.average() else 0.0,
+            avgLossR = if (losses.isNotEmpty()) losses.average() else 0.0,
+            profitFactor = if (losses.sumOf { -it } > 1e-9) wins.sum() / losses.sumOf { -it }
+                else if (wins.isNotEmpty()) Double.POSITIVE_INFINITY else 0.0,
+            maxDrawdownR = maxDrawdown(trades.sortedWith(compareBy({ it.exitAt }, { it.e.recordedAt })).map { it.r }),
+            avgRLow = rLow,
+            avgRHigh = rHigh,
+            profitableLow = pLow,
+            profitableHigh = pHigh,
+            unfundedTrades = trades.size - funded.size,
+            accountReturnAllPct = accountAll * 100.0
         )
+    }
+
+    /** One decided trade, for the capital simulation and the drawdown. */
+    private class Trade(val e: DayTradingLogEntry, val r: Double, val account: Double,
+                        val notional: Double, val fillAt: Long, val exitAt: Long)
+
+    /**
+     * THE TRADES AN ACCOUNT COULD ACTUALLY HAVE HELD AT ONCE (2026-09-24c, audit E8). Each is
+     * sized as the app sizes it - at most a quarter of the portfolio - so a morning with eight
+     * picks triggering together is two portfolios' worth of positions. Walked in fill order, a
+     * trade whose cost would take the open positions past the whole portfolio is skipped: no
+     * margin, no borrowed money. A position frees its cash only after the bar it exited in.
+     */
+    private fun fundable(trades: List<Trade>): List<Trade> {
+        val open = ArrayList<Trade>()
+        val out = ArrayList<Trade>()
+        for (t in trades.sortedWith(compareBy({ it.fillAt }, { it.e.recordedAt }, { it.e.id }))) {
+            open.removeAll { it.exitAt < t.fillAt }
+            if (open.sumOf { it.notional } + t.notional <= 1.0 + 1e-9) { open.add(t); out.add(t) }
+        }
+        return out
+    }
+
+    /** Largest peak-to-trough fall of the cumulative R curve, as a positive number of R. */
+    internal fun maxDrawdown(rs: List<Double>): Double {
+        var peak = 0.0; var cum = 0.0; var dd = 0.0
+        for (r in rs) { cum += r; peak = maxOf(peak, cum); dd = maxOf(dd, peak - cum) }
+        return dd
+    }
+
+    /** Student-t 97.5% points, for a 95% interval on a small sample's mean. */
+    private val T975 = listOf(1 to 12.71, 2 to 4.30, 3 to 3.18, 4 to 2.78, 5 to 2.57, 6 to 2.45, 7 to 2.36,
+        8 to 2.31, 9 to 2.26, 10 to 2.23, 12 to 2.18, 15 to 2.13, 20 to 2.09, 25 to 2.06, 30 to 2.04,
+        40 to 2.02, 60 to 2.00, 120 to 1.98)
+
+    private fun tCrit(df: Int): Double = T975.lastOrNull { it.first <= df }?.second?.let { v ->
+        if (df > 120) 1.96 else v } ?: 12.71
+
+    /** 95% interval on the mean of [xs] (the expectancy per trade in R); (0, 0) under two values. */
+    internal fun meanInterval(xs: List<Double>): Pair<Double, Double> {
+        if (xs.size < 2) return 0.0 to 0.0
+        val m = xs.average()
+        val sd = kotlin.math.sqrt(xs.sumOf { (it - m) * (it - m) } / (xs.size - 1))
+        val half = tCrit(xs.size - 1) * sd / kotlin.math.sqrt(xs.size.toDouble())
+        return (m - half) to (m + half)
+    }
+
+    /** Wilson 95% interval on k successes in n, in percent - honest at small n, unlike +/-2 SE. */
+    internal fun wilson(k: Int, n: Int): Pair<Double, Double> {
+        if (n <= 0) return 0.0 to 0.0
+        val z = 1.96
+        val p = k.toDouble() / n
+        val d = 1 + z * z / n
+        val c = (p + z * z / (2 * n)) / d
+        val h = z * kotlin.math.sqrt(p * (1 - p) / n + z * z / (4.0 * n * n)) / d
+        return ((c - h).coerceAtLeast(0.0) * 100.0) to ((c + h).coerceAtMost(1.0) * 100.0)
     }
 
     /** The decided outcomes - a trade that actually happened and is over. */
@@ -468,24 +560,31 @@ object DayTradingEval {
     /** See [DayTradingStats.breakdown]. Net "profitable" is the same test the headline uses. */
     internal fun breakdown(entries: List<DayTradingLogEntry>): List<com.tj.portfolio.data.StatSlice> {
         val decided = entries.filter { it.outcome in DECIDED }
-        fun profitable(e: DayTradingLogEntry): Boolean {
+        fun netOf(e: DayTradingLogEntry): Pair<Double, Double> {
             val exit = e.outcomeExitPrice ?: when (e.outcome) {
                 DayTradingOutcome.WIN -> e.target
                 DayTradingOutcome.LOSS -> e.stop
                 else -> e.entry
             }
-            return Costs.exitFill(e.outcome, exit) > Costs.entryFill(e.entry)
+            val fill = DayTradingGrader.Detail.parse(e.evalDetail)?.fill?.takeIf { it > 0.0 } ?: e.entry
+            return Costs.entryFill(fill) to Costs.exitFill(e.outcome, exit)
+        }
+        fun profitable(e: DayTradingLogEntry): Boolean = netOf(e).let { (paid, got) -> got > paid }
+        fun rOf(e: DayTradingLogEntry): Double {
+            val risk = e.entry - e.stop
+            return if (risk > 1e-9) netOf(e).let { (paid, got) -> (got - paid) / risk } else 0.0
         }
         fun slices(group: String, key: (DayTradingLogEntry) -> String, order: List<String>) =
             decided.groupBy(key).map { (label, rows) ->
                 com.tj.portfolio.data.StatSlice(group, label, rows.size,
-                    rows.count { it.outcome == DayTradingOutcome.WIN }, rows.count { profitable(it) })
+                    rows.count { it.outcome == DayTradingOutcome.WIN }, rows.count { profitable(it) },
+                    rows.sumOf { rOf(it) })
             }.sortedBy { order.indexOf(it.label).let { i -> if (i < 0) order.size else i } }
         val who = listOf("The app's plans", "Claude's plans")
         val setups = listOf(ResearchScore.SETUP_BREAKOUT, ResearchScore.SETUP_PULLBACK,
             ResearchScore.SETUP_RECLAIM, "Claude's own setups")
         val times = listOf("First hour", "Midday", "Last two hours")
-        return slices("Who planned it", {
+        val out = slices("Who planned it", {
             if (it.source == DayTradingLogEntry.SOURCE_CLAUDE) who[1] else who[0]
         }, who) + slices("Setup", {
             if (it.setup in setups.take(3)) it.setup else "Claude's own setups"
@@ -498,5 +597,23 @@ object DayTradingEval {
                 else -> times[2]
             }
         }, times)
+        // WHICH ENGINE MADE IT (2026-09-24c) - only once the app's own plans come from more than
+        // one engine version, i.e. once a tuning has been applied: then "did the change help" is
+        // the question, and this is its answer.
+        val appRows = decided.filter { it.source != DayTradingLogEntry.SOURCE_CLAUDE }
+        val versions = appRows.map { engineLabel(it.engine) }.distinct()
+        if (versions.size < 2) return out
+        return out + appRows.groupBy { engineLabel(it.engine) }.map { (label, rows) ->
+            com.tj.portfolio.data.StatSlice("Engine version (the app's plans)", label, rows.size,
+                rows.count { it.outcome == DayTradingOutcome.WIN }, rows.count { profitable(it) },
+                rows.sumOf { rOf(it) })
+        }.sortedBy { it.label }
     }
+
+    /** "v0" -> "Original engine", "v3" -> "Tuned engine v3"; older rows carry no label. */
+    fun engineLabel(engine: String): String = when {
+        engine.isBlank() || engine == "v0" -> "Original engine"
+        else -> "Tuned engine $engine"
+    }
+}
 }
