@@ -26,8 +26,9 @@ read and may drift by a few lines.
   counterfactual grid, `holdR` and `mfeFlatR` by running every variant with `complete = true` over the bars
   that exist *so far*. A variant still open at the last available bar is "closed at the flat time" at that
   bar's close. Because the row is then final at the current grader version, nothing ever re-grades it after
-  the session settles. The tab's own auto-check (`evaluateDayTradingLog(auto = true)`, every 15 min while the
-  tab is open) makes this the COMMON path for today's trades, not an edge case.
+  the session settles. The auto-check (`evaluateDayTradingLog(auto = true)`, run by `startDayTradingLive`
+  every time the Day Trading list opens, at most every 15 min) and every manual "Check" press during market
+  hours make this the COMMON path for today's trades, not an edge case.
 - Failing scenario: breakout logged 10:00 (entry 10.50 / stop 10.00 / target 11.50). Target traded through
   at 10:40. Tab opened 11:00 -> auto-eval -> WIN, `eval_version = 2`, detail written. The price then runs to
   13.00 by 15:50. Stored: grid "none" cell and the 3R/4R/6R cells = the 11:00 close (~11.6), `holdR` ~= +2.2R,
