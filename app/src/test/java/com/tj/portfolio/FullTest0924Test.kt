@@ -671,4 +671,37 @@ class FullTest0924Test {
                 stopPrice = 97.0, targetPrice = 108.0, setup = "Pullback", planByClaude = true)))
         assertEquals(105.0, merged[0].planPrice, 1e-9)
     }
+
+    // ---- D-10: the technicals half follows the live reading, every tick.
+
+    @Test fun `D-10 the technicals bonus is recomputed each tick from the build-time halves`() {
+        val R = com.tj.portfolio.net.ResearchScore
+        fun tech(vwap: Double) = com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals(
+            atr14 = 1.0, vwap = vwap, sessionDay = "2026-09-24", sessionLive = true)
+        val built = com.tj.portfolio.data.ResearchRow(symbol = "GME", price = 22.5,
+            score = R.blendedScore(50, 40), reasons = listOf("base reason"),
+            dtLikelihood = 50, dtConfidence = 40,
+            dtBaseLikelihood = 50, dtBaseConfidence = 40, dtBaseReasonCount = 1)
+        // 09:00 pre-market: no VWAP yet - nothing to add.
+        val t1 = com.tj.portfolio.ui.scoreDayTradingRow(built, tech(0.0))
+        assertEquals(50, t1.dtLikelihood)
+        // 09:40 above VWAP: the bonus arrives on a LATER tick (it used to be frozen at the first).
+        val t2 = com.tj.portfolio.ui.scoreDayTradingRow(t1, tech(21.0))
+        assertTrue(t2.dtLikelihood > 50)
+        assertEquals(1, t2.reasons.count { it.contains("VWAP") })
+        // The same reading again compounds nothing.
+        val t3 = com.tj.portfolio.ui.scoreDayTradingRow(t2, tech(21.0))
+        assertEquals(t2.dtLikelihood, t3.dtLikelihood)
+        assertEquals(t2.dtConfidence, t3.dtConfidence)
+        assertEquals(t2.reasons, t3.reasons)
+        // Fell below VWAP: the "buyers in control" line and its points go.
+        val t4 = com.tj.portfolio.ui.scoreDayTradingRow(t3, tech(30.0))
+        assertEquals(50, t4.dtLikelihood)
+        assertEquals(40, t4.dtConfidence)
+        assertEquals(listOf("base reason"), t4.reasons)
+        // The base survives the disk cache.
+        val back = com.tj.portfolio.data.ResearchRow.fromJson(t2.toJson())!!
+        assertEquals(50, back.dtBaseLikelihood); assertEquals(40, back.dtBaseConfidence)
+        assertEquals(1, back.dtBaseReasonCount)
+    }
 }
