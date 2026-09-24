@@ -257,6 +257,13 @@ class Review0924Test {
         // stock prints with its minus, so it must not snap to "up".
         assertTrue(F.snapZero(-0.003, F.changeEps(0.42)) < 0)
         assertTrue(F.snapZero(-0.0004, F.changeEps(500.0)) == 0.0)
+        // The same rule for a P/L pair: a large position's quiet day.
+        val D = com.tj.portfolio.data.PlMode.DOLLAR
+        val P = com.tj.portfolio.data.PlMode.PERCENT
+        assertEquals("-$3.00  (-0.00%)", com.tj.portfolio.ui.plInline(D, -3.0, -0.0003))
+        assertEquals("-0.00%", com.tj.portfolio.ui.plLead(P, -3.0, -0.0003))
+        assertEquals("+$3.00  (+0.00%)", com.tj.portfolio.ui.plInline(D, 3.0, 0.0003))
+        assertEquals("-$3.00  (-1.20%)", com.tj.portfolio.ui.plInline(D, -3.0, -1.2))
     }
 
     // ---- R2-3: the log reads a Claude plan's direction from the price it was made at.
