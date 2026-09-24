@@ -85,6 +85,7 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       (tick inline here as done: )
     - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
 - [ ] Re-run the full suite; re-check anything a fix touched
+      (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
 - [ ] Independent review of this session's whole diff for regressions -> fix
 - [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
       record-release) and post the Release link; summarize for Tj
