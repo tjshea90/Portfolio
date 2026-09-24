@@ -88,6 +88,22 @@ object ClaudeBridge {
     const val ANSWER_RESEARCH = "portfolio-answer-research.md"
     const val ANSWER_DAY_TRADING = "portfolio-answer-daytrading.md"
 
+    /**
+     * THE FIRST THING CLAUDE READS (2026-09-24b). Tj: "when Claude gets the file, it
+     * automatically knows how to handle and respond to it with no explanation from me". The
+     * share sheet starts a chat with the file attached and nothing typed, so the file has to say,
+     * before anything else, that it IS the message and the job starts now - not "here is some
+     * data, what would you like me to do with it?". [screenshots] adds the one question worth
+     * asking: a transactions prompt with no screenshots attached has nothing to read.
+     */
+    fun startNow(screenshots: Boolean = false): String =
+        "**Claude: this attached file is my whole message.** Everything you need is in it. Start " +
+            "now and follow it to the end without asking me anything first - I will not add any " +
+            "other instructions. Finish by creating the answer file described under \"How to " +
+            "answer\"." +
+            (if (screenshots) " The one exception: if no brokerage screenshots are attached to " +
+                "this chat, ask me to attach them - that is the only question to ask." else "")
+
     private const val PROMPT_HEADER =
         "<!-- $PROMPT_MARK: this file is the QUESTION for Claude, not the ANSWER. " +
             "Attach it to a chat in the Claude app - do NOT import this file back. -->"
@@ -129,6 +145,8 @@ object ClaudeBridge {
     /** Prompt file for the Advice tab. */
     fun advicePrompt(portfolioJson: String, headlines: String): String = """
 $PROMPT_HEADER
+
+${startNow()}
 
 # Portfolio review request
 
@@ -183,6 +201,8 @@ $headlines
         alreadyHave: String = ""
     ): String = """
 $PROMPT_HEADER
+
+${startNow(screenshots = true)}
 
 # Brokerage screenshot -> transactions
 

@@ -88,6 +88,8 @@ object DayTradingBridge {
         return """
 <!-- ${ClaudeBridge.PROMPT_MARK}: this file is the QUESTION for Claude, not the ANSWER. Attach it to a chat in the Claude app - do NOT import this file back. -->
 
+${ClaudeBridge.startNow()}
+
 # Day trading watchlist - please rebuild it
 
 I am attaching live market data exported from my personal Android portfolio app. The app
