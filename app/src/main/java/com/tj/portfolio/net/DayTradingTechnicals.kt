@@ -202,7 +202,14 @@ object DayTradingTechnicals {
          * price NOW rather than the one the screener saw when the list was built (full-tests
          * audit 2026-09-22, D-H1).
          */
-        val lastPrice: Double = 0.0
+        val lastPrice: Double = 0.0,
+        /**
+         * When the newest of TODAY's intraday bars started (epoch s), 0 when none (2026-09-24c,
+         * audit E6). A "live" plan built from a bar that is many minutes old is built from a stale
+         * feed or a halted stock - neither of which Tj could trade at the price the plan assumes -
+         * so the recommendation log refuses it (`replannedLive`).
+         */
+        val lastBarAt: Long = 0L
     ) {
         /** Classic floor-trader pivot, from the prior completed session. 0.0 without one. */
         val pivot: Double get() =
@@ -329,7 +336,8 @@ object DayTradingTechnicals {
             // `sameSession` downstream correctly refuses to carry a row's own cached values
             // forward either, rather than agreeing with itself that nothing is today's.
             sessionDay = if (intradayToday != null) MarketClock.dayKey(now) else "",
-            lastPrice = intradayToday?.lastOrNull()?.close?.takeIf { it > 0.0 } ?: 0.0
+            lastPrice = intradayToday?.lastOrNull()?.close?.takeIf { it > 0.0 } ?: 0.0,
+            lastBarAt = intradayToday?.maxOfOrNull { it.t } ?: 0L
         )
     }
 
