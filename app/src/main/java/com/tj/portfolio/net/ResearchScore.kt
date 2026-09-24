@@ -520,7 +520,16 @@ object ResearchScore {
          * Not enough of the session is left to START this trade - see [tradePlan]'s time rules.
          * The levels are still real and still shown; what has run out is the clock.
          */
-        val tooLateToStart: Boolean = false
+        val tooLateToStart: Boolean = false,
+        /**
+         * WHY A TUNED ENGINE SAYS "NOT YET" (2026-09-24c): the first minutes after the open, or the
+         * midday lull, when the active parameters switch those windows off. The levels are real and
+         * shown; the plan is not recorded as a recommendation until the window has passed. Blank on
+         * the original engine, which has no such windows.
+         */
+        val waitReason: String = "",
+        /** Which level the entry is built on ("the prior session's high", "VWAP") - logged with the plan. */
+        val entryLevel: String = ""
     ) {
         val risk: Double get() = entry - stop
         val reward: Double get() = target - entry
@@ -635,8 +644,8 @@ object ResearchScore {
      * 0 means "the caller has no session clock" (see [tradePlan]'s own parameter), never "the
      * day is over" - which is why the test is a range and not `< MIN_MINUTES_FOR_NEW_ENTRY`.
      */
-    fun tooLateToStart(minutesLeft: Int): Boolean =
-        minutesLeft in 1 until MIN_MINUTES_FOR_NEW_ENTRY
+    fun tooLateToStart(minutesLeft: Int, p: DayTradingParams = DayTradingEngine.params): Boolean =
+        minutesLeft in 1 until p.lastEntryMinutes
 
     /**
      * How far above the last price a trigger can sit before it is a different trade (Round 73).
@@ -670,6 +679,12 @@ object ResearchScore {
 
     private fun levelsOf(vararg pairs: Pair<Double, String>): List<Level> =
         pairs.filter { it.first > 0.0 }.map { Level(it.first, it.second) }
+
+    /** An overhead level with its tuning key - dropped when the active engine has switched it off. */
+    private class Keyed(val price: Double, val name: String, val key: String)
+
+    private fun overheadOf(p: DayTradingParams, vararg levels: Keyed): List<Level> =
+        levels.filter { it.price > 0.0 && p.levelEnabled(it.key) }.map { Level(it.price, it.name) }
 
     /**
      * THE ENGINE. Turns one live technicals reading into a real day-trading plan.
@@ -729,16 +744,27 @@ object ResearchScore {
          * day trade for one specific reason - see [planNote]'s earnings branch - and it is NOT
          * a disqualifier: an earnings day is the canonical reason a stock is in play at all.
          */
-        earningsToday: Boolean = false
+        earningsToday: Boolean = false,
+        /** The engine to plan with (2026-09-24c) - the active one unless a caller pins one. */
+        p: DayTradingParams = DayTradingEngine.params,
+        /** Minutes since the opening bell while the session is live; -1 = not known. */
+        minutesSinceOpen: Int = -1,
+        /** The row's blended score, for [DayTradingParams.minScoreForPlan]; -1 = not known. */
+        score: Int = -1
     ): Pair<TradePlan?, String> {
         if (price <= 0.0) return null to "No live price yet."
         val vol = when {
             tech.atrIntraday > 0.0 -> tech.atrIntraday
-            tech.atr14 > 0.0 -> tech.atr14 * INTRADAY_ATR_FROM_DAILY
+            tech.atr14 > 0.0 -> tech.atr14 * p.intradayAtrFromDaily
             else -> return null to "No volatility reading yet - not enough data to size a plan."
         }
         if (vol <= 0.0) return null to "No volatility reading yet - not enough data to size a plan."
-        val buffer = maxOf(0.01, vol * BREAK_BUFFER_ATRS)
+        // TUNED FILTERS THAT NEED NO LEVELS (2026-09-24c) - all off on the original engine.
+        if (p.minScoreForPlan > 0 && score in 0 until p.minScoreForPlan) return null to
+            "Score $score is below the tuned engine's minimum of ${p.minScoreForPlan} for a plan."
+        if (p.requireBullishOpeningBar && tech.sessionLive && tech.or5High > 0.0 && !tech.openingBarBullish)
+            return null to "The first 5-minute bar did not close up - the tuned engine skips longs on that alone."
+        val buffer = maxOf(0.01, vol * p.breakBufferAtrs)
 
         // ONLY THE LIVE SESSION'S LEVELS COUNT AS THE LIVE SESSION'S - a correction caught
         // while writing this. Outside market hours the intraday readings describe a session
@@ -751,33 +777,34 @@ object ResearchScore {
         val live = tech.sessionLive
         val orHigh = if (tech.openingRangeComplete) tech.openingRangeHigh else 0.0
         val orLow = if (tech.openingRangeComplete) tech.openingRangeLow else 0.0
-        val overhead = if (live) levelsOf(
-            tech.premarketHigh to "the premarket high",
+        val L = DayTradingParams
+        val overhead = if (live) overheadOf(p,
+            Keyed(tech.premarketHigh, "the premarket high", L.LVL_PREMARKET),
             // THE FIVE-MINUTE OPENING RANGE COMES FIRST (Round 73) - it is the lowest of the
             // opening levels and therefore the earliest trigger, and it is the variant the
             // strongest published test of this setup found best while finding the 30-minute one
             // below it worst (see [DayTradingTechnicals.openingBar]). It needs no clock of its
             // own to stay honest: price passes it within minutes on any stock actually in play,
             // and the `>= price` filter below then drops it automatically.
-            tech.or5High to "the first 5-minute bar's high",
+            Keyed(tech.or5High, "the first 5-minute bar's high", L.LVL_OR5),
             // A RANGE STILL PRINTING IS NOT A LEVEL (D-5): before 10:00 "the opening-range high"
             // is only the high of day so far. The score side already required completion.
-            orHigh to "the opening-range high",
-            tech.prevHigh to "the prior session's high",
-            tech.sessionHigh to "the high of day",
-            tech.r1 to "pivot R1",
-            tech.r2 to "pivot R2"
-        ) else levelsOf(
+            Keyed(orHigh, "the opening-range high", L.LVL_OR),
+            Keyed(tech.prevHigh, "the prior session's high", L.LVL_PREV_HIGH),
+            Keyed(tech.sessionHigh, "the high of day", L.LVL_SESSION_HIGH),
+            Keyed(tech.r1, "pivot R1", L.LVL_R1),
+            Keyed(tech.r2, "pivot R2", L.LVL_R2)
+        ) else overheadOf(p,
             // BEFORE THE OPEN ONLY (full-tests audit 2026-09-22, D-L7). Outside the session this
             // reading can be one of two premarkets: THIS morning's, while it is still forming,
             // or - once today's regular session has printed (`sessionHigh` > 0 with the market
             // shut means the day is over) - a premarket that has already been and gone. An
             // evening plan is for TOMORROW, and today's premarket high is not a level tomorrow's
             // gap-and-go trades against.
-            (if (tech.sessionHigh > 0.0) 0.0 else tech.premarketHigh) to "the premarket high",
-            tech.prevHigh to "the last session's high",
-            tech.r1 to "pivot R1",
-            tech.r2 to "pivot R2"
+            Keyed(if (tech.sessionHigh > 0.0) 0.0 else tech.premarketHigh, "the premarket high", L.LVL_PREMARKET),
+            Keyed(tech.prevHigh, "the last session's high", L.LVL_PREV_HIGH),
+            Keyed(tech.r1, "pivot R1", L.LVL_R1),
+            Keyed(tech.r2, "pivot R2", L.LVL_R2)
         )
         val below = if (live) levelsOf(
             tech.vwap to "VWAP",
@@ -798,8 +825,8 @@ object ResearchScore {
             tech.s1 to "pivot S1"
         )
 
-        val extendedOverVwap = live && tech.vwap > 0.0 && (price - tech.vwap) / vol >= EXTENDED_ATRS
-        val rangeSpent = live && tech.rangeUsed >= EXTENDED_RANGE_USED
+        val extendedOverVwap = live && tech.vwap > 0.0 && (price - tech.vwap) / vol >= p.extendedAtrs
+        val rangeSpent = live && tech.rangeUsed >= p.extendedRangeUsed
 
         // ---- 1 and 2: the setup, and the price it triggers at.
         val setup: String
@@ -827,12 +854,14 @@ object ResearchScore {
             }
         }
         if (entry <= 0.0) return null to "No valid entry level found."
+        if (!p.setupEnabled(setup)) return null to
+            "The $setup setup is switched off in the tuned engine - no plan for it."
 
         // ---- 3: the stop, under the structure that would say the setup failed.
         val structural = below.filter { it.price < entry }.maxByOrNull { it.price }
         val rawRisk = structural?.let { entry - (it.price - buffer) } ?: (vol * 1.5)
-        val minRisk = maxOf(vol * MIN_RISK_ATRS, 0.01)
-        val maxRisk = maxOf(vol * MAX_RISK_ATRS, minRisk)
+        val minRisk = maxOf(vol * p.minRiskAtrs(setup), 0.01)
+        val maxRisk = maxOf(vol * p.maxRiskAtrs(setup), minRisk)
         val risk = rawRisk.coerceIn(minRisk, maxRisk)
         val stop = entry - risk
         if (stop <= 0.0) return null to "The computed stop would be at or below zero."
@@ -856,7 +885,7 @@ object ResearchScore {
         // target already. Whichever of the two is higher is the real floor for supply overhead.
         val above = maxOf(entry, price)
         val nearestAbove = overhead
-            .filter { it.price > above + risk * MIN_TARGET_STANDOFF_R }
+            .filter { it.price > above + risk * p.targetStandoffR }
             .minByOrNull { it.price }
 
         // "How much room is left in the day" is a live-session question - the same reason the
@@ -894,9 +923,9 @@ object ResearchScore {
         // PRICE, and the grid then reads "Buy at 105, target 108" with the stock trading at 110
         // while the beginner card underneath says "too late for this one today". A target under
         // the current price is not a target on either path.
-        val ceilingUsable = ceilingKnown && roomCeiling > above + risk * MIN_CEILING_REWARD_RATIO
+        val ceilingUsable = ceilingKnown && roomCeiling > above + risk * p.minCeilingR
 
-        val target: Double
+        var target: Double
         val targetFromRoom: Boolean
         when {
             // Measured, and there is no room worth trading into today.
@@ -921,10 +950,14 @@ object ResearchScore {
             }
             // Neither structure nor range: the 2:1 convention, explicitly as a last resort.
             else -> {
-                target = entry + risk * TARGET_REWARD_RISK_RATIO
+                target = entry + risk * p.fallbackTargetR
                 targetFromRoom = false
             }
         }
+        // A TUNED CAP ON THE TARGET (2026-09-24c) - off on the original engine. Applied before the
+        // "target above the price" check below, so a cap that lands under the price is no plan.
+        val capR = p.targetCapR(setup)
+        if (capR > 0.0 && target > entry + risk * capR) target = entry + risk * capR
         // AND THE SAME FLOOR ON THE LAST-RESORT PATH (second code-review pass). The two paths
         // above now measure from `above`, but the 2:1 convention below them is computed from the
         // entry alone, and on a pullback the entry sits below the last price - so with no
@@ -935,8 +968,27 @@ object ResearchScore {
         // price has already passed is not a target on ANY of the three paths.
         if (target <= above) return null to
             "No resistance level far enough above the current price for a worthwhile target."
+        // TUNED REJECTIONS THAT NEED THE FINISHED LEVELS (2026-09-24c) - off on the original engine.
+        val minRr = p.minRewardRisk(setup)
+        if (minRr > 0.0 && rewardRisk(entry, risk, target) < minRr - 1e-9) return null to
+            "Reward:risk of ${Fmt.oneDp(rewardRisk(entry, risk, target))} is below the tuned engine's " +
+                "minimum of ${Fmt.oneDp(minRr)} for a $setup."
+        val maxTrig = p.maxTriggerAtrs(setup)
+        if (maxTrig > 0.0 && entry > price && (entry - price) / vol > maxTrig) return null to
+            "The trigger is ${Fmt.oneDp((entry - price) / vol)} intraday ATRs above the price - further " +
+                "than the tuned engine's limit of ${Fmt.oneDp(maxTrig)}."
 
-        val tooLate = live && tooLateToStart(minutesLeft)
+        val tooLate = live && tooLateToStart(minutesLeft, p)
+        // THE TUNED ENGINE'S "NOT YET" WINDOWS (2026-09-24c) - neither exists on the original.
+        val waitReason = when {
+            !live -> ""
+            p.earliestEntryMinutes > 0 && minutesSinceOpen in 0 until p.earliestEntryMinutes ->
+                "Too early - the tuned engine starts no new trade in the first " +
+                    "${p.earliestEntryMinutes} minutes after the open."
+            p.avoidMiddayLull && middayLull ->
+                "Midday lull - the tuned engine starts no new trade between 11:30 and 13:30 ET."
+            else -> ""
+        }
         val plan = TradePlan(
             entry = entry,
             stop = stop,
@@ -945,9 +997,12 @@ object ResearchScore {
                 target, minutesLeft, live,
                 // The session this plan is FOR, live or not (D-7): 16:00 was assumed outside the
                 // session, so a pre-market plan on a half day said 15:50.
-                closeMinute = MarketClock.planCloseMinute(System.currentTimeMillis())
+                closeMinute = MarketClock.planCloseMinute(System.currentTimeMillis()),
+                p = p
             ),
             tooLateToStart = tooLate,
+            waitReason = waitReason,
+            entryLevel = entryLevel,
             setup = setup,
             trigger = when (setup) {
                 SETUP_RECLAIM ->
@@ -962,7 +1017,8 @@ object ResearchScore {
             },
             note = planNote(
                 price, entry, risk, target, tech, rawRisk, maxRisk,
-                minutesLeft, middayLull, earningsToday, vol, tooLate, targetFromRoom
+                minutesLeft, middayLull, earningsToday, vol, tooLate, targetFromRoom, p,
+                p.maxRiskAtrs(setup)
             )
         )
         return plan to ""
@@ -1029,9 +1085,10 @@ object ResearchScore {
         // plan already knew about NYSE half days, but this line said 15:50 at 11:00 on a day the
         // market shuts at 13:00. Ten minutes before whichever close applies; 16:00 when there is
         // no clock to ask (the Claude import path).
-        closeMinute: Int = 16 * 60
+        closeMinute: Int = 16 * 60,
+        p: DayTradingParams = DayTradingEngine.params
     ): String {
-        val flatAt = (closeMinute - 10).coerceAtLeast(0)
+        val flatAt = (closeMinute - p.flatBeforeCloseMinutes).coerceAtLeast(0)
         val flatBy = "%d:%02d".format(flatAt / 60, flatAt % 60)
         val flat = "Day trade: be flat by $flatBy ET at the latest, win or lose - never carry it " +
             "overnight, where a gap can open straight through the stop."
@@ -1039,11 +1096,12 @@ object ResearchScore {
             "behind this section says the alternative pays better on average: trail the stop up " +
             "under the move instead and let the closing bell end it, because a few trades " +
             "running far past the target are what cover the many small losers."
+        val lastEntry = p.lastEntryMinutes
         val clock = when {
             !live -> ""
-            minutesLeft in 1 until MIN_MINUTES_FOR_NEW_ENTRY ->
+            minutesLeft in 1 until lastEntry ->
                 " Only $minutesLeft minutes of the session are left - too little to start this one today."
-            minutesLeft in MIN_MINUTES_FOR_NEW_ENTRY..(MIN_MINUTES_FOR_NEW_ENTRY * 2) ->
+            minutesLeft in lastEntry..(lastEntry * 2) ->
                 " Only $minutesLeft minutes left - enough to start, but not for much to develop."
             else -> ""
         }
@@ -1074,7 +1132,9 @@ object ResearchScore {
          * an average daily range to "the next real resistance" - a level that, in that case,
          * does not exist. Caught by code review before shipping.
          */
-        targetFromRoom: Boolean
+        targetFromRoom: Boolean,
+        p: DayTradingParams = DayTradingEngine.params,
+        maxRiskAtrs: Double = p[DayTradingParams.MAX_RISK]
     ): String {
         val parts = ArrayList<String>(8)
 
@@ -1086,7 +1146,7 @@ object ResearchScore {
 
         // A trigger a long way above the last print is a different trade from the one the
         // reader thinks they are being shown - see [MAX_TRIGGER_DISTANCE_ATRS].
-        if (vol > 0.0 && entry > price && (entry - price) / vol > MAX_TRIGGER_DISTANCE_ATRS) parts.add(
+        if (vol > 0.0 && entry > price && (entry - price) / vol > p.triggerWarnAtrs) parts.add(
             "The trigger sits ${Fmt.oneDp((entry - price) / vol)} intraday ATRs above the last " +
                 "price - a long way for it to travel before this even starts, so it may simply " +
                 "never fill today"
@@ -1111,7 +1171,7 @@ object ResearchScore {
         // The other side of relaxing the old 3R cap: a target that needs a very large move is a
         // real reading of the levels AND a warning. See [MAX_REWARD_RISK_RATIO].
         val rr = rewardRisk(entry, risk, target)
-        if (rr > MAX_REWARD_RISK_RATIO) parts.add(
+        if (rr > p.bigTargetWarnR) parts.add(
             (if (targetFromRoom)
                 "A normal day's remaining range puts the target ${Fmt.oneDp(rr)}x the risk away"
             else
@@ -1128,7 +1188,7 @@ object ResearchScore {
         // hides: when real resistance sits closer than 2R, the target is placed AT it and the
         // trade is reported as the thin one it is, instead of drawing an obedient 2:1 target
         // straight through the level that is going to stop the move.
-        if (rr in 0.0..THIN_REWARD_RATIO) parts.add(
+        if (rr in 0.0..p.thinRewardR) parts.add(
             "Only ${Fmt.oneDp(rr)} to 1 - " +
                 (if (targetFromRoom)
                     "a normal day's range does not reach far enough above this entry for a 2:1 " +
@@ -1137,13 +1197,13 @@ object ResearchScore {
                     "the next resistance sits closer than a 2:1 target would") +
                 ", so this is a thin trade for the risk"
         )
-        if (tech.sessionLive && tech.rangeUsed >= EXTENDED_RANGE_USED) parts.add(
+        if (tech.sessionLive && tech.rangeUsed >= p.extendedRangeUsed) parts.add(
             "Already travelled ${(tech.rangeUsed * 100).toInt()}% of its average daily range - " +
                 "little room left today"
         )
         if (rawRisk > maxRisk * 1.05) parts.add(
             "The level that would invalidate this sits further away than a same-session stop " +
-                "should carry, so the stop is tightened to ${MAX_RISK_ATRS}x the 5-minute ATR - " +
+                "should carry, so the stop is tightened to ${maxRiskAtrs}x the 5-minute ATR - " +
                 "it can be taken out with the setup still intact"
         )
         if (!tech.sessionLive) parts.add(
@@ -1424,12 +1484,15 @@ object ResearchScore {
          * [planEntryRises]; with neither known, the live price decides, as it always did.
          */
         setup: String = "",
-        planPrice: Double = 0.0
+        planPrice: Double = 0.0,
+        /** [TradePlan.waitReason] - a tuned engine's "not yet" window (2026-09-24c). */
+        waitReason: String = "",
+        p: DayTradingParams = DayTradingEngine.params
     ): BeginnerSummary? {
         if (price <= 0.0 || entry <= 0.0 || stop <= 0.0 || target <= 0.0) return null
         val risk = entry - stop
         val rr = rewardRisk(entry, risk, target)
-        val thin = if (rr in 0.0..THIN_REWARD_RATIO)
+        val thin = if (rr in 0.0..p.thinRewardR)
             " Heads up: the likely profit here is small next to the risk, so even experienced " +
                 "traders might pass on this particular one."
         else ""
@@ -1444,6 +1507,14 @@ object ResearchScore {
                 explanation = "This kind of trade has to be finished before the market closes, " +
                     "and there isn't enough of today left for it to work out. The prices here " +
                     "are still worth a look tomorrow, but don't start it now.",
+                skip = true
+            )
+            // A TUNED "NOT YET" WINDOW (2026-09-24c) - the same rule as the clock above, earlier in
+            // the day: the levels stand, but this is not the moment to start.
+            waitReason.isNotBlank() -> BeginnerSummary(
+                headline = "Not yet - wait before starting this one.",
+                explanation = "$waitReason The prices here still apply once that window has " +
+                    "passed, if the stock hasn't already moved past them.",
                 skip = true
             )
             // The price already reached the profit target - most of the likely gain is gone.
