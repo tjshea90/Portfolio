@@ -227,3 +227,66 @@ read and may drift by a few lines.
 - Fix: in `loggableDayTradingRows` also require `now < deadline - 60 s` (compute from ms, not whole minutes);
   on 5m bars require `b.t + 300 <= entryDeadlineSec` for a fill and `b.t + 300 <= flatSec` for a held bar.
 
+### DA-14 (L) — `algorithm()` text vs the code: four statements that are not what the engine does
+
+- Where: `net/EngineTuningPrompt.kt:350-365, 366-367, 379`; `net/DayTradingParams.kt:222`; code in
+  `net/ResearchScore.kt:454` and `:1677` (`rangePos > 0.85`), `net/DayTradingTechnicals.kt:422-433`
+  (`atr14` needs >= 5 true ranges), `net/DayTradingFeatures.kt:79-91`, `net/Research.kt:630-641`.
+  1. "within 15% of the 52-week high" - the code tests `rangePos > 0.85`, the top 15% of the 52-week RANGE.
+     52-week range 50-100: the code needs price > 92.50 (7.5% under the high); the text says >= 85. The same
+     wrong sentence is in the `score.nearHighPoints` spec doc and the reason line.
+  2. "`vol` = the intraday ATR, or daily ATR x f before any intraday bars exist" - the intraday ATR is 0 until
+     SIX regular-session 5-minute bars exist (~09:55), so every plan in the first ~25 minutes is sized on
+     `atr14 x 0.10` even though intraday bars exist. Consequence for the data: `DayTradingFeatures.build` reads
+     `row.atrIntraday`, which is 0 then, so `atr`, `atrPct`, `riskAtr`, `trigAtr` and `vwapAtr` are simply absent
+     for those plans and they silently drop out of the "stop width", "trigger distance" and "price vs VWAP"
+     tables - exactly the opening trades `time.earliestEntryMinutes` would be tuned on. Log the `vol` actually
+     used (and whether it was the daily fallback) and compute the ATR features from it.
+  3. "no plan when the score is below minScore" - true only for rows with a non-zero blended score from the
+     previous tick (DA-2).
+  4. Minor: the screener also requires market cap >= $50M; "Before the open" is really "whenever the session
+     is not live" (evenings too).
+- Fix: correct the sentences (1, 2, 4), fix DA-2, and add the ATR-source feature.
+
+### DA-15 (L) — Nothing keeps `time.lastEntryMinutes` above `time.flatBeforeCloseMinutes`
+
+- Where: `net/EngineTuning.kt` `consistent()` (checks only stop floors vs ceilings).
+- Problem: bounds allow lastEntry 10..120 and flat 5..60 independently. One LARGE-tier review can move
+  `flatBeforeCloseMinutes` 10 -> 29 (35% of 55 = 19.25, floored) and `lastEntryMinutes` 30 -> 10 (within 38.5).
+  Then plans are startable (and logged) from 15:31 to 15:50 while the card's own exit line says "be flat by
+  15:31" - an instruction already in the past. The grader handles it (no bar before flat -> NO_ENTRY), but the
+  card is self-contradictory and the log fills with guaranteed NO_ENTRY rows.
+- Fix: in `consistent()` require `lastEntryMinutes >= flatBeforeCloseMinutes + 15` (or similar), and state the
+  constraint in the prompt's rules.
+
+### DA-16 (L) — A value with more than 3 decimals can never be changed again: the prompt shows it rounded, and `from` must match to 1e-6
+
+- Where: `net/EngineTuning.kt:355` (`fmt` = 3 decimals, HALF_UP) used by `describe` for the prompt's parameter
+  table and algorithm text; `:400` (`abs(c.from - current) > 1e-6` -> REFUSED).
+- Problem: an accepted value is stored exactly as Claude wrote it (e.g. `"to": 2.3333`), and LIMITED steps can
+  produce 4 decimals themselves (`vol.intradayAtrFromDaily` 0.10 + 0.35 x 0.25 = 0.1875 at the LARGE tier). The
+  next prompt shows "0.188"/"2.333"; Claude copies that as `from`; the review refuses it with the message
+  "Claude read it as 0.188, but it is 0.188 now - the prompt is out of date" - every round, forever. Fails safe
+  (no wrong change), but blocks rule 4's "every round builds on the last" for that parameter.
+- Fix: round every applied value to the display precision (3 decimals, or the spec's natural step) before
+  `with()`, or compare `from` against `current` with a tolerance of half a display unit (5e-4).
+
+### DA-17 (L, unsure how often Yahoo does this) — A settled day's bar series is treated as complete to the flat time without checking it reaches it
+
+- Where: `net/DayTradingGrader.kt` `grade()` (`complete = decidedThroughSec >= flatSec`, then
+  `runPosition(..., complete = true)` closes at `bars.last().close`); `ui/PortfolioViewModel.kt` resolve path.
+- Problem: if a settled day's response is truncated or has a long hole (the last bar at 13:40 for a liquid
+  $2+/1M-volume name), an open trade is "closed at the flat time" at the 13:40 price, and an entry that would
+  have filled later is NO_ENTRY - both written as FINAL at the current grader version, so never re-checked.
+- Fix: for a settled day require the last bar to start within a few bar-lengths of `flatSec` (e.g.
+  `bars.last().t >= flatSec - 15 * 60`) or of the day's close, else treat the fetch as failed (retry next time)
+  rather than decide from it.
+
+### DA-18 (L) — Type leniency in `num()`: a boolean or "on" becomes 1.0 for a NUMBER parameter
+
+- Where: `net/EngineTuning.kt:271-281`.
+- Problem: `"to": true` (or `"on"`) on `target.capR`, `filter.minRewardRisk`, `setup.<s>.maxRiskAtrs` ... is
+  read as 1.0, which is in bounds - a switch that turns on a 1R target cap / 1.0-ATR stop ceiling that Claude
+  never wrote as a number. (MEDIUM tier only, via the switch path, so combined with DA-4 it is not step-limited.)
+- Fix: accept booleans / "on" / "off" only for `Kind.BOOL` specs; for NUMBER/INT require a number.
+
