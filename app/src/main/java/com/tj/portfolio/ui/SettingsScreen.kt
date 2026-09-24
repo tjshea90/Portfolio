@@ -88,6 +88,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
     var autoBackup by remember { mutableStateOf(vm.autoBackupOn()) }
     var costMethod by remember { mutableStateOf(vm.costMethod()) }
     var inAppReader by remember { mutableStateOf(vm.inAppReader()) }
+    var dtAlerts by remember { mutableStateOf(vm.dayTradingAlerts()) }
     var blockAds by remember { mutableStateOf(vm.blockAds()) }
     var declutter by remember { mutableStateOf(vm.declutter()) }
     var autoReader by remember { mutableStateOf(vm.autoReader()) }
@@ -380,6 +381,24 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
+        SectionHeader("Day Trading")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Say when a plan's price is reached")
+                Text(
+                    "While the Day Trading list or a pick is open, a short message when a " +
+                        "stock reaches its buy price, its stop or its target - once per level " +
+                        "per day. Uses the prices the list already fetches, so no extra data.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = dtAlerts,
+                onCheckedChange = { dtAlerts = it; vm.setSettingB(Keys.DT_ALERTS, it) }
             )
         }
 

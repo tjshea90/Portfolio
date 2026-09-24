@@ -1338,6 +1338,29 @@ internal fun tickRefreshedList(
 internal fun loggedPlanPrice(r: com.tj.portfolio.data.ResearchRow): Double =
     r.planPrice.takeIf { r.planByClaude && it > 0.0 } ?: r.price
 
+/**
+ * Which of a plan's levels the price just CROSSED between two ticks of the same plan - (level
+ * key, message) pairs for [PortfolioViewModel]'s level alerts. Only a real crossing (the
+ * previous tick on the other side) counts, so a price already past a level says nothing, and a
+ * plan that changed between the two ticks is not compared at all.
+ */
+internal fun planCrossings(
+    prev: com.tj.portfolio.data.ResearchRow?,
+    now: com.tj.portfolio.data.ResearchRow
+): List<Pair<String, String>> {
+    if (prev == null || prev.price <= 0.0 || now.price <= 0.0) return emptyList()
+    if (now.entryPrice <= 0.0 || now.stopPrice <= 0.0 || now.targetPrice <= 0.0) return emptyList()
+    if (prev.entryPrice != now.entryPrice || prev.stopPrice != now.stopPrice ||
+        prev.targetPrice != now.targetPrice) return emptyList()
+    val a = prev.price; val b = now.price
+    fun crossed(level: Double) = (a < level && b >= level) || (a > level && b <= level)
+    val out = ArrayList<Pair<String, String>>()
+    if (crossed(now.entryPrice)) out.add("entry" to "${now.symbol} reached its buy price ${Fmt.price(now.entryPrice)}")
+    if (a > now.stopPrice && b <= now.stopPrice) out.add("stop" to "${now.symbol} hit its stop ${Fmt.price(now.stopPrice)}")
+    if (a < now.targetPrice && b >= now.targetPrice) out.add("target" to "${now.symbol} reached its target ${Fmt.price(now.targetPrice)}")
+    return out
+}
+
 /** Yahoo said this is an ordinary share - it has no fund holdings to ask about (2026-09-24b). */
 internal fun holdingsNotNeeded(q: Quote?): Boolean = q?.quoteType == "EQUITY"
 
@@ -2854,6 +2877,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * site that will not render in a WebView can still be read in a real browser.
      */
     fun inAppReader() = db.getB(Keys.IN_APP_READER, true)
+    fun dayTradingAlerts() = db.getB(Keys.DT_ALERTS, true)
 
     /**
      * Reader behaviour. Ads and decluttering default ON - they are what TJ asked for and the
@@ -7196,6 +7220,31 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** "sym|level|day" already announced - each level speaks once a day (2026-09-24b). */
+    private val announcedLevels = java.util.Collections.synchronizedSet(HashSet<String>())
+
+    /**
+     * IN-APP LEVEL ALERTS (Day Trading idea 4, 2026-09-24b): while the live loop is running
+     * anyway, say when a plan's buy, stop or target price was just reached. No request of its
+     * own, nothing in the background - it rides the sweep that already fetched the prices, and
+     * only for rows re-planned from today's bars.
+     */
+    private fun announceLevels(
+        before: List<com.tj.portfolio.data.ResearchRow>,
+        after: List<com.tj.portfolio.data.ResearchRow>,
+        live: Set<String>
+    ) {
+        if (live.isEmpty() || !dayTradingAlerts()) return
+        val prev = before.associateBy { it.symbol }
+        val day = com.tj.portfolio.net.MarketClock.dayKey()
+        val said = after.filter { it.symbol in live }.flatMap { r ->
+            planCrossings(prev[r.symbol], r).filter { announcedLevels.add("${r.symbol}|${it.first}|$day") }
+                .map { it.second }
+        }
+        if (said.isNotEmpty()) toast(said.take(3).joinToString("\n") +
+            (if (said.size > 3) "\n+${said.size - 3} more" else ""))
+    }
+
     /** Today's logged plan for [symbol], if the log took one (2026-09-24b) - off the main thread. */
     suspend fun loggedPlanToday(symbol: String): com.tj.portfolio.data.DayTradingLogEntry? =
         withContext(Dispatchers.IO) {
@@ -8291,6 +8340,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // "not empty" - and on a failed first 09:30 tick its pre-market plan and price were
             // logged, and the one-row-per-day rule then locked the real plan out.
             captureDayTradingRecommendations(finalRows, replannedLive(fetched))
+            announceLevels(rows, finalRows, replannedLive(fetched))
         }
     }
 

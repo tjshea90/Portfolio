@@ -2209,6 +2209,8 @@ object Keys {
     const val AUTOBAK_CLEANED = "autobackup_cleaned"
     const val AUTO_BACKUP_AT = "auto_backup_at"
     const val IN_APP_READER = "in_app_reader"
+    /** Toast when a Day Trading plan's buy, stop or target price is reached (2026-09-24b). */
+    const val DT_ALERTS = "dt_level_alerts"
 
     /**
      * A Claude screenshot extraction awaiting review, JSON-encoded (full-tests audit,
