@@ -277,11 +277,67 @@ object DayTradingGrader {
     }
 
     /**
+     * A settled day's series must reach this close to the flat time before it is trusted as the
+     * whole day (audit DA-17): a reply that stops at 13:40 for a liquid stock is a truncated one,
+     * and closing a trade "at the flat time" at the 13:40 price, or calling an entry that would
+     * have filled at 14:10 "never filled", would be deciding from bars that are not there.
+     */
+    internal const val TRUNCATED_SEC = 15 * 60L
+
+    /**
+     * Bars whose open the feed did not give (or gave outside the bar's own range) take the
+     * previous bar's close, kept inside their own range, as their open (audit DA-8). One-minute
+     * bars are continuous, so that is where trading in the bar began to within a tick or two -
+     * and, unlike the old "no open, no gap" reading, it never prices a fill or a stop exit at a
+     * level the bar did not trade at. The day's first bar has no previous one and keeps NaN;
+     * [grade] prices it against the trade.
+     */
+    internal fun withKnownOpens(bars: List<IntradayBar>): List<IntradayBar> {
+        if (bars.none { !it.open.isFinite() }) return bars
+        return bars.mapIndexed { i, b ->
+            if (b.open.isFinite() || i == 0) b
+            else b.copy(open = bars[i - 1].close.coerceIn(b.low, b.high))
+        }
+    }
+
+    /**
+     * The mirror of [isSpikeHigh] for a BUY-LIMIT's fill (audit DA-7): bar [i]'s low is a lone bad
+     * print under [level] - a wick below the body over six median ranges and 1.5% of the price,
+     * with neither neighbour reaching [level]. The same erroneous tick the target is protected
+     * from must not open a position at a limit nothing traded at, and then have the rest of the
+     * day credited to it. (A spike still counts against a STOP - that is the conservative side.)
+     */
+    internal fun isSpikeLow(bars: List<IntradayBar>, i: Int, level: Double, median: Double): Boolean {
+        val b = bars[i]
+        val body = if (b.open.isFinite()) minOf(b.open, b.close) else b.close
+        val wick = body - b.low
+        if (median <= 0.0 || wick <= SPIKE_MEDIANS * median || wick <= SPIKE_PRICE_FRACTION * body) return false
+        val prevReaches = i > 0 && bars[i - 1].low <= level
+        val nextReaches = i + 1 < bars.size && bars[i + 1].low <= level
+        return !prevReaches && !nextReaches
+    }
+
+    /**
+     * What one grid variant, or the verdict itself, did to the ACCOUNT: the fraction of equity
+     * gained or lost, in percent, with the position sized the way the card sizes it
+     * ([ResearchScore.dayTradeSharesPerEquity] - 1% risk, at most 25% of the account in one
+     * stock) against [stop]. Audit DA-6: that 25% cap is what sizes most day trades, and under it
+     * a tighter stop raises the R of a trade without making the account a cent more, so the
+     * grid is measured in what the account made, not in R.
+     */
+    fun accountPct(entry: Double, stop: Double, paid: Double, got: Double): Double =
+        ResearchScore.dayTradeSharesPerEquity(entry, stop) * (got - paid) * 100.0
+
+    /**
      * The full grade of one plan against one day's bars.
      *
      * [decidedThroughSec]: bars are known to be complete up to here (epoch s) - `Long.MAX_VALUE`
-     * for a settled session, "now" for today's. It decides when "no fill yet" becomes "expired"
-     * and "still open" becomes "closed at the flat time". [res] is 1 or 5 (minutes per bar).
+     * for a settled session, 0 for today's (only a stop or a target can decide a trade then). It
+     * decides when "no fill yet" becomes "expired" and "still open" becomes "closed at the flat
+     * time". [res] is 1 or 5 (minutes per bar).
+     *
+     * A PENDING answer for a settled session means its series was too short to decide from
+     * ([TRUNCATED_SEC]) - the caller treats that like a failed fetch, never as a verdict.
      */
     fun grade(
         spec: Spec,
@@ -291,31 +347,58 @@ object DayTradingGrader {
         spikeFilter: Boolean = true,
         withGrid: Boolean = true,
         /** The trade-through a limit needs; 0 only for [DayTradingEval.evaluateResolved]'s touch rules. */
-        tk: Double = tick(spec.entry)
+        tk: Double = tick(spec.entry),
+        /** Fill a missing open from the previous close ([withKnownOpens]); off only for the touch rules. */
+        realOpens: Boolean = true
     ): Graded {
-        val day = bars.filter { it.t < spec.flatSec }.sortedBy { it.t }
+        val barSec = res.coerceAtLeast(1) * 60L
+        // A BAR COUNTS ONLY WHEN IT ENDS BY THE CUT-OFF (audit DA-13): on five-minute bars a
+        // tuned flat time of 15:47 used to keep the 15:45 bar - trading, and holding, three
+        // minutes past the time the card said to be out. The same for the entry deadline below.
+        val sorted = bars.filter { spec.flatSec == Long.MAX_VALUE || it.t + barSec <= spec.flatSec }.sortedBy { it.t }
+        val day = if (realOpens) withKnownOpens(sorted) else sorted
         val median = medianRange(day)
         val start = day.indexOfFirst { it.t * 1000L >= spec.recordedAt }
-        val complete = decidedThroughSec >= spec.flatSec
-        val entryWindowOver = decidedThroughSec >= spec.entryDeadlineSec
+        // HOW FAR THE BARS REALLY GO. A settled day is decided through its flat time only when
+        // its last bar gets there (DA-17); otherwise only as far as the data does.
+        val through = if (decidedThroughSec == Long.MAX_VALUE && spec.flatSec != Long.MAX_VALUE) {
+            val last = day.lastOrNull()?.t ?: 0L
+            if (last >= spec.flatSec - TRUNCATED_SEC) Long.MAX_VALUE else last + barSec
+        } else decidedThroughSec
+        val complete = through >= spec.flatSec
+        val entryWindowOver = through >= spec.entryDeadlineSec
 
         // ---- the entry
         var fillIdx = -1
         var fill = 0.0
+        var fillAmbiguous = false
         if (start >= 0) for (i in start until day.size) {
             val b = day[i]
-            if (b.t >= spec.entryDeadlineSec) break
+            if (spec.entryDeadlineSec != Long.MAX_VALUE && b.t + barSec > spec.entryDeadlineSec) break
+            val openKnown = b.open.isFinite()
             if (spec.rises) {
                 if (b.high >= spec.entry) {
                     fillIdx = i
-                    fill = if (b.open.isFinite() && b.open >= spec.entry) b.open else spec.entry
+                    fill = when {
+                        openKnown && b.open >= spec.entry -> b.open
+                        // The whole bar traded above the trigger and where it began is unknown
+                        // (the day's first bar): read against the trade - its high.
+                        realOpens && !openKnown && b.low > spec.entry -> { fillAmbiguous = true; b.high }
+                        else -> spec.entry
+                    }
                     break
                 }
             } else {
-                val opensBelow = b.open.isFinite() && b.open < spec.entry
-                if (b.low <= spec.entry - tk || opensBelow) {
+                val opensBelow = openKnown && b.open < spec.entry
+                val tradedThrough = b.low <= spec.entry - tk &&
+                    !(spikeFilter && isSpikeLow(day, i, spec.entry - tk, median))
+                if (tradedThrough || opensBelow) {
                     fillIdx = i
-                    fill = if (opensBelow) b.open else spec.entry
+                    fill = when {
+                        opensBelow -> b.open
+                        realOpens && !openKnown && b.high < spec.entry -> { fillAmbiguous = true; b.high }
+                        else -> spec.entry
+                    }
                     break
                 }
             }
@@ -330,7 +413,8 @@ object DayTradingGrader {
         // ---- the exit
         val exit = runPosition(day, fillIdx, fill, spec.rises, spec.stop, spec.target, tk, complete, spikeFilter, median)
         if (exit.outcome == DayTradingOutcome.PENDING)
-            return Graded(DayTradingOutcome.PENDING, null, exit.ambiguous, null)
+            return Graded(DayTradingOutcome.PENDING, null, exit.ambiguous || fillAmbiguous, null)
+        val ambiguous = exit.ambiguous || fillAmbiguous
 
         val risk = spec.risk
         fun inR(v: Double) = if (risk > 1e-9) v / risk else 0.0
@@ -347,8 +431,19 @@ object DayTradingGrader {
         }
         var worst = 0.0
         for (i in fillIdx..exit.idx) worst = maxOf(worst, fill - day[i].low)
-        val hold = runPosition(day, fillIdx, fill, spec.rises, spec.stop, null, tk, true, spikeFilter, median)
 
+        // THE REST OF THE DAY'S MEASURES NEED THE REST OF THE DAY (audit DA-1). Mid-session, or
+        // on a series that stops short, the verdict stands but "hold to the flat time", "how far
+        // it ran" and the grid are left out - measured to the last bar they would have claimed
+        // the stock stopped moving at whatever time the check happened to run.
+        if (!complete) {
+            return Graded(exit.outcome, exit.price, ambiguous, Detail(
+                res = res, fill = fill, fillAt = day[fillIdx].t, exitAt = day[exit.idx].t, why = exit.reason,
+                mfeR = inR(mfeTo(exit.idx)), maeR = inR(worst), ambiguous = ambiguous, partial = true
+            ))
+        }
+        val hold = runPosition(day, fillIdx, fill, spec.rises, spec.stop, null, tk, true, spikeFilter, median)
+        val paid = DayTradingEval.Costs.entryFill(fill)
         val grid = if (!withGrid || risk <= 1e-9) emptyList() else GRID_STOPS.map { s ->
             val stopV = spec.entry - s * risk
             GRID_TARGETS.map { t ->
@@ -358,9 +453,7 @@ object DayTradingGrader {
                     else -> spec.entry + t * risk
                 }
                 val e = runPosition(day, fillIdx, fill, spec.rises, stopV, tgt, tk, true, spikeFilter, median)
-                val paid = DayTradingEval.Costs.entryFill(fill)
-                val got = DayTradingEval.Costs.exitFill(e.outcome, e.price ?: fill)
-                (got - paid) / (s * risk)
+                accountPct(spec.entry, stopV, paid, DayTradingEval.Costs.exitFill(e.outcome, e.price ?: fill))
             }
         }
         val detail = Detail(
@@ -374,8 +467,21 @@ object DayTradingGrader {
             mfeFlatR = inR(mfeTo(day.size - 1)),
             holdR = inR((hold.price ?: fill) - fill),
             grid = grid,
-            ambiguous = exit.ambiguous
+            ambiguous = ambiguous
         )
-        return Graded(exit.outcome, exit.price, exit.ambiguous, detail)
+        return Graded(exit.outcome, exit.price, ambiguous, detail)
+    }
+
+    /**
+     * Should a decided row be graded again? Once, after its session settles, when it was decided
+     * mid-session with a [Detail.partial] working (audit DA-1) - its verdict cannot change, but its
+     * grid, hold and run measures can now be taken over the whole day. A settled re-grade that is
+     * still partial (the day's series stops short) is not asked again.
+     */
+    fun needsSettledRegrade(evalDetail: String?, evaluatedAt: Long?, tradingDay: String, now: Long): Boolean {
+        if (!Detail.isPartial(evalDetail)) return false
+        val bounds = DayTradingEval.sessionBoundsMs(tradingDay) ?: return false
+        val settledAt = bounds.second + DayTradingEval.SETTLE_GRACE_MS
+        return now >= settledAt && (evaluatedAt ?: 0L) < settledAt
     }
 }
