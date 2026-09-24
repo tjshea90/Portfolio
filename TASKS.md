@@ -18,8 +18,8 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       with the Release link; otherwise resume from the first [ ] below and finish, unprompted.
       If it is past 13:33 UTC 2026-09-24, the boxes below are not all ticked, and no session is
       working on it: any session reading this should just resume and finish the full tests.
-- [ ] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
-      (checkinit ok. Suite hit Maven Central 429 -> container-local
+- [x] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+      RESULT: checkinit ok; suite 1337 tests / 0 failures (4m02s). (checkinit ok. Suite hit Maven Central 429 -> container-local
       ~/.gradle/init.d/central-mirror.gradle -> Google's Central mirror, also for Robolectric)
 - [ ] 7 parallel read-only audits (launched ~session start 2026-09-24); each writes its FULL report to
       audits/2026-09-24/{scoring,daytrading,network,persistence,charts,screens,lifecycle}.md
@@ -27,6 +27,11 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       agent did not finish -> re-run just that one). Agents: no network, no gradle, no git.
       A report is complete ONLY if its last line is `## END OF REPORT (complete)`; a file
       without it is partial -> re-run that agent (it may keep the partial file as a head start).
+- [ ] T-1 (own finding, test hermeticity): VM/Robolectric tests reach the LIVE network from
+      whatever machine runs the suite (container proxy, GitHub runner) - yesterday's
+      WatchSinceAddedTest flake; BackgroundTest's comment assumes "No network in a unit test".
+      Fix: test-only system property gate in net/Http.kt get()+postJson(), set by
+      app/build.gradle.kts testOptions for every unit test. Never set on a device.
 - [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
       tests. Tick each ID here when fixed+tested, or mark "no change" with the reason.
 - [ ] Re-run the full suite; re-check anything a fix touched
