@@ -27,11 +27,13 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       agent did not finish -> re-run just that one). Agents: no network, no gradle, no git.
       A report is complete ONLY if its last line is `## END OF REPORT (complete)`; a file
       without it is partial -> re-run that agent (it may keep the partial file as a head start).
-- [ ] T-1 (own finding, test hermeticity): VM/Robolectric tests reach the LIVE network from
+- [x] T-1 (own finding, test hermeticity): VM/Robolectric tests reach the LIVE network from
       whatever machine runs the suite (container proxy, GitHub runner) - yesterday's
       WatchSinceAddedTest flake; BackgroundTest's comment assumes "No network in a unit test".
       Fix: test-only system property gate in net/Http.kt get()+postJson(), set by
       app/build.gradle.kts testOptions for every unit test. Never set on a device.
+      DONE: OfflineGateTest (4); full suite with gate: only NetLogicTest's 127.0.0.2-5 cases
+      failed -> gate now allows all of 127/8; NetLogicTest 29/0 + OfflineGateTest 4/0.
 - [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
       tests. Tick each ID here when fixed+tested, or mark "no change" with the reason.
 - [ ] Re-run the full suite; re-check anything a fix touched
