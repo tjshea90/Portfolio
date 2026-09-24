@@ -202,7 +202,10 @@ say so in notes. Numbers must not contain commas or currency symbols."""
             }))
         }
 
-        val r = Http.postJson("$BASE/messages", body.toString(), headers(key))
+        // An 8,000-token vision reply is not streamed either - the 180 s default could time out
+        // client-side while the server finishes, and bills (N-10).
+        val r = Http.postJson("$BASE/messages", body.toString(), headers(key),
+            timeoutMs = LONG_REPLY_TIMEOUT_MS)
         if (!r.ok) return ExtractResult(emptyList(), "", apiError(r.code, r.body), r.body)
 
         val text = textOf(r.body)
@@ -528,6 +531,7 @@ Include one entry in "stocks" for every symbol in the portfolio with shares > 0.
         } catch (e: Exception) { body.take(300) }
         return when (code) {
             401 -> "Invalid API key (401). Check the key in Settings."
+            403 -> "Not allowed (403): ${msg.ifBlank { "this key cannot use that model or feature" }}"
             400 -> "Request rejected (400): $msg"
             404 -> "Model not found (404). Pick a different model in Settings."
             429 -> "Rate limited (429). Wait a moment and try again."

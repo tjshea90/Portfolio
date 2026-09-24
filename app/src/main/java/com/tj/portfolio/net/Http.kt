@@ -756,9 +756,13 @@ object Http {
                 coroutineContext.ensureActive()   // same window as get()
                 conn.outputStream.use { it.write(json.toByteArray(Charsets.UTF_8)) }
                 val code = conn.responseCode
-                if (code == 429 || code == 503 || code == 403) {
+                // ONLY A REAL THROTTLE ARMS THE COOLDOWN, AND THE ERROR BODY IS ALWAYS READ
+                // (full test 2026-09-24, N-10). Anthropic's 403 is `permission_error` - the key
+                // cannot use that model or feature - not a rate limit: it showed an empty "API
+                // error 403:" and the next tap within 30 s got "rate limited, backing off", so
+                // the real cause was never shown. 529 is Anthropic's "overloaded".
+                if (code == 429 || code == 503 || code == 529) {
                     noteRateLimited(host, parseRetryAfter(conn.getHeaderField("Retry-After")))
-                    return@withContext HttpResult(code, "")
                 }
                 val stream = if (code in 200..299) conn.inputStream else conn.errorStream
                 // postJson results are never cached, so completeness is not consulted here.
