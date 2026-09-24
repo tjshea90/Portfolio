@@ -197,7 +197,16 @@ fun FeedScreen(
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline)
 
-        Refreshable(refreshing = state.pulling(PULL_FEED), onRefresh = { vm.refreshFeed(manual = true) }) {
+        Refreshable(refreshing = state.pulling(PULL_FEED), onRefresh = {
+            vm.refreshFeed(manual = true)
+            // The All-companies list has its own store, which `refreshFeed` never touches -
+            // and its empty state tells Tj to "pull down to try again" (full test 2026-09-24,
+            // U-2). An empty list is the only case that needs it: a filled one grows by
+            // "Load more", and re-fetching page one under it would reset his place.
+            if (filter == F_INSIDER && source == InsiderSource.ALL_COMPANIES) {
+                vm.refreshMarketInsidersIfEmpty()
+            }
+        }) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
 
                 if (filter == F_WSB) {

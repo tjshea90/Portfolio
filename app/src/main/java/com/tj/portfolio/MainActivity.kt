@@ -440,8 +440,13 @@ fun App() {
     // own, and passing "a stock is open" as "a headline screen is visible" made opening one
     // stock sweep the whole portfolio every three minutes for nothing. See
     // `PortfolioViewModel.newsSymbol`.
-    LaunchedEffect(tab, detailNow) {
-        vm.setNewsVisible(visible = tab == TAB_FEED, detailSymbol = detailNow)
+    LaunchedEffect(tab, detailNow, readerNow) {
+        vm.setNewsVisible(
+            visible = com.tj.portfolio.ui.feedListVisible(
+                onFeedTab = tab == TAB_FEED, detail = detailNow, readerOpen = readerNow != null
+            ),
+            detailSymbol = detailNow
+        )
     }
 
     Scaffold(

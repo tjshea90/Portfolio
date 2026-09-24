@@ -251,6 +251,16 @@ private const val SOCIAL_REFRESH_MS = 15 * 60 * 1000L
  * "which prices are being looked at", not on the navigation layout, so re-ordering or adding
  * a tab cannot silently change how much the app asks of its data providers.
  */
+/**
+ * Whether the Feed's headline LIST is on screen (full test 2026-09-24, U-3). The tab being
+ * selected is not enough: an article in the reader or a stock opened from a Feed row covers
+ * the list, and while it did, every feed tick still pulled every followed symbol's headlines
+ * plus the seven market-wide feeds - about 25 requests every three minutes for a list nobody
+ * could see. Coming back uncovers it, and `setNewsVisible`'s arriving edge refreshes it if due.
+ */
+internal fun feedListVisible(onFeedTab: Boolean, detail: String?, readerOpen: Boolean): Boolean =
+    onFeedTab && detail == null && !readerOpen
+
 sealed interface VisibleScope {
     /** The holdings list - the portfolio header and rows. */
     data object Portfolio : VisibleScope
