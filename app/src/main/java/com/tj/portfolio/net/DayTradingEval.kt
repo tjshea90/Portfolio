@@ -55,13 +55,18 @@ object DayTradingEval {
         return et.hour * 60 + et.minute < MarketClock.closeMinuteAt(tSec * 1000L) - 10
     }
 
-    suspend fun fetchDaySeries(symbol: String, tradingDay: String): List<IntradayBar>? {
+    suspend fun fetchDaySeries(
+        symbol: String,
+        tradingDay: String,
+        /** "5m" normally; "1m" only to settle a bar [evaluateResolved] could not (2026-09-24b). */
+        interval: String = "5m"
+    ): List<IntradayBar>? {
         val bounds = sessionBoundsMs(tradingDay) ?: return null
         val period1 = bounds.first / 1000L
         val period2 = bounds.second / 1000L
         for (host in listOf("query1", "query2")) {
             val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
-                MarketData.enc(symbol) + "?period1=$period1&period2=$period2&interval=5m"
+                MarketData.enc(symbol) + "?period1=$period1&period2=$period2&interval=$interval"
             // CONDITIONAL in case Yahoo ever sends a validator for this CLOSED, immutable window -
             // but as of 2026-09-23 its chart endpoint sends none, so this is a full download per
             // press (N-1); what bounds the cost is the per-press cap in `evaluateDayTradingLog`.
@@ -233,7 +238,34 @@ object DayTradingEval {
         recordedAt: Long,
         bars: List<IntradayBar>,
         sessionStillOpen: Boolean
-    ): Pair<String, Double?> {
+    ): Pair<String, Double?> = evaluateResolved(
+        setup, entry, stop, target, priceAtRecommendation, recordedAt, bars, sessionStillOpen
+    ).let { it.outcome to it.price }
+
+    /**
+     * [evaluate]'s answer, and whether it rests on a bar whose INSIDE decides it (2026-09-24b,
+     * the 09-19 "needs Tj's call" item, which Tj settled: resolve it, pessimistic only when it
+     * cannot be). A 5-minute high and low cannot say which came first, so three cases are
+     * genuinely unknown from them:
+     *  - a rising entry's own trigger bar that also went below the stop (stopped out after the
+     *    fill, or dipped first and filled after - a loss either way was the old answer);
+     *  - any bar that touched BOTH the stop and the target (stop first was the old answer);
+     *  - a falling entry's trigger bar that also reached the target (deferred to later bars).
+     * [ambiguous] true sends the caller to the day's ONE-MINUTE bars, which settle almost every
+     * such case; with none available the conservative answer above stands.
+     */
+    class Resolved(val outcome: String, val price: Double?, val ambiguous: Boolean)
+
+    fun evaluateResolved(
+        setup: String,
+        entry: Double,
+        stop: Double,
+        target: Double,
+        priceAtRecommendation: Double,
+        recordedAt: Long,
+        bars: List<IntradayBar>,
+        sessionStillOpen: Boolean
+    ): Resolved {
         // A BAR ALREADY UNDER WAY WHEN recordedAt LANDS IS EXCLUDED WHOLE, not sliced at the
         // moment of recording - [IntradayBar] carries no `open`, so there is no way to tell how
         // much of a straddled bar's high/low happened before vs. after recordedAt. This can
@@ -248,14 +280,17 @@ object DayTradingEval {
         val rises = entryRises(setup, entry, priceAtRecommendation)
         val entryIndex = after.indexOfFirst { bar -> if (rises) bar.high >= entry else bar.low <= entry }
         if (entryIndex < 0) {
-            return (if (sessionStillOpen) DayTradingOutcome.PENDING else DayTradingOutcome.NO_ENTRY) to null
+            return Resolved(
+                if (sessionStillOpen) DayTradingOutcome.PENDING else DayTradingOutcome.NO_ENTRY, null, false)
         }
+        var deferredWin = false
         for (i in entryIndex until after.size) {
             val bar = after[i]
             // BOTH TARGET AND STOP REACHABLE IN THE SAME BAR - checked STOP first, always, so
             // this can never credit a win it did not actually prove happened. See this file's
             // own header on why a 5-minute high/low cannot say which came first inside it.
-            if (bar.low <= stop) return DayTradingOutcome.LOSS to stop
+            if (bar.low <= stop) return Resolved(DayTradingOutcome.LOSS, stop,
+                ambiguous = deferredWin || (i == entryIndex && rises) || bar.high >= target)
             // A FALLING (PULLBACK) ENTRY'S OWN TRIGGER BAR IS THE ONE CASE WHERE THE TARGET
             // CHECK ABOVE IS ITSELF AMBIGUOUS, not just the stop/target pair. Entry there
             // triggers off the bar's LOW (price fell to the buy-limit); target is read off the
@@ -271,16 +306,29 @@ object DayTradingEval {
             // rather than not at all, and one that never really filled before retracing is
             // never credited - both err toward under-, not over-, crediting the strategy.
             val targetProvable = rises || i > entryIndex
-            if (targetProvable && bar.high >= target) return DayTradingOutcome.WIN to target
+            if (targetProvable && bar.high >= target) return Resolved(DayTradingOutcome.WIN, target, false)
+            if (!targetProvable && bar.high >= target) deferredWin = true
         }
-        if (sessionStillOpen) return DayTradingOutcome.PENDING to null
+        if (sessionStillOpen) return Resolved(DayTradingOutcome.PENDING, null, deferredWin)
         // A DAY TRADE IS FLAT BEFORE THE CLOSE (TradePlan's own rule) - simulated the same way
         // here: neither level was reached, so the trade is marked closed at the session's own
         // last print rather than left open indefinitely. `after` is guaranteed non-empty here -
         // `entryIndex >= 0` only ever comes from a real match inside it.
         val lastClose = after.last().close
-        return (if (lastClose > entry) DayTradingOutcome.CLOSED_PROFIT else DayTradingOutcome.CLOSED_LOSS) to
-            lastClose
+        return Resolved(
+            if (lastClose > entry) DayTradingOutcome.CLOSED_PROFIT else DayTradingOutcome.CLOSED_LOSS,
+            lastClose, deferredWin)
+    }
+
+    /**
+     * How far back Yahoo keeps ONE-MINUTE bars - 30 days, one short of it to stay clear of the
+     * edge. Past it an ambiguous bar keeps its conservative 5-minute answer.
+     */
+    const val ONE_MINUTE_RETENTION_DAYS = 29
+
+    fun oneMinuteStillAvailable(tradingDay: String, now: Long = System.currentTimeMillis()): Boolean {
+        val bounds = sessionBoundsMs(tradingDay) ?: return false
+        return (now - bounds.second) <= ONE_MINUTE_RETENTION_DAYS * 86_400_000L
     }
 
     /**

@@ -7229,12 +7229,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // NOTHING FROM THE PLAN'S LAST TEN MINUTES (full test 2026-09-24, D-11): it says "be flat by
         // 15:50" (12:50 on a half day), so a stop or target touched at 15:52 is not this trade's,
         // and an unresolved trade closes at the 15:50 print, not the 16:00 one.
-        val tradable = bars.filter { com.tj.portfolio.net.DayTradingEval.beforeFlatTime(it.t) }
-        val (outcome, exitPrice) = com.tj.portfolio.net.DayTradingEval.evaluate(
+        val E = com.tj.portfolio.net.DayTradingEval
+        fun judge(b: List<com.tj.portfolio.net.DayTradingEval.IntradayBar>) = E.evaluateResolved(
             entry.setup, entry.entry, entry.stop, entry.target, entry.priceAtRecommendation,
-            entry.recordedAt, tradable, stillOpen
+            entry.recordedAt, b.filter { E.beforeFlatTime(it.t) }, stillOpen
         )
-        db.setDayTradingOutcome(entry.id, outcome, exitPrice)
+        var verdict = judge(bars)
+        // ---- A BAR THAT CANNOT SAY WHICH CAME FIRST IS ASKED AGAIN AT ONE MINUTE (2026-09-24b).
+        // The 5-minute answer is kept when the finer bars are gone (past ~30 days), cannot be
+        // fetched, or are no clearer - never a guess in either direction.
+        if (verdict.ambiguous && E.oneMinuteStillAvailable(entry.tradingDay)) {
+            val fine = runCatching { E.fetchDaySeries(entry.symbol, entry.tradingDay, interval = "1m") }.getOrNull()
+            if (!fine.isNullOrEmpty()) verdict = judge(fine)
+        }
+        db.setDayTradingOutcome(entry.id, verdict.outcome, verdict.price)
     }
 
     /**
