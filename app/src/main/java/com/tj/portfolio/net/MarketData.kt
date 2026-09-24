@@ -260,7 +260,7 @@ object MarketData {
                 // Stale crumb, or one minted against a cookie we no longer hold. Exactly the
                 // recovery quoteSummary does: invalidate and let the next pass re-mint. Not a
                 // verdict on the endpoint - it answered, it just wanted a fresher token.
-                YahooAuth.invalidate()
+                YahooAuth.invalidate(used = crumb)
                 return Batch.INCONCLUSIVE to emptyList()
             }
             if (r.code < 0) return Batch.INCONCLUSIVE to emptyList()   // could not connect

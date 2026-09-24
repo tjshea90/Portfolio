@@ -88,9 +88,12 @@ internal object YahooAuth {
             for (host in listOf("query1", "query2")) {
                 val r = Http.get("https://$host.finance.yahoo.com/v1/test/getcrumb", timeoutMs = 10000)
                 if (r.ok && looksLikeCrumb(r.body)) {
-                    crumb = r.body.trim()
-                    mintedAt = System.currentTimeMillis()
-                    return@withLock crumb
+                    val fresh = r.body.trim()
+                    synchronized(this@YahooAuth) {
+                        crumb = fresh
+                        mintedAt = System.currentTimeMillis()
+                    }
+                    return@withLock fresh
                 }
             }
             // Leave the old crumb in place rather than blanking it: a throttled mint
@@ -123,7 +126,12 @@ internal object YahooAuth {
      * one seconds later; the caller gets a blank crumb, treats the pass as inconclusive, and
      * tries again on the next tick with the interval honoured.
      */
-    fun invalidate() {
-        crumb = ""
+    fun invalidate(used: String) {
+        // ONLY THE CRUMB THE FAILED REQUEST WAS SENT WITH (full test 2026-09-24, N-5). Several
+        // quoteSummary calls are in flight at once; one sent with the OLD crumb can answer 401
+        // after another has already re-minted, and blanking unconditionally wiped the NEW crumb
+        // - which the interval guard above then kept blank for a minute: every batch quote
+        // INCONCLUSIVE and every quoteSummary null. Same lock as the mint's write.
+        synchronized(this) { if (crumb == used) crumb = "" }
     }
 }

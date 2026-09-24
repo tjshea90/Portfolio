@@ -203,7 +203,7 @@ object FundamentalsFeed {
                     conditionalKey = true, cacheAs = base)
             },
             mint = { force -> YahooAuth.crumb(force = force) },
-            invalidate = { YahooAuth.invalidate() }
+            invalidate = { used -> YahooAuth.invalidate(used) }
         )
 
     /**
@@ -221,7 +221,8 @@ object FundamentalsFeed {
         modules: String,
         get: suspend (url: String, cacheAs: String) -> HttpResult,
         mint: suspend (force: Boolean) -> String,
-        invalidate: () -> Unit
+        /** Called with the crumb the 401 was answered to (N-5). */
+        invalidate: (used: String) -> Unit
     ): YahooReply {
         var last = 0
         for (attempt in 0..1) {
@@ -252,7 +253,7 @@ object FundamentalsFeed {
                 last = r.code
                 if (r.code == 401) {
                     // The crumb is stale or was minted against a cookie we no longer hold.
-                    invalidate()
+                    invalidate(crumb)
                     sawUnauthorized = true
                     break                       // out of the host loop, into the retry
                 }
