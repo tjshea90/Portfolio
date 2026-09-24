@@ -17,6 +17,12 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
 > where Claude code was interrupted in the full tests protocol, then pick up where you left off
 > and finish the full tests
 
+> (follow-up, 17:04 UTC, new session on branch `claude/complete-code-tests-crujka`) Continue
+> and finish the full tests that Claude code already started
+
+- Resume point 2 (17:04 UTC): ckpt 1686 + 14 auto-checkpoints = the R1/R2 fixes were mostly
+  written in flight (git diff 5db3a9ae..cbbc653f), none ticked, no tests yet, R2-7's callers
+  not yet updated. Finishing: verify each in-flight fix, compile, add tests, tick, suite, ship.
 - Resume point found: ckpt 1674 (all H+M done; Ls done through D-14 except D-9, D-10). Continuing
   from D-9 below; same audit files, same FullTest0924Test.kt.
 - [x] Scheduled: `send_later` trigger `trig_016i6a9SLnAAgdG46oLJBu4v`, one-shot into this session
