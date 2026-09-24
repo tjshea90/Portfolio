@@ -114,9 +114,18 @@ object Fmt {
      * the percentage rounds to zero but the dollar figure does not, the dollar figure's sign is
      * the true one - "-$0.02  -0.00%", never "-$0.02  +0.00%".
      */
-    fun pctSignedBeside(pct: Double, change: Double, price: Double): String {
+    fun pctSignedBeside(pct: Double, change: Double, price: Double): String =
+        pctSignedAs(pct, snapZero(change, changeEps(price)))
+
+    /**
+     * The same for a percentage beside a dollar P/L ([usdSigned], two decimals): "-$3.00 (-0.00%)"
+     * on a large position's quiet day, never "-$3.00 (+0.00%)" (review 2026-09-24, R2-1).
+     */
+    fun pctSignedBesideMoney(pct: Double, money: Double): String = pctSignedAs(pct, snapZero(money))
+
+    private fun pctSignedAs(pct: Double, shownMoney: Double): String {
         if (snapZero(pct) != 0.0) return pctSigned(pct)
-        return if (snapZero(change, changeEps(price)) < 0) "-0.00%" else "+0.00%"
+        return if (shownMoney < 0) "-0.00%" else "+0.00%"
     }
 
     fun changeSigned(v: Double): String {

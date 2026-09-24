@@ -609,10 +609,11 @@ fun SectionHeader(text: String) {
  * `plLead` is the big, bold number; `plSub` is the smaller one under or beside it.
  */
 fun plLead(mode: PlMode, money: Double, pct: Double): String =
-    if (mode == PlMode.PERCENT) Fmt.pctSigned(pct) else Fmt.usdSigned(money)
+    if (mode == PlMode.PERCENT) Fmt.pctSignedBesideMoney(pct, money) else Fmt.usdSigned(money)
 
+// The percentage takes the dollar figure's sign when it rounds to zero (R2-1).
 fun plSub(mode: PlMode, money: Double, pct: Double): String =
-    if (mode == PlMode.PERCENT) Fmt.usdSigned(money) else Fmt.pctSigned(pct)
+    if (mode == PlMode.PERCENT) Fmt.usdSigned(money) else Fmt.pctSignedBesideMoney(pct, money)
 
 /** Both on one line, as the stock page shows them: "lead  (sub)". */
 fun plInline(mode: PlMode, money: Double, pct: Double): String =

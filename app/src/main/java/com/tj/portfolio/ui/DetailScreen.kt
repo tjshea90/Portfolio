@@ -1366,7 +1366,8 @@ private fun OverviewTab(
                                 plInline(
                                     state.plMode, row.shares * eq.extChange, eq.extChangePct
                                 ),
-                                signColor(eq.extChangePct)
+                                // By the dollar figure, like every other P/L row (R2-1).
+                                signColor(row.shares * eq.extChange)
                             )
                         }
                         val realized =
