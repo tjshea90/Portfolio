@@ -2895,6 +2895,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         autoBackupIfDue()
         loadCachedAdvice()
         loadPendingImport()
+        // The day-trading engine in force (2026-09-24c) - before anything can plan or rank with it.
+        loadEngine()
         loadCachedResearch()
         loadCachedInsider()
         restoreFromCache(fromInit = true)
