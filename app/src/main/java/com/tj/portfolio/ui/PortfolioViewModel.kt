@@ -7508,8 +7508,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Either Yahoo host is being left alone for a while - an automatic run stops asking (PL-3). */
     private fun yahooChartCoolingDown(): Boolean =
-        Http.cooldownRemaining("https://query1.finance.yahoo.com/v8/finance/chart/SPY") > 0L ||
-            Http.cooldownRemaining("https://query2.finance.yahoo.com/v8/finance/chart/SPY") > 0L
+        com.tj.portfolio.net.Http.cooldownRemaining("https://query1.finance.yahoo.com/v8/finance/chart/SPY") > 0L ||
+            com.tj.portfolio.net.Http.cooldownRemaining("https://query2.finance.yahoo.com/v8/finance/chart/SPY") > 0L
 
     /** The stats card's numbers from the log as it stands - no network (2026-09-24c). */
     fun refreshDayTradingStats() {
