@@ -355,8 +355,26 @@ fun spinnerShouldShow(
      * retracted after one quote tick (fifteen seconds with the market open) while the build
      * was still running, and the screen showed no pull feedback for the rest of it.
      */
-    researchLoading: Boolean = false
-): Boolean = userAsked && (quotesLoading || feedLoading || researchLoading)
+    researchLoading: Boolean = false,
+    /**
+     * WHICH SURFACE WAS PULLED (full test 2026-09-24, U-1). Null keeps the old surface-blind
+     * rule, for callers that have no surface.
+     *
+     * THE BUG THIS FIXES. With no surface the rule was "asked AND anything at all running",
+     * so a pull on Portfolio kept spinning after its own quote pass had landed ("Prices updated
+     * just now" beside a circle that would not go away - the symptom in Tj's 09-23c screenshot)
+     * for as long as ANY feed or research job ran: an "Explain with Claude" answer, the
+     * analyst pass behind a detail screen, an automatic ETF build. And those research jobs end
+     * without re-deriving the flag, so it then waited for the poll loop's next tick - up to
+     * fifteen minutes with the market shut. Each surface now waits only on its OWN work.
+     */
+    source: String? = null
+): Boolean = userAsked && when (source) {
+    PULL_PRICES -> quotesLoading
+    PULL_FEED -> feedLoading
+    PULL_RESEARCH -> researchLoading
+    else -> quotesLoading || feedLoading || researchLoading
+}
 
 /**
  * `ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL`. The app is still in the foreground but
@@ -6115,7 +6133,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             userAsked = _ui.value.manualRefresh,
             quotesLoading = _ui.value.loading,
             feedLoading = _feedLoading.value,
-            researchLoading = _researchBusy.value.isNotEmpty()
+            researchLoading = _researchBusy.value.isNotEmpty(),
+            source = _ui.value.refreshSource
         )
         if (_ui.value.manualRefresh != want) {
             _ui.value = _ui.value.copy(
