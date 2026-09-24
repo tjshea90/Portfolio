@@ -274,8 +274,9 @@ object Fmt {
     fun shortDayEt(ms: Long): String = shortEtTl.get()!!.format(Date(ms))
     fun isoEt(ms: Long): String = isoEtTl.get()!!.format(Date(ms))
 
-    fun relative(ms: Long): String {
-        val diff = System.currentTimeMillis() - ms
+    /** [now] from a ticking clock keeps an on-screen label current - see rememberTickingNow. */
+    fun relative(ms: Long, now: Long = System.currentTimeMillis()): String {
+        val diff = now - ms
         return when {
             diff < 5_000 -> "just now"
             diff < 60_000 -> "${diff / 1000}s ago"

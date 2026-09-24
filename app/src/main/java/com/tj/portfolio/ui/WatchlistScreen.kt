@@ -233,8 +233,10 @@ fun WatchlistScreen(
 
             if (state.lastRefresh > 0 && rows.isNotEmpty()) {
                 item {
+                    val now = rememberTickingNow()
                     Text(
-                        "Prices updated ${Fmt.relative(state.lastRefresh)}",
+                        if (state.pulling(PULL_PRICES)) "Updating prices..."
+                        else "Prices updated ${Fmt.relative(state.lastRefresh, now)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp)

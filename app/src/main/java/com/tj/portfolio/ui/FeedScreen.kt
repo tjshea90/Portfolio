@@ -155,10 +155,12 @@ fun FeedScreen(
                 // Says what is actually on screen. "Pull to load" beside a full screen of
                 // saved headlines was simply untrue, and with the cache in place that is the
                 // normal state on every launch.
+                val now = rememberTickingNow()
                 Text(
                     when {
                         loading && items.isEmpty() -> "Loading..."
-                        at > 0 -> "Updated ${Fmt.relative(at)}"
+                        loading -> "Updating headlines..."
+                        at > 0 -> "Updated ${Fmt.relative(at, now)}"
                         items.isNotEmpty() -> "Showing saved headlines"
                         else -> "Pull to load"
                     },

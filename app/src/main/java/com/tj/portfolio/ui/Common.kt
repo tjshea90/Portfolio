@@ -320,3 +320,26 @@ fun BigIconButton(
         }
     }
 }
+
+/**
+ * THE CLOCK A "5m ago" LABEL READS (U-Q6, 2026-09-24b). `Fmt.relative` was evaluated only on
+ * recomposition, so on a quiet screen "just now" could sit for minutes beside a refresh control.
+ * This re-reads the time every [periodMs] - ONLY while the screen is started, so nothing ticks
+ * with the app in the background.
+ */
+@androidx.compose.runtime.Composable
+fun rememberTickingNow(periodMs: Long = 30_000L): Long {
+    var now by androidx.compose.runtime.remember {
+        androidx.compose.runtime.mutableLongStateOf(System.currentTimeMillis())
+    }
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.LaunchedEffect(owner, periodMs) {
+        owner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.STARTED) {
+            while (true) {
+                now = System.currentTimeMillis()
+                kotlinx.coroutines.delay(periodMs)
+            }
+        }
+    }
+    return now
+}

@@ -176,7 +176,8 @@ fun PortfolioScreen(
                 SummaryHeader(
                     state.totals, state.lastRefresh, state.error,
                     plMode = state.plMode,
-                    onTogglePl = { vm.togglePlMode() }
+                    onTogglePl = { vm.togglePlMode() },
+                    refreshing = state.pulling(PULL_PRICES)
                 )
             }
 
@@ -276,8 +277,11 @@ internal fun SummaryHeader(
     lastRefresh: Long,
     error: String?,
     plMode: PlMode,
-    onTogglePl: () -> Unit
+    onTogglePl: () -> Unit,
+    /** A pull is running - the line says what it is doing (2026-09-24b). */
+    refreshing: Boolean = false
 ) {
+    val now = rememberTickingNow()
     // This header is item 0 of a LazyColumn, so scrolling it off screen DISPOSES it. With a
     // plain remember the expanded detail card silently collapsed itself every time you
     // scrolled down to your holdings and back. rememberSaveable is retained by the lazy
@@ -429,9 +433,9 @@ internal fun SummaryHeader(
             Spacer(Modifier.height(8.dp))
             Text(error, color = redText, style = MaterialTheme.typography.bodyMedium)
         }
-        if (lastRefresh > 0) {
+        if (lastRefresh > 0 || refreshing) {
             Text(
-                "Prices updated ${Fmt.relative(lastRefresh)}",
+                if (refreshing) "Updating prices..." else "Prices updated ${Fmt.relative(lastRefresh, now)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp)

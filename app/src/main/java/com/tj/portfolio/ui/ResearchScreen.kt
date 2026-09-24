@@ -342,7 +342,7 @@ fun ResearchScreen(
                         // over a fund list would claim a freshness the fund list does not have
                         // - and, more often, deny one it does.
                         val at = if (section == Section.ETFS) set.etfGenerated else set.generated
-                        if (at > 0) "Updated ${Fmt.relative(at)}" else ""
+                        if (at > 0) "Updated ${Fmt.relative(at, researchNow)}" else ""
                     }
                 },
                 style = MaterialTheme.typography.bodySmall,
