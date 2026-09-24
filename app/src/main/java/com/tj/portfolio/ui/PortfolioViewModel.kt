@@ -4356,9 +4356,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // share follows (A-8, 09-23). A 30-60 s extraction that lands after a shared answer's rows
         // arrived replaced them, and the share's inbox file was already gone.
         fun land(res: ExtractResult) {
-            val merged = mergeIntoPendingReview(_importResult.value, res)
-            if (merged !== res && res.error != null) toast(res.error)
-            setImportResult(merged)
+            val waiting = _importResult.value?.takeIf { it.transactions.isNotEmpty() }
+            // THE PAID CALL'S OUTCOME IS ALWAYS SAID (review 2026-09-24, R2-5): folded into a
+            // waiting review, a result with no rows (and no error) used to vanish unannounced.
+            if (waiting != null) toast(
+                if (res.transactions.isEmpty())
+                    res.error ?: res.notes.ifBlank { "No transactions found in those screenshots" }
+                else "${res.transactions.size} transactions added to the review already waiting" +
+                    (res.error?.let { " ($it)" } ?: "")
+            )
+            setImportResult(mergeIntoPendingReview(_importResult.value, res))
         }
         viewModelScope.launch {
             _importing.value = true

@@ -331,9 +331,23 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
     // Which kind of "already have" each flagged row is - see [com.tj.portfolio.domain.ImportDup].
     val dupKinds = remember(r) { mutableStateListOf<com.tj.portfolio.domain.ImportDup>() }
     var checked by remember(r) { mutableStateOf(false) }
+    // THE TICKS ALREADY CHOSEN SURVIVE ROWS BEING ADDED (review 2026-09-24, R2-5). A share or a
+    // screenshot extraction landing on an open review publishes a new result - the old rows
+    // with new ones after them - and `remember(r)` reset every tick to its default, so a row Tj
+    // had unticked was imported on the next tap.
+    val lastSeen = remember {
+        arrayOfNulls<Pair<com.tj.portfolio.net.ExtractResult, List<Boolean>>>(1)
+    }
+    val kept = remember(r) {
+        lastSeen[0]?.takeIf { (old, _) ->
+            old !== r && r.transactions.size > old.transactions.size &&
+                r.transactions.subList(0, old.transactions.size) == old.transactions
+        }?.second
+    }
     val checks = remember(r) {
         mutableStateListOf<Boolean>().apply { r.transactions.forEach { add(true) } }
     }
+    lastSeen[0] = r to checks
     LaunchedEffect(r) {
         val kinds = vm.duplicateFlags(r.transactions)
         dupKinds.clear(); dupKinds.addAll(kinds)
@@ -341,7 +355,7 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
         dupes.clear(); dupes.addAll(flags)
         // Default the selection to "new rows only", which is what the user wants nine times
         // out of ten - they can still tick a genuine repeat trade back on.
-        flags.forEachIndexed { i, d -> if (i < checks.size) checks[i] = !d }
+        flags.forEachIndexed { i, d -> if (i < checks.size) checks[i] = kept?.getOrNull(i) ?: !d }
         checked = true
     }
     val onFileCount = dupKinds.count { it == com.tj.portfolio.domain.ImportDup.ON_FILE }
