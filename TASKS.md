@@ -58,8 +58,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       hysteresis missing at 4 boundaries  [ ] C-5 stale benchmark carried flat  [ ] D-2 evening
       Claude plan replaced at 04:00 (post-close sweep re-stamps)  [ ] D-3 weekend/holiday Claude
       plans dropped  [ ] D-4 no plans after rebuild until next tick  [ ] D-5 forming first bar /
-      opening range used as trigger  [ ] L-2 return during unwinding pass drops refresh
-      [ ] L-3 answer landing in background never priced  [ ] L-4 trim handler unreachable on
+      opening range used as trigger  [x] L-2 return during unwinding pass drops refresh (guard on quoteJob.isActive + quoteGen so a
+      stale pass can't clear the new one's flag; FullTest0924Test, MUTATION-CHECKED)
+      [x] L-3 answer landing in background never priced (pendingPriceFill flushed on return; test)  [ ] L-4 trim handler unreachable on
       Android 14+ (LOCKED decision - needs Tj)  [x] N-3 quoteSummary retries every failure (only a 401 retries; yahooFetchWith injectable; +3 tests)
       [x] N-4 SEC 10 req/s not enforced as rate (Insider.secGet paced 125ms; +1 test)  [ ] A-2 merge restore moves replay watermark
       [ ] A-3 dup check hides real second fill  [ ] A-4 autosave name after reinstall (device-only)
