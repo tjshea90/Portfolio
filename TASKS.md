@@ -122,6 +122,20 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       U-8 advicePreparing counter in VM + gate on non-watch holdings (test).
       ALL Ls DONE. )
     - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
+      DONE: C-Q3 intradayChartIsFinal top-level + ChartTest tests the real rule (+1 case);
+      C-Q5 insider chips minTapTarget; C-Q7 unused import; L-Q1 (by L-1); L-Q2 CrashLog in
+      ShareImportActivity; N-Q1 no conditionalKey on Yahoo chart urls; N-Q2 RecentBodies KDoc;
+      N-Q3 noteRequest after the in-permit recheck (+ postJson recheck); N-Q4 AtomicInteger;
+      N-Q5 cookie jar accepts Yahoo only; A-Q3 parseDate/importSharedInbox KDocs; S-Q1
+      roundTowardMid (test); S-Q3 unscored survivor wording; U-Q1 idle 2dp spacer; U-Q2
+      rateTick for the pull; U-Q3 Fmt.exact cash seed; U-Q4 DecimalFormatSymbols(US).
+      NOT DONE (reasons): C-Q1/C-Q2 chart path/recompose perf refactors - large, need a device
+      to measure; C-Q4 rung-zoom fallback left as is (documented in the audit); C-Q6 needs the
+      drawn-overlay state hoisted out of PriceChart - flicker risk unverifiable here; L-Q3
+      re-entry helper refactor - larger than a Q; A-Q1 Python harness port - separate job;
+      A-Q2 async delete/wipe would break the detail screen's synchronous "still held?" check;
+      A-Q4 no change - saving an edit to another field is not confirming the date (R-8 rule
+      stands); S-Q2/S-Q4/S-Q5 refactors, low impact; U-Q5/U-Q6 are ideas (Tj's call).
 - [ ] Re-run the full suite; re-check anything a fix touched
       (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
 - [ ] Independent review of this session's whole diff for regressions -> fix
