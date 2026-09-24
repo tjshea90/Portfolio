@@ -738,7 +738,11 @@ object Research {
             onYahooTrending = tr?.onYahooTrending ?: false,
             catalyst = catalystFor(r),
             dtLikelihood = sc.score,
-            dtConfidence = confidence
+            dtConfidence = confidence,
+            // What the live sweep recomputes its technicals half from, every tick (D-10).
+            dtBaseLikelihood = sc.score,
+            dtBaseConfidence = confidence,
+            dtBaseReasonCount = sc.reasons.size
         )
     }
 

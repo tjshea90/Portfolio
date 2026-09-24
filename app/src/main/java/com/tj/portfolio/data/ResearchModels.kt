@@ -326,7 +326,19 @@ data class ResearchRow(
      * reason [conviction] is kept out of [score] for a Claude-added fund.
      */
     val dtLikelihood: Int = 0,
-    val dtConfidence: Int = 0
+    val dtConfidence: Int = 0,
+    /**
+     * THE BUILD-TIME HALVES, BEFORE ANY LIVE TECHNICALS (full test 2026-09-24, D-10) - the
+     * screener's likelihood and confidence and how many of [reasons] are its own lines. The
+     * live sweep recomputes the technicals half from these on EVERY tick, instead of adding a
+     * one-time bonus that was frozen at whatever the first sweep saw: a 09:00 pre-market sweep
+     * (no VWAP yet) never gained the VWAP/opening-range bonus that session, and a 09:40
+     * "trading above VWAP - buyers in control" line stayed after the stock fell below it.
+     * 0 = not recorded (a Claude-added row, or a cache from an older build).
+     */
+    val dtBaseLikelihood: Int = 0,
+    val dtBaseConfidence: Int = 0,
+    val dtBaseReasonCount: Int = 0
 ) {
     fun toJson(): JSONObject = JSONObject().apply {
         put("symbol", symbol)
@@ -381,6 +393,11 @@ data class ResearchRow(
         if (sessionDay.isNotBlank()) put("sessionDay", sessionDay)
         if (dtLikelihood > 0) put("dtLikelihood", dtLikelihood)
         if (dtConfidence > 0) put("dtConfidence", dtConfidence)
+        if (dtBaseLikelihood > 0) {
+            put("dtBaseLikelihood", dtBaseLikelihood)
+            put("dtBaseConfidence", dtBaseConfidence)
+            put("dtBaseReasonCount", dtBaseReasonCount)
+        }
     }
 
     companion object {
@@ -483,7 +500,10 @@ data class ResearchRow(
                 sessionLow = o.optDouble("sessionLow", 0.0).orZero(),
                 sessionDay = o.text("sessionDay"),
                 dtLikelihood = o.optInt("dtLikelihood", 0).coerceIn(0, 100),
-                dtConfidence = o.optInt("dtConfidence", 0).coerceIn(0, 100)
+                dtConfidence = o.optInt("dtConfidence", 0).coerceIn(0, 100),
+                dtBaseLikelihood = o.optInt("dtBaseLikelihood", 0).coerceIn(0, 100),
+                dtBaseConfidence = o.optInt("dtBaseConfidence", 0).coerceIn(0, 100),
+                dtBaseReasonCount = o.optInt("dtBaseReasonCount", 0).coerceAtLeast(0)
             ).let {
                 if (isFundList && version < VERSION_CONVICTION_SPLIT) it.repairModelScore()
                 else it

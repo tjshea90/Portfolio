@@ -1365,28 +1365,42 @@ private fun keepOrClear(previous: String, confirmedDecline: Boolean): String =
  * [withLevels] must already carry the row's build-time [ResearchRow.dtLikelihood] and
  * [ResearchRow.dtConfidence] (i.e. be [mergeDayTradingTech]'s own output) and [effective] must be
  * the SAME reading the levels above it were computed from - see [effectiveTechnicals]'s own
- * header for why. The caller is responsible for guarding this against a Claude-authored row and
- * against running it more than once per symbol - see the call site for both, and
- * [ResearchScore.technicalConfirmationBonus]'s header for why running it twice would double-
- * count the technicals half of the confidence checklist.
+ * header for why. The caller is responsible for guarding this against a Claude-authored row -
+ * see the call site.
+ *
+ * IDEMPOTENT - SAFE ON EVERY TICK (full test 2026-09-24, D-10). The technicals half is added to
+ * the row's BUILD-TIME halves ([ResearchRow.dtBaseLikelihood] and siblings), never to its last
+ * output, so a second call cannot compound the bonus ([ResearchScore.technicalConfirmationBonus]'s
+ * header) and a signal that stops confirming stops counting. It used to run once per rebuild,
+ * which froze whatever the first sweep saw - often a pre-market one, with no VWAP at all. A row
+ * with no recorded base (a cache from an older build) takes its current values as the base,
+ * once, and carries them from then on.
  */
 internal fun scoreDayTradingRow(
     withLevels: com.tj.portfolio.data.ResearchRow,
     effective: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
 ): com.tj.portfolio.data.ResearchRow {
+    val recorded = withLevels.dtBaseLikelihood > 0
+    val baseLikelihood = if (recorded) withLevels.dtBaseLikelihood else withLevels.dtLikelihood
+    val baseConfidence = if (recorded) withLevels.dtBaseConfidence else withLevels.dtConfidence
+    val baseReasons = if (recorded) withLevels.reasons.take(withLevels.dtBaseReasonCount)
+    else withLevels.reasons
     val scored = com.tj.portfolio.net.ResearchScore.withTechnicals(
-        com.tj.portfolio.net.ResearchScore.Scored(withLevels.dtLikelihood, withLevels.reasons, 100),
+        com.tj.portfolio.net.ResearchScore.Scored(baseLikelihood, baseReasons, 100),
         effective,
         withLevels.price
     )
-    val confidence = (withLevels.dtConfidence +
+    val confidence = (baseConfidence +
         com.tj.portfolio.net.ResearchScore.technicalConfirmationBonus(withLevels.price, effective)
     ).coerceIn(0, 100)
     return withLevels.copy(
         score = com.tj.portfolio.net.ResearchScore.blendedScore(scored.score, confidence),
         reasons = scored.reasons,
         dtLikelihood = scored.score,
-        dtConfidence = confidence
+        dtConfidence = confidence,
+        dtBaseLikelihood = baseLikelihood,
+        dtBaseConfidence = baseConfidence,
+        dtBaseReasonCount = baseReasons.size
     )
 }
 
@@ -2333,11 +2347,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      *  write is still owed - see its `throttleMs`. */
     private var researchPersistedAt = 0L
     @Volatile private var researchPersistOwed = false
-    /** Every symbol already given its one-time technicals score bonus this rebuild - see
-     *  [enrichDayTradingVisible] for why this must be "once", not "every refresh". */
-    private val dayTradingTechScored = HashSet<String>()
     /** True once [enrichDayTradingVisible]'s one-time full-section sweep has run for the
-     *  current rebuild - see its own header. Reset alongside [dayTradingTechScored]. */
+     *  current rebuild - see its own header. Reset on every rebuild. */
     private var dayTradingSweepDone = false
 
     /**
@@ -7122,12 +7133,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     researchRetry.success(RETRY_STOCKS)
                     analystDone.clear()
-                    // Fresh day-trading rows deserve a fresh shot at the technicals score
-                    // bonus too - see [enrichDayTradingVisible] for why it must apply at most
-                    // once per symbol per rebuild rather than every 30-second refresh tick.
-                    dayTradingTechScored.clear()
-                    // Same reason: a fresh rebuild deserves a fresh top-of-list sweep, not the
-                    // previous rebuild's sort order carried over onto a wholly different list.
+                    // A fresh rebuild deserves a fresh top-of-list sweep, not the previous
+                    // rebuild's sort order carried over onto a wholly different list.
                     dayTradingSweepDone = false
                     dayTradingRebuildGen++
                     // These rows are gone and fifty different ones have taken their place, so
@@ -7696,7 +7703,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     //   cancels outright, and `stopDayTradingLive` additionally cancels it the moment the
     //   Day Trading tab is no longer the one on screen, which backgrounding alone would not.
 
-    // dayTradingLiveJob and dayTradingTechScored are declared above `init` (checkinit.py) -
+    // dayTradingLiveJob and dayTradingSweepDone are declared above `init` (checkinit.py) -
     // see the note there. Cleared on every fresh stock rebuild in [loadResearch], the same
     // cadence [analystDone] uses. DAY_TRADING_LIVE_INTERVAL_MS is top-level, near
     // MAX_PRICE_FILL - a `const val` cannot live inside the class itself.
@@ -7908,8 +7915,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // whose entry/stop/target this shows is a separate question from how likely the app
             // itself thinks the stock is to rise, and [TradeLevelsGrid] already labels that half
             // on its own.
-            if (row.dtLikelihood <= 0 || row.symbol in dayTradingTechScored) return@map withLevels
-            dayTradingTechScored.add(row.symbol)
+            if (row.dtLikelihood <= 0) return@map withLevels
+            // Every tick, from the build-time halves (D-10) - see scoreDayTradingRow.
             scoreDayTradingRow(withLevels, effectiveTechnicals(row, tech))
         }
         // THE ONE-TIME SORT (Round 75). A completed sweep knows, for the first time, which rows
