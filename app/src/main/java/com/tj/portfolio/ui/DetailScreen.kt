@@ -863,6 +863,7 @@ fun DetailScreen(
                     symbol = symbol,
                     row = row,
                     dayTradingRow = dayTradingRow,
+                    loggedPlan = { vm.loggedPlanToday(it) },
                     tracked = tracked,
                     watched = row?.watched == true,
                     fundamentals = fundamentals,
@@ -1158,7 +1159,9 @@ private fun OverviewTab(
     onSeeAllStats: () -> Unit,
     onSeeAnalysts: () -> Unit,
     onRemoveWatch: () -> Unit,
-    onAddWatch: () -> Unit
+    onAddWatch: () -> Unit,
+    /** Reads today's logged plan for the symbol (2026-09-24b); null-returning by default. */
+    loggedPlan: suspend (String) -> com.tj.portfolio.data.DayTradingLogEntry? = { null }
 ) {
     // KEYED ON THE SYMBOL (Round 66 audit, DET-8). The detail screen is one composition slot
     // in a `when`, so changing stock in place does not tear this tab down - and an unkeyed
