@@ -60,8 +60,8 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       plans dropped  [ ] D-4 no plans after rebuild until next tick  [ ] D-5 forming first bar /
       opening range used as trigger  [ ] L-2 return during unwinding pass drops refresh
       [ ] L-3 answer landing in background never priced  [ ] L-4 trim handler unreachable on
-      Android 14+ (LOCKED decision - needs Tj)  [ ] N-3 quoteSummary retries every failure
-      [ ] N-4 SEC 10 req/s not enforced as rate  [ ] A-2 merge restore moves replay watermark
+      Android 14+ (LOCKED decision - needs Tj)  [x] N-3 quoteSummary retries every failure (only a 401 retries; yahooFetchWith injectable; +3 tests)
+      [x] N-4 SEC 10 req/s not enforced as rate (Insider.secGet paced 125ms; +1 test)  [ ] A-2 merge restore moves replay watermark
       [ ] A-3 dup check hides real second fill  [ ] A-4 autosave name after reinstall (device-only)
       [ ] S-1 S-9 popup fix unreachable  [ ] S-2 detail screen ratings-only verdict frozen
       [ ] S-4 Research asOf ignored / Advice undated  [ ] S-5 carry freezes relative catalyst
