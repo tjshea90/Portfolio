@@ -9,7 +9,18 @@ CLAUDE.md "Full tests" protocol, end to end. Branch `claude/full-app-tests-91hty
 one audits the WHOLE app again with a different split so fresh eyes land on code yesterday's
 split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
 
+> (follow-up, 07:32 UTC) Continue with the full tests now, and also schedule an automatic check
+> in 6 hours from now to see if the full tests completed. If they did not complete,
+> automatically resume and finish the full tests from where you left off in this session
+
+- [x] Scheduled: `send_later` trigger `trig_016i6a9SLnAAgdG46oLJBu4v`, one-shot into this session
+      at 13:33 UTC 2026-09-24. When it fires: if every box below is ticked, just confirm to Tj
+      with the Release link; otherwise resume from the first [ ] below and finish, unprompted.
+      If it is past 13:33 UTC 2026-09-24, the boxes below are not all ticked, and no session is
+      working on it: any session reading this should just resume and finish the full tests.
 - [ ] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
+      (checkinit ok. Suite hit Maven Central 429 -> container-local
+      ~/.gradle/init.d/central-mirror.gradle -> Google's Central mirror, also for Robolectric)
 - [ ] 7 parallel read-only audits (launched ~session start 2026-09-24); each writes its FULL report to
       audits/2026-09-24/{scoring,daytrading,network,persistence,charts,screens,lifecycle}.md
       (a resumed session re-reads the files instead of re-running; a MISSING file = that
