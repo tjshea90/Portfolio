@@ -336,7 +336,9 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
      * functions must be reflected here; `EngineTuningTest` pins that every parameter is named.
      */
     internal fun algorithm(p: DayTradingParams): String {
-        fun v(k: String) = "[${EngineTuning.describe(k, p[k])}]"
+        // THE KEY AND ITS VALUE TOGETHER, so every number in the description maps straight onto a
+        // row of the parameter table - and onto the `param` an answer has to name.
+        fun v(k: String) = "`$k` [${EngineTuning.describe(k, p[k])}]"
         val setups = DayTradingParams.SETUP_KEYS.values.joinToString { "$it ${v("setup.$it.enabled")}" }
         val levels = DayTradingParams.LEVELS.joinToString { "$it ${v("level.$it.enabled")}" }
         val over = DayTradingParams.SETUP_KEYS.values.joinToString("; ") { s ->
@@ -362,7 +364,7 @@ PP=(H+L+C)/3, R1=2PP-L, R2=PP+(H-L), S1=2PP-H); the pre-market high. `vol` = the
 ${v(DayTradingParams.ATR_FROM_DAILY)} before any intraday bars exist. `buffer` = max(${'$'}0.01, vol x ${v(DayTradingParams.BREAK_BUFFER)}).
 
 **Filters first:** no plan when the score is below ${v(DayTradingParams.MIN_SCORE)}; while live, no plan when the first 5-minute bar closed
-at or below its open and ${DayTradingParams.REQUIRE_BULLISH_BAR} ${v(DayTradingParams.REQUIRE_BULLISH_BAR)}.
+at or below its open and ${v(DayTradingParams.REQUIRE_BULLISH_BAR)} is on.
 
 **1. Setup and entry.** (Setups enabled: $setups.) While live:
 - price below VWAP -> **VWAP reclaim**: entry = VWAP + buffer (a buy-stop).

@@ -261,22 +261,20 @@ class EngineTuningTest {
         assertTrue(text.contains("engineVersion = 1"))
         assertTrue(text.contains("\"engineVersion\": 1"))
         assertTrue("the change already made", text.contains("stop.minRiskAtrs 1.5 -> 1.6"))
-        assertTrue("the current value in the algorithm", text.contains("[1.6"))
+        assertTrue("the current value in the algorithm", text.contains("`stop.minRiskAtrs` [1.6]"))
         assertTrue(text.contains("gradedTrades (app plans) = 40"))
         assertTrue(text.contains("day,time,sym,src,eng,setup"))
         assertTrue(text.contains(ClaudeBridge.ANSWER_ENGINE))
         assertTrue(text.contains(DayTradingGrader.RULES_TEXT.take(60)))
         assertTrue("the enforced tier is spelled out", text.contains("<- **this answer**"))
-        // the schema in the prompt is not itself importable
-        assertEquals(0, EngineTuning.parse(text.substringAfter("```json").substringBefore("```")).changes.size)
+        // the prompt itself is never importable as an answer
+        assertTrue(EngineTuning.parse(text).error != null)
+        assertEquals(0, EngineTuning.parse(text).changes.size)
     }
 
     @Test fun theAlgorithmTextNamesEveryParameter() {
         val text = EngineTuningPrompt.algorithm(DEFAULTS)
-        val missing = DayTradingParams.SPECS.map { it.key }.filterNot { k ->
-            val tail = k.substringAfterLast('.')
-            text.contains(k) || text.contains(tail) || (k.startsWith("setup.") || k.startsWith("level.") || k.startsWith("score.") || k.startsWith("conf."))
-        }
+        val missing = DayTradingParams.SPECS.map { it.key }.filterNot { k -> text.contains("`$k`") }
         assertEquals(emptyList<String>(), missing)
     }
 

@@ -406,14 +406,14 @@ object EngineTuning {
                     when {
                         used >= tier.maxChanges ->
                             refuse("More changes than ${n} graded trades allow at once (${tier.maxChanges}) - the rest wait for the next review.")
+                        isSwitch && !tier.switches ->
+                            refuse("Switching this ${if (c.to == 0.0) "off" else "on"} is a major change - it needs " +
+                                "${Tier.MEDIUM.minTrades}+ graded trades (there are $n).")
                         groupN == null -> refuse("Its evidence (\"${c.basis}\") is not a group the app can count - " +
                             "use all, setup:<name>, level:<name>, time:<First hour|Midday|Last two hours> or engine:v<n>.")
                         groupN < MIN_GROUP_FOR_CHANGE ->
                             refuse("Only $groupN graded trade${if (groupN == 1) "" else "s"} in \"${c.basis}\" - " +
                                 "at least $MIN_GROUP_FOR_CHANGE are needed before a change rests on that group.")
-                        isSwitch && !tier.switches ->
-                            refuse("Switching this ${if (c.to == 0.0) "off" else "on"} is a major change - it needs " +
-                                "${Tier.MEDIUM.minTrades}+ graded trades (there are $n).")
                         isSwitch && groupN < MIN_GROUP_FOR_SWITCH ->
                             refuse("A switch needs at least $MIN_GROUP_FOR_SWITCH graded trades in its group " +
                                 "(\"${c.basis}\" has $groupN).")
