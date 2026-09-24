@@ -27,6 +27,11 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       agent did not finish -> re-run just that one). Agents: no network, no gradle, no git.
       A report is complete ONLY if its last line is `## END OF REPORT (complete)`; a file
       without it is partial -> re-run that agent (it may keep the partial file as a head start).
+      STATUS 13:33 UTC: all 7 agents were killed at 07:43 by the account usage cap (7 parallel
+      agents burned the whole window in ~13 min - run at most 3 at once from now on). Partial
+      reports saved: network 327 lines, scoring 162, lifecycle 158, screens 49, persistence 37,
+      daytrading 9, charts 3. None has the END marker. Resuming: verify/fix from the partials
+      while the unfinished audits are finished in small batches.
 - [x] T-1 (own finding, test hermeticity): VM/Robolectric tests reach the LIVE network from
       whatever machine runs the suite (container proxy, GitHub runner) - yesterday's
       WatchSinceAddedTest flake; BackgroundTest's comment assumes "No network in a unit test".
