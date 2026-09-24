@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Intent
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
+import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.Db
 import com.tj.portfolio.data.ResearchRow
 import com.tj.portfolio.data.ResearchSet
@@ -138,22 +139,21 @@ class Improve0924bTest {
         y, mo, d, h, mi, 0, 0, java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
 
     @Test fun `5D and 1M charts fetched after the close stay final until the next open`() {
-        val R = com.tj.portfolio.data.ChartRange
         fun fin(range: com.tj.portfolio.data.ChartRange, end: Long, fetched: Long, now: Long) =
             com.tj.portfolio.ui.intradayChartIsFinal(range, end, fetched, now)
         // 2026-09-25 is a Friday. Last 30-minute candle 15:30, last daily candle 09:30.
         val fri1530 = ny(2026, 9, 25, 15, 30); val fri0930 = ny(2026, 9, 25, 9, 30)
         val sat = ny(2026, 9, 26, 11); val sun = ny(2026, 9, 27, 20)
-        assertTrue(fin(R.D5, fri1530, sat, sun))
-        assertTrue(fin(R.M1, fri0930, sat, sun))
-        assertFalse("Monday's session has opened", fin(R.D5, fri1530, sat, ny(2026, 9, 28, 9, 45)))
-        assertFalse("fetched during the session", fin(R.D5, fri1530, ny(2026, 9, 25, 15, 45), sun))
+        assertTrue(fin(ChartRange.D5, fri1530, sat, sun))
+        assertTrue(fin(ChartRange.M1, fri0930, sat, sun))
+        assertFalse("Monday's session has opened", fin(ChartRange.D5, fri1530, sat, ny(2026, 9, 28, 9, 45)))
+        assertFalse("fetched during the session", fin(ChartRange.D5, fri1530, ny(2026, 9, 25, 15, 45), sun))
         // Fetched Friday evening, but the newest candle is Thursday's: Yahoo was behind.
-        assertFalse(fin(R.M1, ny(2026, 9, 24, 9, 30), ny(2026, 9, 25, 18), sat))
+        assertFalse(fin(ChartRange.M1, ny(2026, 9, 24, 9, 30), ny(2026, 9, 25, 18), sat))
         // Pre-market: the regular-only 5D cannot change before 09:30.
-        assertTrue(fin(R.D5, fri1530, ny(2026, 9, 28, 8), ny(2026, 9, 28, 9, 0)))
+        assertTrue(fin(ChartRange.D5, fri1530, ny(2026, 9, 28, 8), ny(2026, 9, 28, 9, 0)))
         // Longer ranges keep their own TTLs.
-        assertFalse(fin(R.M6, fri0930, sat, sun))
+        assertFalse(fin(ChartRange.M6, fri0930, sat, sun))
     }
 
     @Test fun `R1-9 an answered-empty batch does not ask the second host`() = kotlinx.coroutines.runBlocking {

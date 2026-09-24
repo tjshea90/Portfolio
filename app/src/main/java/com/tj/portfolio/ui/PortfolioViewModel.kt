@@ -2441,7 +2441,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         _holdings.value = emptyMap()
         _feed.value = emptyList()
         _trending.value = emptyList()
-        storyKeys.clear()
         feedRestored = false
         // so the next feed refresh actually re-fetches rather than trusting a stale mark
         socialAt = 0L
