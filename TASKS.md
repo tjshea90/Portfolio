@@ -152,8 +152,32 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       session re-runs just the missing/partial one, then verifies + fixes every finding.
       BOTH COMPLETE (~17:15 UTC). review-hm: R1-1..R1-3 [M], R1-4..R1-9 [L]. review-lq: R2-1 [M],
       R2-2..R2-7 [L]. Verify + fix each; tick here:
-      [ ] R1-1 [ ] R1-2 [ ] R1-3 [ ] R1-4 [ ] R1-5 [ ] R1-6 [ ] R1-7 [ ] R1-8 [ ] R1-9
-      [ ] R2-1 [ ] R2-2 [ ] R2-3 [ ] R2-4 [ ] R2-5 [ ] R2-6 [ ] R2-7
+      All tested in app/src/test/.../Review0924Test.kt (14 tests; R1-1/2/3/4/7, R2-6 MUTATION-CHECKED).
+      [x] R1-1 replannedLive(): today's bars + lastPrice, not !isEmpty (test)
+      [x] R1-2 openingRangeComplete persisted on ResearchRow + carried with the range by
+          effectiveTechnicals (2 tests: flag carried; plan identical on a failed tick)
+          + R1-2b (own, same class): or5High/or5Low/openingBarBullish persisted + carried too
+      [x] R1-3 combineCatalyst(fromCarry): a MERGE with no app phrase keeps Claude's line whole;
+          only carryWhy strips (test incl. DT earnings-today warning + Research)
+      [x] R1-4 researchImportedAt (in memory) joins researchStale's freshAt (VM test)
+      [x] R1-5 DetailScreen drawnCompare = SPY series for the range actually drawn (no test:
+          2-line composable rule; ZoomIntoUnfetchedUiTest still green)
+      [x] R1-6 "0-5 year"/"1-5 year" band + a stated-but-unknown band is ungrouped (test)
+      [x] R1-7 ResearchRow.planAt stamped by DayTradingBridge.merge; claudePlanTime() used by
+          mergeDayTradingTech, carryWhy and the carry of Claude-added picks; cleared with the
+          plan (2 tests)
+      [x] R1-8 tickRefreshedList(): whole-list tick with today's bars only (test)
+      [x] R1-9 MarketData.batchYahoo: an answered-empty batch stops at the first host (no test:
+          no Http seam; same rule as N-12)
+      [x] R2-1 signColor(v, eps) + Fmt.changeEps/pctSignedBeside on the price readouts; extended
+          to P/L (plLead/plSub via Fmt.pctSignedBesideMoney; extended-hours P/L coloured by $)
+      [x] R2-2 the page grows by the rows Claude added (Trending/Best) (VM test with R1-4)
+      [x] R2-3 loggedPlanPrice(): a Claude plan logs its planPrice (test incl. entryRises)
+      [x] R2-4 a cancelled technicals fetch records neither failure nor success (no test)
+      [x] R2-5 land() always toasts the outcome onto a waiting review; ImportReviewDialog
+          keeps ticks via carriedChecks() (pure test)
+      [x] R2-6 no recorded base -> row left as it was (test)
+      [x] R2-7 addTxnRecord returns Boolean; all 3 editors close only on true (VM test)
 - [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
       record-release) and post the Release link; summarize for Tj
 
