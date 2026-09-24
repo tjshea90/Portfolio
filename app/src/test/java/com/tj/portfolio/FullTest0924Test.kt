@@ -626,4 +626,50 @@ class FullTest0924Test {
         assertEquals("16:05 - the day is over", 3, at1605.size)
         assertEquals(11.0 + 28, at1605.last().high, 1e-9)
     }
+
+    // ---- D-9: the beginner card keeps the plan's own direction.
+
+    @Test fun `D-9 a pullback plan the price dipped under says the buy price was reached, not climb`() {
+        val R = com.tj.portfolio.net.ResearchScore
+        // Claude's pullback: limit 100, stop 97, target 106, made with the stock at 105.
+        val s = R.beginnerSummary("HOT", price = 99.2, entry = 100.0, stop = 97.0, target = 106.0,
+            setup = "Buy the dip", planPrice = 105.0)!!
+        assertFalse("the plan's instruction must not flip: ${s.headline}", s.headline.contains("climbs"))
+        assertTrue(s.headline, s.headline.contains("already reached the buy price"))
+        assertFalse(s.skip)
+        // The app's own setup name decides when no plan price was kept (older cache).
+        val byName = R.beginnerSummary("HOT", price = 99.2, entry = 100.0, stop = 97.0,
+            target = 106.0, setup = R.SETUP_PULLBACK)!!
+        assertTrue(byName.headline, byName.headline.contains("already reached"))
+        // A breakout the price ran through (still under target) is reached too, not "drops to".
+        val bo = R.beginnerSummary("HOT", price = 103.0, entry = 102.0, stop = 99.0, target = 110.0,
+            setup = R.SETUP_BREAKOUT, planPrice = 100.0)!!
+        assertFalse(bo.headline, bo.headline.contains("drops"))
+        assertTrue(bo.headline, bo.headline.contains("already reached"))
+        // Not yet reached: the plan's own direction, same words as before.
+        val waiting = R.beginnerSummary("HOT", price = 104.0, entry = 100.0, stop = 97.0,
+            target = 106.0, setup = "Support bounce", planPrice = 105.0)!!
+        assertTrue(waiting.headline, waiting.headline.contains("drops to"))
+        // Nothing known about the plan: the live price decides, as before.
+        assertTrue(R.beginnerSummary("HOT", price = 99.2, entry = 100.0, stop = 97.0,
+            target = 106.0, setup = "Range")!!.headline.contains("climbs"))
+    }
+
+    @Test fun `D-9 the plan price is kept with the plan and survives the cache`() {
+        val row = com.tj.portfolio.data.ResearchRow(symbol = "HOT", price = 99.2, entryPrice = 100.0,
+            stopPrice = 97.0, targetPrice = 106.0, setup = "Pullback", planByClaude = true,
+            planPrice = 105.0)
+        val back = com.tj.portfolio.data.ResearchRow.fromJson(row.toJson(), isFundList = false,
+            version = Int.MAX_VALUE)
+        assertEquals(105.0, back.planPrice, 1e-9)
+        // Cleared with the levels it belongs to.
+        assertEquals(0.0, com.tj.portfolio.ui.dropUnusableClaudeLevels(
+            listOf(row.copy(price = 10.0)))[0].planPrice, 1e-9)
+        // Claude's levels merged onto an app row take the price they were checked against.
+        val app = com.tj.portfolio.data.ResearchRow(symbol = "HOT", price = 105.0)
+        val merged = com.tj.portfolio.net.DayTradingBridge.merge(listOf(app), listOf(
+            com.tj.portfolio.data.ResearchRow(symbol = "HOT", why = "w", entryPrice = 100.0,
+                stopPrice = 97.0, targetPrice = 108.0, setup = "Pullback", planByClaude = true)))
+        assertEquals(105.0, merged[0].planPrice, 1e-9)
+    }
 }
