@@ -157,3 +157,55 @@ the sections after it were added on resume).
 - suggested fix: keep the adapter in a field and detach only if it is still the attached one
   (`Http.detachDiskCache(this.cacheAdapter)` doing a compare-and-clear).
 - confidence: medium (depends on the platform's destroy ordering; plausible, not reproduced)
+
+### L-7 [L] Leaving the app with a symbol search in flight leaves the search spinner stuck on
+- where: `ui/PortfolioViewModel.kt:6157-6184` (`searchSymbols`) with `setForeground(false)` (`searchJob = null`, `:3334`)
+- what's wrong: the `finally` clears the spinner only `if (searchJob === me)`. `setForeground(false)`
+  cancels `fgScope` and then sets `searchJob = null`. If the search was suspended in `delay(220)`,
+  the cancellation resumes it inline on Main before the null assignment, so it is fine — but if
+  it was in `withContext(Dispatchers.IO) { SymbolSearch.query(...) }` (a real request, which L-1
+  keeps blocked for its full duration), the `finally` runs later, sees `searchJob == null`, and
+  leaves `_searching == true`. The comment in the same `finally` describes exactly this stuck
+  spinner as the bug it fixes (`SpinnerTest`).
+- failure scenario: type a ticker in Search, press Home while results load, return → the sheet
+  (still open, `rememberSaveable`) shows a spinner that never stops, no results and no "No
+  matches" text, until another character is typed or the sheet is closed.
+- suggested fix: don't null `searchJob` in `setForeground(false)` (its identity is what the
+  `finally` compares), or clear with `if (searchJob === me || searchJob == null)`.
+- confidence: high
+
+## Code quality (L-Q)
+
+### L-Q1 The code comment at `net/Http.kt:~545-555` and BRIEF's "Cancelling a request: disconnect the socket" row describe behaviour that does not happen (L-1). Update both with the fix, and name the new test in the comment.
+
+### L-Q2 `CrashLog.install` runs only from `MainActivity.onCreate` (`MainActivity.kt:96`). A process started by a share goes through `ShareImportActivity` (raw `Thread`, `ShareImportActivity.kt:34`) first, so a crash there — or in anything before `MainActivity` exists — leaves no trace. Installing it from both activities (it is idempotent) closes the gap.
+
+### L-Q3 `refresh()` / `loadChart` / `loadNews` / `loadFundamentals` / `loadHoldings` all use "is my marker set" as the re-entry guard for work that runs on a scope which can be cancelled out from under it; L-2 and L-7 are two instances of the same shape. A small helper that keys re-entry on `Job.isActive` would remove the class of bug rather than one instance.
+
+## Verified clean (checked, nothing to fix)
+- Lifecycle wiring: ONE `LifecycleEventObserver` in `App()` (`MainActivity.kt:381-392`), removed on dispose; `setForeground` has an equality guard, so repeated ON_START cannot duplicate loops; `startAuto` cancels the old `autoJob` before relaunching; the day-trading loop is restarted from `setForeground(true)` via `dayTradingLiveWanted` and stopped by `DisposableEffect.onDispose` (forget-before-remember ordering makes Research↔Detail handoffs correct). `LifecycleRegistry` dispatches ON_START in registration order, so `App`'s `setForeground(true)` (new `fgScope`) always runs before `DetailScreen`'s ON_START reloads.
+- `autoJob` (viewModelScope) and `feedJob` are cancelled on ON_STOP and the loop also breaks on `!foreground`; the loop idles (no network) on `VisibleScope.None`, offline, or `pricesAreFinal()`. No other `while`/`delay` polling exists in the VM besides the day-trading loop (clock- and network-gated, on `fgScope`).
+- Compose side: no ticker/clock loops, no infinite transitions; `Refreshable`'s frame-clock watchdog runs only while the circle is stranded and for at most 300 ms; Compose's frame clock is paused on ON_STOP anyway. Indeterminate progress indicators are all driven by flags cleared in `finally`. WebView: `onPause`/`pauseTimers` on stop, `destroy` on dispose.
+- Manifest: no services, receivers, alarms, wake locks or WorkManager; only `MainActivity` (launcher) and the `ShareImportActivity` trampoline are exported; `FileProvider` not exported. `onNewIntent` + CLEAR_TOP|SINGLE_TOP reuse the one ViewModel; import runs after `onStart` because its first suspension posts back to Main.
+- Concurrency: every `_x.value = _x.value...` read-modify-write in the VM runs on Main (scripted scan of all IO/Default blocks found only plain assignments); cross-thread maps are `ConcurrentHashMap`/synchronized; `Http`'s counters are `@Synchronized`; `Db` uses WAL, the settings cache has the documented lock-order fix. `Connectivity` registers no callback (nothing to leak). `MemoryTrim` holds listeners weakly on the application context.
+- Init order: `tools/checkinit.py` passes; an additional scripted check found no pre-`init` property initialiser that reads a later-declared property, and no `by lazy`/delegates in the class.
+
+## Ideas — need Tj's approval, do NOT implement
+1. **Give memory back at TRIM_MEMORY_BACKGROUND (40) without blanking anything** (follows from L-4). Release only heap copies that are invisible on return because they are speed caches in front of disk: `Http`'s in-memory conditional cache (~3 MB), `SymbolSearch` memo, `storyKeys`, `insiderDocs`. Leave sparklines, charts, feed and news alone (the reason for the locked 60 threshold). This changes a locked BRIEF row, hence approval.
+2. **Move `init`'s synchronous SQLite work off the first frame** (`db.cachedQuotes()` parsing every spark blob, `recompute()` replaying the ledger, `loadPendingImport`). Startup-latency only; not a battery issue.
+
+## Summary
+
+| Severity | Count | IDs |
+|---|---|---|
+| H | 1 | L-1 |
+| M | 3 | L-2, L-3, L-4 |
+| L | 3 | L-5, L-6, L-7 |
+| Code quality | 3 | L-Q1, L-Q2, L-Q3 |
+| Ideas (approval) | 2 | — |
+
+Top 3: L-1 (socket never disconnected on cancel — locked decision not actually implemented),
+L-3 (Claude answer landing while backgrounded never gets its rows priced / leveraged-ETF filter),
+L-4 (trim handler dead on Android 14+, so nothing is ever released).
+
+## END OF REPORT (complete)
