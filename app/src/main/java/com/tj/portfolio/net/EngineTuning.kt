@@ -444,6 +444,13 @@ object EngineTuning {
                     "v${state.version} - a change was applied, undone or reverted since that prompt was " +
                     "made. Make a new tuning prompt so Claude sees the engine as it is now."
             proposal.changes.isEmpty() -> ""
+            // AN ANSWER THAT DOES NOT SAY WHICH ENGINE IT IS ABOUT CANNOT BE CHECKED AGAINST THIS ONE
+            // (audit DA-5) - a hand-edited or truncated reply, or an old answer for an engine since
+            // changed, would otherwise be applied as though Claude had seen this one.
+            proposal.basedOnVersion == null ->
+                "This answer does not say which engine version it was written for (its \"basedOn\" is " +
+                    "missing), so the app cannot tell whether it still fits the engine as it is now. Make " +
+                    "a new tuning prompt and share Claude's complete reply."
             tier == Tier.NONE ->
                 "Only $n graded trade${if (n == 1) "" else "s"} from the app's own plans so far - the " +
                     "engine is not changed on fewer than ${Tier.SMALL.minTrades}. Claude's analysis is " +
@@ -458,17 +465,34 @@ object EngineTuning {
         var used = 0
         val items = ArrayList<Reviewed>()
         val seen = HashSet<String>()
-        for (c in proposal.changes) {
-            val spec = DayTradingParams.SPEC_BY_KEY[c.key]
+        for (c0 in proposal.changes) {
+            val spec = DayTradingParams.SPEC_BY_KEY[c0.key]
+            // THE PRECISION THE PROMPT SHOWS (audit DA-16): a value is kept to three decimals (a whole
+            // number for a count), so the next prompt's table shows exactly what is in force and
+            // Claude's `from` can match it.
+            val c = if (spec != null && c0.to.isFinite()) c0.copy(to = roundFor(c0.to, spec)) else c0
             val current = spec?.let { state.params[it.key] }
-            val counted = ev.count(c.basis)
+            // THE EVIDENCE THE CHANGE RESTS ON (DA-3): the cited group, but never more than the group
+            // the parameter itself acts on.
+            val cited = ev.count(c.basis)
+            val own = groupFor(c.key)
+            val ownN = own?.let { ev.count(it) }
+            val counted = if (cited != null && ownN != null) minOf(cited, ownN) else cited
+            val groupName = if (cited != null && ownN != null && ownN < cited) own!! else c.basis
             fun refuse(why: String) = Reviewed(c, Status.REFUSED, null, current, why, counted)
             val r: Reviewed = when {
                 spec == null -> refuse("Not a parameter this app has - nothing to change.")
                 !seen.add(c.key) -> refuse("Listed twice - only the first is used.")
                 blocker.isNotBlank() -> refuse("Not applied - see the reason above.")
-                c.from != null && current != null && kotlin.math.abs(c.from - current) > 1e-6 ->
+                c.from != null && c.from.isNaN() ->
+                    refuse("Claude's \"from\" for it is not a number - make a new prompt and ask again.")
+                c.from == null ->
+                    refuse("Claude did not say what it read this as (\"from\"), so the app cannot check the " +
+                        "prompt it saw is the engine as it is now.")
+                current != null && kotlin.math.abs(c.from - current) > FROM_TOLERANCE ->
                     refuse("Claude read it as ${fmt(c.from, spec)}, but it is ${fmt(current, spec)} now - the prompt is out of date.")
+                c.to.isNaN() -> refuse(if (spec.kind == DayTradingParams.Kind.BOOL) "Not a value this on/off setting can take."
+                    else "Not a number - this setting needs a number (true/on/off are for on/off settings only).")
                 current != null && kotlin.math.abs(c.to - current) < 1e-9 ->
                     Reviewed(c, Status.UNCHANGED, current, current, "Already ${fmt(current, spec)} - nothing to change.", counted)
                 // THE WRONG KIND OF VALUE, said as such (UI-15) - rounding 0.7 to "on" first would
@@ -480,6 +504,7 @@ object EngineTuning {
                 !spec.allows(c.to) -> refuse("${fmt(c.to, spec)} is outside what this parameter allows " +
                     "(${fmt(spec.min, spec)} to ${fmt(spec.max, spec)}${if (spec.offAllowed) ", or off" else ""}).")
                 else -> {
+                    val turningOn = spec.offAllowed && current == 0.0 && c.to != 0.0
                     val isSwitch = spec.kind == DayTradingParams.Kind.BOOL ||
                         (spec.offAllowed && (current == 0.0 || c.to == 0.0))
                     val groupN = counted
@@ -492,37 +517,42 @@ object EngineTuning {
                         groupN == null -> refuse("Its evidence (\"${c.basis}\") is not a group the app can count - " +
                             "use all, setup:<name>, level:<name>, time:<First hour|Midday|Last two hours> or engine:v<n>.")
                         groupN < MIN_GROUP_FOR_CHANGE ->
-                            refuse("Only $groupN graded trade${if (groupN == 1) "" else "s"} in \"${c.basis}\" - " +
+                            refuse("Only $groupN graded trade${if (groupN == 1) "" else "s"} in \"$groupName\"" +
+                                (if (groupName != c.basis) " (the trades this setting acts on)" else "") + " - " +
                                 "at least $MIN_GROUP_FOR_CHANGE are needed before a change rests on that group.")
                         isSwitch && groupN < MIN_GROUP_FOR_SWITCH ->
                             refuse("A switch needs at least $MIN_GROUP_FOR_SWITCH graded trades in its group " +
-                                "(\"${c.basis}\" has $groupN).")
+                                "(\"$groupName\" has $groupN).")
                         else -> {
                             // The step, limited to what the tier allows - in the direction Claude chose.
-                            val from = current ?: spec.default
+                            // A filter or override SWITCHED ON is a step too (audit DA-4), measured from
+                            // where it would have least effect: the global value an override replaces,
+                            // or the lenient end of a filter's range - never "anything in bounds".
+                            val from = if (turningOn) onBase(c.key, spec, params) else current ?: spec.default
                             var to = c.to
                             var limited = false
-                            if (!isSwitch) {
+                            if (!isSwitch || turningOn) {
                                 val maxDelta = tier.maxStep * spec.range
                                 if (kotlin.math.abs(to - from) > maxDelta + 1e-12) {
-                                    to = from + kotlin.math.sign(to - from) * maxDelta
-                                    if (spec.kind == DayTradingParams.Kind.INT) to = if (to > from) kotlin.math.floor(to) else kotlin.math.ceil(to)
+                                    to = towards(from + kotlin.math.sign(to - from) * maxDelta, from, spec)
                                     to = to.coerceIn(spec.min, spec.max)
                                     limited = true
                                 }
                             }
                             val candidate = runCatching { params.with(mapOf(c.key to to)) }.getOrNull()
+                            val inconsistent = candidate?.let { inconsistency(it) }
                             when {
-                                candidate == null || (limited && kotlin.math.abs(to - from) < 1e-9) ->
+                                candidate == null || (limited && !turningOn && kotlin.math.abs(to - from) < 1e-9) ->
                                     refuse("The step this sample allows is too small to move it.")
-                                !consistent(candidate) ->
-                                    refuse("It would put a stop floor above its ceiling - refused to keep the engine consistent.")
+                                inconsistent != null -> refuse("$inconsistent - refused to keep the engine consistent.")
                                 else -> {
                                     params = candidate
                                     used++
                                     if (limited) Reviewed(c, Status.LIMITED, to, current,
                                         "Will apply, limited to ${fmt(to, spec)} - with $n graded trades one import may move it at most " +
-                                            "${(tier.maxStep * 100).toInt()}% of its range. The direction stands; the next review can go further.", counted)
+                                            "${(tier.maxStep * 100).toInt()}% of its range" +
+                                            (if (turningOn) ", counted from where switching it on changes least (${fmt(from, spec)})" else "") +
+                                            ". The direction stands; the next review can go further.", counted)
                                     else Reviewed(c, Status.ACCEPTED, to, current, "", counted)
                                 }
                             }
@@ -535,17 +565,69 @@ object EngineTuning {
         return Review(proposal, items, tier, n, ev.sinceLastChange, blocker, params)
     }
 
-    /** Stop floors never above their ceilings, globally and per setup. */
-    private fun consistent(p: DayTradingParams): Boolean {
-        if (p[DayTradingParams.MIN_RISK] > p[DayTradingParams.MAX_RISK] + 1e-9) return false
+    /** How far a `from` may differ from the value in force - half the prompt's last shown digit (DA-16). */
+    const val FROM_TOLERANCE = 5e-4 + 1e-9
+
+    /** Three decimals for a number, a whole number for a count, 0/1 for a switch - what the prompt shows. */
+    private fun roundFor(v: Double, spec: DayTradingParams.Spec): Double = when (spec.kind) {
+        DayTradingParams.Kind.NUMBER -> java.math.BigDecimal(v).setScale(3, java.math.RoundingMode.HALF_UP).toDouble()
+        else -> v
+    }
+
+    /** A limited step, rounded TOWARD [from] - so rounding never takes it past the step it was limited to. */
+    private fun towards(v: Double, from: Double, spec: DayTradingParams.Spec): Double = when (spec.kind) {
+        DayTradingParams.Kind.INT -> if (v > from) kotlin.math.floor(v) else kotlin.math.ceil(v)
+        DayTradingParams.Kind.NUMBER -> java.math.BigDecimal(v).setScale(3,
+            if (v > from) java.math.RoundingMode.FLOOR else java.math.RoundingMode.CEILING).toDouble()
+        else -> v
+    }
+
+    /** The filters where a LOWER value is the stricter one - switched on from the top of their range. */
+    private val LOWER_IS_STRICTER: Set<String> = setOf(DayTradingParams.TARGET_CAP_R, DayTradingParams.MAX_TRIGGER_ATRS) +
+        DayTradingParams.SETUP_KEYS.values.map { "setup.$it.targetCapR" }
+
+    /**
+     * Where a switched-off parameter starts from when it is switched on (DA-4): a per-setup override
+     * from the global value it replaces (when that is on), anything else from the lenient end of its
+     * range.
+     */
+    private fun onBase(key: String, spec: DayTradingParams.Spec, p: DayTradingParams): Double {
+        val parts = key.split('.')
+        if (parts.size == 3 && parts[0] == "setup") {
+            val global = when (parts[2]) {
+                "minRiskAtrs" -> DayTradingParams.MIN_RISK
+                "maxRiskAtrs" -> DayTradingParams.MAX_RISK
+                "targetCapR" -> DayTradingParams.TARGET_CAP_R
+                "minRewardRisk" -> DayTradingParams.MIN_RR
+                else -> null
+            }
+            val g = global?.let { p[it] } ?: 0.0
+            if (g > 0.0) return g.coerceIn(spec.min, spec.max)
+        }
+        return if (key in LOWER_IS_STRICTER) spec.max else spec.min
+    }
+
+    /**
+     * Why [p] would be self-contradictory, or null: a stop floor above its ceiling (globally or for a
+     * setup), or a last-entry time that leaves no room before the flat time (audit DA-15 - plans
+     * startable after the card's own "be flat by" time).
+     */
+    internal fun inconsistency(p: DayTradingParams): String? {
+        if (p[DayTradingParams.MIN_RISK] > p[DayTradingParams.MAX_RISK] + 1e-9) return "It would put the stop floor above its ceiling"
         for (k in DayTradingParams.SETUP_KEYS.values) {
             val lo = p["setup.$k.minRiskAtrs"]; val hi = p["setup.$k.maxRiskAtrs"]
             val effLo = if (lo > 0) lo else p[DayTradingParams.MIN_RISK]
             val effHi = if (hi > 0) hi else p[DayTradingParams.MAX_RISK]
-            if (effLo > effHi + 1e-9) return false
+            if (effLo > effHi + 1e-9) return "It would put the $k stop floor above its ceiling"
         }
-        return true
+        if (p.lastEntryMinutes < p.flatBeforeCloseMinutes + MIN_ENTRY_TO_FLAT_MINUTES)
+            return "New trades must stop at least $MIN_ENTRY_TO_FLAT_MINUTES minutes before the flat time " +
+                "(last entry ${p.lastEntryMinutes} min before the close, flat ${p.flatBeforeCloseMinutes})"
+        return null
     }
+
+    /** The least room between the last new entry and the flat time, in minutes (DA-15). */
+    const val MIN_ENTRY_TO_FLAT_MINUTES = 10
 
     /**
      * Would applying [b] do exactly what [a] showed? Same items, same fates, same values (UI-3): the
