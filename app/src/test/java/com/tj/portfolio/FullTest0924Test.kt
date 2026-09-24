@@ -1000,4 +1000,17 @@ class FullTest0924Test {
         assertEquals("-$0.42", F.usdSigned(-0.42))
         assertEquals("+0.00", F.changeSigned(-0.0001))
     }
+
+    // ---- U-8: the advice preparation flag lives in the ViewModel.
+
+    @Test fun `U-8 the advice preload is counted in the ViewModel until its work is done`() {
+        val vm = PortfolioViewModel(app).also { settle() }
+        var done = false
+        vm.preloadNewsForAdvice { done = true }
+        assertTrue("busy from the tap, whatever screen is showing", vm.advicePreparing.value > 0)
+        repeat(40) { if (!done) settle() }
+        settle()
+        assertTrue(done)
+        assertEquals(0, vm.advicePreparing.value)
+    }
 }
