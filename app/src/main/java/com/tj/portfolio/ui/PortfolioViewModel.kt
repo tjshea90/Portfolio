@@ -9223,6 +9223,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     db.lastImport()
                 }
                 recompute()
+                // A restored backup can carry a tuned engine and its history (2026-09-24c).
+                loadEngine()
+                refreshDayTradingStats()
                 refresh()
                 // ---- AND TAKE A SAFETY COPY OF WHAT WAS JUST RESTORED (Round 66).
                 //
