@@ -305,6 +305,7 @@ fun App() {
         detailToNews = false
         searching = false
         detailFromSearch = false
+        searchQuery = ""
         reader = null
         lastBackAt = 0L
     }
