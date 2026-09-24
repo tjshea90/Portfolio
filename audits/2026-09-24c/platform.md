@@ -155,3 +155,89 @@ the process, that becomes a crash on every launch. (Same missing-column state al
 **Fix.** Wrap the body of the eval (and each `resolveOneDayTradingEntry`) in `runCatching`/try-catch,
 logging to CrashLog; consider a `CoroutineExceptionHandler` on `newForegroundScope()`.
 
+### PL-9 (L) — Engine version labels are not unique across a restore, so "engine:vN" evidence can mix two different engines
+**Where:** `net/EngineTuning.kt:118-127` (`load`: version = max(stored version, history max)),
+`Db.restoreJson` settings block (2014-2030), `EngineTuning.Evidence.count("engine:…")` (188),
+`EngineTuningPrompt` "Results by engine version" (187-189), `DayTradingEval.breakdown` (608-615).
+**Problem.** The log is never cleared (both restore modes are additive), but the engine state is
+replaced wholesale by a Replace restore of an older file (or restored onto a phone whose own engine
+was tuned independently, on Merge the device keeps its own history while the file's rows keep
+theirs). The log can then hold rows labelled `v2`/`v3` made by an engine the current history does
+not contain, and the next apply re-issues `v2`. `Evidence.count("engine:v2")`, the per-version
+table in the prompt and the "Engine version" slice then add up trades from two different
+parameter sets.
+**Fix.** On `load`/after a restore, set `version` to at least the highest `vN` label present in
+`day_trading_log` (one `SELECT engine … GROUP BY`), or make labels unique (e.g. `v2@<applyAt>`).
+
+### PL-10 (L) — Engine changes are not serialised; `saveEngine` writes its two keys non-atomically
+**Where:** `ui/PortfolioViewModel.kt:8173-8181, 8260-8305`; `net/DayTradingParams.kt:260-270`.
+**Problem.** `applyEngineReview`, `undoEngineChange` and `revertEngine` each suspend in
+`engineEvidenceNow()` (whole-log IO read) and in `saveEngine`'s `withContext(IO)` BEFORE
+`_engine.value` is updated, then compute `next` from `_engine.value`. Two taps that interleave
+(Apply from the review sheet and Revert from Settings, or a double confirm) both build from the same
+base: both produce version N+1, the second `saveEngine` wins, and the first change silently
+disappears from state and history although its toast said it was applied. `saveEngine` also writes
+`dt_engine` and `dt_engine_history` in two separate transactions: a process death between them
+leaves a version whose history entry is missing, so the next "Undo" takes back the wrong change.
+`DayTradingEngine.install` likewise sets two separate volatiles (params, then version), so an
+off-main reader can see new params with the old version (not "an immutable swap" as DESIGN.md says).
+**Fix.** A `Mutex` around the three mutators (re-reading `_engine.value` inside it); write both keys
+in one DB transaction (add a `Db.setAll(map)`); hold params+version in one immutable object behind
+a single `@Volatile` reference.
+
+### PL-11 (L) — Heavy work on the main thread on Apply; repeated per-row JSON parsing in stats
+**Where:** `applyEngineReview` (8266) runs `EngineTuning.review(...)` on Main; for a `level:` basis
+`Evidence.count` → `levelOf()` parses every decided row's `features` JSON, once per proposed change
+(up to 8 × N parses). `DayTradingEval.stats` → `record()` and `breakdown()` parse the same
+`eval_detail` up to ~8 times per decided row (`netOf` is called from both `profitable()` and `rOf()`
+for each of 3-4 groupings).
+**Problem.** With a year of log (~3-5k rows) the Apply tap does tens of thousands of JSON parses on
+the UI thread (visible jank; the review on import already runs on `Dispatchers.Default`). The stats
+cost is off-main but is paid ~3 times per auto-eval plus on every restore and prompt.
+**Fix.** Run the re-review in `withContext(Dispatchers.Default)` like `importEngineTuning` does; parse
+each row's `features`/`eval_detail` once (a map or a lazily parsed field on a wrapper) in `stats`,
+`breakdown` and `Evidence`.
+
+### PL-12 (L) — The whole log (with every `features` + `eval_detail` string) is loaded ~7 times per tab open
+**Where:** `evaluateDayTradingLog` (7340, 7383, 7385), `engineEvidenceNow` (8201) re-triggered by
+`ResearchScreen.kt:246` `LaunchedEffect(section, dayTradingStats, engine.version)` — `DayTradingStats`
+carries `evaluatedAt = now`, so every publish is a new key → another full read; `backupToDownloads`
+reads the whole log only for `.size` (8924).
+**Problem.** Each read materialises every row plus two ~0.5 KB JSON strings (≈2.5 KB of heap per
+row as UTF-16). Negligible today, but linear in log age: at 5k rows that is ~12 MB per read and
+~80 MB of short-lived garbage per tab open on a mid-range phone.
+**Fix.** A projection without `eval_detail` for `Evidence` (it needs source, outcome, evalVersion,
+recordedAt, setup, engine, features); `SELECT COUNT(*)` for the backup check; key the
+LaunchedEffect on something stable (e.g. `stats?.entriesTriggered`, `engine.version`) or have the
+eval publish the evidence itself from the log it already read.
+
+### PL-13 (L) — Perpetual retries: DATA_UNAVAILABLE rows and non-404 1-minute errors
+**Where:** `dayTradingRowsNeedingGrade` (1479-1487), `resolveOneDayTradingEntry` (7458-7467),
+`dayTradingRowsToResolve` (oldest first, cap 60).
+**Problem.** (a) A DATA_UNAVAILABLE row inside 55 days (delisted/renamed symbol) is re-requested on
+every auto-eval — 2 requests each time (1m empty → 5m empty) — for ~8 weeks; this used to need a
+press, it is now automatic. (b) While `oneMinuteStillAvailable`, a 1m request answered with any
+non-OK status other than 404 (e.g. a 4xx "not available" reply) returns `null` from
+`fetchDaySeries`, and `if (bars == null) return` never falls back to 5m — the row stays ungraded (2
+requests per run) until day 29 (unsure which status Yahoo uses for such a refusal). (c) Because the
+batch is "oldest first", a backlog of such perpetual rows is always picked before today's rows; with
+>60 of them a pressed "Check" never reaches new rows.
+**Fix.** Remember per-row attempts (e.g. `outcome_evaluated_at` + a small back-off: skip a
+DATA_UNAVAILABLE row re-checked in the last 24 h); fall back to 5m after a 1m 4xx; order the batch
+"never-graded / stale first, retries last".
+
+### PL-14 (L) — Share/import routing nits for tuning answers
+**Where:** `importShared` ENGINE_TUNING branch (7043-7048); `importClaudeFile` (6935-6939);
+`EngineReviewDialog` is composed only in `ResearchScreen.kt:250-252`.
+**Problem.** (a) An unreadable tuning answer (`importEngineTuning` returns the parse error) still calls
+`jumpToResearch` and returns `ShareDest.DAY_TRADING`, unlike the DAY_TRADING/RESEARCH branches which
+return `dest = null` on error. (b) A tuning answer picked from the Advice or Activity tab's "Import"
+is routed to `importEngineTuning` (good) but nothing navigates to Research, where the only review
+dialog lives: the toast says "N changes ready for you to approve" over a screen with nothing to
+approve. (c) The review exists only in `_engineReview` (memory); the share file is deleted by
+`ShareInbox.done` right after, so a process death before Apply loses it (re-sharing from the Claude
+chat recovers it — hence L).
+**Fix.** Return `dest = null` when `importEngineTuning` reports an error; have `importClaudeFile`
+publish `_shareNav = DAY_TRADING` (or `jumpToResearch`) for a tuning answer; optionally persist the
+pending proposal text in a non-backed-up setting like `PENDING_IMPORT`.
+
