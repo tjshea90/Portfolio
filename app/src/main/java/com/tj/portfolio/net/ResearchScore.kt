@@ -256,7 +256,14 @@ object ResearchScore {
      * means "how loud is this relative to today", not "how loud in absolute mentions" -
      * a quiet market day would otherwise produce a section of near-zero scores.
      */
-    fun trending(t: TrendInput, maxMentions: Int, maxNews: Int): Scored {
+    fun trending(
+        t: TrendInput,
+        maxMentions: Int,
+        maxNews: Int,
+        /** "today" / "this session" / "in the last session" - the same rule as [dayTrading]'s
+         *  (full test 2026-09-24, S-10: a Saturday card read "Price up 9.00% today"). */
+        sessionWord: String = "today"
+    ): Scored {
         val why = ArrayList<String>()
         var s = 0.0
 
@@ -297,7 +304,7 @@ object ResearchScore {
             why.add("Reddit sentiment reads ${t.sentiment.lowercase()}")
         }
         if (abs(t.changePct) >= 5.0) {
-            why.add("Price ${if (t.changePct > 0) "up" else "down"} ${pct(abs(t.changePct))} today")
+            why.add("Price ${if (t.changePct > 0) "up" else "down"} ${pct(abs(t.changePct))} $sessionWord")
         }
 
         // Confidence here is about how many independent sources saw it at all.

@@ -514,6 +514,7 @@ object Research {
         newsHits.keys.forEach { names.putIfAbsent(it, universe[it]?.name.orEmpty()) }
 
         val socialBy = social.associateBy { it.symbol }
+        val sessionWord = sessionWordNow()   // S-10 - once per pass, like buildDayTrading's
         val maxMentions = social.maxOfOrNull { it.activity } ?: 0
         val maxNews = newsHits.values.maxOfOrNull { it.size } ?: 0
 
@@ -535,7 +536,7 @@ object Research {
                 onYahooTrending = sym in yahooTrending,
                 changePct = q?.changePct ?: 0.0
             )
-            val sc = ResearchScore.trending(input, maxMentions, maxNews)
+            val sc = ResearchScore.trending(input, maxMentions, maxNews, sessionWord)
             val top = news.maxByOrNull { it.published }
             ResearchRow(
                 symbol = sym,
@@ -652,11 +653,7 @@ object Research {
         // WHICH SESSION THE SCREENER'S OWN NUMBERS DESCRIBE - read once for the whole pass,
         // not per row, so every line in one build agrees with every other. See the parameter's
         // note in [ResearchScore.dayTrading] for the bug this closes.
-        val sessionWord = when (MarketClock.phase()) {
-            MarketClock.Phase.OPEN -> "today"
-            MarketClock.Phase.EXTENDED -> "this session"
-            MarketClock.Phase.CLOSED -> "in the last session"
-        }
+        val sessionWord = sessionWordNow()
 
         // READ ONCE FOR THE WHOLE PASS, like `sessionWord` above and for the same reason.
         val sessionFraction = MarketClock.sessionElapsedFraction()
@@ -702,6 +699,13 @@ object Research {
             .take(DAY_TRADING_BUFFER)
             .map { (row, sc, confidence) -> toDayTradingRow(row, sc, confidence, trendBy[row.symbol]) }
             .toList()
+    }
+
+    /** Which session the screener's day-change figures describe, in the reason lines' words. */
+    private fun sessionWordNow(): String = when (MarketClock.phase()) {
+        MarketClock.Phase.OPEN -> "today"
+        MarketClock.Phase.EXTENDED -> "this session"
+        MarketClock.Phase.CLOSED -> "in the last session"
     }
 
     private fun toDayTradingRow(
