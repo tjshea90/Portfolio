@@ -437,10 +437,14 @@ class ChartTest {
         assertTrue(isFinal(ChartRange.D1, close1555, et(2026, 9, 11, 20, 30), saturday))
     }
 
-    /** Longer ranges are governed by their TTL alone; this gate does not apply to them. */
+    /**
+     * Ranges longer than a month are governed by their TTL alone; this gate does not apply to
+     * them. 1M joined 5D in the gate on 2026-09-24b (a daily close cannot change until the next
+     * session) - see Improve0924bTest for its own cases.
+     */
     @Test
-    fun `the gate never fires for a non-intraday range`() {
-        ChartRange.entries.filter { !it.intraday }.forEach {
+    fun `the gate never fires for a range longer than a month`() {
+        ChartRange.entries.filter { !it.intraday && it != ChartRange.M1 }.forEach {
             assertFalse(it.name, isFinal(it, close1555, night2200, night2200))
         }
     }
