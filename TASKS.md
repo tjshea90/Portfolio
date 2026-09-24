@@ -56,14 +56,23 @@ Branch `claude/day-trading-success-claude-learn-t9ot3u`, builds on afb40a4d (v7.
 Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written before code).
 
 ### Part A - success tracking must be a true, tradeable record (rule 2)
-- [ ] A1 Audit every path that logs a plan and grades it: what counts as a trade, entry time,
+- [x] A1 Audit every path that logs a plan and grades it: what counts as a trade, entry time,
       fill price, stop/target order, same-bar ties, gaps, halts, stale/late logging, re-plans,
       post-hoc levels, weekends/holidays, duplicates, symbols the app never showed Tj
-- [ ] A2 Fix every way a success can be counted that Tj could not really have traded
+      DONE: audits/2026-09-24c/DESIGN.md table E1-E10.
+- [x] A2 Fix every way a success can be counted that Tj could not really have traded
       (move realised before the recommendation time, entry filled before logging, entry
       price not reachable, levels changed after the fact, etc.) - with regression tests
-- [ ] A3 Report real P&L terms, not just a hit rate (avg R, expectancy, net % after a
+      DONE: net/DayTradingGrader.kt (v2: 1m bars first, open/gap fills, trade-through targets
+      and limits, plan's own entry cut-off + flat time, spike filter), logging gates E5
+      (planWaiting, >= $1) + E6 (bar <= 10 min old), re-grade of old verdicts (E9), capital-
+      constrained account (E8). Tests: DayTradingGraderTest (16, several show the old rule's
+      wrong answer), ResearchPriceFillTest E5/E6, DayTradingEvalTest 41/0 on the new core.
+- [x] A3 Report real P&L terms, not just a hit rate (avg R, expectancy, net % after a
       realistic cost/slippage), sample size shown, "not enough data" honest
+      DONE: stats v2 (expectancy + 95% CI, Wilson CI on profitable rate, PF, drawdown, avg
+      win/loss R, unfunded + legacy + 5m counts) and the success card rewrite (sample note
+      first, "How are trades graded?" rules). Auto-grading when the tab opens (15 min).
 ### Part B - Claude "learn" round trip for the day-trading engine
 - [x] B1 Engine parameters extracted into one versioned, validated settings object
       (defaults = today's engine exactly; tests prove default output unchanged)
