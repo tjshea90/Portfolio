@@ -81,15 +81,27 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
       DayTradingEngine holder; ResearchScore reads params via default args. Proof:
       DayTradingGoldenTest (fixture from pre-refactor v7.41 code, 2538 lines) + DT suites 177/0;
       DayTradingParamsTest (13) covers each knob. Row gains planWait/planLevel/dt* inputs.
-- [ ] B2 "Make Claude tuning prompt" button -> prompt file via the share sheet: goal, how the
+- [x] B2 "Make Claude tuning prompt" button -> prompt file via the share sheet: goal, how the
       engine works, current parameters + full change history, graded trade data + breakdowns,
       sample-size rules, exact answer schema, "start now" line
-- [ ] B3 Import of Claude's tuning file (share-in + Import button): schema check, bounds,
+      DONE: net/EngineTuningPrompt.kt; "Make tuning prompt" on the new "Improve the engine with
+      Claude" card (ui/EngineTuningUi.kt) under the success card -> deliverPrompt -> share sheet.
+- [x] B3 Import of Claude's tuning file (share-in + Import button): schema check, bounds,
       small-sample guard enforced IN THE APP (not just asked of Claude), preview/confirm,
       applied to the engine, history recorded
-- [ ] B4 Original engine backup in app storage + "Revert to original engine" (one tap, undoes
+      DONE: SharedAnswer.Kind.ENGINE_TUNING; net/EngineTuning.kt parse/review (tiers <30 none,
+      30+ 3 small steps, 75+ 5 + switches w/ 30 in group, 150+ 8; group re-counted by the app;
+      20 trades between changes; stale-version/from checks; limiting); EngineReviewDialog;
+      applyEngineReview -> saveEngine (settings + DayTradingEngine.install + history).
+- [x] B4 Original engine backup in app storage + "Revert to original engine" (one tap, undoes
       every change ever applied); also revert just the last change
-- [ ] B5 Tests for all of B (defaults identical, bounds, guard, revert, history, round trip)
+      DONE: original = DayTradingParams.DEFAULTS compiled in; files/daytrading-engine/
+      {original,current,history}.json; Undo last change + Revert to original (card + Settings),
+      both confirmed; engine + history in settings => in backups, reloaded after restore.
+- [x] B5 Tests for all of B (defaults identical, bounds, guard, revert, history, round trip)
+      DONE: DayTradingGoldenTest, DayTradingParamsTest 13, EngineTuningTest 12 (incl. VM
+      import->apply->restart->revert + backup files), DayTradingLearnUiTest 5. Full suite
+      1501/0 (was 1452).
 ### Part C - verify and ship
 - [ ] C1 Full tests protocol (CLAUDE.md): floor, parallel audits (<=3 agents at once),
       fix everything, re-run, repeat until confident; Moto G 2026 / Android 16 perf focus
