@@ -8,7 +8,7 @@ paths), Db (day_trading_log), DayTradingLog, and the tests.
 Severity: H = wrong numbers / credits a trade that could not happen / crash; M = real but
 narrower; L = minor.
 
-(Work in progress — findings appended as confirmed.)
+Complete: 21 findings (1 H, 9 M, 11 L). The summary table is at the end.
 
 ## Findings
 
