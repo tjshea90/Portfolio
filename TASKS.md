@@ -140,6 +140,10 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
       After all Ls + Qs: 1411 tests / 0 failures (3m15s), checkinit ok.
 - [ ] Independent review of this session's whole diff for regressions -> fix
+      RUNNING (16:5x UTC): 2 read-only review agents -> audits/2026-09-24/review-hm.md
+      (370bfa4..5feb55dc, the H/M fixes) and review-lq.md (5feb55dc..ckpt 1685, the L/Q
+      fixes). Complete only with the `## END OF REPORT (complete)` last line; a resumed
+      session re-runs just the missing/partial one, then verifies + fixes every finding.
 - [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
       record-release) and post the Release link; summarize for Tj
 

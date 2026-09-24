@@ -1,13 +1,13 @@
-# CHECKPOINT 1684 — read me first, then TASKS.md
+# CHECKPOINT 1685 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T16:35:54Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-tests-completion-tw9a1o` · **builds on:** `4a963518` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T16:36:46Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-tests-completion-tw9a1o` · **builds on:** `60a20536` (this checkpoint is the commit after it)
 
 ## Just done
-Full suite after Ls+Qs: 1411/0, checkinit ok
+Independent review launched (2 agents -> review-hm.md, review-lq.md)
 
 ## Do this next
-independent review of the whole full-test diff (since 370bfa4), fix, ship
+wait for reviews, verify+fix findings, re-run suite, ship
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ independent review of the whole full-test diff (since 370bfa4), fix, ship
 
 ## Last ten checkpoints
 ```
+  60a20536 ckpt 1684: Full suite after Ls+Qs: 1411/0, checkinit ok
   99ba0189 ckpt 1683: Q items: 17 fixed (C-Q3/5/7, L-Q2, N-Q1..5, A-Q3, S-Q1/3, U-Q1..4), rest rec
   b4013ea0 ckpt 1682: U-4..U-8 fixed (+2 tests); all L findings done
   5c5835ab ckpt 1681: S-3, S-9..S-12 fixed (+5 tests)
@@ -26,8 +27,4 @@ independent review of the whole full-test diff (since 370bfa4), fix, ship
   c71263d9 ckpt 1677: D-10 fixed: DT technicals bonus idempotent per tick from persisted build-tim
   6188da75 ckpt 1676: D-9 fixed: beginner card direction from plan (planPrice/setup), reached-entr
   89ea37ee ckpt 1675: Resumed full tests (new session): resume point = D-9/D-10 then remaining Ls
-  5feb55dc ckpt 1674: DT Ls fixed: D-6, D-7, D-8, D-11, D-12, D-13, D-14 (+tests); DT suites green
 ```
-
-(1 automatic checkpoint(s) since the last deliberate one — the
-session was still mid-step. `git diff` against it shows what changed.)
