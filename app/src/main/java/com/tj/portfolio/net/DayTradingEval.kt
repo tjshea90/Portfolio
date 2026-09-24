@@ -49,10 +49,17 @@ object DayTradingEval {
      * usually means the data is simply no longer available (Yahoo's minute-level history has a
      * limited retention window) rather than that nothing happened.
      */
+    /** Whether a bar stamped [tSec] (its open) starts before the plan's flat time that day (D-11). */
+    internal fun beforeFlatTime(tSec: Long): Boolean {
+        val et = java.time.Instant.ofEpochSecond(tSec).atZone(java.time.ZoneId.of("America/New_York"))
+        return et.hour * 60 + et.minute < MarketClock.closeMinuteAt(tSec * 1000L) - 10
+    }
+
     suspend fun fetchDaySeries(symbol: String, tradingDay: String): List<IntradayBar>? {
         val bounds = sessionBoundsMs(tradingDay) ?: return null
         val period1 = bounds.first / 1000L
         val period2 = bounds.second / 1000L
+        var answeredEmpty = false
         for (host in listOf("query1", "query2")) {
             val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
                 MarketData.enc(symbol) + "?period1=$period1&period2=$period2&interval=5m"
@@ -67,9 +74,21 @@ object DayTradingEval {
             // caller wrote DATA_UNAVAILABLE against a day whose bars the other host had.
             val bars = parseBars(r.body)
             if (bars.isNotEmpty()) return bars
+            if (answeredNoBars(r.body)) answeredEmpty = true
         }
-        return null
+        // NULL = ASKED AND NOT ANSWERED; EMPTY = ANSWERED, NOTHING THERE (full test 2026-09-24,
+        // D-12). Both came back null, so a press that tripped a host cooldown wrote every
+        // remaining settled row as "no price history available" - which is what the doc above
+        // promised only a real answer could mean.
+        return if (answeredEmpty) emptyList() else null
     }
+
+    /** A well-formed chart reply for the window - `chart.result[0]` present, no error - with no bars in it. */
+    internal fun answeredNoBars(body: String): Boolean = runCatching {
+        val chart = org.json.JSONObject(body).optJSONObject("chart") ?: return@runCatching false
+        val err = chart.opt("error")
+        chart.optJSONArray("result")?.optJSONObject(0) != null && (err == null || err == org.json.JSONObject.NULL)
+    }.getOrDefault(false)
 
     /** TOTAL - malformed input is a real possibility (a proxy error page, a truncated body)
      *  and always reads as "nothing parsed", never an exception. */
@@ -221,7 +240,10 @@ object DayTradingEval {
         // far worse mistake: crediting an entry/target/stop touch that may have happened before
         // the recommendation was ever made, which is exactly what Tj's own requirement (this
         // file's header) rules out.
-        val after = bars.filter { it.t * 1000L >= recordedAt }
+        // AND NOTHING FROM THE LAST TEN MINUTES (full test 2026-09-24, D-11): the plan says "be
+        // flat by 15:50" (12:50 on a half day), so a stop or target touched at 15:52 is not this
+        // trade's, and an unresolved trade closes at the 15:50 print, not the 16:00 one.
+        val after = bars.filter { it.t * 1000L >= recordedAt && beforeFlatTime(it.t) }
         val rises = entryRises(setup, entry, priceAtRecommendation)
         val entryIndex = after.indexOfFirst { bar -> if (rises) bar.high >= entry else bar.low <= entry }
         if (entryIndex < 0) {

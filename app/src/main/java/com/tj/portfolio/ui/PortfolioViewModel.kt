@@ -6908,7 +6908,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val bars = runCatching {
             com.tj.portfolio.net.DayTradingEval.fetchDaySeries(entry.symbol, entry.tradingDay)
         }.getOrNull()
-        if (bars.isNullOrEmpty()) {
+        // A REQUEST THAT FAILED says nothing about the day (D-12) - the row stays as it was and
+        // the next press asks again. Only an ANSWER with no bars marks the data unavailable.
+        if (bars == null) return
+        if (bars.isEmpty()) {
             // A day still in progress with no bars yet is simply too early to say anything -
             // left as whatever it already was (null or PENDING) rather than written over, so
             // the NEXT press tries again instead of settling for "unavailable" prematurely.
