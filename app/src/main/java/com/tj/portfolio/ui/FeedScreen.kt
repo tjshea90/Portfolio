@@ -207,7 +207,20 @@ fun FeedScreen(
                 vm.refreshMarketInsidersIfEmpty()
             }
         }) {
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            // ONE SCROLL STATE PER FILTER (full test 2026-09-24, U-6), all created unconditionally
+            // - the rule ResearchScreen's sections already follow. Sharing one meant 40 rows
+            // down "All" then "WallStreetBets" (25 rows) landed at an arbitrary offset.
+            val perFilter = mapOf(
+                F_ALL to androidx.compose.foundation.lazy.rememberLazyListState(),
+                F_MINE to androidx.compose.foundation.lazy.rememberLazyListState(),
+                F_INSIDER to androidx.compose.foundation.lazy.rememberLazyListState(),
+                F_WSB to androidx.compose.foundation.lazy.rememberLazyListState()
+            )
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                state = perFilter[filter] ?: perFilter.getValue(F_ALL),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
 
                 if (filter == F_WSB) {
                     item {
