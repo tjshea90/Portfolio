@@ -330,6 +330,7 @@ fun ResearchScreen(
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
             }
+            val researchNow = rememberTickingNow()   // U-Q6: "Updated 5m ago" keeps counting
             Text(
                 when (busy) {
                     BUSY_BUILDING -> "Scanning the market..."
