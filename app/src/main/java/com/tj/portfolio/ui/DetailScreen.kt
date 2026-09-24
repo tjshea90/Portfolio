@@ -574,6 +574,12 @@ fun DetailScreen(
         zoomed = chartWindow != null,
         awaiting = chartPinching || zoomSettling || chartLoading
     )
+    // THE BENCHMARK FOR THE RANGE ACTUALLY DRAWN (review 2026-09-24, R1-5). While a zoom's
+    // series is still coming the chart bridges with the OLD range - and pairing that with SPY's
+    // NEW range compared "the stock since yesterday's close" with "SPY over five days". No
+    // matching benchmark held: no overlay, rather than a wrong one.
+    val drawnCompare = if (drawnRange == chartRange) compareSeries
+    else if (compareOn && !isBenchmark) chartMap[vm.chartKey(BENCHMARK_SYMBOL, drawnRange)] else null
 
     val onChartWindow: (com.tj.portfolio.data.ChartWindow) -> Unit = { w ->
         chartWindow = w
@@ -880,8 +886,9 @@ fun DetailScreen(
                     onResetChartWindow = { zoomSettling = false; chartWindow = null },
                     onExpandChart = { chartExpanded = true },
                     onChartPinching = { chartPinching = it },
-                    compare = compareSeries,
-                    compareLive = liveEdgePrice(benchmarkQuote, chartRange, compareSeries),
+                    compare = drawnCompare,
+                    compareLive = liveEdgePrice(
+                        drawnCompare?.let { quotesMap[BENCHMARK_SYMBOL] }, drawnRange, drawnCompare),
                     compareOn = compareOn && !isBenchmark,
                     compareOffered = !isBenchmark,
                     compareLoading = chartLoadingSet.contains(compareKey),
@@ -967,9 +974,10 @@ fun DetailScreen(
             onWindow = onChartWindow,
             onResetWindow = { zoomSettling = false; chartWindow = null },
             onZoomingChanged = { chartPinching = it },
-            compare = if (compareOn && !isBenchmark) compareSeries else null,
+            compare = if (compareOn && !isBenchmark) drawnCompare else null,
             compareLabel = BENCHMARK_SYMBOL,
-            compareLivePrice = liveEdgePrice(benchmarkQuote, drawnRange, compareSeries),
+            compareLivePrice = liveEdgePrice(
+                drawnCompare?.let { quotesMap[BENCHMARK_SYMBOL] }, drawnRange, drawnCompare),
             onClose = { chartExpanded = false }
         )
     }
