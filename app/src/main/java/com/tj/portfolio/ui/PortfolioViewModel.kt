@@ -649,8 +649,27 @@ internal fun evictStaleWhy(
     set: com.tj.portfolio.data.ResearchSet,
     now: Long = System.currentTimeMillis()
 ): com.tj.portfolio.data.ResearchSet {
-    fun scrub(list: List<com.tj.portfolio.data.ResearchRow>) = list.map { r ->
-        if (stillCurrent(r.why, r.whyAt, now)) r else r.copy(why = "", whyAt = 0L)
+    // A PARAGRAPH THAT WENT STALE TAKES CLAUDE'S OTHER WORDS WITH IT (full test 2026-09-24,
+    // S-6): its conviction badge and its catalyst text are the same answer, just as old. And a
+    // Day Trading paragraph is about ONE session (S-7) - "worth trading TODAY" - so it expires
+    // with that session, not after fourteen days.
+    fun expired(r: com.tj.portfolio.data.ResearchRow, dayTrading: Boolean) = r.why.isNotBlank() &&
+        (!stillCurrent(r.why, r.whyAt, now) || (dayTrading && !sameTradingDay(r.whyAt, now)))
+    fun scrub(list: List<com.tj.portfolio.data.ResearchRow>, dayTrading: Boolean = false) = list.map { r ->
+        if (!expired(r, dayTrading)) r
+        else r.copy(why = "", whyAt = 0L, conviction = 0,
+            catalyst = com.tj.portfolio.net.Research.appEarningsPart(r.catalyst) ?: "")
+    }
+    // A FUND CLAUDE ADDED IS DROPPED OUTRIGHT once its paragraph is stale (S-6). Blanked to a
+    // category-only row, `carryEtfExplanations` kept it on every later rebuild - a three-week-old
+    // "CLAUDE 9/10" on the list Tj buys from, forever. The app's own funds only lose Claude's
+    // paragraph and badge; their category is the app's and stays.
+    fun scrubEtfs(list: List<com.tj.portfolio.data.ResearchRow>) = list.mapNotNull { r ->
+        when {
+            !expired(r, false) -> r
+            r.etf == null -> null
+            else -> r.copy(why = "", whyAt = 0L, conviction = 0)
+        }
     }
     // THE BATCH-LEVEL "Explained via Claude" STAMP GOES STALE ON A COLD LAUNCH TOO - see
     // [carryExplainedStamp]'s own header.
@@ -660,8 +679,8 @@ internal fun evictStaleWhy(
     return set.copy(
         trending = scrub(set.trending),
         best = scrub(set.best),
-        dayTrading = scrub(set.dayTrading),
-        etfs = scrub(set.etfs),
+        dayTrading = scrub(set.dayTrading, dayTrading = true),
+        etfs = scrubEtfs(set.etfs),
         notes = note,
         explained = explainedAt,
         explainedBy = explainedVia,
@@ -929,6 +948,10 @@ private fun carryWhy(
     // [WHY_STALE_MS]. Past that window this stops carrying `why` forward at all, which is the
     // actual eviction: the next `cacheResearch` persists this row with `why` blank again.
     if (p == null || !stillCurrent(p.why, p.whyAt, now)) return r
+    // A DAY TRADING PARAGRAPH IS ABOUT ITS OWN SESSION (full test 2026-09-24, S-7) - the same
+    // gate as the plan below. Monday's "squeezing on the halt, buy the break" must not sit on
+    // Thursday's card as today's reasoning.
+    if (dayTrading && !sameTradingDay(p.whyAt, now)) return r
     // `conviction > 0` is the mark of a row Claude answered for - the app never sets it - and
     // only then is a catalyst that differs from the fresh screener's Claude's own line.
     val claude = p.conviction > 0
