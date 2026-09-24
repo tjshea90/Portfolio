@@ -3,6 +3,7 @@ package com.tj.portfolio.net
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -95,18 +96,31 @@ object Http {
         offlineForTests && !host.startsWith("127.") && host != "localhost"
 
     /**
-     * Disconnects [connRef]'s connection the moment the calling coroutine is CANCELLED - not
-     * when it completes, which a coroutine blocked in `read()` cannot do (L-1/N-1). The
-     * handler runs on whichever thread calls `cancel()`; `disconnect()` only closes the socket.
-     * The caller disposes the handle in its `finally`.
+     * Runs [action] the moment the calling coroutine is CANCELLED - synchronously, inside
+     * `cancel()` - rather than when it completes, which a coroutine blocked in `read()` cannot
+     * do (full test 2026-09-24, L-1/N-1). Not run on a normal completion. The caller disposes
+     * the handle in its `finally`. Internal so HttpCancelTest can pin the timing.
      */
     @OptIn(InternalCoroutinesApi::class)
-    private suspend fun cancelWatch(
-        connRef: java.util.concurrent.atomic.AtomicReference<HttpURLConnection?>
-    ): kotlinx.coroutines.DisposableHandle? =
+    internal suspend fun onCancelling(action: () -> Unit): kotlinx.coroutines.DisposableHandle? =
         kotlin.coroutines.coroutineContext[Job]?.invokeOnCompletion(
             onCancelling = true, invokeImmediately = true
-        ) { cause -> if (cause != null) runCatching { connRef.get()?.disconnect() } }
+        ) { cause -> if (cause != null) runCatching(action) }
+
+    /**
+     * Disconnects [connRef]'s connection when the request is cancelled. On Android that is
+     * OkHttp's cancel: it closes the raw socket, and the blocked read throws at once. It is
+     * handed to an IO thread rather than run inline because the canceller is the MAIN thread
+     * when the app is backgrounded (`setForeground(false)`), and nothing on that path should
+     * wager a frame on a socket close. (A desktop JDK's `disconnect()` cannot interrupt a
+     * read at all - it waits for it - which is why the test pins the hook's timing instead.)
+     */
+    private suspend fun cancelWatch(
+        connRef: java.util.concurrent.atomic.AtomicReference<HttpURLConnection?>
+    ): kotlinx.coroutines.DisposableHandle? = onCancelling {
+        val c = connRef.get() ?: return@onCancelling
+        Dispatchers.IO.asExecutor().execute { runCatching { c.disconnect() } }
+    }
 
     // ------------------------------------------------------------ rate meter
 
@@ -575,7 +589,7 @@ object Http {
         // downloaded, or the read timeout). So the disconnect only ever landed on a connection
         // that was already finished, and the whole mechanism described above did nothing.
         // `onCancelling = true` runs the handler at the moment of `cancel()`, which is the only
-        // moment it is useful. HttpCancelTest pins it with a loopback server that stalls mid-body.
+        // moment it is useful. HttpCancelTest pins that timing.
         val cancelWatch = cancelWatch(connRef)
         try {
             conn = (URL(url).openConnection() as HttpURLConnection).also { connRef.set(it) }.apply {
