@@ -89,12 +89,17 @@ class HttpCancelTest {
         } finally { server.close() }
     }
 
-    @Test fun `a cancelled request does not count as the host being unreachable`() {
-        val server = stallingServer(stallMs = 8_000)
-        try {
-            val url = "http://127.0.0.1:${server.localPort}/stall"
-            repeat(1) { cancelTakesMs { Http.get(url, timeoutMs = 10_000) } }
-            assertTrue("a deliberate cancel must not arm a backoff", Http.cooldownRemaining(url) == 0L)
-        } finally { server.close() }
+    @Test fun `cancelled requests do not count as the host being unreachable`() {
+        // Three is the unreachable threshold; the cooldown is per HOST, so three servers on
+        // three ports all count against 127.0.0.1.
+        repeat(3) {
+            val server = stallingServer(stallMs = 8_000)
+            try {
+                val url = "http://127.0.0.1:${server.localPort}/stall"
+                cancelTakesMs { Http.get(url, timeoutMs = 10_000) }
+            } finally { server.close() }
+        }
+        assertTrue("a deliberate cancel must not arm a backoff",
+            Http.cooldownRemaining("http://127.0.0.1:1/any") == 0L)
     }
 }
