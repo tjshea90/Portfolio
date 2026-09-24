@@ -5,7 +5,10 @@ import com.tj.portfolio.util.Fmt
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 
 /**
@@ -52,6 +55,36 @@ import kotlinx.coroutines.sync.withPermit
  * caller's semaphore.
  */
 object Insider {
+
+    // ------------------------------------------------------------ SEC pacing (N-4)
+
+    /**
+     * The least time between two requests to sec.gov: 125 ms, i.e. 8 a second, under EDGAR's
+     * published fair-access cap of 10 (full test 2026-09-24, N-4). The ViewModel's `secGate`
+     * semaphore bounds CONCURRENCY only - three permits on ~7 KB Form 4 documents answered in
+     * 60-100 ms is 30-50 requests a second, and SEC's answer to that is a 403 and a ten-minute
+     * IP block. Every SEC request goes through [secGet], which spaces them out globally.
+     */
+    internal const val SEC_MIN_GAP_MS = 125L
+
+    /** When a request may go out, given when the previous one did. Pure, for the test. */
+    internal fun nextSendAt(lastSendAt: Long, now: Long, minGapMs: Long = SEC_MIN_GAP_MS): Long =
+        maxOf(now, lastSendAt + minGapMs)
+
+    private val secPace = Mutex()
+    @Volatile private var secLastSend = 0L
+
+    /** [Http.get] for sec.gov, spaced by [nextSendAt] across every caller. */
+    private suspend fun secGet(url: String, conditional: Boolean = false): HttpResult {
+        secPace.withLock {
+            val now = System.currentTimeMillis()
+            val at = nextSendAt(secLastSend, now)
+            if (at > now) delay(at - now)
+            secLastSend = System.currentTimeMillis()
+        }
+        return Http.get(url, headers(), 20000, conditionalKey = conditional)
+    }
+
 
     private const val UA = "TJ Portfolio Tracker (personal use) tjshea90@gmail.com"
 
@@ -261,7 +294,7 @@ object Insider {
         val url = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=" +
             MarketData.enc(symbol) + "&type=4&dateb=&datea=" + MarketData.enc(since) +
             "&owner=include&count=100&output=atom"
-        val r = Http.get(url, headers(), 20000, conditionalKey = true)
+        val r = secGet(url, conditional = true)
         if (!r.ok) return Listing(emptyList(), answered = false)
         return Listing(parseListing(r.body), answered = true)
     }
@@ -333,7 +366,7 @@ object Insider {
     object Unreadable
 
     private suspend fun fetch(symbol: String, ref: Ref): Any? {
-        val r = Http.get(ref.docUrl, headers(), 20000)
+        val r = secGet(ref.docUrl)
         if (!r.ok) return null                       // network said no - try again later
         return Form4.parse(symbol, ref.accession, ref.pageUrl, ref.filedAt, r.body)
             ?: Unreadable                            // body arrived, and it is not a Form 4
@@ -479,7 +512,7 @@ object Insider {
         val url = "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&company=" +
             "&dateb=&owner=include&count=100&output=atom" +
             (if (start > 0) "&start=$start" else "")
-        val r = Http.get(url, headers(), 20000, conditionalKey = true)
+        val r = secGet(url, conditional = true)
         if (!r.ok) return Listing(emptyList(), answered = false)
         return Listing(parseCurrentListing(r.body), answered = true)
     }
