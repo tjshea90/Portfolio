@@ -659,8 +659,7 @@ class FullTest0924Test {
         val row = com.tj.portfolio.data.ResearchRow(symbol = "HOT", price = 99.2, entryPrice = 100.0,
             stopPrice = 97.0, targetPrice = 106.0, setup = "Pullback", planByClaude = true,
             planPrice = 105.0)
-        val back = com.tj.portfolio.data.ResearchRow.fromJson(row.toJson(), isFundList = false,
-            version = Int.MAX_VALUE)
+        val back = com.tj.portfolio.data.ResearchRow.fromJson(row.toJson())!!
         assertEquals(105.0, back.planPrice, 1e-9)
         // Cleared with the levels it belongs to.
         assertEquals(0.0, com.tj.portfolio.ui.dropUnusableClaudeLevels(
