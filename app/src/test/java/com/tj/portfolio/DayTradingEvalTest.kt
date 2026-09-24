@@ -407,7 +407,10 @@ class DayTradingEvalTest {
         source = DayTradingLogEntry.SOURCE_APP, outcome = outcome, outcomeExitPrice = exitPrice,
         outcomeEvaluatedAt = if (outcome != null) 1L else null,
         // Graded by the current grader - an older one's verdicts are excluded (2026-09-24c, E9).
-        evalVersion = com.tj.portfolio.net.DayTradingGrader.VERSION
+        evalVersion = com.tj.portfolio.net.DayTradingGrader.VERSION,
+        // Logged under the current rules (it carries features) - an OLD row whose own price shows
+        // the card said to skip it is excluded (DA-19).
+        features = "{\"v\":1}"
     )
 
     @Test fun statsOnAnEmptyLogIsAllZero() {
