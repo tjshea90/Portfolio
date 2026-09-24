@@ -6861,7 +6861,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // running got its own indicator ripped away the moment THIS build finished, and
                 // a pull that started here while quotes or feed were still loading got the
                 // spinner stopped early instead of handed off to them.
-                if (force) syncManualIndicator()
+                syncManualIndicator()
             }
         }
     }
@@ -6998,7 +6998,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // DERIVED, NOT HAND-CLEARED - see the note in loadEtfs and syncManualIndicator
                 // itself. Same bug, same fix: this must not blindly turn the indicator off out
                 // from under a pull that is attached to it from a different tab.
-                if (force) syncManualIndicator()
+                syncManualIndicator()
             }
             enrichVisible()
         }
@@ -7089,6 +7089,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // but a pass that found nothing to do writes nothing.
                 if (did) cacheResearch(_research.value)
                 if (_researchBusy.value == BUSY_DETAIL) _researchBusy.value = ""
+                syncManualIndicator()   // U-1: every clear of a busy flag re-derives the spinner
             }
         }
     }
