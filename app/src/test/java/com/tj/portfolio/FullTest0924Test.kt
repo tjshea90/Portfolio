@@ -704,4 +704,41 @@ class FullTest0924Test {
         assertEquals(50, back.dtBaseLikelihood); assertEquals(40, back.dtBaseConfidence)
         assertEquals(1, back.dtBaseReasonCount)
     }
+
+    // ---- L-7: leaving the app mid-search does not strand the search spinner.
+
+    @Test fun `L-7 a search cancelled by leaving the app clears its spinner when it unwinds`() {
+        val vm = PortfolioViewModel(app).also { settle() }
+        vm.searchSymbols("AAPL")
+        assertTrue(vm.searching.value)
+        // Past the debounce and into the request: its return is queued behind Main.
+        ShadowLooper.idleMainLooper(250, java.util.concurrent.TimeUnit.MILLISECONDS)
+        Thread.sleep(150)
+        vm.setForeground(false)          // cancels, then nulls searchJob
+        settle(); settle()
+        assertFalse("the search spinner must not stay on", vm.searching.value)
+    }
+
+    // ---- L-6: a stale ViewModel's onCleared cannot detach the next one's HTTP disk cache.
+
+    @Test fun `L-6 detaching a disk cache that is no longer attached leaves the current one`() {
+        val H = com.tj.portfolio.net.Http
+        fun cache() = object : com.tj.portfolio.net.Http.DiskCache {
+            override fun load(url: String): Triple<String, String, String>? = null
+            override fun save(url: String, etag: String, lastModified: String, body: String) {}
+            override fun touch(url: String) {}
+            override fun forget(url: String) {}
+        }
+        val old = cache(); val new = cache()
+        val disk = com.tj.portfolio.net.Http::class.java.getDeclaredField("disk")
+            .apply { isAccessible = true }
+        try {
+            H.attachDiskCache(old)
+            H.attachDiskCache(new)           // the next ViewModel's init
+            H.detachDiskCache(old)           // the old one's late onCleared
+            assertTrue(disk.get(H) === new)
+            H.detachDiskCache(new)
+            assertNull(disk.get(H))
+        } finally { H.attachDiskCache(null) }
+    }
 }

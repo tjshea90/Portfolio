@@ -6386,8 +6386,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // results" text, until the user typed another character. Exactly the
                 // invariant `SpinnerTest` exists to pin.
                 // BUT ONLY FOR THE CURRENT SEARCH: one replaced by the next keystroke must not
-                // switch off the new one's spinner on its way out (U-L1).
-                if (searchJob === me) _searching.value = false
+                // switch off the new one's spinner on its way out (U-L1). `null` counts as
+                // current (full test 2026-09-24, L-7): leaving the app nulls `searchJob` right
+                // after cancelling, and a search blocked in its request only reaches this line
+                // after that - so the spinner stayed on with no results and no "No matches".
+                if (searchJob === me || searchJob == null) _searching.value = false
             }
         }
     }
