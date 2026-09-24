@@ -887,6 +887,12 @@ internal fun intradayChartIsFinal(
             MC.phase(endMs) == open && sparkIsFinal(fetched, now)
         com.tj.portfolio.data.ChartRange.OVERNIGHT ->
             phase == closed && MC.phase(fetched) == closed
+        // 5D AND 1M ARE FINAL THE SAME WAY (2026-09-24b): fetched outside the session, no
+        // session opened since, AND the newest candle belongs to the latest session as of that
+        // fetch (no newer open fell between the two). A weekend used to re-download both on
+        // every return after their 30-minute TTL although no candle could change until Monday.
+        com.tj.portfolio.data.ChartRange.D5, com.tj.portfolio.data.ChartRange.M1 ->
+            sparkIsFinal(fetched, now) && MC.nextOpenAfter(endMs) > fetched
         else -> false
     }
 }
