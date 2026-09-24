@@ -865,14 +865,34 @@ object Research {
                 // "CLAUDE 8/10" badge (`fromClaude` is `score <= 0`). The same rule the Day
                 // Trading loop follows for `dtLikelihood`. No request is spent on it either.
                 if (row.score <= 0 && row.reasons.isEmpty()) return@async row
+                // A CONSENSUS FROM THE LAST 12 HOURS IS STILL THE CONSENSUS (2026-09-24b): every
+                // 30-minute rebuild used to ask Nasdaq again for the same ~20 names. Analyst
+                // counts and targets move a few times a quarter; the memo keeps both answers -
+                // coverage and "nobody covers this" - and forgets a failed request at once.
+                val memo = consensusMemo[row.symbol.uppercase()]
+                    ?.takeIf { System.currentTimeMillis() - it.first < CONSENSUS_MEMO_MS }
+                if (memo != null) return@async memo.second?.let { blendConsensus(row, it) } ?: row
                 gate.withPermit {
                     val c = runCatching { consensus(row.symbol) }.getOrNull() ?: return@withPermit row
-                    val base = ResearchScore.Scored(row.score, row.reasons, 100)
-                    val blended = ResearchScore.withAnalyst(base, c, row.price)
-                    row.copy(score = blended.score, reasons = blended.reasons, consensus = c)
+                    blendConsensus(row, c)
                 }
             }
         }.map { it.await() }
+    }
+
+    private fun blendConsensus(row: ResearchRow, c: Consensus2): ResearchRow {
+                    val base = ResearchScore.Scored(row.score, row.reasons, 100)
+                    val blended = ResearchScore.withAnalyst(base, c, row.price)
+                    return row.copy(score = blended.score, reasons = blended.reasons, consensus = c)
+    }
+
+    /** Symbol -> (when asked, the answer: null = Nasdaq answered and nobody covers it). */
+    private val consensusMemo = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, Consensus2?>>()
+    internal const val CONSENSUS_MEMO_MS = 12L * 3_600_000L
+
+    /** For tests: what a lookup at [at] would have remembered. */
+    internal fun rememberConsensus(symbol: String, c: Consensus2?, at: Long = System.currentTimeMillis()) {
+        consensusMemo[symbol.uppercase()] = at to c
     }
 
     /**
@@ -891,7 +911,8 @@ object Research {
             timeoutMs = 15000, conditionalKey = true
         )
         if (!r.ok) return null
-        return parseConsensus(r.body)
+        // An ANSWER is remembered, covered or not; a failed request (above) never is.
+        return parseConsensus(r.body).also { rememberConsensus(symbol, it) }
     }
 
     internal fun parseConsensus(body: String): Consensus2? {
