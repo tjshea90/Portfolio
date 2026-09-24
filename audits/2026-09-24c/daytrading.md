@@ -98,13 +98,15 @@ read and may drift by a few lines.
 
 ### DA-5 (M) — An answer without `basedOn` / `from` skips both staleness checks
 
-- Where: `net/EngineTuning.kt:369` (`proposal.basedOnVersion != null && ...`), `:396` (`c.from != null && ...`).
+- Where: `net/EngineTuning.kt` `review()` blocker (`proposal.basedOnVersion != null && ...`, ~line 373) and the
+  per-change check (`c.from != null && current != null && ...`, ~line 404).
 - Problem: both "is this answer about the engine as it is now" checks are skipped when the field is absent
   (or unparseable: `"from": "n/a"` -> null). The prompt tells Claude both are required, but the app does not.
-- Failing scenario: Tj applies round 1 (v1), later undoes it (v2). He re-shares an older answer file (or a
-  Claude reply that dropped `basedOn` and `from`) -> no blocker, no `from` mismatch -> the same changes are
-  re-applied against v2 as though they had been reviewed against it. (The 20-trades-since-last-apply cooldown
-  limits the timing, not the staleness.)
+- Failing scenario: Tj gets an answer for v0 whose JSON omits `basedOn` and the `from` fields (a hand-edited
+  or truncated reply, or Claude drifting from the schema). He applies something else first (v1), undoes it (v2),
+  then imports that old answer: no blocker, no `from` mismatch -> its changes are reviewed and applied against
+  v2 as though Claude had seen v2. (An answer that DOES carry `basedOn` is correctly blocked; the gap is only
+  the missing-field case. The since-last-apply cooldown limits timing, not staleness.)
 - Fix: refuse the whole answer when `basedOn.engineVersion` is missing ("this answer does not say which
   engine it was written for - make a new prompt"), and refuse a change whose `from` is missing or non-numeric.
 
