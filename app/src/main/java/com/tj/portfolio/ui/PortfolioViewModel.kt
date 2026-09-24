@@ -2669,6 +2669,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** [startDayTradingLive]/[stopDayTradingLive]'s job handle. */
     private var dayTradingLiveJob: Job? = null
+    /** When the Day Trading tab last graded the log on its own (2026-09-24c) - see [evaluateDayTradingLog]. */
+    private var dayTradingAutoEvalAt = 0L
     /** True while the Day Trading tab wants the live loop running - see [setForeground]'s
      *  note on why the job handle alone is not enough to know whether to restart it. */
     private var dayTradingLiveWanted = false
@@ -8266,6 +8268,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // its own symbol only, so a holding that happens to be a pick costs one row's fetch,
         // not the whole list's, and only while that screen is open.
         dayTradingLiveOnly = only?.uppercase()
+        // The list opening grades whatever settled since last time (2026-09-24c).
+        if (only == null) evaluateDayTradingLog(auto = true)
         dayTradingLiveJob?.cancel()
         dayTradingLiveJob = fgScope.launch {
             while (isActive) {
