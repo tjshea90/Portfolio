@@ -156,6 +156,30 @@ class Improve0924bTest {
         assertFalse(fin(ChartRange.M6, fri0930, sat, sun))
     }
 
+    // ---- L-4: Android 14+ only ever sends 20 and 40.
+
+    private fun settle() {
+        org.robolectric.shadows.ShadowLooper.idleMainLooper(); Thread.sleep(120)
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+    }
+
+    @Test fun `L-4 a background trim frees the invisible caches and keeps what is on screen`() {
+        val vm = com.tj.portfolio.ui.PortfolioViewModel(app).also { settle() }
+        fun field(name: String) = com.tj.portfolio.ui.PortfolioViewModel::class.java
+            .getDeclaredField(name).apply { isAccessible = true }.get(vm)
+        @Suppress("UNCHECKED_CAST")
+        val quotes = field("_quotes") as kotlinx.coroutines.flow.MutableStateFlow<Map<String, com.tj.portfolio.data.Quote>>
+        quotes.value = mapOf("AAA" to com.tj.portfolio.data.Quote("AAA", price = 10.0, spark = listOf(9.0, 10.0)))
+        @Suppress("UNCHECKED_CAST")
+        val keys = field("storyKeys") as HashMap<String, String>
+        keys["id"] = "STORY|key"
+        com.tj.portfolio.util.MemoryTrim.trim(com.tj.portfolio.util.MemoryTrim.UI_HIDDEN)
+        assertEquals("an app switch frees nothing", 1, keys.size)
+        com.tj.portfolio.util.MemoryTrim.trim(40)
+        assertTrue("the story-key memo is freed at 40", keys.isEmpty())
+        assertEquals("the sparkline on screen is kept", listOf(9.0, 10.0), quotes.value.getValue("AAA").spark)
+    }
+
     @Test fun `R1-9 an answered-empty batch does not ask the second host`() = kotlinx.coroutines.runBlocking {
         val auth = com.tj.portfolio.net.YahooAuth
         val crumbF = auth::class.java.getDeclaredField("crumb").apply { isAccessible = true }
