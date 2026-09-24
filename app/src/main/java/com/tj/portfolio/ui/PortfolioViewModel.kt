@@ -8270,7 +8270,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                                         .split(",").map { it.trim() }.filter { it.isNotEmpty() }
                                 }
                             val names = (earlier + also).distinct()
-                            listOf(prefix + names.joinToString(", ") + " - this one scored highest of them") +
+                            // Only a SCORED survivor "scored highest" (S-Q3): between two funds
+                            // Claude added, nothing here scored either one.
+                            val why = if (row.score > 0) " - this one scored highest of them"
+                            else " - one shown for all of them"
+                            listOf(prefix + names.joinToString(", ") + why) +
                                 row.reasons.filterNot { it.startsWith(prefix) }
                         }
                     )
