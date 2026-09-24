@@ -364,7 +364,7 @@ object Http {
 
     @Volatile private var disk: DiskCache? = null
 
-    fun attachDiskCache(cache: DiskCache?) { disk = cache }
+    @Synchronized fun attachDiskCache(cache: DiskCache?) { disk = cache }
 
     /** Detach [cache] only if it is still the attached one - a later owner's stays (L-6). */
     @Synchronized fun detachDiskCache(cache: DiskCache) { if (disk === cache) disk = null }
