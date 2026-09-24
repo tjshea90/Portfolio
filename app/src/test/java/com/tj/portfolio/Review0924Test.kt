@@ -237,7 +237,8 @@ class Review0924Test {
 
     @Test fun `R1-8 a one-symbol run or an all-failed tick does not refresh the list's clock`() {
         val today = MarketClock.dayKey(System.currentTimeMillis())
-        val f = com.tj.portfolio.ui::tickRefreshedList
+        fun f(only: String?, fetched: Map<String, DayTechnicals?>) =
+            com.tj.portfolio.ui.tickRefreshedList(only, fetched)
         assertTrue(f(null, mapOf("A" to live(today), "B" to null)))
         assertFalse("a detail screen's single-symbol run", f("A", mapOf("A" to live(today))))
         assertFalse("every intraday request failed", f(null, mapOf("A" to dailyOnly(), "B" to null)))
