@@ -1,5 +1,8 @@
 package com.tj.portfolio
 
+import com.tj.portfolio.ui.PULL_FEED
+import com.tj.portfolio.ui.PULL_PRICES
+import com.tj.portfolio.ui.PULL_RESEARCH
 import com.tj.portfolio.ui.spinnerShouldShow
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -87,6 +90,37 @@ class SpinnerTest {
                     )
                 }
             }
+        }
+    }
+
+    /**
+     * Full test 2026-09-24, U-1: A PULLED SURFACE WAITS ONLY ON ITS OWN WORK.
+     *
+     * Tj's 09-23c screenshot: "Prices updated just now" beside a pull circle that would not go
+     * away. The surface-blind rule kept a Portfolio pull spinning for as long as ANY research
+     * job ran (an "Explain with Claude" answer, the analyst pass, an automatic ETF build) or
+     * the feed pass was still going - and research jobs ended without re-deriving the flag,
+     * so it then waited up to fifteen minutes for the closed-market poll tick.
+     */
+    @Test
+    fun `U-1 a price pull stops when its prices land, whatever else is running`() {
+        assertFalse(spinnerShouldShow(true, quotesLoading = false, feedLoading = true,
+            researchLoading = true, source = PULL_PRICES))
+        assertTrue(spinnerShouldShow(true, quotesLoading = true, feedLoading = false,
+            researchLoading = false, source = PULL_PRICES))
+    }
+
+    @Test
+    fun `U-1 each surface waits on exactly its own work`() {
+        for (q in listOf(true, false)) for (f in listOf(true, false)) for (r in listOf(true, false)) {
+            val label = "quotes=$q feed=$f research=$r"
+            org.junit.Assert.assertEquals("prices $label", q,
+                spinnerShouldShow(true, q, f, r, source = PULL_PRICES))
+            org.junit.Assert.assertEquals("feed $label", f,
+                spinnerShouldShow(true, q, f, r, source = PULL_FEED))
+            org.junit.Assert.assertEquals("research $label", r,
+                spinnerShouldShow(true, q, f, r, source = PULL_RESEARCH))
+            assertFalse("nobody asked $label", spinnerShouldShow(false, q, f, r, source = PULL_PRICES))
         }
     }
 }
