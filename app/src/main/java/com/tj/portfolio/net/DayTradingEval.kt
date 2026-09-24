@@ -287,7 +287,7 @@ object DayTradingEval {
             DayTradingGrader.Spec(entry, stop, target, entryRises(setup, entry, priceAtRecommendation), recordedAt),
             bars,
             decidedThroughSec = if (sessionStillOpen) 0L else Long.MAX_VALUE,
-            res = 5, spikeFilter = false, withGrid = false, tk = 0.0
+            res = 5, spikeFilter = false, withGrid = false, tk = 0.0, realOpens = false
         )
         return Resolved(g.outcome, g.exitPrice, g.ambiguous)
     }

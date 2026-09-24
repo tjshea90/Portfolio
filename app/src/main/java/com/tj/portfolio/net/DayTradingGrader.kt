@@ -42,8 +42,8 @@ import org.json.JSONObject
  * WHAT IT ALSO MEASURES, for the tuning loop: the best and worst excursion after the fill (MFE /
  * MAE, in units of the plan's risk), where holding to the flat time with only the stop would have
  * ended, and a GRID of what other stop and target distances would have done on the very same bars
- * (net R of each variant's own risk) - the evidence Claude needs to move a stop or a target
- * without guessing.
+ * (what each variant made the ACCOUNT, sized the way the card sizes it - [accountPct]) - the
+ * evidence Claude needs to move a stop or a target without guessing.
  */
 object DayTradingGrader {
 
@@ -130,7 +130,7 @@ object DayTradingGrader {
         val mfeFlatR: Double = 0.0,
         /** Gross R had the target been left off: the stop, or the flat-time price. */
         val holdR: Double = 0.0,
-        /** Net R per [GRID_STOPS] x [GRID_TARGETS] cell - each variant measured in its OWN risk. */
+        /** Net account % per [GRID_STOPS] x [GRID_TARGETS] cell - each variant sized on its own stop ([accountPct]). */
         val grid: List<List<Double>> = emptyList(),
         val ambiguous: Boolean = false,
         /**
