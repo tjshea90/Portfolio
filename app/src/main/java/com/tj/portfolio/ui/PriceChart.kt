@@ -613,7 +613,6 @@ fun PriceChart(
         // The principle, for every range: zooming and dragging change WHICH PART of the chart is
         // on screen, never WHAT the lines measure.
         val prevCloseRange = range == ChartRange.D1 || range == ChartRange.OVERNIGHT
-        val compareAnchorT = if (compare != null) compareAnchorFor(shown, range, compare) else null
 
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
@@ -629,6 +628,29 @@ fun PriceChart(
         // Everything that MEASURES rather than draws - the y-axis, the resting readout, the
         // point count - works over this slice of it instead.
         val insideRange = remember(drawn, window) { insideIndices(drawn, window) }
+
+        // ---- THE OVERLAY USES THE SAME FIXED ANCHOR AS `inside`, ABOVE.
+        //
+        // Nothing here needs to freeze for the life of a gesture any more (round 67 used to,
+        // and round 79 removed it): `compareAnchorT` is the selected range's own true start,
+        // read from `shown`, which does not change shape as the window pans - so there is no
+        // "settled window's first candle" for a gesture to jump to in the first place.
+        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, zoomedIn, shown) {
+            val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
+            // ON THE SAME TERMS AS `inside`, and keyed on the same anchor. Short-circuiting to
+            // "the series' own rule" whenever the anchor is null gave the overlay the
+            // benchmark's PREVIOUS CLOSE while the readout beside it used the first point on
+            // screen - two percentages on one line measured from two different moments.
+            compareLines(drawn, benchmark, shown, range, tipT, zoomedIn)
+        }
+
+        // COMPARING MEANS AN OVERLAY IS ACTUALLY DRAWN (full test 2026-09-24, C-6). Keyed on the
+        // toggle alone, a comparison that could not be made (misaligned or too few SPY readings)
+        // still gave the DOLLAR chart the comparison's anchor: a zoomed window measured from the
+        // range's first candle, "since <date>", and a y-axis stretched to reach that old price.
+        val comparing = cmp != null
+        val compareAnchorT = if (comparing) compareAnchorFor(shown, range, compare) else null
+
 
         // ---- WHAT IS MEASURED: exactly the points [insideRange] names.
         //
@@ -649,7 +671,7 @@ fun PriceChart(
         // beside "SPY +15.44%" would be two different starting days wearing one "over 6m"
         // caption - the exact "two moments" bug this file has already fixed once, just
         // between the two readouts instead of between a readout and the line under it.
-        val inside = remember(drawn, insideRange, zoomedIn, compareAnchorT, shown, compare != null) {
+        val inside = remember(drawn, insideRange, zoomedIn, compareAnchorT, shown, comparing) {
             val whole = insideRange.first == 0 && insideRange.last == drawn.points.lastIndex
             when {
                 compareAnchorT != null -> drawn.copy(
@@ -658,7 +680,7 @@ fun PriceChart(
                 )
                 // Comparing on a previous-close range: the summary keeps the previous close too,
                 // zoomed or not - the same zero as both lines (2026-09-22c, see above).
-                compare != null && prevCloseRange -> drawn.copy(
+                comparing && prevCloseRange -> drawn.copy(
                     points = drawn.points.subList(insideRange.first, insideRange.last + 1),
                     baseline = shown.from
                 )
@@ -678,21 +700,6 @@ fun PriceChart(
         // too. The colour and the number it colours have to come from the same series.
         val line = signColor(inside.change)
 
-        // ---- THE OVERLAY USES THE SAME FIXED ANCHOR AS `inside`, ABOVE.
-        //
-        // Nothing here needs to freeze for the life of a gesture any more (round 67 used to,
-        // and round 79 removed it): `compareAnchorT` is the selected range's own true start,
-        // read from `shown`, which does not change shape as the window pans - so there is no
-        // "settled window's first candle" for a gesture to jump to in the first place.
-        val cmp = remember(drawn, compare, compareLivePrice, liveEdge, tipT, compareAnchorT, zoomedIn, shown) {
-            val benchmark = withLiveEdge(compare, compareLivePrice, liveEdge)
-            // ON THE SAME TERMS AS `inside`, and keyed on the same anchor. Short-circuiting to
-            // "the series' own rule" whenever the anchor is null gave the overlay the
-            // benchmark's PREVIOUS CLOSE while the readout beside it used the first point on
-            // screen - two percentages on one line measured from two different moments.
-            compareLines(drawn, benchmark, shown, range, tipT, zoomedIn)
-        }
-
         // ---- the readout: what the line did over this window, or what it did at your finger
         //
         // ITS OWN COMPOSABLE so that scrubbing recomposes only this line. Read `scrub` here
@@ -710,7 +717,7 @@ fun PriceChart(
             // edge, so "over 4 hr" would misname it (2026-09-22c). A previous-close range keeps
             // its own "since yesterday's close"; any other range says which day it counts from.
             sinceLabel = when {
-                !zoomedIn || compare == null -> null
+                !zoomedIn || !comparing -> null
                 prevCloseRange -> if (range == ChartRange.OVERNIGHT) "since today's close"
                 else "since yesterday's close"
                 compareAnchorT != null -> "since " + (
