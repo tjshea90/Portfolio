@@ -405,7 +405,17 @@ $SHAPE
         if (key >= today) return true
         val et = java.time.Instant.ofEpochMilli(now).atZone(java.time.ZoneId.of("America/New_York"))
         val beforeOpen = et.hour * 60 + et.minute < 9 * 60 + 30
-        return beforeOpen && key == MarketClock.dayKey(now - 86_400_000L)
+        if (beforeOpen && key == MarketClock.dayKey(now - 86_400_000L)) return true
+        // OVER A WEEKEND OR HOLIDAY TOO (full test 2026-09-24, D-3): Friday's answer imported
+        // on Saturday, Sunday or Monday before the open is for Monday's session - the next
+        // session after that day's close - until Monday's opening bell.
+        val ny = java.time.ZoneId.of("America/New_York")
+        val closeOfDay = runCatching {
+            java.time.LocalDate.parse("${key.substring(0, 4)}-${key.substring(4, 6)}-${key.substring(6, 8)}")
+                .atTime(20, 0).atZone(ny).toInstant().toEpochMilli()
+        }.getOrNull() ?: return false
+        return now < MarketClock.nextOpenAfter(closeOfDay) &&
+            MarketClock.sessionFor(closeOfDay) == MarketClock.sessionFor(now)
     }
 
     /** The fallback trigger sentence, for a reply that gave levels but no wording of its own. */

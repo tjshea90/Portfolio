@@ -146,6 +146,20 @@ object MarketClock {
         return if (t < now) minOf(d, -1L) else d
     }
 
+    /**
+     * The regular session a moment belongs to, as that session's [dayKey] (full test
+     * 2026-09-24, D-3): a trading day's own session up to its close, and the NEXT session from
+     * the close on - overnight, all weekend, all holiday. A plan made on Sunday, or on Friday
+     * night, is a plan for Monday.
+     */
+    fun sessionFor(t: Long): String {
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = t
+        val dow = c.get(Calendar.DAY_OF_WEEK)
+        val trading = dow != Calendar.SATURDAY && dow != Calendar.SUNDAY && !isHoliday(c)
+        return if (trading && etMinutes(c) < closeMinute(c)) dayKey(t) else dayKey(nextOpenAfter(t))
+    }
+
     /** [closeMinute] for the New York date [ms] falls on - 13:00 on a half day, else 16:00. */
     fun closeMinuteAt(ms: Long): Int {
         val c = Calendar.getInstance(ET)

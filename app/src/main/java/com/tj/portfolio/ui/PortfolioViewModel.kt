@@ -932,7 +932,12 @@ internal fun planStillForSession(madeAt: Long, now: Long): Boolean {
     if (mc.dayKey(madeAt) == mc.dayKey(now)) return true
     val et = java.time.Instant.ofEpochMilli(madeAt).atZone(java.time.ZoneId.of("America/New_York"))
     val afterClose = et.hour * 60 + et.minute >= mc.closeMinuteAt(madeAt)
-    return afterClose && mc.dayKey(mc.nextOpenAfter(madeAt)) == mc.dayKey(now)
+    if (afterClose && mc.dayKey(mc.nextOpenAfter(madeAt)) == mc.dayKey(now)) return true
+    // AND A WEEKEND OR HOLIDAY PLAN IS FOR THE NEXT SESSION (full test 2026-09-24, D-3). The two
+    // rules above only knew weekday evenings: Friday 22:00 -> Saturday, Sunday 11:00 -> Monday
+    // 08:00 were both "a different session", so a rebuild or cold start threw Tj's weekend
+    // homework away before Monday's open.
+    return mc.sessionFor(madeAt) == mc.sessionFor(now)
 }
 
 /** One row of [carryExplanations]: [p]'s Claude work onto [r], while it is still current. */
@@ -1061,7 +1066,9 @@ internal fun mergeDayTradingTech(
      * and test behaved before the time rules existed.
      */
     minutesLeft: Int = 0,
-    middayLull: Boolean = false
+    middayLull: Boolean = false,
+    /** The moment of this tick, for the D-2 rule below; 0 (tests' default) = not known. */
+    now: Long = 0L
 ): com.tj.portfolio.data.ResearchRow {
     val effective = effectiveTechnicals(row, tech)
     // ---- PLAN AGAINST THE PRICE NOW, NOT THE SCREENER'S (full-tests audit 2026-09-22, D-H1).
@@ -1098,7 +1105,14 @@ internal fun mergeDayTradingTech(
     // row back to the engine when they clear a Claude plan; this is the same rule. (An import
     // made BEFORE the new session's first tick is not caught by this - `DayTradingBridge.merge`
     // starts such a row's session fresh, so there is no rollover left here to see.)
-    val claudePlanStands = row.planByClaude && !sessionChanged
+    //
+    // A ROLLOVER THAT IS ONLY A STAMP DOES NOT COUNT (full test 2026-09-24, D-2). An evening
+    // import (16:00-20:00) is swept every five minutes by the post-close loop, and each sweep
+    // stamps today's date on the row - so the 04:00 tick read "new session" and replaced
+    // Claude's plan for tomorrow with the app's. The plan's own time (`whyAt`, written with it)
+    // decides which session it is for.
+    val claudePlanStands = row.planByClaude && (!sessionChanged ||
+        (now > 0L && row.whyAt > 0L && planStillForSession(row.whyAt, now)))
     val (plan, declineReason) = if (claudePlanStands) null to ""
     else com.tj.portfolio.net.ResearchScore.planInternal(
         price,
@@ -7811,7 +7825,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val tech = fetched[row.symbol] ?: return@map row
             if (tech.isEmpty) return@map row
             changed = true
-            val withLevels = mergeDayTradingTech(row, tech, minutesLeft, middayLull)
+            val withLevels = mergeDayTradingTech(row, tech, minutesLeft, middayLull,
+                now = System.currentTimeMillis())
             // A ROW WITH NO APP-COMPUTED LIKELIHOOD HAS NOTHING FOR THIS TO BUILD ON (Round 72
             // fix, and a correction to this guard's own first draft - caught by code review
             // before shipping). A pick Claude added from scratch never runs through
