@@ -402,6 +402,8 @@ private const val TRIM_BACKGROUND = 40
  * long note in `onTrimMemory`.
  */
 private const val TRIM_MODERATE = 60
+/** ComponentCallbacks2.TRIM_MEMORY_BACKGROUND - the highest level Android 14+ delivers (L-4). */
+private const val TRIM_BACKGROUND = 40
 
 /**
  * How many headlines the feed holds in memory at once.
@@ -2363,6 +2365,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // reason: only MODERATE (60) and above mean the system is actually short of memory.
         // A routine app switch is not a reason to throw away anything the user will see the
         // instant they come back.
+        // ---- ANDROID 14+ NEVER SENDS 60 (full test 2026-09-24, L-4; Tj approved 2026-09-24b).
+        // Since API 34 an app is told only UI_HIDDEN (20) and BACKGROUND (40); MODERATE and
+        // COMPLETE are deprecated and never delivered - so on the Moto G (API 36) everything
+        // below this line is unreachable and nothing was ever given back. At BACKGROUND the app
+        // now releases what is INVISIBLE on return: heap copies that are only speed caches in
+        // front of disk or a cheap recompute. Charts, sparklines, headlines and the feed stay,
+        // which is the whole reason the 60 threshold exists (no blank screen after a switch).
+        // NOT `insiderDocs`: it is memory-only, and dropping it costs ~100 SEC requests.
+        if (level >= TRIM_BACKGROUND && level < TRIM_MODERATE) {
+            releaseInvisibleCaches()
+            return
+        }
         if (level < TRIM_MODERATE) return
 
         // The intraday series is comfortably the largest thing held - a full session at
@@ -2401,8 +2415,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // v6.3, so releasing them frees the heap without losing anything. `restoreFromCache`
         // puts them straight back when the user returns.
         // ---------------------------------------------------------------------------------
-        com.tj.portfolio.net.Http.onLowMemory()
-        com.tj.portfolio.net.SymbolSearch.clearMemo()
+        releaseInvisibleCaches()
         _news.value = emptyMap()
         _insider.value = emptyMap()
         // ---- AND ITS FETCH MARKS, for exactly the reason the two below say (Round 66).
@@ -2432,6 +2445,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         feedRestored = false
         // so the next feed refresh actually re-fetches rather than trusting a stale mark
         socialAt = 0L
+    }
+
+    /** The trim tier nobody can see (L-4): each is rebuilt from disk or recomputed on use. */
+    private fun releaseInvisibleCaches() {
+        com.tj.portfolio.net.Http.onLowMemory()          // validators + bodies are on disk
+        com.tj.portfolio.net.SymbolSearch.clearMemo()    // a search re-asks in one request
+        storyKeys.clear()                                // a pure memo of News.dedupeKey
     }
 
     /**
