@@ -196,6 +196,131 @@ class EngineTuningTest {
         assertEquals(Status.REFUSED, r.items.single().status)
     }
 
+    // ------------------------------------------------------------------ audit round 2 (daytrading.md)
+
+    @Test fun `DA-3 a change rests on the trades its parameter acts on, whatever group is cited`() {
+        val rows = log(76, "Breakout") + log(4, "VWAP Reclaim", startId = 1000)
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.reclaim.enabled", 1, 0, "all"))),
+            EngineTuning.State(), rows)
+        assertEquals(EngineTuning.Tier.MEDIUM, r.tier)
+        val item = r.items.single()
+        assertEquals(Status.REFUSED, item.status)
+        assertEquals("the app's own count is the reclaim group's", 4, item.groupCount)
+        assertTrue(item.reason, item.reason.contains("setup:reclaim"))
+        // A level by its key counts every label it is shown under; R2 has no trades at all.
+        val ev = EngineTuning.Evidence(rows, 0)
+        assertEquals(38, ev.count("level:prevHigh"))
+        assertEquals(38, ev.count("level:the prior session's high"))
+        assertEquals(Status.REFUSED, EngineTuning.review(EngineTuning.parse(answer(0,
+            change("level.r2.enabled", 1, 0, "all"))), EngineTuning.State(), rows).items.single().status)
+        assertEquals(Status.ACCEPTED, EngineTuning.review(EngineTuning.parse(answer(0,
+            change("level.prevHigh.enabled", 1, 0, "all"))), EngineTuning.State(), rows).items.single().status)
+        // A time rule rests on its window: 9 of these 80 trades were in the first hour.
+        val early = EngineTuning.review(EngineTuning.parse(answer(0,
+            change(DayTradingParams.EARLIEST_ENTRY_MIN, 0, 30, "all"))), EngineTuning.State(), rows).items.single()
+        assertEquals(Status.REFUSED, early.status)
+        assertTrue(early.reason, early.reason.contains("First hour"))
+        assertEquals("time:Midday", EngineTuning.groupFor(DayTradingParams.AVOID_LULL))
+        assertEquals(null, EngineTuning.groupFor(DayTradingParams.MIN_RISK))
+    }
+
+    @Test fun `DA-4 switching a filter on is a step too, from where it changes least`() {
+        val rows = log(80)
+        val r = EngineTuning.review(EngineTuning.parse(answer(0,
+            change(DayTradingParams.MIN_SCORE, 0, 80),
+            change(DayTradingParams.TARGET_CAP_R, 0, 0.5),
+            change("setup.breakout.minRiskAtrs", 0, 2.5, "setup:breakout"),
+            change("setup.breakout.maxRiskAtrs", 0, 1.5, "setup:breakout"),
+            change(DayTradingParams.MIN_RR, 0, 1.0)
+        )), EngineTuning.State(), rows)
+        assertEquals(EngineTuning.Tier.MEDIUM, r.tier)
+        val by = r.items.associateBy { it.change.key }
+        assertEquals(Status.LIMITED, by.getValue(DayTradingParams.MIN_SCORE).status)
+        assertEquals(1.0 + 16.0, by.getValue(DayTradingParams.MIN_SCORE).applied!!, 1e-9)       // 20% of 0..80
+        assertEquals(10.0 - 2.0, by.getValue(DayTradingParams.TARGET_CAP_R).applied!!, 1e-9)     // from the top
+        assertEquals(1.5 + 0.8, by.getValue("setup.breakout.minRiskAtrs").applied!!, 1e-9)      // from the global 1.5
+        assertEquals(2.5 - 1.2, by.getValue("setup.breakout.maxRiskAtrs").applied!!, 1e-9)      // from the global 2.5
+        assertEquals("a small switch-on inside the step is taken as is", Status.ACCEPTED, by.getValue(DayTradingParams.MIN_RR).status)
+        assertEquals(1.0, by.getValue(DayTradingParams.MIN_RR).applied!!, 1e-9)
+        assertTrue(r.paramsAfter.let { EngineTuning.inconsistency(it) } == null)
+        // switching OFF is not limited - it is the original behaviour
+        val on = DEFAULTS.with(mapOf(DayTradingParams.MIN_SCORE to 40.0))
+        val off = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_SCORE, 40, 0))),
+            EngineTuning.State(on, 0), rows).items.single()
+        assertEquals(Status.ACCEPTED, off.status)
+    }
+
+    @Test fun `DA-5 an answer that does not say which engine it is about changes nothing`() {
+        val noBase = JSONObject().put("dayTradingEngine", JSONObject()
+            .put("verdict", "v").put("changes", JSONArray().put(change(DayTradingParams.MIN_RISK, 1.5, 1.6)))).toString()
+        val r = EngineTuning.review(EngineTuning.parse("```json\n$noBase\n```"), EngineTuning.State(), log(40))
+        assertFalse(r.canApply)
+        assertTrue(r.blocker, r.blocker.contains("basedOn"))
+        // with it, but a change with no "from"
+        val noFrom = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_RISK, null, 1.6))),
+            EngineTuning.State(), log(40)).items.single()
+        assertEquals(Status.REFUSED, noFrom.status)
+        assertTrue(noFrom.reason.contains("from"))
+        val junkFrom = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_RISK, "n/a", 1.6))),
+            EngineTuning.State(), log(40)).items.single()
+        assertEquals(Status.REFUSED, junkFrom.status)
+        // an unreadable version is no version
+        val junkBase = JSONObject().put("dayTradingEngine", JSONObject().put("basedOn", JSONObject().put("engineVersion", "latest"))
+            .put("changes", JSONArray().put(change(DayTradingParams.MIN_RISK, 1.5, 1.6)))).toString()
+        assertEquals(null, EngineTuning.parse("```json\n$junkBase\n```").basedOnVersion)
+    }
+
+    @Test fun `DA-15 new trades cannot start after the flat time`() {
+        val rows = log(160)
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.LAST_ENTRY_MIN, 30, 15, "all"))),
+            EngineTuning.State(), rows)
+        assertEquals(EngineTuning.Tier.LARGE, r.tier)
+        val item = r.items.single()
+        assertEquals(Status.REFUSED, item.status)
+        assertTrue(item.reason, item.reason.contains("flat"))
+        assertEquals(null, EngineTuning.inconsistency(DEFAULTS))
+    }
+
+    @Test fun `DA-16 a value is kept at the precision the prompt shows, so it can be changed again`() {
+        val rows = log(160)
+        var st = EngineTuning.State()
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.ATR_FROM_DAILY, 0.1, 0.3))), st, rows)
+        assertEquals(Status.LIMITED, r.items.single().status)
+        val v = r.items.single().applied!!
+        assertEquals("0.10 + 35% of 0.25, rounded toward where it started", 0.187, v, 1e-12)
+        st = EngineTuning.apply(r, st, 1L)!!.let { it.copy(history = it.history.map { h -> h.copy(at = 0L) }) }
+        assertEquals("0.187", EngineTuning.describe(DayTradingParams.ATR_FROM_DAILY, st.params[DayTradingParams.ATR_FROM_DAILY]))
+        val next = EngineTuning.review(EngineTuning.parse(answer(st.version, change(DayTradingParams.ATR_FROM_DAILY, 0.187, 0.2))), st, rows)
+        assertEquals(Status.ACCEPTED, next.items.single().status)
+        // Claude's own over-precise value is rounded to three decimals
+        val fine = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.BREAK_BUFFER, 0.15, 0.16666))),
+            EngineTuning.State(), rows)
+        assertEquals(0.167, fine.items.single().applied!!, 1e-12)
+    }
+
+    @Test fun `DA-18 true or on is not a number`() {
+        val r = EngineTuning.review(EngineTuning.parse(answer(0,
+            change(DayTradingParams.TARGET_CAP_R, 0, true), change(DayTradingParams.MIN_RR, 0, "on"))), EngineTuning.State(), log(80))
+        assertTrue(r.items.all { it.status == Status.REFUSED })
+        assertTrue(r.items.first().reason, r.items.first().reason.contains("Not a number"))
+        // ...while an on/off setting still reads them
+        assertEquals(1.0, EngineTuning.parse(answer(0, change(DayTradingParams.AVOID_LULL, "off", "on"))).changes.single().to, 0.0)
+    }
+
+    @Test fun `DA-11 versions never repeat and a corrupt engine row runs what the history says`() {
+        val tuned = DEFAULTS.with(mapOf(DayTradingParams.MIN_RISK to 1.8))
+        val hist = JSONArray().put(EngineTuning.HistoryEntry(3, 1L, EngineTuning.KIND_APPLY, emptyList(), paramsAfter = tuned).toJson()).toString()
+        val corrupt = EngineTuning.load("{broken", hist)
+        assertEquals(tuned, corrupt.params)
+        assertEquals(3, corrupt.version)
+        assertFalse("revert stays available", corrupt.isOriginal)
+        // a restore rolled the store back to v2, but the log has plans made by v5
+        assertEquals(5, EngineTuning.load("""{"version":2,"params":{}}""", "[]", logVersion = 5).version)
+        assertEquals(5, EngineTuning.versionOfLabel("v5"))
+        assertEquals(0, EngineTuning.versionOfLabel("claude"))
+        assertEquals(0, EngineTuning.versionOfLabel(""))
+    }
+
     // ------------------------------------------------------------------ rule 3: undo and revert
 
     @Test fun applyUndoAndRevertAreAChainThatAlwaysEndsAtTheOriginal() {
