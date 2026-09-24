@@ -7277,6 +7277,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 applyResearchAnswer(out, "API")
             } finally {
                 _researchBusy.value = ""
+                syncManualIndicator()   // U-1: every clear of a busy flag re-derives the spinner
             }
         }
     }
@@ -7439,6 +7440,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 applyDayTradingAnswer(out, "API")
             } finally {
                 _researchBusy.value = ""
+                syncManualIndicator()   // U-1: every clear of a busy flag re-derives the spinner
             }
         }
     }
