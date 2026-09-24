@@ -43,7 +43,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
          * half a cent a share; SEC and TAF fees on a sale add well under 0.01% of it. The old
          * "0.5% of the trade, or within a dollar" called a second 10 NVDA fill at $180.80 the
          * same trade as one at $180.00 ($8 apart, $9 of slack) - unticked in the review, so
-         * the real trade was never imported, a day trader's commonest pattern.
+         * the real trade was never imported, a day trader's commonest pattern. (The flat
+         * one-dollar misread allowance in [findDuplicateId] stays; it does not grow with size.)
          */
         fun duplicateTolerance(quantity: Double, amount: Double): Double =
             maxOf(0.02, kotlin.math.abs(quantity) * 0.005 + 0.01, kotlin.math.abs(amount) * 0.0001)
@@ -890,9 +891,11 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 val sameQty = kotlin.math.abs(q - kotlin.math.abs(t.quantity)) < 0.0001
                 val sameAmt = kotlin.math.abs(a - amt) <= tol
                 if (sameQty && sameAmt) return id
-                // (A "same share count, amounts within a dollar" fallback used to follow. It
-                // made a second same-size fill a few cents a share away read as the first one
-                // - see [duplicateTolerance], A-3.)
+                // a share-count match on the same day for the same symbol is already a
+                // strong signal; accept it when the amounts are within a dollar - a second
+                // read of the same screenshot can disagree by that much. A FLAT dollar, not a
+                // share of the trade: see [duplicateTolerance] (A-3).
+                if (sameQty && q > 0 && kotlin.math.abs(a - amt) <= 1.0) return id
             }
         }
         return null
