@@ -96,7 +96,8 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       D-12 failed fetch != no data (404 = answered); D-13 DT import re-sweeps + live level check;
       D-14 prompt age from newest live tick; D-9 beginner card keeps the plan's direction
       (ResearchRow.planPrice + ResearchScore.planEntryRises; "already reached the buy price"
-      branch; FullTest0924Test +2) )
+      branch; FullTest0924Test +2); D-10 technicals half recomputed every tick from
+      build-time base (dtBase* fields; dayTradingTechScored removed; FullTest0924Test +1) )
     - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
 - [ ] Re-run the full suite; re-check anything a fix touched
       (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
