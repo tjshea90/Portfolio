@@ -58,8 +58,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       hysteresis missing at 4 boundaries  [ ] C-5 stale benchmark carried flat  [x] D-2 evening
       Claude plan replaced at 04:00 (post-close sweep re-stamps) (claudePlanStands also by the plan's
       own whyAt session; levels kept; mergeDayTradingTech now param; test)  [x] D-3 weekend/holiday Claude
-      plans dropped (MarketClock.sessionFor; planStillForSession + answerIsCurrent extended; +2 tests)  [ ] D-4 no plans after rebuild until next tick  [ ] D-5 forming first bar /
-      opening range used as trigger  [x] L-2 return during unwinding pass drops refresh (guard on quoteJob.isActive + quoteGen so a
+      plans dropped (MarketClock.sessionFor; planStillForSession + answerIsCurrent extended; +2 tests)  [ ] D-4 no plans after rebuild until next tick  [x] D-5 forming first bar /
+      opening range used as trigger (or5 only once a 09:35 bar exists; OR levels only when complete;
+      +2 tests; DayTradingTest/SoundnessTest fixtures now say orComplete explicitly)  [x] L-2 return during unwinding pass drops refresh (guard on quoteJob.isActive + quoteGen so a
       stale pass can't clear the new one's flag; FullTest0924Test, MUTATION-CHECKED)
       [x] L-3 answer landing in background never priced (pendingPriceFill flushed on return; test)  [ ] L-4 trim handler unreachable on
       Android 14+ (LOCKED decision - needs Tj)  [x] N-3 quoteSummary retries every failure (only a 401 retries; yahooFetchWith injectable; +3 tests)
