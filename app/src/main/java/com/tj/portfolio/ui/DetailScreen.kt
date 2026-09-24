@@ -542,6 +542,34 @@ fun DetailScreen(
         )
     }
 
+    // ---- KEEP DRAWING WHILE A ZOOM CROSSES INTO A RANGE NOT FETCHED YET (full test 2026-09-24,
+    // C-1).
+    //
+    // A pinch or pan whose window needs a range this symbol has no series for (the first 5D
+    // after opening a stock, a finer range zooming in, a 1D window panned back past today's
+    // open) used to hand PriceChart a null series mid-gesture. PriceChart then swaps its chart
+    // Box for the placeholder Box - a NEW layout node with a NEW pointer-input node, and
+    // Compose only hit-tests fingers on DOWN - so the fingers already on the glass were
+    // orphaned: the gesture died mid-pinch, and for the 380 ms settle the screen said "No 5D
+    // chart available". Round 63's "the placeholder carries the same surface" only holds for a
+    // gesture that STARTS on the placeholder.
+    //
+    // So while a zoom window is live and its series is still coming (the fingers are down, the
+    // settle is running or the fetch is in flight), the chart keeps drawing the last series it
+    // drew, WITH ITS OWN RANGE, so labels and baselines stay consistent with the line. The
+    // window itself moves on regardless, and the new series takes over the moment it lands. A
+    // real failure (nothing in flight) still shows the placeholder.
+    val lastDrawn = remember(symbol) {
+        arrayOfNulls<Pair<com.tj.portfolio.data.ChartSeries, com.tj.portfolio.data.ChartRange>>(1)
+    }
+    if (chart != null && !chart.isEmpty) lastDrawn[0] = chart to chartRange
+    val chartBridge = lastDrawn[0]?.takeIf {
+        (chart == null || chart.isEmpty) && chartWindow != null &&
+            (chartPinching || zoomSettling || chartLoading)
+    }
+    val drawnChart = chartBridge?.first ?: chart
+    val drawnRange = chartBridge?.second ?: chartRange
+
     val onChartWindow: (com.tj.portfolio.data.ChartWindow) -> Unit = { w ->
         chartWindow = w
         // WHICH SERIES TO DRAW IT FROM. `rangeForLookback`, not the window's span: every
@@ -820,8 +848,8 @@ fun DetailScreen(
                     watched = row?.watched == true,
                     fundamentals = fundamentals,
                     txns = txns,
-                    chart = chart,
-                    chartRange = chartRange,
+                    chart = drawnChart,
+                    chartRange = drawnRange,
                     chartLoading = chartLoading,
                     chartPerf = chartPerf,
                     chartLoadingRanges = chartLoadingRanges,
@@ -916,8 +944,8 @@ fun DetailScreen(
     if (chartExpanded) {
         FullScreenChart(
             symbol = symbol,
-            series = chart,
-            range = chartRange,
+            series = drawnChart,       // C-1: bridged across an unfetched range, as inline
+            range = drawnRange,
             loading = chartLoading,
             onRange = { r ->
                 zoomSettling = false
