@@ -34,7 +34,7 @@ object EngineTuningPrompt {
     const val PROMPT_FILE = "claude-daytrading-tuning-prompt.md"
 
     /** Trade-table rows at most - the newest; aggregates always cover every graded trade. */
-    const val MAX_TRADE_ROWS = 1500
+    const val MAX_TRADE_ROWS = 1000
 
     private val ET: ZoneId = ZoneId.of("America/New_York")
 
