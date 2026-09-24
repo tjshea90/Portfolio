@@ -87,11 +87,12 @@ object EngineTuningPrompt {
 
     private fun bucket(v: Double?, edges: List<Double>, unit: String = ""): String? {
         v ?: return null
+        fun e(x: Double) = if (x == Math.rint(x)) x.toLong().toString() else x.toString()
         val i = edges.indexOfFirst { v < it }
         return when (i) {
-            -1 -> ">= ${edges.last()}$unit"
-            0 -> "< ${edges.first()}$unit"
-            else -> "${edges[i - 1]}-${edges[i]}$unit"
+            -1 -> ">= ${e(edges.last())}$unit"
+            0 -> "< ${e(edges.first())}$unit"
+            else -> "${e(edges[i - 1])} to ${e(edges[i])}$unit"
         }
     }
 
@@ -159,7 +160,7 @@ trade (1R = the loss if the stop is hit) and the total net R, without fooling ou
 
         // ---------------------------------------------------------------- the algorithm
         sb.append("## How the engine works (current values in brackets)\n\n")
-        sb.append(algorithm(p)).append("\n")
+        sb.append(algorithm(p)).append("\n\n")
 
         // ---------------------------------------------------------------- grading
         sb.append("## How each trade was graded\n\n")
