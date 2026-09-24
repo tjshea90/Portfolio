@@ -2985,6 +2985,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             sparkRetry.clear()
             holdingsRetry.clear()
             fundRetry.clear()
+            dayTradingTechRetry.clear()
             // Same reasoning as the cooldowns: a deliberate pull is exactly when the batched
             // quote endpoint should be tried again, and an invisible "we gave up on that
             // three hours ago" flag would make the gesture quietly do less than it appears to.
