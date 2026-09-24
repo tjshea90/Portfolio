@@ -290,3 +290,24 @@ read and may drift by a few lines.
   never wrote as a number. (MEDIUM tier only, via the switch path, so combined with DA-4 it is not step-limited.)
 - Fix: accept booleans / "on" / "off" only for `Kind.BOOL` specs; for NUMBER/INT require a number.
 
+### DA-19 (M) — Rows logged before the E5 gate are re-graded and counted in the headline, including plans the card told Tj to skip
+
+- Where: `ui/PortfolioViewModel.kt` `dayTradingRowsNeedingGrade` (re-queues every stale-version final row) and
+  `resolveOneDayTradingEntry` (grades whatever row it is given); `net/DayTradingEval.kt` `stats()` (a re-graded
+  row is `evalVersion == VERSION` and counts); the E5 check exists only at logging time
+  (`loggableDayTradingRows` -> `planWaiting`).
+- Problem: DESIGN E9 notes "the log only began 2026-09-16, so in practice every row is re-graded" - i.e. every
+  existing row was logged under the OLD gates, which had no "still waiting" test. Re-grading applies the new
+  fill rules but not the new logging rule, so a Claude plan logged while the price was already above its
+  target or under its stop (the card said "Too late for this one today - don't buy now" / "Skip this one") is
+  graded as a real order and counted. Worse, its direction is inferred from `priceAtRecommendation`, which for
+  those old Claude rows was the logging price: price >= target > entry reads as a BUY-LIMIT at the entry, so a
+  later dip-and-rally is credited as a WIN on a trade the card explicitly said not to take.
+- Failing scenario: old Claude row, entry 20.00 / stop 19.50 / target 21.00, logged with
+  `priceAtRecommendation = 21.30` (already past target). Re-grade: `rises = false` (entry < 21.30) -> buy-limit;
+  the stock dips to 19.98 at 11:10 and rallies to 21.05 at 14:00 -> WIN, +~1.9R, in the headline and the
+  account figure.
+- Fix: when re-grading (or in `stats`) a row with no `features` (i.e. logged before 2026-09-24c), apply the
+  part of E5 that the row itself can prove: `stop < priceAtRecommendation < target`; a row that fails is
+  excluded like a legacy row (count it, say why, never grade it). Test: such a row -> not in `entriesTriggered`.
+
