@@ -164,4 +164,53 @@ class DayTradingLoggingTest {
         repeat(20) { if (vm.engineReview.value == null) settle() }
         assertTrue(vm.engineReview.value != null)
     }
+
+    @Test fun `DA-14 an opening plan sized on daily ATR still carries its ATR features, and the prompt says why`() {
+        val early = ResearchRow(symbol = "EARLY", price = 20.0, entryPrice = 20.5, stopPrice = 20.0, targetPrice = 21.5,
+            atr = 1.0, atrIntraday = 0.0, vwap = 20.2, setup = "Breakout")
+        val f = DayTradingFeatures.build(early, "20260915", 1L, 0L, false, 5, 385, false, DEFAULTS, 0)
+        assertEquals(0.1, f.getDouble("atr"), 1e-9)                 // daily 1.0 x 0.10
+        assertEquals("daily", f.getString("volSrc"))
+        assertEquals(5.0, f.getDouble("riskAtr"), 1e-9)
+        val later = DayTradingFeatures.build(early.copy(atrIntraday = 0.25), "20260915", 1L, 0L, false, 60, 330, false, DEFAULTS, 0)
+        assertEquals("intraday", later.getString("volSrc"))
+        val text = com.tj.portfolio.net.EngineTuningPrompt.algorithm(DEFAULTS)
+        assertTrue(text.contains("top 15% of its 52-week range"))
+        assertTrue(text.contains("six"))
+        assertTrue(text.contains("$50M+ market cap"))
+        assertFalse(text.contains("within 15% of the 52-week high"))
+    }
+
+    /** PL-3: the tab's own check stops at the first request Yahoo does not answer, and asks two at a time. */
+    @Test fun `PL-3 the automatic check stops at the first unanswered request`() {
+        val db = Db(app)
+        val now = System.currentTimeMillis()
+        val days = (2..9).map { com.tj.portfolio.net.MarketClock.dayKey(now - it * 86_400_000L) }.filter { d ->
+            val ld = java.time.LocalDate.parse(d, java.time.format.DateTimeFormatter.BASIC_ISO_DATE)
+            ld.dayOfWeek != java.time.DayOfWeek.SATURDAY && ld.dayOfWeek != java.time.DayOfWeek.SUNDAY
+        }
+        val bounds = com.tj.portfolio.net.DayTradingEval.sessionBoundsMs(days.first())!!
+        db.logDayTradingRecommendations((1..30).map {
+            Db.PendingDayTradingLog("S$it", days.first(), "Breakout", 10.5, 10.0, 11.5, 10.3, "APP",
+                bounds.first + 40 * 60_000L, engine = "v0", features = "{}")
+        })
+        val seen = java.util.Collections.synchronizedList(ArrayList<String>())
+        com.tj.portfolio.net.Http.scriptedForTests = { url ->
+            if ("/v8/finance/chart/" in url && "period1" in url) { seen.add(url); com.tj.portfolio.net.HttpResult(500, "down") }
+            else com.tj.portfolio.net.HttpResult(-1, "offline")
+        }
+        try {
+            val vm = PortfolioViewModel(app)
+            settle()
+            if (!com.tj.portfolio.util.Connectivity.isOnline(app)) return   // the auto check never runs offline
+            vm.evaluateDayTradingLog(auto = true)
+            repeat(80) { if (!vm.dayTradingStatsLoading.value && seen.isEmpty()) settle() else if (vm.dayTradingStatsLoading.value) settle() }
+            repeat(5) { settle() }
+            // two rows at once, each asked of both Yahoo hosts once - then it stops, 28 rows untouched
+            assertTrue("sent ${seen.size}", seen.size in 1..4)
+            assertEquals(30, db.dayTradingLog().count { it.outcome == null })
+        } finally {
+            com.tj.portfolio.net.Http.scriptedForTests = null
+        }
+    }
 }
