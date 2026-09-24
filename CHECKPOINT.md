@@ -1,13 +1,13 @@
-# CHECKPOINT 1695 — read me first, then TASKS.md
+# CHECKPOINT 1696 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T18:25:50Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/complete-code-tests-crujka` · **builds on:** `e0f58a95` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T18:27:44Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/complete-code-tests-crujka` · **builds on:** `6f62879f` (this checkpoint is the commit after it)
 
 ## Just done
-Research+Screens batch: Claude age labels, old-ratings mark, ETF alternatives, updating labels, ticking times, back-to-search, Research section swipe, chart drawWithCache - Improve0924bTest 21/0, UI classes 576/0
+All of 09-24b implemented or skipped-with-reason; full suite 1452/0; version bumped to 7.41 (98)
 
 ## Do this next
-Tick Decisions box; full suite + checkinit; review whole diff for breakage; ship v7.41 (bump 98/7.41), post link
+bash ship.sh for v7.41, trigger android.yml full_build, record-release, post link
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ Tick Decisions box; full suite + checkinit; review whole diff for breakage; ship
 
 ## Last ten checkpoints
 ```
+  51baee47 ckpt 1695: Research+Screens batch: Claude age labels, old-ratings mark, ETF alternative
   7608fbed ckpt 1694: Data batch: restored-snapshot recovery, silent-shrink warning (MAX_TXN_COUNT
   17451054 ckpt 1693: Day Trading batch done: 1-minute resolution of unknowable bars, What-worked 
   1d12cca5 ckpt 1692: Charts batch done: C-7, C-9 gap breaks, touch-down value, double-tap reset, 
@@ -26,8 +27,7 @@ Tick Decisions box; full suite + checkinit; review whole diff for breakage; ship
   dc9ffd11 ckpt 1688: gated v7.40 (code 97) and pushed it: checkinit, the full unit suite and the 
   4e28011d ckpt 1687: Review findings R1-1..9, R2-1..7 all fixed + R1-2b (or5 carried) + R2-1 exte
   5db3a9ae ckpt 1686: Both independent reviews complete: 16 findings (R1-1..9, R2-1..7) recorded
-  a620881c ckpt 1685: Independent review launched (2 agents -> review-hm.md, review-lq.md)
 ```
 
-(14 automatic checkpoint(s) since the last deliberate one — the
+(2 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)

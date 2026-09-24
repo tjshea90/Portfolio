@@ -107,7 +107,8 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
       LIMIT (tell Tj): nothing in a prompt can make the Claude app open a share sheet by itself -
       Claude ends its reply with "tap the file above, then Share and pick Portfolio".
 ### Part 3 - verify and ship
-- [ ] Full unit suite + checkinit green after all changes; review the whole diff for breakage
+- [x] Full unit suite + checkinit green after all changes; review the whole diff for breakage
+      (1452 tests / 0 failures; checkinit ok; callers of every changed signature re-grepped)
 - [ ] Ship (auto-ship rule), post the Release link, summarize
 
 ## Tj's request, 2026-09-24 (his own words)
