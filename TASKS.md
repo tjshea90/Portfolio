@@ -136,8 +136,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       A-Q2 async delete/wipe would break the detail screen's synchronous "still held?" check;
       A-Q4 no change - saving an edit to another field is not confirming the date (R-8 rule
       stands); S-Q2/S-Q4/S-Q5 refactors, low impact; U-Q5/U-Q6 are ideas (Tj's call).
-- [ ] Re-run the full suite; re-check anything a fix touched
+- [x] Re-run the full suite; re-check anything a fix touched
       (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
+      After all Ls + Qs: 1411 tests / 0 failures (3m15s), checkinit ok.
 - [ ] Independent review of this session's whole diff for regressions -> fix
 - [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
       record-release) and post the Release link; summarize for Tj
