@@ -195,6 +195,8 @@ data class ResearchRow(
      * forget another.
      */
     val etf: EtfFacts? = null,
+    /** Funds of the same exposure this card stands for - see [EtfAlternative]. */
+    val alternatives: List<EtfAlternative> = emptyList(),
     /**
      * A structured RISK PLAN, not a prediction - the day-trading section only (Round 67).
      *
@@ -386,6 +388,7 @@ data class ResearchRow(
         if (catalyst.isNotBlank()) put("catalyst", catalyst)
         if (conviction > 0) put("conviction", conviction)
         etf?.let { if (!it.isEmpty || it.dollarVolume > 0 || it.inceptionMs > 0) put("etf", it.toJson()) }
+        if (alternatives.isNotEmpty()) put("alts", org.json.JSONArray().also { a -> alternatives.forEach { a.put(it.toJson()) } })
         if (entryPrice > 0) put("entryPrice", entryPrice)
         if (stopPrice > 0) put("stopPrice", stopPrice)
         if (targetPrice > 0) put("targetPrice", targetPrice)
@@ -499,6 +502,9 @@ data class ResearchRow(
                 catalyst = o.text("catalyst"),
                 conviction = o.optInt("conviction", 0).coerceIn(0, 10),
                 etf = EtfFacts.fromJson(o.optJSONObject("etf")),
+                alternatives = o.optJSONArray("alts")?.let { a ->
+                    (0 until a.length()).mapNotNull { EtfAlternative.fromJson(a.optJSONObject(it)) }
+                }.orEmpty(),
                 entryPrice = o.optDouble("entryPrice", 0.0).orZero(),
                 stopPrice = o.optDouble("stopPrice", 0.0).orZero(),
                 targetPrice = o.optDouble("targetPrice", 0.0).orZero(),

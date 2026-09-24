@@ -376,11 +376,15 @@ object Research {
             // three consecutive rows - pushing out the five funds that would have been the
             // rest of the page. See [EtfExposure] for why grouping is read off the name and
             // why it errs toward leaving funds alone.
-            .let { ranked ->
-                EtfExposure.dedupe(ranked, name = { it.first.name }, symbol = { it.first.symbol })
-            }
+            .let { ranked -> EtfExposure.dedupeRows(ranked, name = { it.first.name }) }
             .take(ETF_BUFFER)
-            .map { (pair, also) -> toEtfRow(pair.first, pair.second, also) }
+            .map { (pair, lost) ->
+                toEtfRow(pair.first, pair.second, lost.map { it.first.symbol }).copy(
+                    alternatives = lost.map { (e, _) ->
+                        com.tj.portfolio.data.EtfAlternative(e.symbol, e.name, e.expenseRatio, e.fiveYearAnnualPct)
+                    }
+                )
+            }
 
         if (ranked.isEmpty()) warnings.add("No fund carried enough published data to rank")
 

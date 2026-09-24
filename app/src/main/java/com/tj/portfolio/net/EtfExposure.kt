@@ -271,8 +271,12 @@ object EtfExposure {
      * choosing between three S&P 500 funds is better served by "VOO - also IVV, SPLG" than by
      * three rows they have to notice are the same thing.
      */
-    fun <T> dedupe(rows: List<T>, name: (T) -> String, symbol: (T) -> String): List<Pair<T, List<String>>> {
-        val out = ArrayList<Pair<T, List<String>>>(rows.size)
+    fun <T> dedupe(rows: List<T>, name: (T) -> String, symbol: (T) -> String): List<Pair<T, List<String>>> =
+        dedupeRows(rows, name).map { (winner, lost) -> winner to lost.map(symbol) }
+
+    /** [dedupe] with the losing ROWS, for a card that lists their fee and return (2026-09-24b). */
+    fun <T> dedupeRows(rows: List<T>, name: (T) -> String): List<Pair<T, List<T>>> {
+        val out = ArrayList<Pair<T, List<T>>>(rows.size)
         val indexOfGroup = HashMap<String, Int>()
         for (r in rows) {
             val key = keyOf(name(r))
@@ -287,7 +291,7 @@ object EtfExposure {
                 // member vanished with no mention anywhere, although the sources note promises
                 // "the rest are named on its card" - and the VM's merge of Claude's funds was
                 // already unbounded. Groups are small now that strategy funds no longer join them.
-                out[at] = winner to (also + symbol(r))
+                out[at] = winner to (also + r)
             }
         }
         return out

@@ -8496,10 +8496,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // survivor's card, which is the whole contract.
         fun oneFundPerExposure(list: List<com.tj.portfolio.data.ResearchRow>) =
             com.tj.portfolio.net.EtfExposure
-                .dedupe(list, name = { it.name }, symbol = { it.symbol })
-                .map { (row, also) ->
+                .dedupeRows(list, name = { it.name })
+                .map { (row, lostRows) ->
+                    val also = lostRows.map { it.symbol }
                     if (also.isEmpty()) row
                     else row.copy(
+                        // Every fund it now stands for, with their numbers (2026-09-24b) - the
+                        // losers' own alternatives too, so nothing named earlier drops off.
+                        alternatives = (row.alternatives + lostRows.flatMap {
+                            listOf(com.tj.portfolio.data.EtfAlternative.of(it)) + it.alternatives
+                        }).distinctBy { it.symbol }.filter { it.symbol != row.symbol },
                         // FIRST, NOT LAST (Round 66 audit, REG-4) - the same mistake E3 fixed
                         // on the screener path, repeated here the moment the rule gained a
                         // second call site. The card renders `reasons.take(6)` and a scored

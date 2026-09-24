@@ -187,3 +187,40 @@ data class EtfFacts(
         }
     }
 }
+
+/**
+ * A fund that tracks the same exposure as the card it is listed on and lost its own place to it
+ * (research idea 3, 2026-09-24b) - kept with the two numbers people compare such funds by, so
+ * "other ways to hold this" is a real choice (a different issuer, a broker's commission-free
+ * list) and not only a ticker in a sentence. [expenseRatio] is a percent, -1.0 unknown.
+ */
+data class EtfAlternative(
+    val symbol: String,
+    val name: String = "",
+    val expenseRatio: Double = -1.0,
+    val fiveYearAnnualPct: Double = 0.0
+) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("s", symbol)
+        if (name.isNotBlank()) put("n", name)
+        if (expenseRatio >= 0.0) put("er", expenseRatio)
+        if (fiveYearAnnualPct != 0.0) put("y5", fiveYearAnnualPct)
+    }
+
+    companion object {
+        fun fromJson(o: JSONObject?): EtfAlternative? {
+            val sym = o?.optString("s").orEmpty().uppercase()
+            if (sym.isBlank()) return null
+            return EtfAlternative(
+                symbol = sym,
+                name = o!!.optString("n"),
+                expenseRatio = o.optDouble("er", -1.0).let { if (it.isFinite()) it else -1.0 },
+                fiveYearAnnualPct = o.optDouble("y5", 0.0).let { if (it.isFinite()) it else 0.0 }
+            )
+        }
+
+        /** What a row itself contributes when it loses its place to another. */
+        fun of(r: ResearchRow): EtfAlternative = EtfAlternative(
+            r.symbol, r.name, r.etf?.expenseRatio ?: -1.0, r.etf?.fiveYearAnnualPct ?: 0.0)
+    }
+}
