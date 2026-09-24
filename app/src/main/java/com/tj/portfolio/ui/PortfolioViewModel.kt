@@ -2328,6 +2328,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      *  current rebuild - see its own header. Reset alongside [dayTradingTechScored]. */
     private var dayTradingSweepDone = false
 
+    /**
+     * Bumped by every rebuild of the Day Trading list (full test 2026-09-24, D-4). A one-time
+     * sweep reads it when it starts and only marks the list swept - and sorts it - if no
+     * rebuild landed while it was fetching: otherwise it would declare the NEW list done having
+     * fetched only the symbols the old one shared, and the rest sat plan-less until 04:00.
+     */
+    private var dayTradingRebuildGen = 0L
+
     // ================================================================ PRICE CHARTS
     //
     // ALL OF THESE ARE ABOVE `init` DELIBERATELY - see checkinit.py and the note on the
@@ -7080,6 +7088,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     // Same reason: a fresh rebuild deserves a fresh top-of-list sweep, not the
                     // previous rebuild's sort order carried over onto a wholly different list.
                     dayTradingSweepDone = false
+                    dayTradingRebuildGen++
                     // These rows are gone and fifty different ones have taken their place, so
                     // "show me ten more of the old list" cannot carry over - see
                     // [resetResearchPaging] for what it cost when it did.
@@ -7094,6 +7103,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     // symbols - Claude's paragraph about NVDA does not go stale in 30 minutes,
                     // and re-earning it would mean another API call or another file round trip.
                     cacheResearch(carryExplanations(_research.value, built))
+                    // PLAN THE NEW LIST NOW, NOT AT THE LOOP'S NEXT TICK (D-4). With the market
+                    // shut the loop sleeps five minutes, so every card sat without an entry, stop
+                    // or target for that long after a rebuild. Restarting it cancels the sleep
+                    // and sweeps the list just published.
+                    if (dayTradingLiveWanted) startDayTradingLive(dayTradingLiveOnly)
                     // ---- ROWS THAT ARRIVED WITHOUT A PRICE (Round 66 audit, R2).
                     //
                     // THE BUG THIS FIXES. Trending's candidate set is the UNION of three
@@ -7751,6 +7765,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val only = dayTradingLiveOnly
         // A single-symbol run never counts as the list's one-time full sweep, and never sorts.
         val sweeping = only == null && !dayTradingSweepDone
+        val sweepGen = dayTradingRebuildGen
         val head = if (only != null) rows.filter { it.symbol == only } else if (sweeping) rows else {
             val shown = (_researchShown.value[name] ?: com.tj.portfolio.data.ResearchSet.PAGE)
                 .coerceAtMost(rows.size)
@@ -7856,7 +7871,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // that tie on both keys keep the screener's own relative order. Every ordinary tick
         // after this one goes back to updating levels IN PLACE with no re-sort at all, exactly
         // as the header above still requires - this fires once per rebuild, not every 30 seconds.
-        val finalRows = if (sweeping) {
+        // ONLY IF THE LIST IT FETCHED FOR IS STILL THE LIST (D-4) - see [dayTradingRebuildGen].
+        val sweptThisList = sweeping && sweepGen == dayTradingRebuildGen
+        val finalRows = if (sweptThisList) {
             dayTradingSweepDone = true
             sortDayTradingForActionability(updated)
         } else updated
