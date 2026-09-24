@@ -2140,6 +2140,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private val coreFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
+    /**
+     * How old each symbol's CORE numbers actually are - the disk row's own stamp, even when it
+     * is past its TTL (full test 2026-09-24, S-3). [coreFetchedAt] is only set for a disk row
+     * still inside its life or a network success, so with a 3-day-old core on disk and the
+     * refresh failing, the verdict's `coreAt` fell back to `Fundamentals.fetched` - the merged
+     * maximum, i.e. today's ratings fetch - and the "underlying data last refreshed ..." warning
+     * never showed: the exact masking the 09-23 S-7 fix was for.
+     */
+    private val coreDataAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
     /** Symbols whose on-screen verdict was scored before its core numbers - see S-2. */
     private val recProvisional: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
     private val ratingsFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -2299,6 +2309,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // them, or the next open would find nothing in memory and still refuse to refetch.
         _fundamentals.value = emptyMap()
         coreFetchedAt.clear()
+        coreDataAt.clear()
         ratingsFetchedAt.clear()
         // Same reasoning again: on disk since Round 58, so dropping them frees the heap and
         // costs one SQLite read when the tab is reopened.
@@ -5297,7 +5308,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
                 val f = _fundamentals.value[sym] ?: return@launch
                 val fresh = com.tj.portfolio.net.Recommend.build(
-                    sym, price, f, coreAt = coreFetchedAt[sym] ?: f.fetched
+                    sym, price, f, coreAt = coreDataAt[sym] ?: coreFetchedAt[sym] ?: f.fetched
                 ) ?: return@launch
                 _recommendations.value = _recommendations.value + (sym to fresh)
                 // ---- NOT FROZEN UNTIL THE CORE NUMBERS ARE IN (full test 2026-09-23, S-2). The
@@ -5702,6 +5713,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     // so with no core row on disk it was accepted as the core answer, the core
                     // fetch was skipped for six hours and the Stats tab showed only a subset.
                     val core = coreRow?.takeIf { it.values.isNotEmpty() }
+                    if (core != null) coreDataAt[sym] = core.fetched   // S-3: its real age
                     if (!force && core != null &&
                         System.currentTimeMillis() - core.fetched <
                         com.tj.portfolio.net.FundamentalsFeed.CORE_TTL_MS
@@ -5718,6 +5730,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 else fundRetry.success("$sym|core")
                 if (fresh != null && !fresh.isEmpty) {
                     coreFetchedAt[sym] = System.currentTimeMillis()
+                    coreDataAt[sym] = coreFetchedAt[sym]!!
                     mergeFundamentals(sym, fresh)
                     viewModelScope.launch(Dispatchers.IO) {
                         runCatching { db.cacheFundamentals(sym, Keys.KIND_CORE, fresh) }
