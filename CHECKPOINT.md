@@ -1,13 +1,13 @@
-# CHECKPOINT 1703 — read me first, then TASKS.md
+# CHECKPOINT 1704 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T19:46:26Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/day-trading-success-claude-learn-t9ot3u` · **builds on:** `f45ef658` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T19:53:41Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/day-trading-success-claude-learn-t9ot3u` · **builds on:** `3b40456d` (this checkpoint is the commit after it)
 
 ## Just done
-db v10 (engine/features/eval_version/eval_detail, additive + onOpen repair + backup/restore); DayTradingGrader v2 (bar opens, gap fills, trade-through targets, entry deadline, flat time, spike filter, MFE/MAE, hold-to-flat, stop x target grid); legacy evaluateResolved now routes through it (DayTradingEvalTest 41/0, DbTest green)
+Logging gates E5 (planWaiting, price>=1) + E6 (replannedLive: newest bar <=10 min old, DayTechnicals.lastBarAt); features JSON + engine label at capture (DayTradingFeatures); resolve v2 (1m first, failed 1m retried, plan's own deadline/flat); re-grade rows from older grader (dayTradingRowsNeedingGrade); auto-eval on tab open (15 min throttle); stats v2 (real fills, legacy excluded, CIs, PF, drawdown, capital-constrained account); tests updated/added, affected suites green
 
 ## Do this next
-Write net/DayTradingFeatures.kt (features JSON + entryDeadline/flat helpers), then VM: capture gates E5 waiting / E6 fresh data (DayTechnicals.lastBarAt), resolveOne v2 (1m first), re-grade old eval_version, auto-eval on tab open
+Write DayTradingGraderTest (E1-E4,E7 scenarios + grid consistency + features/deadline), then the success-card UI v2, then Part B tuning
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Write net/DayTradingFeatures.kt (features JSON + entryDeadline/flat helpers), th
 
 ## Last ten checkpoints
 ```
+  504d1186 ckpt 1703: db v10 (engine/features/eval_version/eval_detail, additive + onOpen repair +
   0bfe1dc0 ckpt 1702: B1 done: DayTradingParams wired into ResearchScore (defaults == original eng
   db990fbe ckpt 1701: Golden fixture captured from the ORIGINAL engine (daytrading_golden_v1.txt, 
   87a2c1a2 ckpt 1700: A1 audit done + design written: audits/2026-09-24c/DESIGN.md (10 accuracy de
@@ -25,8 +26,7 @@ Write net/DayTradingFeatures.kt (features JSON + entryDeadline/flat helpers), th
   41dc978e ckpt 1696: All of 09-24b implemented or skipped-with-reason; full suite 1452/0; version
   51baee47 ckpt 1695: Research+Screens batch: Claude age labels, old-ratings mark, ETF alternative
   7608fbed ckpt 1694: Data batch: restored-snapshot recovery, silent-shrink warning (MAX_TXN_COUNT
-  17451054 ckpt 1693: Day Trading batch done: 1-minute resolution of unknowable bars, What-worked 
 ```
 
-(3 automatic checkpoint(s) since the last deliberate one — the
+(10 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
