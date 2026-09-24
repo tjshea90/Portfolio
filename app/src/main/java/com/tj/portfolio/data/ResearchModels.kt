@@ -295,6 +295,14 @@ data class ResearchRow(
     /** The level the entry is built on ("the prior session's high") - logged with the plan (2026-09-24c). */
     val planLevel: String = "",
     /**
+     * WHICH ENGINE MADE THE APP'S PLAN ON THIS ROW (2026-09-24c, UI-6): "" = the original engine's
+     * values, "v3" = a tuned engine. Stamped when the plan is computed, so the card's label names the
+     * engine that made THIS plan, not the one running now.
+     */
+    val planEngine: String = "",
+    /** The tuned engine's fixed-R cap set this plan's target, not a level or the day's range (UI-27). */
+    val planCapped: Boolean = false,
+    /**
      * THE RANKING'S RAW INPUTS AT BUILD TIME (2026-09-24c), kept so a logged plan carries what its
      * score was made of - relative volume paced to the clock, where the price sat in its 52-week
      * range (-1 unknown), most-shorted membership, earnings today/tomorrow. The tuning prompt needs
@@ -428,6 +436,8 @@ data class ResearchRow(
         if (planAt > 0) put("planAt", planAt)
         if (planWait.isNotBlank()) put("planWait", planWait)
         if (planLevel.isNotBlank()) put("planLevel", planLevel)
+        if (planEngine.isNotBlank()) put("planEngine", planEngine)
+        if (planCapped) put("planCapped", true)
         if (dtRvol > 0) put("dtRvol", dtRvol)
         if (dtRangePos >= 0) put("dtRangePos", dtRangePos)
         if (dtShorted) put("dtShorted", true)
@@ -550,6 +560,8 @@ data class ResearchRow(
                 planAt = o.optLong("planAt", 0L),
                 planWait = o.text("planWait"),
                 planLevel = o.text("planLevel"),
+                planEngine = o.text("planEngine"),
+                planCapped = o.optBoolean("planCapped", false),
                 dtRvol = o.optDouble("dtRvol", 0.0).orZero(),
                 dtRangePos = o.optDouble("dtRangePos", -1.0).let { if (it.isFinite() && it in 0.0..1.0) it else -1.0 },
                 dtShorted = o.optBoolean("dtShorted", false),

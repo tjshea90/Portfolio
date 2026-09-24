@@ -1055,7 +1055,7 @@ internal fun dropUnusableClaudeLevels(
     else r.copy(
         entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
         setup = "", trigger = "", planByClaude = false, planPrice = 0.0, planAt = 0L,
-        planWait = "", planLevel = ""
+        planWait = "", planLevel = "", planEngine = "", planCapped = false
     )
 }
 
@@ -1088,7 +1088,7 @@ internal fun evictStaleDayTradingPlan(
             entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
             setup = "", trigger = "", planNote = "", planExit = "",
             tooLateToStart = false, planByClaude = false, planDeclineStreak = 0, planReason = "",
-            planPrice = 0.0, planAt = 0L, planWait = "", planLevel = ""
+            planPrice = 0.0, planAt = 0L, planWait = "", planLevel = "", planEngine = "", planCapped = false
         )
     }
 }
@@ -1125,6 +1125,9 @@ internal fun mergeDayTradingTech(
     minutesSinceOpen: Int = -1
 ): com.tj.portfolio.data.ResearchRow {
     val effective = effectiveTechnicals(row, tech)
+    // ONE READ OF THE ENGINE for the whole plan (2026-09-24c): its values and the label the row is
+    // stamped with come from the same snapshot, even if an apply lands mid-sweep.
+    val engine = com.tj.portfolio.net.DayTradingEngine.current
     // ---- PLAN AGAINST THE PRICE NOW, NOT THE SCREENER'S (full-tests audit 2026-09-22, D-H1).
     //
     // `row.price` is whatever the screener saw when the list was BUILT - up to a rebuild
@@ -1190,7 +1193,8 @@ internal fun mergeDayTradingTech(
         ),
         minutesSinceOpen = minutesSinceOpen,
         // A score of 0 is a row the app never scored (a Claude-added pick) - not "below the bar".
-        score = if (row.score > 0) row.score else -1
+        score = if (row.score > 0) row.score else -1,
+        p = engine.params
     )
     // THE ENGINE LOOKED AND SAID NO, as opposed to not being able to look at all - the
     // distinction the level fields below turn on. `tradePlan` bails early only on a missing
@@ -1303,6 +1307,16 @@ internal fun mergeDayTradingTech(
             claudePlanStands -> ""
             else -> keepOrClear(row.planLevel, confirmedDecline)
         },
+        planEngine = when {
+            plan != null -> engine.tunedLabel
+            claudePlanStands -> ""
+            else -> keepOrClear(row.planEngine, confirmedDecline)
+        },
+        planCapped = when {
+            plan != null -> plan.targetCapped
+            claudePlanStands -> false
+            else -> !confirmedDecline && row.planCapped
+        },
         planByClaude = claudePlanStands,
         planAt = if (claudePlanStands) row.planAt else 0L,   // R1-7: Claude's stamp, with its plan
         // SAME RULE AS THE LEVELS ABOVE, one tick later than `declined` alone. A real plan
@@ -1318,7 +1332,7 @@ internal fun mergeDayTradingTech(
         // produced no plan at all, and on a Claude-authored row this function never re-plans.
         // See `ResearchScore.tooLateToStart` for the two ways the old plan-bundled version
         // silently stuck.
-        tooLateToStart = com.tj.portfolio.net.ResearchScore.tooLateToStart(minutesLeft)
+        tooLateToStart = com.tj.portfolio.net.ResearchScore.tooLateToStart(minutesLeft, engine.params)
     )
 }
 

@@ -529,7 +529,9 @@ object ResearchScore {
          */
         val waitReason: String = "",
         /** Which level the entry is built on ("the prior session's high", "VWAP") - logged with the plan. */
-        val entryLevel: String = ""
+        val entryLevel: String = "",
+        /** The tuned engine's fixed-R cap set the target (2026-09-24c). */
+        val targetCapped: Boolean = false
     ) {
         val risk: Double get() = entry - stop
         val reward: Double get() = target - entry
@@ -1008,6 +1010,7 @@ object ResearchScore {
             tooLateToStart = tooLate,
             waitReason = waitReason,
             entryLevel = entryLevel,
+            targetCapped = targetCapped,
             setup = setup,
             trigger = when (setup) {
                 SETUP_RECLAIM ->

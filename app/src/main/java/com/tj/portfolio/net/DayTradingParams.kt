@@ -258,15 +258,21 @@ class DayTradingParams private constructor(private val values: Map<String, Doubl
  * consistent parameter set, never half of an update.
  */
 object DayTradingEngine {
-    @Volatile var params: DayTradingParams = DayTradingParams.DEFAULTS
-        private set
-    /** 0 = the original engine; +1 for every apply, undo or revert since. */
-    @Volatile var version: Int = 0
+    /** The parameters and their version, ONE reference - a reader never sees the new version with the old values. */
+    class Snapshot(val params: DayTradingParams, val version: Int) {
+        /** "" for the original engine's values (whatever the version number), else "v3" - what a plan is labelled with. */
+        val tunedLabel: String get() = if (params.isDefault) "" else "v$version"
+    }
+
+    @Volatile var current: Snapshot = Snapshot(DayTradingParams.DEFAULTS, 0)
         private set
 
+    val params: DayTradingParams get() = current.params
+    /** 0 = the original engine; +1 for every apply, undo or revert since. */
+    val version: Int get() = current.version
+
     fun install(p: DayTradingParams, v: Int) {
-        params = p
-        version = v
+        current = Snapshot(p, v)
     }
 
     /** The label a logged plan carries - which engine made it. */
