@@ -187,4 +187,27 @@ class FullTest0924Test {
         // A request after a long quiet spell goes out at once.
         assertEquals(5_000_000L, Insider.nextSendAt(lastSendAt = 1_000_000L, now = 5_000_000L))
     }
+
+    // ---- L-2: a cancelled pass still unwinding does not block the replacement.
+
+    private fun field(vm: PortfolioViewModel, name: String) =
+        PortfolioViewModel::class.java.getDeclaredField(name).apply { isAccessible = true }
+
+    @Test fun `L-2 coming back while a cancelled pass unwinds still starts a new one`() {
+        val vm = PortfolioViewModel(app).also { settle() }
+        awaitQuotesIdle(vm)
+        // The state the app is in a moment after coming back: the old pass was cancelled on
+        // the way out but its `finally` (behind a blocking read) has not cleared `loading`.
+        @Suppress("UNCHECKED_CAST")
+        val ui = field(vm, "_ui").get(vm) as MutableStateFlow<com.tj.portfolio.ui.UiState>
+        ui.value = ui.value.copy(loading = true)
+        val cancelled = kotlinx.coroutines.Job().apply { cancel() }
+        field(vm, "quoteJob").set(vm, cancelled)
+
+        vm.refresh()
+        assertTrue("refresh() returned at the loading guard - no replacement pass",
+            field(vm, "quoteJob").get(vm) !== cancelled)
+        settle(); awaitQuotesIdle(vm)
+        assertFalse("the replacement pass must clear the flag when it ends", vm.ui.value.loading)
+    }
 }
