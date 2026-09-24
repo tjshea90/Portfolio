@@ -106,7 +106,6 @@ class ZoomIntoUnfetchedUiTest {
                 updatePointerTo(0, Offset(center.x - gap, center.y))
                 updatePointerTo(1, Offset(center.x + gap, center.y))
                 move()
-                rule.mainClock.advanceTimeByFrame()
             }
             up(0); up(1)
         }
