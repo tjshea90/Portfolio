@@ -1466,18 +1466,19 @@ private fun keepOrClear(previous: String, confirmedDecline: Boolean): String =
  * output, so a second call cannot compound the bonus ([ResearchScore.technicalConfirmationBonus]'s
  * header) and a signal that stops confirming stops counting. It used to run once per rebuild,
  * which froze whatever the first sweep saw - often a pre-market one, with no VWAP at all. A row
- * with no recorded base (a cache from an older build) takes its current values as the base,
- * once, and carries them from then on.
+ * with no recorded base (a cache from an older build) is left as it is until the next rebuild.
  */
 internal fun scoreDayTradingRow(
     withLevels: com.tj.portfolio.data.ResearchRow,
     effective: com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals
 ): com.tj.portfolio.data.ResearchRow {
-    val recorded = withLevels.dtBaseLikelihood > 0
-    val baseLikelihood = if (recorded) withLevels.dtBaseLikelihood else withLevels.dtLikelihood
-    val baseConfidence = if (recorded) withLevels.dtBaseConfidence else withLevels.dtConfidence
-    val baseReasons = if (recorded) withLevels.reasons.take(withLevels.dtBaseReasonCount)
-    else withLevels.reasons
+    // NO RECORDED BASE, NO RESCORING (review 2026-09-24, R2-6): a row cached by an older build
+    // carries its one-time bonus already, and taking that as the base counted it twice and froze
+    // its VWAP line in. It keeps its values until the next rebuild gives it a real base.
+    if (withLevels.dtBaseLikelihood <= 0) return withLevels
+    val baseLikelihood = withLevels.dtBaseLikelihood
+    val baseConfidence = withLevels.dtBaseConfidence
+    val baseReasons = withLevels.reasons.take(withLevels.dtBaseReasonCount)
     val scored = com.tj.portfolio.net.ResearchScore.withTechnicals(
         com.tj.portfolio.net.ResearchScore.Scored(baseLikelihood, baseReasons, 100),
         effective,
@@ -4039,10 +4040,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * the caller's "saved" toast - passed in rather than shown after this returns, because a
      * toast set afterwards would overwrite the override warning below before anyone saw it.
      */
-    fun addTxnRecord(t: Txn, savedMsg: String? = null) {
+    /** False when the write failed - the caller keeps its editor open (R2-7). */
+    fun addTxnRecord(t: Txn, savedMsg: String? = null): Boolean {
         // A failed write says so (A-5), instead of the caller's "saved".
         runCatching { db.insertTxn(t) }.exceptionOrNull()?.let {
-            toast("Couldn't save that transaction: ${it.message}"); return
+            toast("Couldn't save that transaction: ${it.message}"); return false
         }
         recompute()
         refresh()
