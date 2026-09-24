@@ -292,7 +292,16 @@ fun ResearchScreen(
     val rows = remember(set, section) { section.rowsIn(set).distinctBy { it.symbol } }
     val visibleCount = shown[section.key] ?: ResearchSet.PAGE
 
-    Column(Modifier.fillMaxSize()) {
+    // SWIPE BETWEEN SECTIONS (screens idea 2, 2026-09-24b) - Trending / Best / ETFs / Day
+    // Trading, the way Yahoo Finance's screener tabs move. This handler sits inside the app's
+    // tab swipe and claims a sideways drag first, so on Research a swipe changes the SECTION;
+    // the tab bar still changes the tab.
+    Column(Modifier.fillMaxSize().swipeBetweenTabs(
+        enabled = true,
+        current = section.ordinal,
+        tabCount = Section.entries.size,
+        onSwitch = { i -> section = Section.entries[i]; vm.setResearchTab(i) }
+    )) {
 
         // ------------------------------------------------ pinned title + status
         Row(
