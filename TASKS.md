@@ -124,11 +124,24 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
         roles, IntrinsicSize rows, screen-level confirm, history newest 10, plurals/unchecked,
         capped-target text + muted NOT YET, Risk: prefix, claudeAge in detail). Tests: Learn UI 10,
         EngineTuningTest +1 (applyRefusesToInstallWhatTheSheetDidNotShow).
-      - daytrading.md (complete, 21): [ ] DA-1(=PL-1) [ ] DA-2 [ ] DA-3 [ ] DA-4 [ ] DA-5 [ ] DA-6
-        [ ] DA-7 [ ] DA-8 [x] DA-9(=UI-1) [ ] DA-10 [ ] DA-11 [ ] DA-12(=PL-2) [ ] DA-13 [ ] DA-14
-        [ ] DA-15 [ ] DA-16 [ ] DA-17 [ ] DA-18 [ ] DA-19 [ ] DA-20 [ ] DA-21
-      - platform.md (complete, 15): [ ] PL-1 [ ] PL-2 [ ] PL-3 [ ] PL-4 [ ] PL-5 [ ] PL-6 [ ] PL-7
-        [ ] PL-8 [ ] PL-9 [ ] PL-10 [ ] PL-11 [ ] PL-12 [ ] PL-13 [ ] PL-14 [ ] PL-15
+      - daytrading.md (complete, 21): ALL FIXED [x] DA-1(=PL-1) [x] DA-2 [x] DA-3 [x] DA-4 [x] DA-5
+        [x] DA-6 [x] DA-7 [x] DA-8 [x] DA-9(=UI-1) [x] DA-10 [x] DA-11 [x] DA-12(=PL-2) [x] DA-13
+        [x] DA-14 [x] DA-15 [x] DA-16 [x] DA-17 [x] DA-18 [x] DA-19 [x] DA-20 [x] DA-21
+        (grader: partial detail + one settled re-grade, spike-low, known opens, truncated series,
+        bar-length cut-offs, grid in account %; tuning: group derived from the param, switch-on
+        step, basedOn/from required, 3 decimals, bool-only on/off, lastEntry >= flat+10, version
+        above log labels, corrupt-store fallback, undo-a-revert; logging: tick score gate, Claude
+        cut-off without lull, not in the last minute, opening-bar wait, Claude planPrice, v0 label;
+        prompt: account-% objective, corrected text, volSrc.) Tests: DayTradingGraderTest 24,
+        EngineTuningTest 20, DayTradingRegradeTest 3, DayTradingLoggingTest 10.
+      - platform.md (complete, 15): ALL FIXED [x] PL-1 [x] PL-2 [x] PL-3 [x] PL-4 [x] PL-5 [x] PL-6
+        [x] PL-7 [x] PL-8 [x] PL-9 [x] PL-10 [x] PL-11 [x] PL-12 [x] PL-13 [x] PL-14 [x] PL-15
+        (dt_bars settled-bar cache, empty answers never destroy a verdict, 24h retry back-off +
+        400/422 = answered, polite auto check (delay, 2 at a time, pause, stop on first failure or
+        cooldown, cancelled with the tab, stamped on completion, never a crash), engine backup
+        files adopted/atomic, Db.setAll + mutex, 64 MB backup reads, COUNT for the backup check,
+        tuning answers route to the review, logged-today set.)
+    - [ ] Second audit round (3 agents, read-only) on everything changed since 5576e0fb; fix; suite
 - [ ] C2 Ship (auto-ship rule), post the Release link, summarize
 
 ## Tj's request, 2026-09-24b (his own words)
