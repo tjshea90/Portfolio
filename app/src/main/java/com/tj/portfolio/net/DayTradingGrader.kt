@@ -67,6 +67,8 @@ object DayTradingGrader {
         "- The target only counts when the price trades past it by at least a cent, and a single " +
         "stray price far from every trade around it is ignored.\n" +
         "- When a single bar reached both the stop and the target, it is read as the stop.\n" +
+        "- If the price jumped straight past both the buy price and the target, the order is " +
+        "counted as bought and sold at once at that price - a small loss, never a win.\n" +
         "- An order that has not filled by the plan's own \"too late to start\" time is cancelled " +
         "(no trade). Anything still open at the \"be flat by\" time is sold there.\n" +
         "- Costs are taken off every trade, and the portfolio figure skips any trade the " +

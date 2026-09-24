@@ -1544,8 +1544,8 @@ internal fun DayTradingSuccessRate(
                         "${stats.totalRecommendations} recommendations recorded - " +
                             "${stats.entriesTriggered} filled " +
                             "(${stats.targetHit} hit target, ${stats.stopHit} hit stop, " +
-                            "${stats.closedProfit + stats.closedLoss} sold at the flat time " +
-                            "without hitting either), ${stats.noEntry} never filled before " +
+                            "${stats.closedProfit + stats.closedLoss} sold without hitting " +
+                            "either - at the flat time, or at once when the price jumped past both), ${stats.noEntry} never filled before " +
                             "their cut-off, ${stats.pending} still in progress" +
                             (if (stats.dataUnavailable > 0)
                                 ", ${stats.dataUnavailable} with no price history available"
