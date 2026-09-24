@@ -168,18 +168,20 @@ class DayTradingParams private constructor(private val values: Map<String, Doubl
         private fun bool(key: String, d: Boolean, doc: String) =
             Spec(key, if (d) 1.0 else 0.0, 0.0, 1.0, Kind.BOOL, doc)
 
+        private val R = ResearchScore
+
         val SPECS: List<Spec> = buildList {
             // ---- plan geometry (ResearchScore.planInternal)
-            add(num(BREAK_BUFFER, 0.15, 0.0, 0.6, "Entry buffer: a breakout/reclaim entry sits this many intraday (5-minute) ATRs past the level it breaks, and stops sit the same distance under structure."))
-            add(num(EXTENDED_ATRS, 2.5, 1.0, 5.0, "Price this many intraday ATRs above VWAP counts as extended -> Pullback setup (buy-limit at support) instead of a breakout."))
-            add(num(EXTENDED_RANGE, 0.85, 0.5, 1.5, "Session range already used (fraction of the 14-day average daily range) at which the stock counts as extended -> Pullback setup."))
-            add(num(MIN_RISK, 1.5, 0.5, 4.0, "Stop floor: risk (entry - stop) is at least this many intraday ATRs."))
-            add(num(MAX_RISK, 2.5, 1.0, 6.0, "Stop ceiling: risk is at most this many intraday ATRs (a further structural stop is tightened to this)."))
-            add(num(TARGET_FALLBACK_R, 2.0, 1.0, 5.0, "Target when there is neither resistance overhead nor a measured daily range: entry + this many R."))
-            add(num(TARGET_STANDOFF_R, 0.3, 0.0, 1.5, "A resistance level must clear max(entry, price) by at least this many R to be the target."))
-            add(num(TARGET_MIN_CEILING_R, 1.0, 0.5, 3.0, "No plan when the day's remaining measured range (session low + ADR live, entry + ADR pre-market) is less than this many R above max(entry, price)."))
+            add(num(BREAK_BUFFER, R.BREAK_BUFFER_ATRS, 0.0, 0.6, "Entry buffer: a breakout/reclaim entry sits this many intraday (5-minute) ATRs past the level it breaks, and stops sit the same distance under structure."))
+            add(num(EXTENDED_ATRS, R.EXTENDED_ATRS, 1.0, 5.0, "Price this many intraday ATRs above VWAP counts as extended -> Pullback setup (buy-limit at support) instead of a breakout."))
+            add(num(EXTENDED_RANGE, R.EXTENDED_RANGE_USED, 0.5, 1.5, "Session range already used (fraction of the 14-day average daily range) at which the stock counts as extended -> Pullback setup."))
+            add(num(MIN_RISK, R.MIN_RISK_ATRS, 0.5, 4.0, "Stop floor: risk (entry - stop) is at least this many intraday ATRs."))
+            add(num(MAX_RISK, R.MAX_RISK_ATRS, 1.0, 6.0, "Stop ceiling: risk is at most this many intraday ATRs (a further structural stop is tightened to this)."))
+            add(num(TARGET_FALLBACK_R, R.TARGET_REWARD_RISK_RATIO, 1.0, 5.0, "Target when there is neither resistance overhead nor a measured daily range: entry + this many R."))
+            add(num(TARGET_STANDOFF_R, R.MIN_TARGET_STANDOFF_R, 0.0, 1.5, "A resistance level must clear max(entry, price) by at least this many R to be the target."))
+            add(num(TARGET_MIN_CEILING_R, R.MIN_CEILING_REWARD_RATIO, 0.5, 3.0, "No plan when the day's remaining measured range (session low + ADR live, entry + ADR pre-market) is less than this many R above max(entry, price)."))
             add(num(TARGET_CAP_R, 0.0, 0.5, 10.0, "OFF by default. When set, the target is capped at entry + this many R (a closer fixed profit-take).", off = true))
-            add(num(ATR_FROM_DAILY, 0.10, 0.05, 0.3, "When no intraday ATR exists yet (pre-market), intraday ATR = daily ATR(14) x this."))
+            add(num(ATR_FROM_DAILY, R.INTRADAY_ATR_FROM_DAILY, 0.05, 0.3, "When no intraday ATR exists yet (pre-market), intraday ATR = daily ATR(14) x this."))
             // ---- filters (a plan that fails one is declined, with the reason on the card)
             add(num(MIN_RR, 0.0, 0.5, 4.0, "OFF by default. Decline any plan whose reward:risk is below this.", off = true))
             add(num(MAX_TRIGGER_ATRS, 0.0, 0.5, 6.0, "OFF by default. Decline a breakout whose trigger is more than this many intraday ATRs above the price.", off = true))
@@ -187,13 +189,13 @@ class DayTradingParams private constructor(private val values: Map<String, Doubl
             add(bool(REQUIRE_BULLISH_BAR, false, "OFF by default. While the session is live, decline new plans when the first 5-minute bar closed at or below its open (the Zarattini/Barbon/Aziz ORB direction filter)."))
             // ---- time rules
             add(int(EARLIEST_ENTRY_MIN, 0, 1, 120, "OFF by default. No new plan is recorded (or should be started) in the first N minutes after the open.", off = true))
-            add(int(LAST_ENTRY_MIN, 30, 10, 120, "No new trade with fewer than N minutes of session left; an unfilled entry order is cancelled at that point."))
+            add(int(LAST_ENTRY_MIN, R.MIN_MINUTES_FOR_NEW_ENTRY, 10, 120, "No new trade with fewer than N minutes of session left; an unfilled entry order is cancelled at that point."))
             add(bool(AVOID_LULL, false, "OFF by default. No new plans 11:30-13:30 ET, and an unfilled entry is cancelled when the lull starts."))
-            add(int(FLAT_BEFORE_CLOSE_MIN, 10, 5, 60, "Every open trade is closed at market this many minutes before the close."))
+            add(int(FLAT_BEFORE_CLOSE_MIN, R.FLATTEN_BEFORE_CLOSE_MINUTES, 5, 60, "Every open trade is closed at market this many minutes before the close."))
             // ---- warnings only (text on the card, no effect on levels or grading)
-            add(num(WARN_BIG_TARGET_R, 3.0, 1.5, 10.0, "Warning only: note when the target is more than this many R away."))
-            add(num(WARN_THIN_R, 1.5, 0.5, 3.0, "Warning only: note a reward:risk at or below this as thin."))
-            add(num(WARN_TRIGGER_ATRS, 2.0, 0.5, 6.0, "Warning only: note a trigger more than this many intraday ATRs above the price."))
+            add(num(WARN_BIG_TARGET_R, R.MAX_REWARD_RISK_RATIO, 1.5, 10.0, "Warning only: note when the target is more than this many R away."))
+            add(num(WARN_THIN_R, R.THIN_REWARD_RATIO, 0.5, 3.0, "Warning only: note a reward:risk at or below this as thin."))
+            add(num(WARN_TRIGGER_ATRS, R.MAX_TRIGGER_DISTANCE_ATRS, 0.5, 6.0, "Warning only: note a trigger more than this many intraday ATRs above the price."))
             // ---- setups
             for ((name, k) in SETUP_KEYS) {
                 add(bool("setup.$k.enabled", true, "The $name setup is used. OFF = the engine declines instead of planning a $name."))

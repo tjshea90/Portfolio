@@ -538,14 +538,18 @@ object ResearchScore {
         val rMultiple: Double get() = if (risk > 1e-9) reward / risk else 0.0
     }
 
+    // ---- THE ORIGINAL ENGINE'S VALUES (2026-09-24c). Every constant below is now the DEFAULT of a
+    // tunable parameter in [DayTradingParams] (which reads them from here, so the documentation and
+    // the value stay together). The engine itself reads the ACTIVE parameters, never these directly.
+
     /** Price breaks a level, it does not touch it - so a trigger sits this far past the line. */
-    private const val BREAK_BUFFER_ATRS = 0.15
+    internal const val BREAK_BUFFER_ATRS = 0.15
 
     /** Above this many intraday ATRs over VWAP, buying the current price is chasing. */
-    private const val EXTENDED_ATRS = 2.5
+    internal const val EXTENDED_ATRS = 2.5
 
     /** Or: it has already travelled this much of a normal day's whole range. */
-    private const val EXTENDED_RANGE_USED = 0.85
+    internal const val EXTENDED_RANGE_USED = 0.85
 
     /**
      * Day-trade stop, in intraday ATRs - the 1.5x-2.5x band practitioner sources give for a
@@ -558,8 +562,8 @@ object ResearchScore {
      * The floor is what turns that into a real volatility stop. The ceiling matters in the
      * other direction, on a pullback whose next support is a long way down.
      */
-    private const val MIN_RISK_ATRS = 1.5
-    private const val MAX_RISK_ATRS = 2.5
+    internal const val MIN_RISK_ATRS = 1.5
+    internal const val MAX_RISK_ATRS = 2.5
 
     /**
      * The "at least 2:1" convention - now a FALLBACK ONLY, not a rule (Round 73).
@@ -570,7 +574,7 @@ object ResearchScore {
      * comes from structure and from how much room the day actually has left - see [tradePlan]
      * step 4 and [MAX_REWARD_RISK_RATIO] for what this replaced.
      */
-    private const val TARGET_REWARD_RISK_RATIO = 2.0
+    internal const val TARGET_REWARD_RISK_RATIO = 2.0
 
     /**
      * NO LONGER A CAP ON THE TARGET - a threshold for WARNING about one (Round 73).
@@ -612,7 +616,7 @@ object ResearchScore {
      * because a 6R objective is a real reading of the levels and also a warning that most days
      * will not deliver it.
      */
-    private const val MAX_REWARD_RISK_RATIO = 3.0
+    internal const val MAX_REWARD_RISK_RATIO = 3.0
 
     /**
      * A trade needs this many minutes of session left to be worth STARTING (Round 73).
@@ -658,13 +662,13 @@ object ResearchScore {
      * rejected: the level itself is still the right level, it is the distance that deserves
      * saying out loud.
      */
-    private const val MAX_TRIGGER_DISTANCE_ATRS = 2.0
+    internal const val MAX_TRIGGER_DISTANCE_ATRS = 2.0
 
     /**
      * The least the day's remaining room must cover for a plan to be worth drawing at all -
      * one times the risk. See [tradePlan] step 4 for the sub-1R "target" this prevents.
      */
-    private const val MIN_CEILING_REWARD_RATIO = 1.0
+    internal const val MIN_CEILING_REWARD_RATIO = 1.0
 
     /**
      * A 5-minute ATR as a fraction of the daily one, for the overnight case where no intraday
@@ -672,7 +676,7 @@ object ResearchScore {
      * five-minute bars, so a 5-minute range lands near 1/sqrt(78) - about a tenth - of the
      * day's. An estimate, used only when the measured one is unavailable.
      */
-    private const val INTRADAY_ATR_FROM_DAILY = 0.10
+    internal const val INTRADAY_ATR_FROM_DAILY = 0.10
 
     /** One candidate price level, with the name the trigger sentence calls it by. */
     private data class Level(val price: Double, val name: String)
@@ -1049,7 +1053,7 @@ object ResearchScore {
     ): String = planInternal(price, tech, minutesLeft, middayLull, earningsToday).second
 
     /** Flatten by 15:50 ET rather than 16:00 - see [exitPlan]. */
-    private const val FLATTEN_BEFORE_CLOSE_MINUTES = 10
+    internal const val FLATTEN_BEFORE_CLOSE_MINUTES = 10
 
     /**
      * WHAT TO DO ONCE THE TRADE IS ON - the half a single target price cannot express.
@@ -1221,7 +1225,7 @@ object ResearchScore {
      * Reward:risk at or below this reads as thin - shared by [planNote] and [beginnerSummary]
      * so the plain-English summary can never disagree with the technical warning under it.
      */
-    private const val THIN_REWARD_RATIO = 1.5
+    internal const val THIN_REWARD_RATIO = 1.5
 
     /**
      * Reward:risk for one trade plan - the SAME arithmetic [planNote], [beginnerSummary] and
@@ -2149,7 +2153,7 @@ object ResearchScore {
      * it would be a trade whose reward is a rounding error against its risk - so the nearest
      * candidate must clear the entry by at least this much before step 4 will use it.
      */
-    private const val MIN_TARGET_STANDOFF_R = 0.3
+    internal const val MIN_TARGET_STANDOFF_R = 0.3
 
     /** [RatingRecency.CUTOFF_DAYS] in whole months, for the one sentence that names it. */
     private val CUTOFF_MONTHS = (RatingRecency.CUTOFF_DAYS / 30.0).roundToInt()
