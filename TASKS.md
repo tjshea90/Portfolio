@@ -44,8 +44,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       ALL 7 REPORTS COMPLETE (13:50 UTC). Order: H, then M, then L; Q items as they fit.
       One VM regression file for today: app/src/test/.../FullTest0924Test.kt.
     - H: [x] U-1 spinner surface-blind (spinnerShouldShow source + sync on every research-busy
-      clear; SpinnerTest +2, FullTest0924Test U-1 MUTATION-CHECKED)  [ ] L-1(=N-1) cancel never
-      reaches socket (invokeOnCompletion fires after completion)  [ ] N-2 one unknown symbol kills
+      clear; SpinnerTest +2, FullTest0924Test U-1 MUTATION-CHECKED)  [x] L-1(=N-1) cancel never
+      reaches socket (Http.onCancelling = invokeOnCompletion(onCancelling=true), disconnect on IO
+      thread, ensureActive re-check; HttpCancelTest 3/0, MUTATION-CHECKED; also closes L-Q1)  [ ] N-2 one unknown symbol kills
       v7 batch for session  [ ] A-1 backup JSON shared in = Claude answer re-dated today
       [ ] C-1 pinch/pan into unfetched range kills gesture + blanks chart  [ ] D-1 stale plans
       logged with later timestamp/old price
