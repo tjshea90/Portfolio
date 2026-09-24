@@ -300,6 +300,14 @@ data class ResearchRow(
     /** Whether the two values above are the COMPLETE 09:30-10:00 range (R1-2) - see D-5. */
     val openingRangeComplete: Boolean = false,
     /**
+     * The closed 09:30 five-minute bar (DayTechnicals.or5High/or5Low/openingBarBullish), kept
+     * for the same reason as the range above (R1-2b): the plan reads them as trigger and
+     * support levels, and a failed intraday tick that dropped them moved the plan and back.
+     */
+    val or5High: Double = 0.0,
+    val or5Low: Double = 0.0,
+    val openingBarBullish: Boolean = false,
+    /**
      * THE LEVELS THE ROUND 69 TRIGGER IS CHOSEN FROM - the 5-minute ATR the stop is sized by,
      * the average daily range the target is bounded by, and the four structural prices an
      * intraday trader actually watches. Kept on the row, not just used and discarded inside
@@ -386,6 +394,9 @@ data class ResearchRow(
         if (openingRangeHigh > 0) put("openingRangeHigh", openingRangeHigh)
         if (openingRangeLow > 0) put("openingRangeLow", openingRangeLow)
         if (openingRangeComplete) put("orComplete", true)
+        if (or5High > 0) put("or5High", or5High)
+        if (or5Low > 0) put("or5Low", or5Low)
+        if (openingBarBullish) put("openingBarBullish", true)
         if (setup.isNotBlank()) put("setup", setup)
         if (trigger.isNotBlank()) put("trigger", trigger)
         if (planNote.isNotBlank()) put("planNote", planNote)
@@ -496,6 +507,9 @@ data class ResearchRow(
                 openingRangeHigh = o.optDouble("openingRangeHigh", 0.0).orZero(),
                 openingRangeLow = o.optDouble("openingRangeLow", 0.0).orZero(),
                 openingRangeComplete = o.optBoolean("orComplete", false),
+                or5High = o.optDouble("or5High", 0.0).orZero(),
+                or5Low = o.optDouble("or5Low", 0.0).orZero(),
+                openingBarBullish = o.optBoolean("openingBarBullish", false),
                 planExit = o.text("planExit"),
                 tooLateToStart = o.optBoolean("tooLateToStart", false),
                 setup = o.text("setup"),

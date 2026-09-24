@@ -1240,6 +1240,9 @@ internal fun mergeDayTradingTech(
         openingRangeHigh = effective.openingRangeHigh,
         openingRangeLow = effective.openingRangeLow,
         openingRangeComplete = effective.openingRangeComplete,   // R1-2
+        or5High = effective.or5High,                             // R1-2b
+        or5Low = effective.or5Low,
+        openingBarBullish = effective.openingBarBullish,
         atrIntraday = effective.atrIntraday,
         adr = effective.adr,
         prevHigh = effective.prevHigh,
@@ -1601,6 +1604,12 @@ internal fun effectiveTechnicals(
         // intraday tick after 10:00 dropped the range from the plan and the levels jumped.
         openingRangeComplete = if (tech.openingRangeHigh > 0) tech.openingRangeComplete
         else keepIntraday && row.openingRangeComplete,
+        // AND THE CLOSED OPENING BAR, the other opening level the plan reads (R1-2b) - it moved
+        // the stop the same way, one failed tick at a time.
+        or5High = if (tech.or5High > 0) tech.or5High else if (keepIntraday) row.or5High else 0.0,
+        or5Low = if (tech.or5High > 0) tech.or5Low else if (keepIntraday) row.or5Low else 0.0,
+        openingBarBullish = if (tech.or5High > 0) tech.openingBarBullish
+        else keepIntraday && row.openingBarBullish,
         atrIntraday = if (tech.atrIntraday > 0) tech.atrIntraday
         else if (keepIntraday) row.atrIntraday else 0.0,
         premarketHigh = if (tech.premarketHigh > 0) tech.premarketHigh
