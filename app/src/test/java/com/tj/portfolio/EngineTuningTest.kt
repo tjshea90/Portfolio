@@ -209,8 +209,8 @@ class EngineTuningTest {
         assertTrue(item.reason, item.reason.contains("setup:reclaim"))
         // A level by its key counts every label it is shown under; R2 has no trades at all.
         val ev = EngineTuning.Evidence(rows, 0)
-        assertEquals(38, ev.count("level:prevHigh"))
-        assertEquals(38, ev.count("level:the prior session's high"))
+        assertEquals(40, ev.count("level:prevHigh"))
+        assertEquals(40, ev.count("level:the prior session's high"))
         assertEquals(Status.REFUSED, EngineTuning.review(EngineTuning.parse(answer(0,
             change("level.r2.enabled", 1, 0, "all"))), EngineTuning.State(), rows).items.single().status)
         assertEquals(Status.ACCEPTED, EngineTuning.review(EngineTuning.parse(answer(0,
@@ -230,7 +230,6 @@ class EngineTuningTest {
             change(DayTradingParams.MIN_SCORE, 0, 80),
             change(DayTradingParams.TARGET_CAP_R, 0, 0.5),
             change("setup.breakout.minRiskAtrs", 0, 2.5, "setup:breakout"),
-            change("setup.breakout.maxRiskAtrs", 0, 1.5, "setup:breakout"),
             change(DayTradingParams.MIN_RR, 0, 1.0)
         )), EngineTuning.State(), rows)
         assertEquals(EngineTuning.Tier.MEDIUM, r.tier)
@@ -239,10 +238,13 @@ class EngineTuningTest {
         assertEquals(1.0 + 16.0, by.getValue(DayTradingParams.MIN_SCORE).applied!!, 1e-9)       // 20% of 0..80
         assertEquals(10.0 - 2.0, by.getValue(DayTradingParams.TARGET_CAP_R).applied!!, 1e-9)     // from the top
         assertEquals(1.5 + 0.8, by.getValue("setup.breakout.minRiskAtrs").applied!!, 1e-9)      // from the global 1.5
-        assertEquals(2.5 - 1.2, by.getValue("setup.breakout.maxRiskAtrs").applied!!, 1e-9)      // from the global 2.5
         assertEquals("a small switch-on inside the step is taken as is", Status.ACCEPTED, by.getValue(DayTradingParams.MIN_RR).status)
         assertEquals(1.0, by.getValue(DayTradingParams.MIN_RR).applied!!, 1e-9)
         assertTrue(r.paramsAfter.let { EngineTuning.inconsistency(it) } == null)
+        val ceiling = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.breakout.maxRiskAtrs", 0, 1.5, "setup:breakout"))),
+            EngineTuning.State(), rows).items.single()
+        assertEquals(Status.LIMITED, ceiling.status)
+        assertEquals(2.5 - 1.2, ceiling.applied!!, 1e-9)                                              // from the global 2.5
         // switching OFF is not limited - it is the original behaviour
         val on = DEFAULTS.with(mapOf(DayTradingParams.MIN_SCORE to 40.0))
         val off = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_SCORE, 40, 0))),
