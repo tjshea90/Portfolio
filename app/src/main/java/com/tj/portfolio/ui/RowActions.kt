@@ -87,10 +87,8 @@ fun RowActionHost(
         RowAction.ADD_TXN -> TxnEditorDialog(
             presetSymbol = symbol,
             onDismiss = onDone,
-            onSave = { t ->
-                vm.addTxnRecord(t, "${t.type} $symbol saved")
-                onDone()
-            }
+            // Closes only once it saved: a failed write keeps the typed entry open (R2-7).
+            onSave = { t -> if (vm.addTxnRecord(t, "${t.type} $symbol saved")) onDone() }
         )
 
         RowAction.EDIT_POSITION -> EditPositionDialog(vm, symbol, row, onDone)

@@ -250,7 +250,8 @@ fun ActivityScreen(vm: PortfolioViewModel, state: UiState) {
     if (showAdd) {
         TxnEditorDialog(
             onDismiss = { showAdd = false },
-            onSave = { t -> vm.addTxnRecord(t); showAdd = false }
+            // Closes only once it saved: a failed write keeps the typed entry open (R2-7).
+            onSave = { t -> if (vm.addTxnRecord(t)) showAdd = false }
         )
     }
 
