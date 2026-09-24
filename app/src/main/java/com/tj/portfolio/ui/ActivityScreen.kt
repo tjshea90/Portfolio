@@ -339,12 +339,7 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
     val lastSeen = remember {
         arrayOfNulls<Pair<com.tj.portfolio.net.ExtractResult, List<Boolean>>>(1)
     }
-    val kept = remember(r) {
-        lastSeen[0]?.takeIf { (old, _) ->
-            old !== r && r.transactions.size > old.transactions.size &&
-                r.transactions.subList(0, old.transactions.size) == old.transactions
-        }?.second
-    }
+    val kept = remember(r) { lastSeen[0]?.let { (old, oldChecks) -> carriedChecks(old, oldChecks, r) } }
     val checks = remember(r) {
         mutableStateListOf<Boolean>().apply { r.transactions.forEach { add(true) } }
     }
@@ -515,4 +510,20 @@ private fun ImportReviewDialog(vm: PortfolioViewModel, r: com.tj.portfolio.net.E
             }
         }
     )
+}
+
+/**
+ * The ticks an open import review already has, when [now] is [old] with rows ADDED after it
+ * (review 2026-09-24, R2-5) - what `mergeIntoPendingReview` publishes when a share or a
+ * screenshot extraction lands on a review still open. Null for anything else (a different
+ * result entirely), which takes the "new rows only" defaults. The rows past [old]'s count are
+ * not covered and take their defaults too.
+ */
+internal fun carriedChecks(
+    old: com.tj.portfolio.net.ExtractResult,
+    oldChecks: List<Boolean>,
+    now: com.tj.portfolio.net.ExtractResult
+): List<Boolean>? = oldChecks.takeIf {
+    old !== now && now.transactions.size > old.transactions.size &&
+        now.transactions.subList(0, old.transactions.size) == old.transactions
 }
