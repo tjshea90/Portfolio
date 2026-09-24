@@ -1294,6 +1294,40 @@ internal fun mergeDayTradingTech(
     )
 }
 
+/**
+ * The symbols a live sweep tick really RE-PLANNED FROM TODAY'S BARS - the only rows the
+ * recommendation log may take (D-1). Not merely a non-empty reading (review 2026-09-24, R1-1):
+ * the daily leg is memoised per day, so a row whose intraday request failed still reads as
+ * non-empty, and on a failed first 09:30 tick its pre-market plan and price were logged - and
+ * the log's one-row-per-day rule then locked the real live plan out for the day.
+ */
+internal fun replannedLive(
+    fetched: Map<String, com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals?>
+): Set<String> = fetched.filterValues {
+    it != null && it.sessionLive && it.sessionDay.isNotBlank() && it.lastPrice > 0.0
+}.keys
+
+/**
+ * Whether a sweep tick refreshed the WHOLE Day Trading list from today's bars - the only tick
+ * that may move the "data is N minutes old" clock the prompt quotes (D-14). A detail screen's
+ * one-symbol run, or a tick whose intraday requests all failed, refreshed no list prices, and
+ * counting them told Claude that hours-old rows were live (review 2026-09-24, R1-8).
+ */
+internal fun tickRefreshedList(
+    only: String?,
+    fetched: Map<String, com.tj.portfolio.net.DayTradingTechnicals.DayTechnicals?>
+): Boolean = only == null && fetched.values.any { it != null && it.sessionDay.isNotBlank() }
+
+/**
+ * The price a logged recommendation's DIRECTION is read from ([com.tj.portfolio.net.DayTradingEval.entryRises]).
+ * For a Claude plan that is the price its levels were made against ([ResearchRow.planPrice],
+ * D-9), not the price the log happened to capture it at (review 2026-09-24, R2-3): a Claude
+ * pullback logged after the stock opened under its entry was scored as a breakout - the
+ * opposite of what the card told Tj.
+ */
+internal fun loggedPlanPrice(r: com.tj.portfolio.data.ResearchRow): Double =
+    r.planPrice.takeIf { r.planByClaude && it > 0.0 } ?: r.price
+
 /** "1-5;9-12" -> [1..5, 9..12]; junk parts are skipped. See Keys.REPLAY_REPAIR_RANGES (A-2). */
 internal fun parseRepairRanges(raw: String?): List<LongRange> =
     raw.orEmpty().split(';').mapNotNull { part ->
@@ -7040,8 +7074,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // R2-3): the evaluator reads the plan's direction off this, and a Claude
                         // pullback logged after the stock traded under its entry was scored as a
                         // breakout - the opposite of what the card (D-9) told Tj.
-                        priceAtRecommendation = r.planPrice.takeIf { r.planByClaude && it > 0.0 }
-                            ?: r.price,
+                        priceAtRecommendation = loggedPlanPrice(r),
                         source = if (r.planByClaude) com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE
                         else com.tj.portfolio.data.DayTradingLogEntry.SOURCE_APP
                     )
@@ -8185,8 +8218,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // ONLY A WHOLE-LIST TICK THAT GOT TODAY'S BARS (review 2026-09-24, R1-8): a detail
         // screen's one-symbol run, or a tick whose intraday requests all failed, refreshed no
         // list prices - and the prompt then called hours-old rows "live".
-        if (changed && only == null && fetched.values.any { it != null && it.sessionDay.isNotBlank() })
-            dayTradingLiveAt = System.currentTimeMillis()
+        if (changed && tickRefreshedList(only, fetched)) dayTradingLiveAt = System.currentTimeMillis()
         if (changed || sweeping) {
             _research.value = _research.value.withSection(name, finalRows)
             // A completed sweep re-sorted the list - worth writing now; an ordinary tick is not.
@@ -8197,12 +8229,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // the daily leg is memoised, so a row whose intraday request failed still read as
             // "not empty" - and on a failed first 09:30 tick its pre-market plan and price were
             // logged, and the one-row-per-day rule then locked the real plan out.
-            captureDayTradingRecommendations(
-                finalRows,
-                fetched.filterValues {
-                    it != null && it.sessionLive && it.sessionDay.isNotBlank() && it.lastPrice > 0.0
-                }.keys
-            )
+            captureDayTradingRecommendations(finalRows, replannedLive(fetched))
         }
     }
 
