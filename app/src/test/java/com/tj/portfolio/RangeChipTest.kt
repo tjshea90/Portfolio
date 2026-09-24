@@ -134,9 +134,10 @@ class RangeChipTest {
         val flat = series(ChartRange.M1, listOf(100.0, 100.0))
         val pct = rangePct(flat, 0.0, false)!!
         assertEquals("+0.00%", Fmt.pctSigned(pct))
-        // The bug this guards: -0.0 is >= 0, so the sign is chosen as "+" and then the
-        // formatter prints its own "-".
-        assertEquals("+-0.00%", Fmt.pctSigned(-0.0))
+        // The bug this guarded: -0.0 is >= 0, so the sign was chosen as "+" and then the
+        // formatter printed its own "-" ("+-0.00%"). The formatter itself now snaps a value
+        // that rounds to zero to +0.0 (full test 2026-09-24, U-7).
+        assertEquals("+0.00%", Fmt.pctSigned(-0.0))
     }
 
     // ------------------------------------- the chip and the chart cannot disagree

@@ -983,4 +983,21 @@ class FullTest0924Test {
         assertEquals(50.0, f.price, 1e-9)
         assertEquals(100_000.0, f.value, 1e-6)
     }
+
+    // ---- U-7: zero is zero, and the sign goes outside the dollar.
+
+    @Test fun `U-7 values that round to zero print as zero and negatives read -$`() {
+        val F = com.tj.portfolio.util.Fmt
+        assertEquals("+0.00%", F.pctSigned(-0.0))
+        assertEquals("+0.00%", F.pctSigned(-0.001))
+        assertEquals("0.00%", F.pct(-0.001))
+        assertEquals("+$0.00", F.usdSigned(-1e-15))
+        assertEquals("-$1,234.56", F.usd(-1234.56))
+        assertEquals("$0.00", F.usd(-0.001))
+        assertEquals("1.00M", F.compact(999_995.0))
+        assertEquals("999.99K", F.compact(999_990.0))
+        assertEquals("-$18.40M", F.compactMoney(-1.84e7))
+        assertEquals("-$0.42", F.usdSigned(-0.42))
+        assertEquals("+0.00", F.changeSigned(-0.0001))
+    }
 }
