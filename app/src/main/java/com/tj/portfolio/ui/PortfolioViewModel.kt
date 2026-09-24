@@ -9153,7 +9153,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
                 // read the file back off disk and check it against the live database
                 val readBack = saved.uri?.let {
-                    com.tj.portfolio.util.Storage.readText(getApplication(), it)
+                    com.tj.portfolio.util.Storage.readText(getApplication(), it, com.tj.portfolio.util.Storage.BACKUP_READ_MAX)
                 }
                 if (readBack.isNullOrBlank()) {
                     return@withContext BackupOutcome(
@@ -9535,11 +9535,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * several megabytes through the content resolver, which is not something to do on the
      * UI thread just because it happens inside a picker callback.
      */
-    fun readPickedFile(uri: Uri, onDone: (String?) -> Unit) {
+    fun readPickedFile(uri: Uri, maxBytes: Int = 8_000_000, onDone: (String?) -> Unit) {
         viewModelScope.launch {
             val text = withContext(Dispatchers.IO) {
                 runCatching {
-                    com.tj.portfolio.util.Storage.readText(getApplication(), uri)
+                    com.tj.portfolio.util.Storage.readText(getApplication(), uri, maxBytes)
                 }.getOrNull()
             }
             onDone(text)

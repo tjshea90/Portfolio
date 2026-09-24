@@ -115,7 +115,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         if (uri != null) {
             // a backup can be megabytes; reading it through the content resolver is not
             // something to do on the UI thread just because we are in a picker callback
-            vm.readPickedFile(uri) { text ->
+            vm.readPickedFile(uri, com.tj.portfolio.util.Storage.BACKUP_READ_MAX) { text ->
                 if (text == null) vm.toast("Couldn't read that file") else pendingRestore = text
             }
         }

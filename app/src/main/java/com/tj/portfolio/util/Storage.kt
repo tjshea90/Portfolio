@@ -236,8 +236,8 @@ object Storage {
      */
     fun readOwnDownload(ctx: Context, fileName: String, subDir: String? = APP_SUBDIR): String? = try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            findOwnDownload(ctx, fileName, subDir)?.let { readText(ctx, it) }
-                ?: findOwnDownload(ctx, fileName, null)?.let { readText(ctx, it) }
+            findOwnDownload(ctx, fileName, subDir)?.let { readText(ctx, it, BACKUP_READ_MAX) }
+                ?: findOwnDownload(ctx, fileName, null)?.let { readText(ctx, it, BACKUP_READ_MAX) }
         } else {
             (File(legacyDir(subDir), fileName).takeIf { it.isFile }
                 ?: File(legacyDir(null), fileName).takeIf { it.isFile })?.readText()
@@ -249,6 +249,14 @@ object Storage {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
             findOwnDownload(ctx, fileName, subDir) != null
         else File(legacyDir(subDir), fileName).isFile
+
+    /**
+     * The read cap for a BACKUP (audit PL-5). A backup grows with the day-trading log - about 1.3 KB
+     * a graded plan with its conditions and grading detail - and at the old 8 MB cap a few years of
+     * use would have made the file unreadable by the very paths that restore it: the Settings
+     * picker, the recovery card after a reinstall, the post-write verification.
+     */
+    const val BACKUP_READ_MAX = 64_000_000
 
     /**
      * Read a document the user picked with the system file picker, or one shared in.
