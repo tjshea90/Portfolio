@@ -1573,7 +1573,7 @@ internal fun claudeAge(whyAt: Long, now: Long = System.currentTimeMillis()): Str
 
 /**
  * "OTHER WAYS TO HOLD THIS" (research idea 3, 2026-09-24b) - the funds this card stands for,
- * each with its fee and 5-year return, one tap to open. A different issuer or a broker's
+ * each with its fee and 5-year return. A different issuer or a broker's
  * commission-free list is a real reason to prefer one of them.
  */
 @Composable
