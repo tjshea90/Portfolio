@@ -323,3 +323,63 @@ main thread).
 - Fix: when the engine's cap is active (or the plan carries a `targetCapped` flag) say "the target is the
   next resistance, capped at N R by the tuned engine"; draw NOT YET in the muted/amber tone, not error red.
 
+## Secondary (outside today's edits, noticed while reading)
+
+### S-1 (L) - "N more reasons" toggle on every Research card is a ~24dp tap target with no role
+- Where: ui/ResearchScreen.kt:1024-1033.
+- Problem: `Modifier.clickable { ... }.padding(vertical = 4.dp)` on a 12sp labelMedium - every other
+  expander on this screen (EtfAlternatives, the new card's links) uses `minTapTarget()` first.
+- Fix: `Modifier.minTapTarget().clickable(role = Role.Button) { ... }.padding(vertical = 4.dp)`.
+
+### S-2 (L) - The Day Trading card shows the "specific risk" line unlabelled, styled like a highlight
+- Where: ui/ResearchScreen.kt:1036-1044 vs ui/DayTradingDetailDialog.kt:252-271.
+- Problem: on Day Trading rows `catalyst` is Claude's "specific risk" (DayTradingBridge.kt:367) combined
+  with the app's earnings phrase. The list card draws it in accent-blue semibold with no label, which reads
+  as a positive call-out or a link; the detail screen labels it "The specific risk". The detail's "CLAUDE"
+  label also lacks the age (`claudeAge`) the list card shows, so a 3-day-old paragraph looks current there.
+- Fix: prefix "Risk: " (or a muted label) on the list card for the Day Trading section; use
+  `"CLAUDE" + claudeAge(r.whyAt)` in DayTradingPlanContent.
+
+## Checked and fine
+- Undo and Revert on the card are both confirmed (AlertDialog), and the confirm/expander flags are
+  `rememberSaveable`; the review sheet lives in the VM, so it survives rotation.
+- The review sheet scrolls (`heightIn(max = 520.dp)` + `verticalScroll`) inside M3 AlertDialog's
+  weighted text slot, so title and buttons stay reachable in landscape and at 2.0x.
+- Apply is disabled ("Nothing to apply") whenever `canApply` is false; `applicable.size` matches what
+  `apply()` changes (distinct keys, UNCHANGED excluded, zero-length limited steps refused).
+- A parse error never opens the sheet (`importEngineTuning` returns the error as a toast), so the
+  "No changes proposed - Claude recommends keeping the engine" line cannot follow a failed parse.
+- No new per-frame or per-30-second-tick work: with Kotlin 2.3 strong skipping, DayTradingSuccessRate and
+  EngineTuningCard are skipped on the live tick (same stats/state instances, memoized lambdas); stats are
+  computed on Dispatchers.Default; the prompt is built on IO.
+- Expander links use `minTapTarget()`; the new buttons are standard M3 buttons (48dp touch target).
+- `fmtR` snaps |v| < 0.005 to zero, so no "-0.00R" appears; `n/a` for non-finite.
+- `DayTradingParams.fromJson` / `EngineTuning.load` are total, so a corrupt store shows the original
+  engine rather than crashing the card; `describe` only ever sees finite values.
+
+## Test gaps worth adding
+1. `DayTradingStats.edgeVerdict` is "" below 20 trades, and the card never prints "real edge" next to
+   "Too few trades to judge" (UI-1) - pure unit + a DayTradingLearnUiTest text assertion.
+2. `DayTradingEval.stats`: with unfunded AND capped trades, the capped count shown is <= the funded count
+   (UI-2).
+3. VM test: open a review, add graded rows that cross 75 (or push a cited group past 20), tap Apply ->
+   nothing is applied, the sheet shows the fresh review (UI-3). Plus a double-tap Apply test (UI-13).
+4. DayTradingSuccessRate with `entriesTriggered == 0` and `regrading > 0` / `legacyExcluded > 0` /
+   only NO_ENTRY rows: the text mentions the re-check and never says "none ... has a decided outcome" (UI-5).
+5. TradeLevelsGrid label: no test renders "RISK PLAN (tuned engine vN)" or "NOT YET - ..." at all; add both,
+   and one proving the label follows the row's own engine stamp, not `DayTradingEngine` (UI-6). Note that
+   tests calling `DayTradingEngine.install` must restore DEFAULTS (global state; EngineTuningTest does).
+6. BeginnerSummaryCard with `planWait` set -> "Not yet - wait before starting this one."
+7. EngineReviewDialog: a refused item shows the app's recount (UI-4); "1 graded trade" singular; LIMITED
+   reads "Will apply" (UI-14); a blocker item is not double-prefixed.
+8. EngineTuningCard after a revert: no "so this one can be measured" wording (UI-10); with `busy = true`
+   a reason is shown (UI-7).
+9. SettingsScreen engine row: Undo present and confirmed; `StateRestorationTester` keeps the revert
+   confirm across recreation (UI-11).
+10. Font scale 2.0x for EngineTuningCard and EngineReviewDialog: every button displayed, >= 48dp tall,
+    and the two top buttons the same height (UI-23). The existing 1.6x test only covers the success card.
+11. A timing/regression test for `EngineTuning.review` on a ~2,000-row synthetic log with level-based
+    bases, to keep it bounded (UI-12).
+12. DayTradingBreakdown: slices under 20 trades carry the "too few" marker; engine slices sort v2 before v10 (UI-16).
+
+## END OF REPORT (complete)
