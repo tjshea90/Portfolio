@@ -238,6 +238,10 @@ fun App() {
      */
     val detailStack = rememberSaveable(saver = stringListSaver) { mutableStateListOf<String>() }
     var searching by rememberSaveable { mutableStateOf(false) }
+    // U-Q5 (2026-09-24b): the last query, and whether the open stock came from the results -
+    // so Back returns to them rather than to the tab underneath.
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var detailFromSearch by rememberSaveable { mutableStateOf(false) }
     // Which half of the Watch tab is showing. Hoisted here - not held inside WatchTab -
     // because the visible-scope calculation and the back handler below both depend on it.
     var watchSubTab by rememberSaveable { mutableIntStateOf(vm.watchSubTab()) }
@@ -300,6 +304,7 @@ fun App() {
         detailStack.clear()
         detailToNews = false
         searching = false
+        detailFromSearch = false
         reader = null
         lastBackAt = 0L
     }
@@ -311,7 +316,9 @@ fun App() {
     fun popDetail() {
         detail?.let { layers.removeState(detailKey(detailStack.size, it)) }
         detailToNews = false
+        val backToSearch = detailStack.isEmpty() && detailFromSearch
         detail = if (detailStack.isEmpty()) null else detailStack.removeAt(detailStack.lastIndex)
+        if (backToSearch) { detailFromSearch = false; searching = true }
     }
 
     BackHandler {
@@ -329,7 +336,7 @@ fun App() {
             // ReaderScreen registers its own handler, which runs before this one and walks
             // the article's history first; this branch is the fallback that closes it.
             reader != null -> reader = null
-            searching -> searching = false
+            searching -> { searching = false; searchQuery = "" }
             // Pop one detail screen at a time. `detailStack` is only ever non-empty when a
             // fund's holding was tapped, so for every other route this is the old behaviour
             // exactly: one back press closes the stock.
@@ -494,9 +501,12 @@ fun App() {
 
                 searching -> SearchSheet(
                     vm,
-                    onDismiss = { searching = false },
+                    onDismiss = { searching = false; searchQuery = "" },
+                    query = searchQuery,
+                    onQueryChange = { searchQuery = it },
                     onOpen = {
                         searching = false
+                        detailFromSearch = true
                         // A search result is a fresh destination, not a step deeper into a
                         // fund - so it starts a new stack rather than pushing onto one that
                         // a Holdings tap may have left behind.

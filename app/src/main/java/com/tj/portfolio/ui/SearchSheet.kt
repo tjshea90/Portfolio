@@ -58,16 +58,26 @@ import androidx.compose.ui.unit.sp
 fun SearchSheet(
     vm: PortfolioViewModel,
     onDismiss: () -> Unit,
-    onOpen: (String) -> Unit
+    onOpen: (String) -> Unit,
+    /**
+     * THE QUERY LIVES WITH THE CALLER (U-Q5, 2026-09-24b), so Back from a stock opened here comes
+     * back to these results - the Robinhood/Yahoo behaviour - and survives a rotation too.
+     */
+    query: String = "",
+    onQueryChange: (String) -> Unit = {}
 ) {
-    var query by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf(query) }
     val hits by vm.search.collectAsState()
     val busy by vm.searching.collectAsState()
     val focus = remember { FocusRequester() }
     // recomposition trigger after add/remove so the row's state flips immediately
     var version by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+    LaunchedEffect(Unit) {
+        // Coming back to a search: run it again - the symbol-search memo answers at once.
+        if (query.isNotBlank()) vm.searchSymbols(query)
+        runCatching { focus.requestFocus() }
+    }
     DisposableEffect(Unit) { onDispose { vm.clearSearch() } }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -78,7 +88,7 @@ fun SearchSheet(
             ) {
                 OutlinedTextField(
                     value = query,
-                    onValueChange = { query = it; vm.searchSymbols(it) },
+                    onValueChange = { query = it; onQueryChange(it); vm.searchSymbols(it) },
                     label = { Text("Search ticker or company") },
                     leadingIcon = { Icon(Icons.Filled.Search, null) },
                     trailingIcon = {
