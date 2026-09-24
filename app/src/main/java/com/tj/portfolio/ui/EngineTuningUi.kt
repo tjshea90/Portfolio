@@ -56,8 +56,8 @@ internal fun EngineTuningCard(
         val differs = state.params.diffFrom(DayTradingParams.DEFAULTS).size
         Text(
             if (state.isOriginal) "Running the original engine" + (if (state.version > 0) " (v${state.version})." else ".")
-            else "Running tuned engine v${state.version} - $differs setting${if (differs == 1) "" else "s"} " +
-                "differ from the original.",
+            else "Running tuned engine v${state.version} - $differs setting" +
+                (if (differs == 1) " differs" else "s differ") + " from the original.",
             style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold
         )
         Spacer(Modifier.height(4.dp))

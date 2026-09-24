@@ -117,7 +117,7 @@ class DayTradingLearnUiTest {
         show { EngineTuningCard(st, graded = 95, sinceLastChange = 15, onMakePrompt = {}, onImport = {},
             onUndo = {}, onRevert = { reverted = true }) }
         val t = texts().joinToString(" | ")
-        assertTrue(t, t.contains("Running tuned engine v1 - 1 setting differ"))
+        assertTrue(t, t.contains("Running tuned engine v1 - 1 setting differs from the original"))
         assertTrue(t, t.contains("15 since the last change - the next change waits for 20"))
         rule.onNodeWithText("Engine history (1)").performClick()
         assertTrue(texts().any { it.contains("stop.minRiskAtrs: 1.5 -> 1.8") })
