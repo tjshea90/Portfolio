@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -1676,9 +1677,9 @@ private fun ChartCanvas(
             for (i in pts.indices) {
                 val v = c.other[i]
                 if (!v.isFinite()) { seg?.let { benchSegs.add(it) }; seg = null; continue }
-                val cur = seg ?: Path().also { seg = it; it.moveTo(x(pts[i]), y(v)) }
-                if (cur !== seg || benchSegs.isEmpty() && false) Unit
-                cur.lineTo(x(pts[i]), y(v))
+                val px = x(pts[i]); val py = y(v)
+                val cur = seg
+                if (cur == null) seg = Path().apply { moveTo(px, py) } else cur.lineTo(px, py)
             }
             seg?.let { benchSegs.add(it) }
         }
