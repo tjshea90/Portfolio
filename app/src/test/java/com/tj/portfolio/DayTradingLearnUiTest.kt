@@ -73,7 +73,7 @@ class DayTradingLearnUiTest {
         noEntry = 14, pending = 2, dataUnavailable = 2, targetHitRate = 33.3, profitableRate = 41.7, profitableCount = 5,
         avgR = 0.12, avgRLow = -0.4, avgRHigh = 0.64, profitableLow = 19.3, profitableHigh = 68.0,
         avgWinR = 1.4, avgLossR = -0.95, profitFactor = 1.2, maxDrawdownR = 3.1, accountReturnPct = 1.8,
-        accountReturnAllPct = 2.2, unfundedTrades = 2, legacyExcluded = 3, graded1m = 10, graded5m = 2, sessions = 4,
+        accountReturnAllPct = 2.2, unfundedTrades = 2, legacyExcluded = 3, regrading = 4, graded1m = 10, graded5m = 2, sessions = 4,
         breakdown = listOf(StatSlice("Setup", "Breakout", 8, 3, 4, 1.6))
     )
 
@@ -87,6 +87,7 @@ class DayTradingLearnUiTest {
         assertTrue(t, t.contains("2 more could not have been bought"))
         assertTrue(t, t.contains("3 older results were graded under the previous"))
         assertTrue(t, t.contains("2 graded on 5-minute bars"))
+        assertTrue(t, t.contains("4 earlier results are being re-checked"))
         assertTrue(t, t.contains("+0.20R avg"))   // the slice: 1.6R over 8 trades
         rule.onNodeWithText("How are trades graded?").performClick()
         assertTrue(texts().any { it.contains("buy-stop at the buy price") })

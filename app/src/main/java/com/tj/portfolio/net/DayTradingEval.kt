@@ -382,7 +382,7 @@ object DayTradingEval {
      */
     fun stats(entries: List<DayTradingLogEntry>, now: Long = System.currentTimeMillis()): DayTradingStats {
         var targetHit = 0; var stopHit = 0; var closedProfit = 0; var closedLoss = 0
-        var noEntry = 0; var pending = 0; var dataUnavailable = 0; var legacy = 0
+        var noEntry = 0; var pending = 0; var dataUnavailable = 0; var legacy = 0; var regrading = 0
         var res1 = 0; var res5 = 0
         val returns = ArrayList<Double>()
         val netReturns = ArrayList<Double>()
@@ -429,8 +429,12 @@ object DayTradingEval {
 
         for (e in entries) {
             val final = DayTradingOutcome.isFinal(e.outcome)
-            // GRADED UNDER THE OLD RULES AND NO LONGER RE-GRADABLE (E9) - kept, counted, not used.
-            if (final && e.evalVersion < DayTradingGrader.VERSION) { legacy++; continue }
+            // GRADED UNDER THE OLD RULES (E9): while its bars exist it is queued for re-grading;
+            // once they are gone it is kept and counted, never used. Neither is in the headline.
+            if (final && e.evalVersion < DayTradingGrader.VERSION) {
+                if (intradayStillAvailable(e.tradingDay, now)) regrading++ else legacy++
+                continue
+            }
             val d = DayTradingGrader.Detail.parse(e.evalDetail)
             when (e.outcome) {
                 DayTradingOutcome.WIN -> { targetHit++; record(e, e.outcomeExitPrice ?: e.target, d) }
@@ -481,6 +485,7 @@ object DayTradingEval {
             evaluatedAt = now,
             breakdown = breakdown(entries.filterNot { DayTradingOutcome.isFinal(it.outcome) && it.evalVersion < DayTradingGrader.VERSION }),
             legacyExcluded = legacy,
+            regrading = regrading,
             graded1m = res1,
             graded5m = res5,
             avgWinR = if (wins.isNotEmpty()) wins.average() else 0.0,

@@ -1466,6 +1466,9 @@ internal const val DAY_TRADING_EVAL_CAP = 60
 /** The tab's own automatic check runs at most this often (2026-09-24c). */
 internal const val DT_AUTO_EVAL_MS = 15L * 60_000L
 
+/** Batches of [DAY_TRADING_EVAL_CAP] the tab's own check may take in one go (2026-09-24c). */
+internal const val DT_AUTO_EVAL_BATCHES = 3
+
 /**
  * The log rows a check should (re-)grade (2026-09-24c): anything not yet final, and anything a
  * previous version of the grader decided (audit E9 - the old rules could credit fills that did not
@@ -7355,9 +7358,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // unresolved row with no cap meant a press after two weeks away fired hundreds
                 // of Yahoo chart requests at once - enough to arm the host cooldown the quote
                 // loop and every chart share, leaving the whole app on stale prices for minutes.
-                val batch = dayTradingRowsToResolve(needsEval)
-                val left = needsEval.size - batch.size
-                if (batch.isNotEmpty()) {
+                // The tab's own check takes up to [DT_AUTO_EVAL_BATCHES] batches one after another
+                // (2026-09-24c) - the first run after this update re-grades the whole log, and
+                // one batch at a time, never all at once, is what keeps that polite.
+                var pendingRows = needsEval
+                var left = 0
+                var batchCount = 0
+                repeat(if (auto) DT_AUTO_EVAL_BATCHES else 1) { round ->
+                    if (pendingRows.isEmpty()) return@repeat
+                    val batch = dayTradingRowsToResolve(pendingRows)
+                    batchCount += batch.size
                     withContext(Dispatchers.IO) {
                         val gate = Semaphore(MAX_PARALLEL_REQUESTS)
                         batch.map { entry ->
@@ -7366,10 +7376,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                             }
                         }.awaitAll()
                     }
+                    val done = batch.map { it.id }.toSet()
+                    pendingRows = pendingRows.filterNot { it.id in done }
+                    left = pendingRows.size
+                    if (round == 0 && auto && pendingRows.isNotEmpty())
+                        _dayTradingStats.value = dayTradingStatsOf(withContext(Dispatchers.IO) { db.dayTradingLog() })
                 }
                 val refreshed = withContext(Dispatchers.IO) { db.dayTradingLog() }
                 _dayTradingStats.value = dayTradingStatsOf(refreshed)
-                if (left > 0 && !auto) toast("Checked ${batch.size} - $left more to check, tap again")
+                if (left > 0 && !auto) toast("Checked $batchCount - $left more to check, tap again")
             } finally {
                 _dayTradingStatsLoading.value = false
             }

@@ -187,6 +187,8 @@ data class DayTradingStats(
 
     /** Rows graded by an older, less strict grader whose bars are gone - kept, not counted. */
     val legacyExcluded: Int = 0,
+    /** Rows graded by an older grader whose bars still exist - queued for re-grading, not yet counted. */
+    val regrading: Int = 0,
     /** Decided trades graded on one-minute / five-minute bars. */
     val graded1m: Int = 0,
     val graded5m: Int = 0,

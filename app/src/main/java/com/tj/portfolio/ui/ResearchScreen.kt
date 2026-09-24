@@ -1546,6 +1546,10 @@ internal fun DayTradingSuccessRate(
                             (if (stats.dataUnavailable > 0)
                                 ", ${stats.dataUnavailable} with no price history available"
                             else "") + "." +
+                            (if (stats.regrading > 0)
+                                " ${stats.regrading} earlier result" + (if (stats.regrading == 1) " is" else "s are") +
+                                    " being re-checked under the current, stricter rules and will count once done."
+                            else "") +
                             (if (stats.graded5m > 0)
                                 " ${stats.graded5m} graded on 5-minute bars (their 1-minute history " +
                                     "had expired) - any bar that could be read either way was read as a loss."

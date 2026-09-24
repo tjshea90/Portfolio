@@ -214,10 +214,17 @@ class DayTradingGraderTest {
 
     @Test fun `E9 verdicts from the old grader are kept out of the headline`() {
         val old = decided(9, 31, 90).copy(evalVersion = 0)
-        val s = DayTradingEval.stats(listOf(old, decided(1, 31, 90, DayTradingOutcome.LOSS)))
+        val later = m(400) * 1000L + 90L * 86_400_000L   // three months on: its bars are gone
+        val s = DayTradingEval.stats(listOf(old, decided(1, 31, 90, DayTradingOutcome.LOSS)), later)
         assertEquals(1, s.legacyExcluded)
+        assertEquals(0, s.regrading)
         assertEquals(1, s.entriesTriggered)
         assertEquals(0, s.targetHit)
+        // the same day, bars still there: queued for re-grading, still not counted
+        val soon = DayTradingEval.stats(listOf(old, decided(1, 31, 90, DayTradingOutcome.LOSS)), m(400) * 1000L)
+        assertEquals(0, soon.legacyExcluded)
+        assertEquals(1, soon.regrading)
+        assertEquals(1, soon.entriesTriggered)
         // and while its bars exist it is queued for re-grading
         val now = m(400) * 1000L
         assertEquals(listOf(9L), com.tj.portfolio.ui.dayTradingRowsNeedingGrade(listOf(old, decided(1, 31, 90)), now).map { it.id })
