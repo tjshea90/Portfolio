@@ -278,6 +278,55 @@ class Improve0924bTest {
             com.tj.portfolio.ui.planCrossings(plan, plan.copy(price = 23.1, entryPrice = 23.05)).isEmpty())
     }
 
+    // ---- Data: recovery from a restored snapshot, and the silent-shrink warning.
+
+    private fun buy(sym: String, i: Int) = com.tj.portfolio.data.Txn(type = com.tj.portfolio.data.TxnType.BUY,
+        symbol = sym, quantity = 1.0, price = 10.0, amount = -10.0, fees = 0.0,
+        date = 1_758_000_000_000L + i * 60_000L, note = null, source = "MANUAL")
+
+    @Test fun `a reinstall with only Android's restored snapshots is offered them`() {
+        val src = Db(app)
+        src.insertTxn(buy("AAA", 1)); src.insertTxn(buy("BBB", 2))
+        val json = src.exportJson()
+        src.close(); app.deleteDatabase(Db.DB_NAME)
+        val dir = com.tj.portfolio.util.Storage.appBackupDir(app)
+        dir.listFiles()?.forEach { it.delete() }
+        java.io.File(dir, "portfolio-2026-09-20.json").writeText(json)
+        try {
+            val vm = com.tj.portfolio.ui.PortfolioViewModel(app)
+            repeat(20) { if (!vm.recoverableBackup.value) settle() }
+            assertTrue("the restored snapshot was not offered", vm.recoverableBackup.value)
+            assertTrue(vm.recoverableIsSnapshot())
+            var read: String? = null
+            vm.readAutosave { read = it }
+            repeat(20) { if (read == null) settle() }
+            assertEquals(json, read)
+        } finally { dir.listFiles()?.forEach { it.delete() } }
+    }
+
+    @Test fun `a ledger that loses a fifth of its rows without a delete is flagged, a delete is not`() {
+        assertTrue(com.tj.portfolio.ui.ledgerShrankSilently(100, 70))
+        assertFalse("a slip of a few rows", com.tj.portfolio.ui.ledgerShrankSilently(100, 95))
+        assertFalse("small ledgers need ten rows gone", com.tj.portfolio.ui.ledgerShrankSilently(20, 15))
+        assertFalse("empty is the other alarm's job", com.tj.portfolio.ui.ledgerShrankSilently(40, 0))
+
+        val vm = com.tj.portfolio.ui.PortfolioViewModel(app).also { settle() }
+        val db = com.tj.portfolio.ui.PortfolioViewModel::class.java.getDeclaredField("db")
+            .apply { isAccessible = true }.get(vm) as Db
+        (1..30).forEach { db.insertTxn(buy("S$it", it)) }
+        vm.recompute()
+        assertEquals(null, vm.dataShrank.value)
+        // Rows gone behind the app's back.
+        db.writableDatabase.execSQL("DELETE FROM txns WHERE id IN (SELECT id FROM txns LIMIT 12)")
+        vm.recompute()
+        assertEquals(30 to 18, vm.dataShrank.value)
+        // A delete made in the app is the new baseline - and clears the warning.
+        vm.deleteTxn(db.allTxns().first().id)
+        assertEquals(null, vm.dataShrank.value)
+        vm.recompute()
+        assertEquals(null, vm.dataShrank.value)
+    }
+
     // ---- L-4: Android 14+ only ever sends 20 and 40.
 
     private fun settle() {
