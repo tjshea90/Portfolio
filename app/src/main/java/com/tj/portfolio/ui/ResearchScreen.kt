@@ -1341,12 +1341,17 @@ private fun androidx.compose.foundation.layout.RowScope.FactCell(
     }
 }
 
+/** "+0.24R" - a result in units of the risk the trade was sized on. */
+internal fun fmtR(v: Double): String =
+    if (!v.isFinite()) "n/a" else String.format(java.util.Locale.US, "%+.2fR", if (kotlin.math.abs(v) < 0.005) 0.0 else v)
+
 /**
  * Tj's "separate button" - every recommendation this section has ever shown is already being
- * recorded silently (`PortfolioViewModel.captureDayTradingRecommendations`); this is the ONLY
- * place any of that is surfaced, and the only place the evaluation network calls happen at
- * all. Pressing it re-checks whatever in the log still needs a real outcome and shows the
- * result - a stock's own actual price action after the recommendation was made, never before.
+ * recorded silently (`PortfolioViewModel.captureDayTradingRecommendations`); this is where it is
+ * surfaced. Since 2026-09-24c the tab also grades what has settled whenever it opens, so the card
+ * is current without a press; the button re-checks on demand. Every figure is graded from the
+ * stock's own real prices after the recommendation was shown, traded exactly as the card said
+ * ([com.tj.portfolio.net.DayTradingGrader]) - and says how much data it rests on.
  */
 @Composable
 internal fun DayTradingSuccessRate(
@@ -1354,6 +1359,7 @@ internal fun DayTradingSuccessRate(
     loading: Boolean,
     onCheck: () -> Unit
 ) {
+    var howGraded by rememberSaveable { mutableStateOf(false) }
     Column {
         OutlinedButton(
             onClick = onCheck,
@@ -1372,7 +1378,8 @@ internal fun DayTradingSuccessRate(
             Spacer(Modifier.height(8.dp))
             StatCard {
                 Text(
-                    "Based on real price history, only from AFTER each recommendation was made",
+                    "Graded on the stocks' real prices from AFTER each recommendation was shown - " +
+                        "as if you had placed the order right then, exactly as the card said",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1388,6 +1395,16 @@ internal fun DayTradingSuccessRate(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
+                    // ---- HOW MUCH THE NUMBERS BELOW CAN BEAR, FIRST (2026-09-24c, audit E10).
+                    Text(
+                        "${stats.entriesTriggered} graded trade" +
+                            (if (stats.entriesTriggered == 1) "" else "s") + " - " + stats.sampleNote,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (stats.entriesTriggered < com.tj.portfolio.data.DayTradingStats.SAMPLE_TIERS[0].first)
+                            redText else MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(6.dp))
                     // NEITHER RATE IS COLOURED GREEN/RED AGAINST A 50% LINE ON PURPOSE. This
                     // app's own day-trading research (ResearchScore.TradePlan's header) is
                     // explicit that a strategy earning its edge from a thin, large-winner tail
@@ -1395,29 +1412,24 @@ internal fun DayTradingSuccessRate(
                     // would tell Tj the opposite of what "if you only traded this system" (the
                     // one figure below that IS colour-coded) actually shows.
                     KeyValue(
-                        "Target hit rate",
-                        "${Fmt.pctSigned(stats.targetHitRate).removePrefix("+")} " +
-                            "(${stats.targetHit} of ${stats.entriesTriggered})"
+                        "Profitable after costs",
+                        "${Fmt.oneDp(stats.profitableRate)}% (${stats.profitableCount} of ${stats.entriesTriggered})"
+                    )
+                    if (stats.entriesTriggered >= 2) Text(
+                        "Likely true rate: ${Fmt.oneDp(stats.profitableLow)}% to ${Fmt.oneDp(stats.profitableHigh)}% (95% range)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     KeyValue(
-                        "Profitable after costs",
-                        "${Fmt.pctSigned(stats.profitableRate).removePrefix("+")} " +
-                            "(${stats.profitableCount} of ${stats.entriesTriggered})"
+                        "Target hit rate",
+                        "${Fmt.oneDp(stats.targetHitRate)}% (${stats.targetHit} of ${stats.entriesTriggered})"
                     )
                     Spacer(Modifier.height(8.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                     Spacer(Modifier.height(8.dp))
 
-                    // ---- THE HEADLINE IS NOW CUMULATIVE, IN ACCOUNT TERMS (2026-09-18).
-                    //
-                    // It used to be `avgReturnPct` - the average of each trade's own percentage
-                    // return - under a row reading "If you only traded this system". Those are
-                    // two different questions and the gap is not small: sixty trades averaging
-                    // +0.5% is not "+0.5%", it is roughly +30% of the money staked. Tj asked
-                    // "how much percent up or down my portfolio would be", so the headline is
-                    // the figure that actually answers that, in the sizing this app's own
-                    // `ResearchScore.positionSize` uses, and the per-trade average stays below
-                    // it as the per-trade statistic it always was.
+                    // ---- THE HEADLINE IS CUMULATIVE, IN ACCOUNT TERMS (2026-09-18), AND SINCE
+                    // 2026-09-24c ONLY COUNTS WHAT THE PORTFOLIO COULD ACTUALLY HAVE FUNDED (E8).
                     KeyValue(
                         "Your portfolio, trading this system",
                         Fmt.pctSigned(stats.accountReturnPct),
@@ -1425,26 +1437,49 @@ internal fun DayTradingSuccessRate(
                         bold = true
                     )
                     Text(
-                        "${stats.entriesTriggered} trade" +
-                            (if (stats.entriesTriggered == 1) "" else "s") +
+                        "${stats.entriesTriggered - stats.unfundedTrades} trade" +
+                            (if (stats.entriesTriggered - stats.unfundedTrades == 1) "" else "s") +
                             " across ${stats.sessions} session" +
                             (if (stats.sessions == 1) "" else "s") +
                             ", each sized the way this app sizes them - 1% of the portfolio " +
                             "risked per trade, and never more than 25% of it in one position" +
-                            // THE CAP IS NOW IN THE NUMBER, not a caveat under it (full-tests
-                            // audit 2026-09-22, D-H2). Day-trade stops are tight, so the cap is
-                            // usually what sizes the trade - saying so, with the count, is what
-                            // stops a small figure reading like a broken one.
                             (if (stats.cappedTrades > 0)
                                 " (the cap sized ${stats.cappedTrades} of them - a tight stop " +
                                     "would otherwise have meant a bigger position)"
+                            else "") + ". " +
+                            (if (stats.unfundedTrades > 0)
+                                "${stats.unfundedTrades} more could not have been bought: earlier picks " +
+                                    "already had the whole portfolio in play at the time, and this assumes no " +
+                                    "margin, so they are left out (all ${stats.entriesTriggered} would have " +
+                                    "made ${Fmt.pctSigned(stats.accountReturnAllPct)}). "
                             else "") +
-                            ". Trades on the same day are each sized against the whole " +
-                            "portfolio, and profits are not reinvested.",
+                            "Profits are not reinvested.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(8.dp))
+                    // ---- EXPECTANCY, THE NUMBER A SYSTEM LIVES OR DIES BY (2026-09-24c).
+                    KeyValue("Average result per trade", fmtR(stats.avgR), signColor(stats.avgR))
+                    Text(
+                        "In units of the risk each trade was sized on (1R = the loss at the stop). " +
+                            (if (stats.entriesTriggered >= 2)
+                                "95% range ${fmtR(stats.avgRLow)} to ${fmtR(stats.avgRHigh)} - " +
+                                    when (stats.edgeVerdict) {
+                                        "positive" -> "a real edge so far, with 95% confidence."
+                                        "negative" -> "losing money on average, with 95% confidence."
+                                        else -> "not yet distinguishable from zero."
+                                    }
+                            else ""),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    KeyValue("Average win / average loss", "${fmtR(stats.avgWinR)} / ${fmtR(stats.avgLossR)}")
+                    KeyValue(
+                        "Profit factor",
+                        if (stats.profitFactor.isInfinite()) "no losing trade yet" else Fmt.priceBare(stats.profitFactor)
+                    )
+                    KeyValue("Worst losing streak (drawdown)", fmtR(-stats.maxDrawdownR))
+                    Spacer(Modifier.height(6.dp))
                     KeyValue(
                         "Average per trade",
                         Fmt.pctSigned(stats.netAvgReturnPct),
@@ -1455,37 +1490,22 @@ internal fun DayTradingSuccessRate(
                         Fmt.pctSigned(stats.netTotalReturnPct),
                         signColor(stats.netTotalReturnPct)
                     )
-                    Text(
-                        "The same dollar amount into every pick, profits not reinvested - one " +
-                            "stake's worth, not a compounded account.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // ---- HOW MUCH OF THE RESULT IS FILL ASSUMPTIONS, SHOWN RATHER THAN BURIED.
-                    // The three figures above are net of modelled slippage; this is the same
-                    // trades assuming the perfect fills the bar data literally shows, so the
-                    // size of the assumption is visible instead of being something Tj has to
-                    // take on trust. See `DayTradingEval.Costs`.
-                    Spacer(Modifier.height(6.dp))
                     KeyValue(
                         "Before trading costs",
                         Fmt.pctSigned(stats.totalReturnPct),
                         MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        "A 5-minute bar can only prove a price was reached, not what an order " +
-                            "actually filled at. The figures above assume you pay " +
+                        "Percent figures: the same dollar amount into every pick, profits not " +
+                            "reinvested. Costs assumed: " +
                             // `Fmt.pct` (two decimals), NOT `oneDp` - these are fractions of a
-                            // percent, and one decimal place rounds 0.05% to "0.1%" and 0.15%
-                            // to "0.2%": a note about how conservative the model is, printing
-                            // numbers twice the size of the ones it actually uses.
+                            // percent, and one decimal place rounds 0.05% to "0.1%".
                             Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.ENTRY_BPS / 100.0) +
-                            " getting in and " +
+                            " getting in, " +
                             Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.STOP_BPS / 100.0) +
-                            " when a stop fires - a stop is a market order, and it fires when the " +
-                            "tape is fast. A target exit pays nothing: it is a resting limit at " +
-                            "a price that traded. Commission is assumed zero.",
+                            " when a stop fires, " +
+                            Fmt.pct(com.tj.portfolio.net.DayTradingEval.Costs.CLOSE_BPS / 100.0) +
+                            " selling at the flat time; commission zero.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1494,24 +1514,67 @@ internal fun DayTradingSuccessRate(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "${stats.totalRecommendations} recommendations recorded - " +
-                            "${stats.entriesTriggered} triggered " +
+                            "${stats.entriesTriggered} filled " +
                             "(${stats.targetHit} hit target, ${stats.stopHit} hit stop, " +
-                            "${stats.closedProfit + stats.closedLoss} closed at the bell " +
-                            "without hitting either), ${stats.noEntry} never triggered, " +
-                            "${stats.pending} still in progress" +
+                            "${stats.closedProfit + stats.closedLoss} sold at the flat time " +
+                            "without hitting either), ${stats.noEntry} never filled before " +
+                            "their cut-off, ${stats.pending} still in progress" +
                             (if (stats.dataUnavailable > 0)
                                 ", ${stats.dataUnavailable} with no price history available"
-                            else ""
-                            ) + ".",
+                            else "") + "." +
+                            (if (stats.graded5m > 0)
+                                " ${stats.graded5m} graded on 5-minute bars (their 1-minute history " +
+                                    "had expired) - any bar that could be read either way was read as a loss."
+                            else "") +
+                            (if (stats.legacyExcluded > 0)
+                                " ${stats.legacyExcluded} older result" +
+                                    (if (stats.legacyExcluded == 1) " was" else "s were") +
+                                    " graded under the previous, less strict rules and can no longer be " +
+                                    "re-checked (the price history has expired), so " +
+                                    (if (stats.legacyExcluded == 1) "it is" else "they are") + " not counted."
+                            else ""),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     DayTradingBreakdown(stats.breakdown)
                 }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (howGraded) "Hide how trades are graded" else "How are trades graded?",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = accentText,
+                    modifier = Modifier.minTapTarget().clickable { howGraded = !howGraded }.padding(vertical = 6.dp)
+                )
+                if (howGraded) Text(
+                    DAY_TRADING_GRADING_RULES,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
 }
+
+/** The grading rules in plain words - the card's "How are trades graded?" (2026-09-24c). */
+internal const val DAY_TRADING_GRADING_RULES =
+    "Each recommendation is graded as one real order placed the moment the card showed it: a " +
+        "buy-stop at the buy price when that is above the price (it buys only if the stock rises " +
+        "to it), a buy-limit when it is below (it buys only if the stock drops to it), with the " +
+        "stop and the target attached.\n\n" +
+        "- Only prices from after that moment count - a move that happened before the " +
+        "recommendation never does. One-minute price bars are used whenever they still exist " +
+        "(about 30 days), five-minute bars after that.\n" +
+        "- A buy that could only have happened above the buy price (the stock jumped past it) is " +
+        "filled at that worse price. A stop that the price gapped through fills at the gap.\n" +
+        "- The target only counts when the price trades past it by at least a cent, and a single " +
+        "stray price far from every trade around it is ignored.\n" +
+        "- When a single bar reached both the stop and the target, it is read as the stop.\n" +
+        "- An order that has not filled by the plan's own \"too late to start\" time is cancelled " +
+        "(no trade). Anything still open at the \"be flat by\" time is sold there.\n" +
+        "- Costs are taken off every trade, and the portfolio figure skips any trade the " +
+        "portfolio could not have paid for at the time (no margin).\n" +
+        "- Recommendations the card said to skip (already past the target, under the stop, or " +
+        "already through the buy price) are never recorded."
 
 /**
  * WHAT WORKED (2026-09-24b) - the decided trades split by who planned them, by setup and by
@@ -1532,7 +1595,7 @@ private fun DayTradingBreakdown(slices: List<com.tj.portfolio.data.StatSlice>) {
         rows.forEach { sl ->
             KeyValue(
                 sl.label,
-                "${Fmt.oneDp(sl.targetHitRate)}% target, ${Fmt.oneDp(sl.profitableRate)}% profitable " +
+                "${fmtR(sl.avgR)} avg, ${Fmt.oneDp(sl.profitableRate)}% profitable " +
                     "(${sl.decided} trade" + (if (sl.decided == 1) ")" else "s)")
             )
         }
