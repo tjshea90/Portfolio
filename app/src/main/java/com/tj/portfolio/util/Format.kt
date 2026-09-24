@@ -106,6 +106,19 @@ object Fmt {
         return (if (s >= 0) "+" else "") + String.format(Locale.US, "%.2f%%", s)
     }
 
+    /** The precision [changeFor]/[changeMoney] print a change at, as a snap threshold. */
+    internal fun changeEps(price: Double): Double = if (price > 0 && price < 1.0) 0.00005 else 0.0005
+
+    /**
+     * [pctSigned] for a percentage printed BESIDE [changeMoney] (review 2026-09-24, R2-1): when
+     * the percentage rounds to zero but the dollar figure does not, the dollar figure's sign is
+     * the true one - "-$0.02  -0.00%", never "-$0.02  +0.00%".
+     */
+    fun pctSignedBeside(pct: Double, change: Double, price: Double): String {
+        if (snapZero(pct) != 0.0) return pctSigned(pct)
+        return if (snapZero(change, changeEps(price)) < 0) "-0.00%" else "+0.00%"
+    }
+
     fun changeSigned(v: Double): String {
         val s = snapZero(v, 0.0005)          // priceBare shows up to three decimals
         return (if (s >= 0) "+" else "-") + priceBare(abs(s))

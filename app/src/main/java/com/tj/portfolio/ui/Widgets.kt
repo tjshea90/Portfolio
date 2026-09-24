@@ -295,7 +295,7 @@ fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
             ExtCell(
                 price = Fmt.price(ext),
                 change = Fmt.changeMoney(ext, q.extChange),
-                percent = Fmt.pctSigned(q.extChangePct),
+                percent = Fmt.pctSignedBeside(q.extChangePct, q.extChange, ext),   // R2-1
                 pct = q.extChangePct
             )
         else null
@@ -334,14 +334,16 @@ fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
                 // the market is open, so "DURING MARKET HOURS" was stating the obvious.
                 label = if (extCell != null) "DURING MARKET HOURS" else null,
                 first = if (hasDay) Fmt.changeMoney(row.price, row.dayChange) else "--",
-                second = if (hasDay) Fmt.pctSigned(row.dayPct) else "not available",
+                second = if (hasDay) Fmt.pctSignedBeside(row.dayPct, row.dayChange, row.price)
+                else "not available",
                 // THE BASELINE, SPELLED OUT. This is the piece TJ said was missing: the two
                 // columns are measured against DIFFERENT things - `dayChange` is
                 // `price - prevClose` while `extChange` is `extPrice - price` - and until now
                 // nothing on screen said so, leaving two percentages side by side with no way
                 // to know what either was a percentage OF.
                 basis = if (hasDay) "vs previous close" else null,
-                color = if (hasDay) signColor(row.dayPct)
+                // By the dollar figure, at its own precision (R2-1).
+                color = if (hasDay) signColor(row.dayChange, Fmt.changeEps(row.price))
                 else MaterialTheme.colorScheme.onSurfaceVariant,
                 big = big
             )
@@ -363,7 +365,7 @@ fun PriceBlock(row: Row, big: Boolean = false, modifier: Modifier = Modifier) {
                     // previous day's; after hours it is measured from today's close. Same
                     // arithmetic, different day, so the wording has to differ too.
                     basis = if (isPre) "vs last close" else "vs today's close",
-                    color = signColor(extCell.pct),
+                    color = extCell.color,
                     firstIsNeutral = true,
                     big = big
                 )

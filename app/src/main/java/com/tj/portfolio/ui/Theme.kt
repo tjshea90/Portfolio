@@ -172,9 +172,14 @@ val redText: Color
  * already inside composition; nothing outside the UI ever asked this question.
  */
 @Composable
-/** Zero at the precision the figures are shown at is not a loss (U-7) - see [Fmt.snapZero]. */
-fun signColor(v: Double): Color =
-    if (com.tj.portfolio.util.Fmt.snapZero(v) >= 0) greenText else redText
+/**
+ * Zero at the precision the figures are shown at is not a loss (U-7) - see [Fmt.snapZero]. [eps]
+ * is that precision: the default suits a 2-decimal dollar or percent figure; colour a price
+ * change by its own ([com.tj.portfolio.util.Fmt.changeEps]), or a sub-cent move printed with its
+ * minus sign is drawn green (review 2026-09-24, R2-1).
+ */
+fun signColor(v: Double, eps: Double = 0.005): Color =
+    if (com.tj.portfolio.util.Fmt.snapZero(v, eps) >= 0) greenText else redText
 
 /**
  * THE LINE BETWEEN ONE STOCK AND THE NEXT, AS A COLOUR (Round 66 audit, PUI-4).

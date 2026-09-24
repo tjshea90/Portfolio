@@ -697,7 +697,7 @@ fun PriceChart(
         // takes this colour, so a six-month line that is up overall, zoomed into a week in
         // which the stock fell, printed "-1.00  -0.43%" IN GREEN - and drew the line green
         // too. The colour and the number it colours have to come from the same series.
-        val line = signColor(inside.change)
+        val line = signColor(inside.change, Fmt.changeEps(inside.last))   // R2-1: its own precision
 
         // ---- the readout: what the line did over this window, or what it did at your finger
         //
@@ -1102,7 +1102,7 @@ private fun ChartReadout(
         if (point == null) {
             Text(
                 Fmt.changeMoney(summary.last, summary.change) + "   " +
-                    Fmt.pctSigned(summary.changePct),
+                    Fmt.pctSignedBeside(summary.changePct, summary.change, summary.last),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = line
@@ -1159,10 +1159,10 @@ private fun ChartReadout(
             if (from > 0.0) {
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    Fmt.changeMoney(point.close, delta) + "   " + Fmt.pctSigned(pct),
+                    Fmt.changeMoney(point.close, delta) + "   " + Fmt.pctSignedBeside(pct, delta, point.close),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = signColor(pct)
+                    color = signColor(delta, Fmt.changeEps(point.close))   // R2-1
                 )
             }
             // THE BENCHMARK AT THE SAME MOMENT, not at the end of the window. Comparing a
