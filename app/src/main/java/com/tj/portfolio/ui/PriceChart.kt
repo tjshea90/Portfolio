@@ -1580,6 +1580,20 @@ private fun ChartCanvas(
     // division is done once here rather than per point.
     val t0 = axis.startMs / 1000L
     val tSpan = (axis.endMs / 1000L - t0).let { if (it <= 0L) 1L else it }
+    // CLOSED-MARKET GAPS (C-9) - where the line breaks instead of drawing a straight diagonal
+    // across a night or a weekend. See [closedGaps].
+    val gapAfter = remember(pts, s.range) { closedGaps(pts, s.range) }
+    // VOLUME BARS on the two intraday windows people trade from (chart idea 7).
+    val maxVolume = remember(pts, s.range) {
+        if (s.range != ChartRange.D1 && s.range != ChartRange.D5) 0.0
+        else pts.maxOfOrNull { it.volume } ?: 0.0
+    }
+    // THE PREVIOUS CLOSE, LABELLED at the right edge of its dotted line (chart idea 6).
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val labelStyle = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
+    val baseLabel = remember(base, labelStyle) {
+        base?.let { measurer.measure("Prev close " + Fmt.price(it), labelStyle) }
+    }
 
     Canvas(modifier) {
         val w = size.width
@@ -1625,6 +1639,37 @@ private fun ChartCanvas(
                 )
                 sx += dash + gap
             }
+            // Labelled at the right edge, above the line (below it when there is no room), on
+            // a pill in the surface colour so it reads over the fill and the gridlines.
+            baseLabel?.let { lbl ->
+                val lw = lbl.size.width.toFloat()
+                val lh = lbl.size.height.toFloat()
+                val px = 3.dp.toPx()
+                val left = (w - lw - px * 2f).coerceAtLeast(0f)
+                val top = (by - lh - px * 1.5f).let { if (it < 0f) by + px else it }
+                drawRoundRect(
+                    dot.copy(alpha = 0.85f), Offset(left, top),
+                    androidx.compose.ui.geometry.Size(lw + px * 2f, lh),
+                    androidx.compose.ui.geometry.CornerRadius(px, px)
+                )
+                drawText(lbl, topLeft = Offset(left + px, top))
+            }
+        }
+
+        // ---- VOLUME, as faint bars along the bottom fifth (chart idea 7). Drawn before the
+        // line so the price stays the subject; not with a benchmark, whose second line would
+        // make "whose volume?" a fair question.
+        if (maxVolume > 0.0 && cmp == null) {
+            val band = (h - pad) * 0.2f
+            val candlePx = w * (s.range.candleMs / 1000f) / tSpan.toFloat()
+            val barW = (candlePx * 0.7f).coerceIn(1f, 10.dp.toPx())
+            val barColor = grid.copy(alpha = 0.45f)
+            for (p in pts) {
+                if (p.volume <= 0.0) continue
+                val bh = (band * (p.volume / maxVolume)).toFloat().coerceAtLeast(1f)
+                drawRect(barColor, Offset(x(p) - barW / 2f, h - bh),
+                    androidx.compose.ui.geometry.Size(barW, bh))
+            }
         }
 
         // WHAT EACH POINT IS WORTH ON THE AXIS. Price normally; percent change when a
@@ -1654,23 +1699,39 @@ private fun ChartCanvas(
             }
         }
 
-        val path = Path().apply {
-            moveTo(x(pts[0]), y(value(0)))
-            for (i in 1 until pts.size) lineTo(x(pts[i]), y(value(i)))
-        }
-        // NO FILL UNDER A COMPARED LINE. The gradient reads as "area", and an area under a
-        // percentage line that crosses zero is meaningless - worse, it would be painted over
-        // the benchmark line wherever the two cross.
-        if (cmp == null) {
-            drawPath(
-                Path().apply {
-                    addPath(path)
-                    lineTo(x(pts.last()), h)
-                    lineTo(x(pts.first()), h)
+        // ONE PATH, BROKEN AT EVERY CLOSED-MARKET GAP (C-9): a straight line across a night
+        // or a weekend drew trading that never happened. The gap itself gets a faint dashed
+        // bridge below, so the eye still follows the line from session to session.
+        val path = Path()
+        val fill = if (cmp == null) Path() else null
+        var segFirst = 0
+        for (i in pts.indices) {
+            val px = x(pts[i]); val py = y(value(i))
+            if (i == segFirst) path.moveTo(px, py) else path.lineTo(px, py)
+            if (i == pts.lastIndex || gapAfter[i]) {
+                // NO FILL UNDER A COMPARED LINE. The gradient reads as "area", and an area
+                // under a percentage line that crosses zero is meaningless - worse, it would be
+                // painted over the benchmark line wherever the two cross.
+                fill?.apply {
+                    moveTo(x(pts[segFirst]), y(value(segFirst)))
+                    for (j in segFirst + 1..i) lineTo(x(pts[j]), y(value(j)))
+                    lineTo(px, h)
+                    lineTo(x(pts[segFirst]), h)
                     close()
-                },
-                Brush.verticalGradient(listOf(line.copy(alpha = 0.22f), line.copy(alpha = 0f)))
-            )
+                }
+                segFirst = i + 1
+            }
+        }
+        if (fill != null) {
+            drawPath(fill, Brush.verticalGradient(listOf(line.copy(alpha = 0.22f), line.copy(alpha = 0f))))
+        }
+        for (i in 0 until pts.lastIndex) {
+            if (!gapAfter[i]) continue
+            val a = Offset(x(pts[i]), y(value(i)))
+            val b = Offset(x(pts[i + 1]), y(value(i + 1)))
+            drawLine(line.copy(alpha = 0.35f), a, b, strokeWidth = baseStroke,
+                pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                    floatArrayOf(3.dp.toPx(), 4.dp.toPx())))
         }
 
         // ---- THE BENCHMARK, DRAWN FIRST AND THINNER, so the stock stays the subject of its
@@ -1732,6 +1793,20 @@ private fun ChartCanvas(
             }
         }
     }
+}
+
+/**
+ * WHERE AN INTRADAY LINE CROSSES A CLOSED MARKET (full test 2026-09-24, C-9): true at index i
+ * when the step from point i to i+1 is longer than three candles and at least two hours - a
+ * night, a weekend, or the regular session the after-hours view leaves out. Never on a daily
+ * or longer chart, where a weekend is simply the next candle.
+ */
+internal fun closedGaps(pts: List<ChartPoint>, range: ChartRange): BooleanArray {
+    val out = BooleanArray(pts.size)
+    if (!range.intraday || pts.size < 2) return out
+    val limit = maxOf(3L * range.candleMs / 1000L, 2L * 3600L)
+    for (i in 0 until pts.lastIndex) if (pts[i + 1].t - pts[i].t > limit) out[i] = true
+    return out
 }
 
 /**
