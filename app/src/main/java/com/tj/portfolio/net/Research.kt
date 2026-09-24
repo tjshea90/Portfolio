@@ -881,9 +881,9 @@ object Research {
     }
 
     private fun blendConsensus(row: ResearchRow, c: Consensus2): ResearchRow {
-                    val base = ResearchScore.Scored(row.score, row.reasons, 100)
-                    val blended = ResearchScore.withAnalyst(base, c, row.price)
-                    return row.copy(score = blended.score, reasons = blended.reasons, consensus = c)
+        val base = ResearchScore.Scored(row.score, row.reasons, 100)
+        val blended = ResearchScore.withAnalyst(base, c, row.price)
+        return row.copy(score = blended.score, reasons = blended.reasons, consensus = c)
     }
 
     /** Symbol -> (when asked, the answer: null = Nasdaq answered and nobody covers it). */
