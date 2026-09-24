@@ -4410,7 +4410,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             if (waiting != null) toast(
                 if (res.transactions.isEmpty())
                     res.error ?: res.notes.ifBlank { "No transactions found in those screenshots" }
-                else "${res.transactions.size} transactions added to the review already waiting" +
+                else "${res.transactions.size} transaction${if (res.transactions.size == 1) "" else "s"} " +
+                    "added to the review already waiting" +
                     (res.error?.let { " ($it)" } ?: "")
             )
             setImportResult(mergeIntoPendingReview(_importResult.value, res))
