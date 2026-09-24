@@ -23,7 +23,7 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
 `claude/complete-code-tests-crujka`, builds on 12d0989a (v7.40 shipped).)
 
 ### Part 1 - the recommended changes (skip only what would cost accuracy/function; say why)
-- [ ] Decisions: [x] L-4  [x] C-7  [x] C-9  [ ] tie  [ ] U-Q5  [ ] U-Q6 -- L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
+- [ ] Decisions: [x] L-4  [x] C-7  [x] C-9  [x] tie  [ ] U-Q5  [ ] U-Q6 -- L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
       C-7 chip-only range persistence + reset to chip, C-9 5D closed-market gaps, same-bar
       entry/stop tie in DayTradingEval resolved with finer bars (pessimistic only if unknowable),
       U-Q5 back from a searched stock returns to the results, U-Q6 ticking "updated" labels
@@ -40,8 +40,18 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
       chart not loading and not final; "Prev close $X" pill on the dotted baseline; volume bars
       on 1D/5D (ChartPoint.volume parsed + cached as optional "vol" array). Tests:
       ChartIdeasUiTest (6), Improve0924bTest (+4); all 23 chart/gesture classes 298/0.
-- [ ] Day Trading ideas (Claude + app plans both logged / compared, success by setup and time
+- [x] Day Trading ideas (Claude + app plans both logged / compared, success by setup and time
       of day, "logged plan today" on the detail screen, in-app entry/stop alerts - battery-safe)
+      DONE: same-bar tie (Decision) -> DayTradingEval.evaluateResolved flags the 3 unknowable
+      bars; the caller re-judges the day on 1-minute bars (<=29 days old), else the pessimistic
+      5m answer stands (test); success card "What worked" breakdown by who planned it / setup /
+      time of day = the app-vs-Claude comparison (DayTradingEval.breakdown, StatSlice; test);
+      detail screen "Logged at 9:31 (Claude's plan): buy/stop/target ... the plan the success
+      rate grades" (Db.dayTradingLogFor; test); in-app level alerts (planCrossings on the live
+      sweep's own prices, once per level per day, Settings > Day Trading switch, default on;
+      test). SKIPPED logging a second (other-source) plan per symbol-day: needs UNIQUE(symbol,
+      day, source) = a DROP-and-rebuild of the log table, which Db's standing "upgrades are
+      additive only, never DROP" rule forbids; the breakdown gives the comparison instead.
 - [x] Network ideas (analyst consensus memo across rebuilds, one quoteSummary on first open,
       D5/M1 chart finality while closed, persist insiderAt/deepNewsAt, Http test seam)
       DONE: Research consensus memo 12h (answers only, failures never; test); Quote.quoteType from
