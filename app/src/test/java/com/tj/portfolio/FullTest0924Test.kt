@@ -229,4 +229,15 @@ class FullTest0924Test {
         repeat(40) { if (pending.isEmpty()) return@repeat; settle() }
         assertTrue("returning must run the owed fill: $pending", pending.isEmpty())
     }
+
+    // ---- U-3: the Feed's headline sweep stops while something covers the list.
+
+    @Test fun `U-3 the feed list counts as visible only when nothing covers it`() {
+        assertTrue(com.tj.portfolio.ui.feedListVisible(onFeedTab = true, detail = null, readerOpen = false))
+        assertFalse("an article open over the Feed",
+            com.tj.portfolio.ui.feedListVisible(onFeedTab = true, detail = null, readerOpen = true))
+        assertFalse("a stock opened from a Feed row",
+            com.tj.portfolio.ui.feedListVisible(onFeedTab = true, detail = "NVDA", readerOpen = false))
+        assertFalse(com.tj.portfolio.ui.feedListVisible(onFeedTab = false, detail = null, readerOpen = false))
+    }
 }

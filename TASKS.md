@@ -67,8 +67,8 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       [ ] S-1 S-9 popup fix unreachable  [ ] S-2 detail screen ratings-only verdict frozen
       [ ] S-4 Research asOf ignored / Advice undated  [ ] S-5 carry freezes relative catalyst
       [ ] S-6 stale Claude fund permanent  [ ] S-7 DT paragraphs carried 14 days  [ ] S-8 ETF
-      dedupe merges different products  [ ] U-2 Insider all-companies pull never refetches
-      [ ] U-3 feed sweep runs under reader/detail
+      dedupe merges different products  [x] U-2 Insider all-companies pull never refetches (Feed pull also refreshMarketInsidersIfEmpty)
+      [x] U-3 feed sweep runs under reader/detail (feedListVisible + readerNow key; test)
     - L: C-6..C-12, D-6..D-14, L-5..L-7, N-5..N-12, A-5..A-11, S-3, S-9..S-12, U-4..U-8
       (tick inline here as done: )
     - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
