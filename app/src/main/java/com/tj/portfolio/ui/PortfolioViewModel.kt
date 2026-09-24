@@ -1054,7 +1054,8 @@ internal fun dropUnusableClaudeLevels(
     ) r
     else r.copy(
         entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
-        setup = "", trigger = "", planByClaude = false, planPrice = 0.0, planAt = 0L
+        setup = "", trigger = "", planByClaude = false, planPrice = 0.0, planAt = 0L,
+        planWait = "", planLevel = ""
     )
 }
 
@@ -1087,7 +1088,7 @@ internal fun evictStaleDayTradingPlan(
             entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
             setup = "", trigger = "", planNote = "", planExit = "",
             tooLateToStart = false, planByClaude = false, planDeclineStreak = 0, planReason = "",
-            planPrice = 0.0, planAt = 0L
+            planPrice = 0.0, planAt = 0L, planWait = "", planLevel = ""
         )
     }
 }
@@ -1119,7 +1120,9 @@ internal fun mergeDayTradingTech(
     minutesLeft: Int = 0,
     middayLull: Boolean = false,
     /** The moment of this tick, for the D-2 rule below; 0 (tests' default) = not known. */
-    now: Long = 0L
+    now: Long = 0L,
+    /** Minutes since the open while live (-1 = not known) - a tuned engine's early window (2026-09-24c). */
+    minutesSinceOpen: Int = -1
 ): com.tj.portfolio.data.ResearchRow {
     val effective = effectiveTechnicals(row, tech)
     // ---- PLAN AGAINST THE PRICE NOW, NOT THE SCREENER'S (full-tests audit 2026-09-22, D-H1).
@@ -1184,7 +1187,10 @@ internal fun mergeDayTradingTech(
         // cannot drift out of step with the copy it is matching. See its own header.
         earningsToday = row.catalyst.startsWith(
             com.tj.portfolio.net.Research.CATALYST_EARNINGS_TODAY
-        )
+        ),
+        minutesSinceOpen = minutesSinceOpen,
+        // A score of 0 is a row the app never scored (a Claude-added pick) - not "below the bar".
+        score = if (row.score > 0) row.score else -1
     )
     // THE ENGINE LOOKED AND SAID NO, as opposed to not being able to look at all - the
     // distinction the level fields below turn on. `tradePlan` bails early only on a missing
@@ -1285,6 +1291,18 @@ internal fun mergeDayTradingTech(
         // D-9: the price THIS plan was made at - a standing Claude plan keeps its own.
         planPrice = if (plan != null) price else keepOrClear(row.planPrice, confirmedDecline),
         planDeclineStreak = declineStreak,
+        // A tuned engine's "not yet" and the entry's level (2026-09-24c) travel with the app's plan;
+        // a standing Claude plan has neither.
+        planWait = when {
+            plan != null -> plan.waitReason
+            claudePlanStands -> ""
+            else -> keepOrClear(row.planWait, confirmedDecline)
+        },
+        planLevel = when {
+            plan != null -> plan.entryLevel
+            claudePlanStands -> ""
+            else -> keepOrClear(row.planLevel, confirmedDecline)
+        },
         planByClaude = claudePlanStands,
         planAt = if (claudePlanStands) row.planAt else 0L,   // R1-7: Claude's stamp, with its plan
         // SAME RULE AS THE LEVELS ABOVE, one tick later than `declined` alone. A real plan
@@ -8324,12 +8342,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // cards a centimetre apart could disagree about how much of the session is left.
         val minutesLeft = com.tj.portfolio.net.MarketClock.minutesLeftInSession()
         val middayLull = com.tj.portfolio.net.MarketClock.inMiddayLull()
+        val minutesSinceOpen = com.tj.portfolio.net.MarketClock.minutesSinceOpen()
         val updated = current.map { row ->
             val tech = fetched[row.symbol] ?: return@map row
             if (tech.isEmpty) return@map row
             changed = true
             val withLevels = mergeDayTradingTech(row, tech, minutesLeft, middayLull,
-                now = System.currentTimeMillis())
+                now = System.currentTimeMillis(), minutesSinceOpen = minutesSinceOpen)
             // A ROW WITH NO APP-COMPUTED LIKELIHOOD HAS NOTHING FOR THIS TO BUILD ON (Round 72
             // fix, and a correction to this guard's own first draft - caught by code review
             // before shipping). A pick Claude added from scratch never runs through

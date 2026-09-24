@@ -549,6 +549,9 @@ $SHAPE
                 // declined but Claude planned is a planned row, and must be loggable as one.
                 planDeclineStreak = if (takeLevels) 0 else app.planDeclineStreak,
                 planReason = if (takeLevels) "" else app.planReason,
+                // The app's "not yet" window and level name describe the app's plan (2026-09-24c).
+                planWait = if (takeLevels) "" else app.planWait,
+                planLevel = if (takeLevels) "" else app.planLevel,
                 // A PLAN IMPORTED ONTO A ROW STILL STAMPED WITH AN EARLIER SESSION starts that
                 // row's session fresh (full-tests audit, 2026-09-22). `mergeDayTradingTech`
                 // drops a Claude plan the moment it sees the row's `sessionDay` roll over - right

@@ -322,12 +322,24 @@ object MarketClock {
      * warns - see [ResearchScore.tradePlan]. Blocking on it would be asserting more than the
      * sources support.
      */
+    /** Minutes since the opening bell while the regular session is open; -1 otherwise (2026-09-24c). */
+    fun minutesSinceOpen(now: Long = System.currentTimeMillis()): Int {
+        if (phase(now) != Phase.OPEN) return -1
+        val c = Calendar.getInstance(ET)
+        c.timeInMillis = now
+        return (etMinutes(c) - OPEN_MINUTE).coerceAtLeast(0)
+    }
+
+    /** The midday lull's own bounds, minutes since midnight ET - shared with the grader (2026-09-24c). */
+    const val LULL_START_MINUTE = 11 * 60 + 30
+    const val LULL_END_MINUTE = 13 * 60 + 30
+
     fun inMiddayLull(now: Long = System.currentTimeMillis()): Boolean {
         if (phase(now) != Phase.OPEN) return false
         val c = Calendar.getInstance(ET)
         c.timeInMillis = now
         val m = etMinutes(c)
-        return m >= 11 * 60 + 30 && m < 13 * 60 + 30
+        return m >= LULL_START_MINUTE && m < LULL_END_MINUTE
     }
 
     /**
