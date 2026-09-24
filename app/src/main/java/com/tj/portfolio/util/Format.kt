@@ -25,6 +25,13 @@ object Fmt {
         override fun initialValue() = SimpleDateFormat(pattern, Locale.US)
     }
 
+    /** The same, pinned to New York - market time, whatever zone the phone is in. */
+    private fun dateEt(pattern: String) = object : ThreadLocal<SimpleDateFormat>() {
+        override fun initialValue() = SimpleDateFormat(pattern, Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("America/New_York")
+        }
+    }
+
     private val moneyTl = dec("#,##0.00")
     private val money3Tl = dec("#,##0.000")
 
@@ -256,6 +263,16 @@ object Fmt {
     /** "2026" - used to decide whether a chart axis label needs its year spelled out. */
     fun year(ms: Long): String = yearFmt.format(Date(ms))
     fun clock(ms: Long): String = timeFmt.format(Date(ms))
+
+    // ---- MARKET TIME (chart idea 3, 2026-09-24b). An intraday chart's clock is the exchange's:
+    // "9:30 AM" is the opening bell only in New York, and a phone set to another zone labelled
+    // the open 6:30 AM. Charts use these; everything about Tj's own day keeps the phone's zone.
+    private val timeEtTl = dateEt("h:mm a")
+    private val shortEtTl = dateEt("MMM d")
+    private val isoEtTl = dateEt("yyyy-MM-dd")
+    fun clockEt(ms: Long): String = timeEtTl.get()!!.format(Date(ms))
+    fun shortDayEt(ms: Long): String = shortEtTl.get()!!.format(Date(ms))
+    fun isoEt(ms: Long): String = isoEtTl.get()!!.format(Date(ms))
 
     fun relative(ms: Long): String {
         val diff = System.currentTimeMillis() - ms

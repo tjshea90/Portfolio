@@ -1858,12 +1858,15 @@ internal fun axisLabel(
      * after panning a 5Y FIVE-vs-SPY chart. The percentages were right; the axis was hiding
      * the reason they changed.
      */
-    withYear: Boolean = false
+    withYear: Boolean = false,
+    /** Say the zone - "4:00 PM ET" - on the label that names one (the end, the crosshair). */
+    zoned: Boolean = false
 ): String = when {
     ms <= 0L -> ""
     !range.intraday -> if (withYear) Fmt.day(ms) else Fmt.shortDay(ms)
-    withDate -> Fmt.shortDay(ms) + "  " + Fmt.clock(ms)
-    else -> Fmt.clock(ms)
+    // MARKET TIME (chart idea 3, 2026-09-24b) - see Fmt.clockEt.
+    withDate -> Fmt.shortDayEt(ms) + "  " + Fmt.clockEt(ms) + (if (zoned) " ET" else "")
+    else -> Fmt.clockEt(ms) + (if (zoned) " ET" else "")
 }
 
 /** True when the series' two ends fall on different calendar days. */
@@ -1892,7 +1895,7 @@ internal fun spansMoreThanAYear(s: ChartSeries): Boolean =
  * differently - the axis labels read this one and the caption reads the other.
  */
 internal fun spansMoreThanADay(startMs: Long, endMs: Long): Boolean =
-    startMs > 0L && endMs > 0L && Fmt.iso(startMs) != Fmt.iso(endMs)
+    startMs > 0L && endMs > 0L && Fmt.isoEt(startMs) != Fmt.isoEt(endMs)   // market days
 
 // ------------------------------------------------------------------ the gestures
 
