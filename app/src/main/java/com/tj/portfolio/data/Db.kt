@@ -1069,6 +1069,23 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     }
 
     /**
+     * Several settings in ONE transaction - all written or none (audit PL-10): the day-trading
+     * engine and its history are one fact, and a process death between two separate writes left a
+     * version whose history entry was missing, so the next Undo took back the wrong change.
+     */
+    fun setAll(values: Map<String, String>) = synchronized(settingsLock) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            values.forEach { (k, v) -> writeSetting(db, k, v) }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        settingsCache.putAll(values)
+    }
+
+    /**
      * The raw row write, WITHOUT the cache lock.
      *
      * ---- THIS EXISTS TO BREAK A DEADLOCK, AND IT IS THE ONLY REASON IT EXISTS.
@@ -1747,6 +1764,18 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     fun purgeDayBars(beforeDay: String) {
         runCatching { writableDatabase.delete("dt_bars", "trading_day < ?", arrayOf(beforeDay)) }
     }
+
+    /**
+     * The highest engine version any logged plan was made by ("v5" -> 5), or 0 (audit PL-9) - so the
+     * next engine version is always above every label the log already holds.
+     */
+    fun dayTradingLogMaxEngineVersion(): Int = runCatching {
+        var best = 0
+        readableDatabase.rawQuery("SELECT DISTINCT engine FROM day_trading_log", null).use { c ->
+            while (c.moveToNext()) best = maxOf(best, com.tj.portfolio.net.EngineTuning.versionOfLabel(c.getString(0)))
+        }
+        best
+    }.getOrDefault(0)
 
     /** How many rows the log holds - one COUNT, for checks that need only that (audit PL-12). */
     fun dayTradingLogCount(): Int = runCatching {
