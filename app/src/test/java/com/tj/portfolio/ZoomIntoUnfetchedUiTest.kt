@@ -95,20 +95,30 @@ class ZoomIntoUnfetchedUiTest {
         }
     }
 
-    /** A two-finger spread, both fingers moving in one event (see ContinuousZoomUiTest). */
+    /**
+     * A two-finger spread, both fingers moving in one event (see ContinuousZoomUiTest) - and
+     * the screen RECOMPOSED BETWEEN MOVES, as a real one is every frame. Without the idle
+     * between steps every move is dispatched before any recomposition, the range switch never
+     * happens mid-gesture, and the bug cannot be seen. Pointer state carries across
+     * `performTouchInput` calls.
+     */
     private fun spread(steps: Int, perStep: Float, from: Float = 40f) {
+        var gap = from
         rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
-            var gap = from
             down(0, Offset(center.x - gap, center.y))
             down(1, Offset(center.x + gap, center.y))
-            repeat(steps) {
-                gap *= perStep
+        }
+        rule.waitForIdle()
+        repeat(steps) {
+            gap *= perStep
+            rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput {
                 updatePointerTo(0, Offset(center.x - gap, center.y))
                 updatePointerTo(1, Offset(center.x + gap, center.y))
                 move()
             }
-            up(0); up(1)
+            rule.waitForIdle()
         }
+        rule.onNodeWithTag(CHART_TEST_TAG).performTouchInput { up(0); up(1) }
         rule.waitForIdle()
     }
 
