@@ -914,4 +914,22 @@ class FullTest0924Test {
         assertEquals(listOf("AAPL"), reopened.watchlistEntries().map { it.symbol })
         reopened.close()
     }
+
+    // ---- S-3: an expired core row on disk still reports its own age when the refresh fails.
+
+    @Test fun `S-3 a stale disk core row keeps its real age when the network refresh fails`() {
+        val threeDaysAgo = System.currentTimeMillis() - 3 * 86_400_000L
+        Db(app).apply {
+            cacheFundamentals("ZZZT", com.tj.portfolio.data.Keys.KIND_CORE,
+                com.tj.portfolio.data.Fundamentals(symbol = "ZZZT",
+                    values = mapOf("forwardPE" to 12.0), fetched = threeDaysAgo))
+            close()
+        }
+        val vm = PortfolioViewModel(app).also { settle() }
+        vm.loadFundamentals("ZZZT")              // offline in tests: the refresh fails
+        repeat(40) { settle() }
+        @Suppress("UNCHECKED_CAST")
+        val dataAt = field(vm, "coreDataAt").get(vm) as Map<String, Long>
+        assertEquals(threeDaysAgo, dataAt["ZZZT"])
+    }
 }
