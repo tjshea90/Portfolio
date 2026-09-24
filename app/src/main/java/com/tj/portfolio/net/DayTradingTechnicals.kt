@@ -266,7 +266,11 @@ object DayTradingTechnicals {
         // Memoised per symbol, per ET date, and per side of the 4pm close - that last part
         // matters because `completedSessions` starts counting today's bar once the session
         // ends, so the series legitimately changes exactly once a day, at the close.
-        val dailyKey = "$symbol|${etDateKey(now / 1000)}|${if (afterClose(now)) 1 else 0}"
+        // THREE SIDES OF THE CLOSE, not two (full test 2026-09-24, D-6): before it; closed but
+        // not yet settled (16:00-16:20), fetched under its own key so it is never served from the
+        // session's memo; and settled, fetched once more for the auction-final bar.
+        val closeState = when { afterClose(now) -> 1; closeReached(now) -> 2; else -> 0 }
+        val dailyKey = "$symbol|${etDateKey(now / 1000)}|$closeState"
         val daily = cachedDaily(dailyKey) ?: fetchBars(
             symbol, range = "3mo", interval = "1d", prePost = false
         )?.also { cacheDaily(dailyKey, it) }
@@ -502,6 +506,10 @@ object DayTradingTechnicals {
      * at 16:00:40 froze a prevClose/high/low that was off by the auction until midnight. The
      * same grace [DayTradingEval.SETTLE_GRACE_MS] gives outcome evaluation.
      */
+    /** True once the regular session has closed on [nowMs]'s New York date, grace or no (D-6). */
+    private fun closeReached(nowMs: Long): Boolean =
+        etMinutes(nowMs / 1000) >= MarketClock.closeMinuteAt(nowMs)
+
     private fun closeSettled(nowMs: Long): Boolean =
         etMinutes(nowMs / 1000) * 60_000L >=
             MarketClock.closeMinuteAt(nowMs) * 60_000L + DayTradingEval.SETTLE_GRACE_MS
@@ -559,8 +567,12 @@ object DayTradingTechnicals {
     internal fun completedSessions(daily: List<Bar>, now: Long): List<Bar> {
         val nowSec = now / 1000L
         val today = etDateKey(nowSec)
-        // The day's own close - 13:00 on a half day (see [regularSession]).
-        val closed = closeSettled(now)
+        // The day's own close - 13:00 on a half day (see [regularSession]). FROM THE CLOSE ITSELF,
+        // not close + grace (full test 2026-09-24, D-6): between 16:00 and 16:20 the evening plan
+        // is for tomorrow, and "the last session" had to be today - it was yesterday, so the
+        // trigger read "the last session's high" off the wrong day. The grace now only decides
+        // which memo key the daily fetch is stored under (see `fetch`).
+        val closed = closeReached(now)
         return daily.sortedBy { it.t }.filter { etDateKey(it.t) != today || closed }
     }
 
