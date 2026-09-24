@@ -963,6 +963,7 @@ internal fun ResearchCard(
             // the ones every fund fact sheet leads with; the reason lines below still explain
             // what the score made of them.
             r.etf?.let { f -> EtfFactsGrid(f) }
+            if (r.alternatives.isNotEmpty()) EtfAlternatives(r.symbol, r.alternatives)
 
             // --- the app's own reasons
             if (r.reasons.isNotEmpty()) {
@@ -1567,5 +1568,37 @@ internal fun claudeAge(whyAt: Long, now: Long = System.currentTimeMillis()): Str
         days <= 0L -> ", TODAY"
         days == 1L -> ", YESTERDAY"
         else -> ", $days DAYS AGO"
+    }
+}
+
+/**
+ * "OTHER WAYS TO HOLD THIS" (research idea 3, 2026-09-24b) - the funds this card stands for,
+ * each with its fee and 5-year return, one tap to open. A different issuer or a broker's
+ * commission-free list is a real reason to prefer one of them.
+ */
+@Composable
+internal fun EtfAlternatives(symbol: String, alts: List<com.tj.portfolio.data.EtfAlternative>) {
+    var open by remember(symbol) { mutableStateOf(false) }
+    Spacer(Modifier.height(6.dp))
+    Text(
+        (if (open) "Hide" else "Other ways to hold this exposure") + " (${alts.size})",
+        style = MaterialTheme.typography.labelLarge,
+        color = accentText,
+        modifier = Modifier.minTapTarget().clickable { open = !open }.padding(vertical = 4.dp)
+    )
+    if (open) alts.forEach { a ->
+        Row(Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+            Text(a.symbol, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.width(64.dp))
+            Text(a.name, style = MaterialTheme.typography.bodySmall, maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+            Text(
+                (if (a.expenseRatio >= 0.0) "fee ${Fmt.pct(a.expenseRatio)}" else "fee --") +
+                    (if (a.fiveYearAnnualPct != 0.0) "  5Y ${Fmt.pctSigned(a.fiveYearAnnualPct)}/yr" else ""),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1
+            )
+        }
     }
 }
