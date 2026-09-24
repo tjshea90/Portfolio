@@ -1309,6 +1309,23 @@ internal fun dayTradingRowsToResolve(
 private const val DAY_TRADING_DECLINE_CONFIRM_TICKS = 2
 
 /**
+ * What an import review shows once [incoming] lands (A-7): a review already waiting keeps its
+ * rows and gains [incoming]'s; an [incoming] with no rows (an error) leaves it untouched - the
+ * caller reports the error separately. With nothing waiting, [incoming] as is.
+ */
+internal fun mergeIntoPendingReview(
+    pending: com.tj.portfolio.net.ExtractResult?,
+    incoming: com.tj.portfolio.net.ExtractResult
+): com.tj.portfolio.net.ExtractResult {
+    val waiting = pending?.takeIf { it.transactions.isNotEmpty() } ?: return incoming
+    if (incoming.transactions.isEmpty()) return waiting
+    return waiting.copy(
+        transactions = waiting.transactions + incoming.transactions,
+        notes = listOf(waiting.notes, incoming.notes).filter { it.isNotBlank() }.joinToString("\n\n")
+    )
+}
+
+/**
  * The undo snapshot's file name (full test 2026-09-24, A-6). NEVER AN EXISTING FILE: names have
  * minute resolution and the write replaces, so a second Replace-all in the same minute (a
  * hurried retry after the wrong file) overwrote the only copy of the original ledger with the
@@ -4249,13 +4266,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             setImportResult(ExtractResult(emptyList(), "", "Add your Claude API key in Settings first."))
             return
         }
+        // NEVER OVER A REVIEW ALREADY WAITING (full test 2026-09-24, A-7) - the same rule a
+        // share follows (A-8, 09-23). A 30-60 s extraction that lands after a shared answer's rows
+        // arrived replaced them, and the share's inbox file was already gone.
+        fun land(res: ExtractResult) {
+            val merged = mergeIntoPendingReview(_importResult.value, res)
+            if (merged !== res && res.error != null) toast(res.error)
+            setImportResult(merged)
+        }
         viewModelScope.launch {
             _importing.value = true
-            setImportResult(null)
+            if (_importResult.value?.transactions.isNullOrEmpty()) setImportResult(null)
             val images = withContext(Dispatchers.IO) { uris.mapNotNull { readImage(it) } }
             if (images.isEmpty()) {
                 _importing.value = false
-                setImportResult(ExtractResult(emptyList(), "", "Couldn't read the selected images."))
+                land(ExtractResult(emptyList(), "", "Couldn't read the selected images."))
                 return@launch
             }
             // Never extract from a partial set in silence: a screenshot that was dropped is a
@@ -4263,7 +4288,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val dropped = uris.size - images.size
             if (dropped > 0) {
                 _importing.value = false
-                setImportResult(ExtractResult(
+                land(ExtractResult(
                     emptyList(), "",
                     "$dropped of ${uris.size} image(s) couldn't be read - most likely too " +
                         "large even after resizing. Import the rest on their own, or retake " +
@@ -4276,7 +4301,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 runCatching { Claude.extractTransactions(key, chosen, images, existingDigest()) }
                     .getOrElse { ExtractResult(emptyList(), "", it.message ?: "Extraction failed") }
             }
-            setImportResult(res)
+            land(res)
             _importing.value = false
         }
     }
@@ -6622,11 +6647,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 else "$msg; ${r.transactions.size} transactions to review"
             } else {
                 setImportResult(
-                    pending.copy(
-                        transactions = pending.transactions + r.transactions,
-                        notes = listOf(pending.notes, r.notes).filter { it.isNotBlank() }
-                            .joinToString("\n\n")
-                    )
+                    mergeIntoPendingReview(pending, ExtractResult(r.transactions, r.notes, null, ""))
                 )
                 val added = "${r.transactions.size} transactions added to the review already waiting"
                 msg = if (msg.isBlank()) added else "$msg; $added"
