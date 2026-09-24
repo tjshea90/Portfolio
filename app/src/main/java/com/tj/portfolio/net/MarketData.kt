@@ -245,6 +245,7 @@ object MarketData {
         }
         val list = symbols.joinToString(",")
         var throttled = 0
+        var answeredEmpty = false
         for (host in YAHOO_HOSTS) {
             val url = "https://$host.finance.yahoo.com/v7/finance/quote?symbols=" +
                 enc(list) + "&crumb=" + enc(crumb)
@@ -266,10 +267,18 @@ object MarketData {
             if (!r.ok) continue
             val parsed = runCatching { parseBatch(r.body) }.getOrDefault(emptyList())
             if (parsed.isNotEmpty()) return Batch.OK to parsed
+            if (batchAnswered(r.body)) answeredEmpty = true
         }
         // Every host was cooling or rate-limited us (see [heldOff]). Not a verdict - and, since
         // Round 66, not a reason to fall back either. See [Batch.COOLING].
         if (throttled >= YAHOO_HOSTS.size) return Batch.COOLING to emptyList()
+        // THE ENDPOINT WORKED; IT JUST DOES NOT LIST THESE SYMBOLS (full test 2026-09-24, N-2).
+        // A well-formed `{"quoteResponse":{"result":[],"error":null}}` is Yahoo's correct answer
+        // for a ticker it does not carry - a Reddit "ticker" like SPX or VIX opened from
+        // Trending, a delisted watch entry. Counted as FAILED, a detail screen's one-symbol
+        // batch hit the three-strike disable in 45 seconds, and every tick after that sent one
+        // chart request per holding for the rest of the session.
+        if (answeredEmpty) return Batch.INCONCLUSIVE to emptyList()
         // Both hosts answered and neither gave anything usable. That IS a verdict.
         return Batch.FAILED to emptyList()
     }
@@ -286,6 +295,17 @@ object MarketData {
      */
     internal fun heldOff(code: Int): Boolean =
         code == HttpResult.CODE_COOLDOWN || code == 429 || code == 503 || code == 403
+
+    /**
+     * True when [body] is a well-formed v7 answer - a `quoteResponse` object with a `result`
+     * array and no `error` - whatever the array holds. An empty one means "the endpoint works
+     * and knows none of these symbols", which says nothing against the endpoint (N-2).
+     */
+    internal fun batchAnswered(body: String): Boolean = runCatching {
+        val qr = JSONObject(body).optJSONObject("quoteResponse") ?: return@runCatching false
+        val err = qr.opt("error")
+        qr.optJSONArray("result") != null && (err == null || err == JSONObject.NULL)
+    }.getOrDefault(false)
 
     private fun parseBatch(body: String): List<Quote> {
         val arr = JSONObject(body).optJSONObject("quoteResponse")
