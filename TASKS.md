@@ -13,6 +13,12 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
 > in 6 hours from now to see if the full tests completed. If they did not complete,
 > automatically resume and finish the full tests from where you left off in this session
 
+> (follow-up, 15:46 UTC, new session on branch `claude/full-tests-completion-tw9a1o`) Figure out
+> where Claude code was interrupted in the full tests protocol, then pick up where you left off
+> and finish the full tests
+
+- Resume point found: ckpt 1674 (all H+M done; Ls done through D-14 except D-9, D-10). Continuing
+  from D-9 below; same audit files, same FullTest0924Test.kt.
 - [x] Scheduled: `send_later` trigger `trig_016i6a9SLnAAgdG46oLJBu4v`, one-shot into this session
       at 13:33 UTC 2026-09-24. When it fires: if every box below is ticked, just confirm to Tj
       with the Release link; otherwise resume from the first [ ] below and finish, unprompted.
