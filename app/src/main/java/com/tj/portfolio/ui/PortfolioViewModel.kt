@@ -1179,6 +1179,11 @@ internal fun mergeDayTradingTech(
     val planTime = claudePlanTime(row)   // R1-7: the plan's own import time
     val claudePlanStands = row.planByClaude && !claudeLevelsUnusable && (!sessionChanged ||
         (now > 0L && planTime > 0L && planStillForSession(planTime, now)))
+    // THE SCORE THE MINIMUM-SCORE FILTER JUDGES IS THIS TICK'S (audit DA-2) - the same number the
+    // row is scored with below and the log records - and "unscored" means a row the app never
+    // scored (a Claude-added pick, no likelihood), not a blended score of 0: confidence is 0
+    // whenever no check confirms, so the weakest scored rows used to pass the filter untested.
+    val tickScore = if (row.dtLikelihood > 0) scoreDayTradingRow(row.copy(price = price), effective).score else -1
     val (plan, declineReason) = if (claudePlanStands) null to ""
     else com.tj.portfolio.net.ResearchScore.planInternal(
         price,
@@ -1192,8 +1197,7 @@ internal fun mergeDayTradingTech(
             com.tj.portfolio.net.Research.CATALYST_EARNINGS_TODAY
         ),
         minutesSinceOpen = minutesSinceOpen,
-        // A score of 0 is a row the app never scored (a Claude-added pick) - not "below the bar".
-        score = if (row.score > 0) row.score else -1,
+        score = tickScore,
         p = engine.params
     )
     // THE ENGINE LOOKED AND SAID NO, as opposed to not being able to look at all - the
@@ -1292,8 +1296,15 @@ internal fun mergeDayTradingTech(
         trigger = plan?.trigger ?: keepOrClear(row.trigger, confirmedDecline),
         planNote = plan?.note ?: keepOrClear(row.planNote, confirmedDecline),
         planExit = plan?.exit ?: keepOrClear(row.planExit, confirmedDecline),
-        // D-9: the price THIS plan was made at - a standing Claude plan keeps its own.
-        planPrice = if (plan != null) price else keepOrClear(row.planPrice, confirmedDecline),
+        // D-9: the price THIS plan was made at - a standing Claude plan keeps its own, and one that
+        // arrived with no price takes the first live price the app saw for it (audit DA-21): the
+        // card's direction and the logged order's must come from the same price, not from a quote
+        // fill that lands minutes later.
+        planPrice = when {
+            plan != null -> price
+            claudePlanStands && row.planPrice <= 0.0 && livePrice != null -> livePrice
+            else -> keepOrClear(row.planPrice, confirmedDecline)
+        },
         planDeclineStreak = declineStreak,
         // A tuned engine's "not yet" and the entry's level (2026-09-24c) travel with the app's plan;
         // a standing Claude plan has neither.
@@ -2751,6 +2762,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * the app left the screen) must not hold off the next one for 15 minutes.
      */
     @Volatile private var dayTradingAutoEvalAt = 0L
+    /** Symbols already in today's day-trading log ("SYM|yyyyMMdd"), and the day they are for (PL-15). */
+    private val dtLoggedToday: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    @Volatile private var dtLoggedDay = ""
     /** The tab's own check, so closing the tab stops it (audit PL-7) - a pressed check is not in here. */
     private var dayTradingAutoEvalJob: Job? = null
     /**
@@ -7355,12 +7369,28 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         //    rows inside the shown window count as a recommendation made to Tj.
         val shown = _researchShown.value[com.tj.portfolio.data.ResearchSet.SECTION_DAY_TRADING]
             ?: com.tj.portfolio.data.ResearchSet.PAGE
-        val priced = loggableDayTradingRows(rows.take(shown), today, liveNow)
-        if (priced.isEmpty()) return
+        // Rows already in today's log are skipped before any work (audit PL-15): the insert would be
+        // ignored anyway, and their conditions were being rebuilt as JSON every 30 seconds.
+        if (dtLoggedDay != today) { dtLoggedToday.clear(); dtLoggedDay = today }
         val recordedAt = System.currentTimeMillis()
-        // The engine that made these plans, and the moment's clock - read once for the batch.
-        val engineParams = com.tj.portfolio.net.DayTradingEngine.params
-        val engineVersion = com.tj.portfolio.net.DayTradingEngine.version
+        // The engine that made these plans, and the moment's clock - read once for the batch, from
+        // one snapshot so the values and the label always belong together.
+        val snap = com.tj.portfolio.net.DayTradingEngine.current
+        val engineParams = snap.params
+        val engineVersion = snap.version
+        // A CLAUDE PLAN'S ORDER IS CANCELLED WHEN ITS CARD SAYS SO (audit DA-10): at the last-entry
+        // time, which the Claude card enforces - not at the app engine's midday-lull start, which it
+        // never shows.
+        val claudeParams = engineParams.with(mapOf(com.tj.portfolio.net.DayTradingParams.AVOID_LULL to 0.0))
+        val priced = loggableDayTradingRows(rows.take(shown), today, liveNow).filter { r ->
+            if ("${r.symbol}|$today" in dtLoggedToday) return@filter false
+            // AND NOT IN ITS LAST MINUTE (audit DA-13): a plan recorded after (or within a minute of)
+            // its own cut-off could never fill - a guaranteed "never filled" in the fill rates.
+            val deadline = com.tj.portfolio.net.DayTradingFeatures.entryDeadlineMs(
+                today, recordedAt, if (r.planByClaude) claudeParams else engineParams)
+            deadline == null || recordedAt < deadline - 60_000L
+        }
+        if (priced.isEmpty()) return
         val mso = com.tj.portfolio.net.MarketClock.minutesSinceOpen(recordedAt)
         val mleft = com.tj.portfolio.net.MarketClock.minutesLeftInSession(recordedAt)
         val lull = com.tj.portfolio.net.MarketClock.inMiddayLull(recordedAt)
@@ -7385,14 +7415,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         // Which engine made it and what it was made under (2026-09-24c) - the
                         // tuning loop learns from these, and the grade uses the plan's own
                         // cancel-by and flat-by times from them.
+                        // The ORIGINAL engine's plans are "v0" whatever the version counter says
+                        // (audit DA-11) - after a revert they are the original's, not a "tuned v3".
                         engine = if (r.planByClaude) com.tj.portfolio.data.DayTradingLogEntry.ENGINE_CLAUDE
+                        else if (engineParams.isDefault) com.tj.portfolio.net.DayTradingEngine.label(0)
                         else com.tj.portfolio.net.DayTradingEngine.label(engineVersion),
                         features = com.tj.portfolio.net.DayTradingFeatures.build(
                             r, today, recordedAt, fetched[r.symbol]?.lastBarAt ?: 0L, r.planByClaude,
-                            mso, mleft, lull, engineParams, engineVersion
+                            mso, mleft, lull, if (r.planByClaude) claudeParams else engineParams, engineVersion
                         ).toString()
                     )
                 })
+                priced.forEach { dtLoggedToday.add("${it.symbol}|$today") }
             }
         }
     }

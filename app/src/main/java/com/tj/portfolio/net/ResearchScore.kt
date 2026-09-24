@@ -994,6 +994,11 @@ object ResearchScore {
                     "${p.earliestEntryMinutes} minutes after the open."
             p.avoidMiddayLull && middayLull ->
                 "Midday lull - the tuned engine starts no new trade between 11:30 and 13:30 ET."
+            // THE OPENING-BAR FILTER CANNOT JUDGE A BAR STILL PRINTING (audit DA-20): until the
+            // 09:30 bar has closed, a plan is shown but not yet an instruction - otherwise the first
+            // five minutes logged exactly the trades the switch exists to remove.
+            p.requireBullishOpeningBar && tech.or5High <= 0.0 ->
+                "Waiting for the first 5-minute bar to close - the tuned engine only trades after it closes up."
             else -> ""
         }
         val plan = TradePlan(
