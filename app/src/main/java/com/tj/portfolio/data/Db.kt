@@ -88,6 +88,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         createNews(db)
         createFundamentals(db)
         createDayTradingLog(db)
+        createDayBars(db)
         // These two were reached on a fresh install only via `onOpen`'s repair block, which
         // runs after `onCreate` inside `getWritableDatabase`. That worked, but it made them
         // the only tables in the schema whose existence depended on the belt-and-braces pass
@@ -321,6 +322,27 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         ensureColumn(db, "day_trading_log", "eval_detail", "TEXT")
     }
 
+    /**
+     * SETTLED SESSIONS' BARS (2026-09-24c, audit PL-6). A closed session's one- or five-minute bars
+     * never change, and Yahoo keeps one-minute bars only about 30 days - so the series a log row
+     * was graded on is kept, compressed (~5 KB a day), and a later grader change re-grades from
+     * it: no second download, and no one-minute grade silently downgraded to five-minute bars
+     * because the one-minute ones expired in between. Derived data: not in backups, purged with
+     * the log's own grading window ([purgeDayBars]).
+     */
+    private fun createDayBars(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS dt_bars(
+                symbol TEXT NOT NULL,
+                trading_day TEXT NOT NULL,
+                res INTEGER NOT NULL,
+                data BLOB NOT NULL,
+                fetched INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(symbol, trading_day, res)
+            )"""
+        )
+    }
+
     private fun createImports(db: SQLiteDatabase) {
         db.execSQL(
             """CREATE TABLE IF NOT EXISTS imports(
@@ -396,7 +418,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // forever - see [watchlistEntries]/[setWatchBaseline].
         if (oldV < 8) addColumn(db, "watchlist", "added_price", "REAL NOT NULL DEFAULT 0")
         if (oldV < 9) createDayTradingLog(db)
-        if (oldV < 10) ensureDayTradingLogV10(db)
+        if (oldV < 10) { ensureDayTradingLogV10(db); createDayBars(db) }
         // future: if (oldV < 11) { ...additive changes only... }
     }
 
@@ -429,6 +451,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         runCatching { ensureColumn(db, "quotes", "quote_time", "INTEGER NOT NULL DEFAULT 0") }
         runCatching { ensureColumn(db, "watchlist", "added_price", "REAL NOT NULL DEFAULT 0") }
         runCatching { ensureDayTradingLogV10(db) }
+        runCatching { createDayBars(db) }
     }
 
     private fun ensureColumn(db: SQLiteDatabase, table: String, col: String, decl: String) {
@@ -1692,6 +1715,44 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         }
         writableDatabase.update("day_trading_log", cv, "id=?", arrayOf(id.toString()))
     }
+
+    /** One settled session's cached bars ([createDayBars]), or null - never an exception. */
+    fun cachedDayBars(symbol: String, tradingDay: String, res: Int): List<com.tj.portfolio.net.DayTradingEval.IntradayBar>? =
+        runCatching {
+            readableDatabase.rawQuery(
+                "SELECT data FROM dt_bars WHERE symbol=? AND trading_day=? AND res=? LIMIT 1",
+                arrayOf(symbol.uppercase(), tradingDay, res.toString())
+            ).use { c -> if (c.moveToNext()) com.tj.portfolio.net.DayTradingEval.decodeBars(c.getBlob(0)) else null }
+        }.getOrNull()?.takeIf { it.isNotEmpty() }
+
+    /** Keeps a SETTLED session's bars. An empty series is never stored. */
+    fun cacheDayBars(symbol: String, tradingDay: String, res: Int, bars: List<com.tj.portfolio.net.DayTradingEval.IntradayBar>) {
+        if (bars.isEmpty()) return
+        runCatching {
+            writableDatabase.insertWithOnConflict(
+                "dt_bars", null,
+                ContentValues().apply {
+                    put("symbol", symbol.uppercase())
+                    put("trading_day", tradingDay)
+                    put("res", res)
+                    put("data", com.tj.portfolio.net.DayTradingEval.encodeBars(bars))
+                    put("fetched", System.currentTimeMillis())
+                },
+                SQLiteDatabase.CONFLICT_REPLACE
+            )
+        }
+    }
+
+    /** Drops cached bars of sessions before [beforeDay] (`yyyyMMdd`) - past any re-grade window. */
+    fun purgeDayBars(beforeDay: String) {
+        runCatching { writableDatabase.delete("dt_bars", "trading_day < ?", arrayOf(beforeDay)) }
+    }
+
+    /** How many rows the log holds - one COUNT, for checks that need only that (audit PL-12). */
+    fun dayTradingLogCount(): Int = runCatching {
+        readableDatabase.rawQuery("SELECT COUNT(*) FROM day_trading_log", null)
+            .use { c -> if (c.moveToNext()) c.getInt(0) else 0 }
+    }.getOrDefault(0)
 
     // ---------- backup ----------
 
