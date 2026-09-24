@@ -21,7 +21,9 @@ Status: IN PROGRESS (findings appended as confirmed)
 - Scenario (ordinary luck, not an edge case): 10 decided trades, 7 target hits at +2R and 3 stops at
   -1R. mean +1.10R, sd 1.45, t(9)=2.26 -> 95% range +0.06R..+2.14R -> edgeVerdict "positive" -> "a real
   edge so far, with 95% confidence." directly under the red "10 graded trades - Too few trades to judge -
-  results this small can easily be luck either way". 7 of 10 at a true 40% hit rate happens ~5% of the time.
+  results this small can easily be luck either way". The interval itself is nominally right; the problem
+  is that the card makes a confident claim and its opposite about the same 10 trades, and the verdict
+  line (not the tier line) is the one a reader acts on.
 - Fix: below `SAMPLE_TIERS[0].first` (20) never print a verdict: "95% range +1.44R to +1.76R - with
   under 20 trades this range is not reliable yet." At 20-49 soften to "above zero so far (early read)".
   Put the gate in `edgeVerdict` so the prompt and card agree.
