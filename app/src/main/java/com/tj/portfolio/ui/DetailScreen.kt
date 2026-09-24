@@ -340,7 +340,7 @@ fun DetailScreen(
     val chartPerf = remember(chartMap, row?.quote, symbol) {
         val out = HashMap<com.tj.portfolio.data.ChartRange, Double>(16)
         com.tj.portfolio.data.ChartRange.entries.forEach { r ->
-            val live = liveEdgePrice(row?.quote, r)
+            val live = liveEdgePrice(row?.quote, r, chartMap[vm.chartKey(symbol, r)])
             rangePct(chartMap[vm.chartKey(symbol, r)], live, live > 0.0)?.let { out[r] = it }
         }
         out
@@ -881,7 +881,7 @@ fun DetailScreen(
                     onExpandChart = { chartExpanded = true },
                     onChartPinching = { chartPinching = it },
                     compare = compareSeries,
-                    compareLive = liveEdgePrice(benchmarkQuote, chartRange),
+                    compareLive = liveEdgePrice(benchmarkQuote, chartRange, compareSeries),
                     compareOn = compareOn && !isBenchmark,
                     compareOffered = !isBenchmark,
                     compareLoading = chartLoadingSet.contains(compareKey),
@@ -960,8 +960,8 @@ fun DetailScreen(
             },
             perf = chartPerf,
             loadingRanges = chartLoadingRanges,
-            livePrice = liveEdgePrice(row?.quote, chartRange),
-            liveEdge = liveEdgePrice(row?.quote, chartRange) > 0.0,
+            livePrice = liveEdgePrice(row?.quote, drawnRange, drawnChart),
+            liveEdge = liveEdgePrice(row?.quote, drawnRange, drawnChart) > 0.0,
             window = chartWindow,
             windowBounds = chartBounds,
             onWindow = onChartWindow,
@@ -969,7 +969,7 @@ fun DetailScreen(
             onZoomingChanged = { chartPinching = it },
             compare = if (compareOn && !isBenchmark) compareSeries else null,
             compareLabel = BENCHMARK_SYMBOL,
-            compareLivePrice = liveEdgePrice(benchmarkQuote, chartRange),
+            compareLivePrice = liveEdgePrice(benchmarkQuote, drawnRange, compareSeries),
             onClose = { chartExpanded = false }
         )
     }
@@ -1239,11 +1239,11 @@ private fun OverviewTab(
                     series = chart,
                     range = chartRange,
                     loading = chartLoading,
-                    livePrice = liveEdgePrice(q, chartRange),
+                    livePrice = liveEdgePrice(q, chartRange, chart),
                     // The live tip belongs to whichever session the chart is drawing: the
                     // regular price on the 1D line while the market is open, the extended
                     // print on the after-hours line once it has closed. See withLiveEdge.
-                    liveEdge = liveEdgePrice(q, chartRange) > 0.0,
+                    liveEdge = liveEdgePrice(q, chartRange, chart) > 0.0,
                     onZoom = onChartZoom,
                     window = chartWindow,
                     windowBounds = chartBounds,
@@ -1755,11 +1755,27 @@ private const val CHART_SETTLE_MS = 380L
  */
 private fun liveEdgePrice(
     q: com.tj.portfolio.data.Quote?,
-    range: com.tj.portfolio.data.ChartRange
+    range: com.tj.portfolio.data.ChartRange,
+    /** The series the tip goes on, when the caller has it - see the D1 after-close rule. */
+    series: com.tj.portfolio.data.ChartSeries? = null
 ): Double {
     if (q == null) return 0.0
     return when (range) {
-        com.tj.portfolio.data.ChartRange.D1 ->
+        // AFTER THE CLOSE THE 1D TIP IS THE OFFICIAL CLOSE (full test 2026-09-24, C-8), when the
+        // line is that same session: its last candle is the 15:55 bar, and the header's day
+        // change is measured from the closing-auction print - so the readout and the 1D chip
+        // disagreed with the header by the auction gap every evening and weekend.
+        com.tj.portfolio.data.ChartRange.D1 -> when {
+            !(q.price > 0.0) -> 0.0
+            q.marketState == "OPEN" -> q.price
+            q.marketState == "AFTER" && series != null && !series.isEmpty && q.quoteTime > 0L &&
+                com.tj.portfolio.net.MarketClock.dayKey(series.endMs) ==
+                com.tj.portfolio.net.MarketClock.dayKey(q.quoteTime) -> q.price
+            else -> 0.0
+        }
+        // 5D is intraday too (30-minute candles on a 30-minute TTL), and without this its tip and
+        // chip lagged the header by up to half an hour through the session (C-12).
+        com.tj.portfolio.data.ChartRange.D5 ->
             if (q.marketState == "OPEN" && q.price > 0.0) q.price else 0.0
         com.tj.portfolio.data.ChartRange.OVERNIGHT ->
             if (q.marketState != "OPEN") (q.extPrice ?: 0.0).coerceAtLeast(0.0) else 0.0

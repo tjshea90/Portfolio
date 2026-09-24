@@ -182,7 +182,8 @@ fun InsiderRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        if (f.tradeDate > 0 && !sameDay(f.tradeDate, f.filedAt)) {
+        // `filedAt` is 0 when the feed's date did not parse - "filed Dec 31, 1969" (C-10).
+        if (f.tradeDate > 0 && f.filedAt > 0 && !sameDay(f.tradeDate, f.filedAt)) {
             Spacer(Modifier.height(3.dp))
             Text(
                 "Traded ${Fmt.day(f.tradeDate)}, filed ${Fmt.day(f.filedAt)}",
