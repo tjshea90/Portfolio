@@ -912,7 +912,7 @@ fun PriceChart(
             )
             Spacer(Modifier.weight(1f))
             Text(
-                axisLabel(axis.endMs, range, withDate, withYear),
+                axisLabel(axis.endMs, range, withDate, withYear, zoned = true),
                 style = MaterialTheme.typography.labelSmall,
                 color = muted
             )
@@ -1188,7 +1188,7 @@ private fun ChartReadout(
             Text(
                 // Always dated when the window spans more than a day, because on the
                 // after-hours and 5-day views a bare clock does not say which day it is.
-                axisLabel(point.t * 1000L, range, withDate, withYear),
+                axisLabel(point.t * 1000L, range, withDate, withYear, zoned = true),
                 style = MaterialTheme.typography.bodySmall,
                 color = muted,
                 maxLines = 1
