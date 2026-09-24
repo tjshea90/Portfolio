@@ -429,6 +429,7 @@ object DayTradingEval {
     fun stats(entries: List<DayTradingLogEntry>, now: Long = System.currentTimeMillis()): DayTradingStats {
         var targetHit = 0; var stopHit = 0; var closedProfit = 0; var closedLoss = 0
         var noEntry = 0; var pending = 0; var dataUnavailable = 0; var legacy = 0; var regrading = 0
+        var oldSkipped = 0
         var unchecked = 0; var appTrades = 0; var claudeTrades = 0
         var res1 = 0; var res5 = 0
         val returns = ArrayList<Double>()
@@ -477,6 +478,7 @@ object DayTradingEval {
         }
 
         for (e in entries) {
+            if (notTradeableOldRow(e)) { oldSkipped++; continue }
             val final = DayTradingOutcome.isFinal(e.outcome)
             // GRADED UNDER THE OLD RULES (E9): while its bars exist it is queued for re-grading;
             // once they are gone it is kept and counted, never used. Neither is in the headline.
@@ -498,6 +500,9 @@ object DayTradingEval {
             }
         }
         val decided = targetHit + stopHit + closedProfit + closedLoss
+        val counted = entries.filterNot {
+            notTradeableOldRow(it) || (DayTradingOutcome.isFinal(it.outcome) && it.evalVersion < DayTradingGrader.VERSION)
+        }
         val totalR = rMultiples.sum()
         val wins = rMultiples.filter { it > 0.0 }
         val losses = rMultiples.filter { it <= 0.0 }
@@ -505,7 +510,7 @@ object DayTradingEval {
         val (pLow, pHigh) = wilson(netProfitable, decided)
         val funded = fundable(trades)
         return DayTradingStats(
-            totalRecommendations = entries.size - legacy,
+            totalRecommendations = entries.size - legacy - oldSkipped,
             entriesTriggered = decided,
             targetHit = targetHit,
             stopHit = stopHit,
@@ -532,11 +537,11 @@ object DayTradingEval {
             // EVERY row's session, not just the decided ones - "42 picks across 9 sessions" is
             // the context an average per trade needs, and a day whose picks all expired without
             // triggering is still a day the system was followed.
-            sessions = entries.filterNot { DayTradingOutcome.isFinal(it.outcome) && it.evalVersion < DayTradingGrader.VERSION }
-                .mapTo(HashSet()) { it.tradingDay }.size,
+            sessions = counted.mapTo(HashSet()) { it.tradingDay }.size,
             evaluatedAt = now,
-            breakdown = breakdown(entries.filterNot { DayTradingOutcome.isFinal(it.outcome) && it.evalVersion < DayTradingGrader.VERSION }),
+            breakdown = breakdown(counted),
             legacyExcluded = legacy,
+            oldSkipped = oldSkipped,
             regrading = regrading,
             graded1m = res1,
             graded5m = res5,
