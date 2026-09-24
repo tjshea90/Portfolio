@@ -158,3 +158,12 @@ val checkInitOrder = tasks.register<Exec>("checkInitOrder") {
     commandLine("python3", "tools/checkinit.py")
 }
 tasks.named("preBuild") { dependsOn(checkInitOrder) }
+
+/**
+ * UNIT TESTS ARE OFFLINE (full test 2026-09-24, T-1). `net/Http.kt` refuses every non-loopback
+ * request while this property is set, so no test result depends on the live market or on the
+ * network of whichever machine runs the suite. Test JVMs only - never reaches the APK.
+ */
+tasks.withType<Test>().configureEach {
+    systemProperty("portfolio.test.offline", "true")
+}

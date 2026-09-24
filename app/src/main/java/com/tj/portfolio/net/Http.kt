@@ -75,6 +75,23 @@ object Http {
     private fun hostOf(url: String): String =
         runCatching { URL(url).host.orEmpty() }.getOrDefault("")
 
+    /**
+     * UNIT TESTS NEVER REACH THE INTERNET (full test 2026-09-24, T-1).
+     *
+     * `app/build.gradle.kts` sets this property on every unit-test JVM; nothing sets it on a
+     * phone, so on a device this is always false and costs one string compare per request.
+     * Without it, every Robolectric test that builds the ViewModel sent real quote, chart and
+     * news requests from whatever machine ran the suite - the container's proxy, a GitHub
+     * runner - which made results depend on the market and the network (2026-09-23's
+     * WatchSinceAddedTest flake) while the tests themselves assume "no network in a unit test".
+     * Loopback stays open: NetLogicTest drives the real failure/cooldown paths against
+     * 127.0.0.1:1, which never leaves the machine.
+     */
+    private val offlineForTests: Boolean = System.getProperty("portfolio.test.offline") == "true"
+
+    private fun blockedForTests(host: String): Boolean =
+        offlineForTests && host != "127.0.0.1" && host != "localhost"
+
     // ------------------------------------------------------------ rate meter
 
     /**
@@ -486,6 +503,7 @@ object Http {
     ): HttpResult = withContext(Dispatchers.IO) {
         val cacheKey = cacheAs ?: url
         val host = hostOf(url)
+        if (blockedForTests(host)) return@withContext HttpResult(-1, "offline (unit test)")
         val st = hosts[host]
         if (st != null && System.currentTimeMillis() < st.until) {
             // Deliberately NOT a network call. Callers treat a non-ok result as "no data
@@ -653,6 +671,7 @@ object Http {
         timeoutMs: Int = 180000
     ): HttpResult = withContext(Dispatchers.IO) {
         val host = hostOf(url)
+        if (blockedForTests(host)) return@withContext HttpResult(-1, "offline (unit test)")
         val st = hosts[host]
         if (st != null && System.currentTimeMillis() < st.until) {
             return@withContext HttpResult(HttpResult.CODE_COOLDOWN, "rate limited, backing off")
