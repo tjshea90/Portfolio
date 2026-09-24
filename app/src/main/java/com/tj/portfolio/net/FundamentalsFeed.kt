@@ -196,11 +196,38 @@ object FundamentalsFeed {
     }
 
     /** GET one quoteSummary module set, retrying once with a fresh crumb on a 401. */
-    private suspend fun yahooFetch(symbol: String, modules: String): YahooReply {
+    private suspend fun yahooFetch(symbol: String, modules: String): YahooReply =
+        yahooFetchWith(symbol, modules,
+            get = { url, base ->
+                Http.get(url, mapOf("Accept" to "application/json"),
+                    conditionalKey = true, cacheAs = base)
+            },
+            mint = { force -> YahooAuth.crumb(force = force) },
+            invalidate = { YahooAuth.invalidate() }
+        )
+
+    /**
+     * [yahooFetch] with its three side effects injected, so the retry rule can be tested.
+     *
+     * ONLY A 401 EARNS THE SECOND ATTEMPT (full test 2026-09-24, N-3). The loop used to fall
+     * into attempt 2 whenever the host loop ran out - a 404 for an index or a delisted ticker,
+     * a 5xx, a timeout, both hosts cooling - and attempt 2 FORCES a crumb mint: a full
+     * `fc.yahoo.com` + `getcrumb` handshake replacing a perfectly good crumb, then both hosts
+     * asked again. One 404ing symbol cost eight quoteSummary requests and a handshake for the
+     * core numbers alone; a dead network made one `core()` take about a minute.
+     */
+    internal suspend fun yahooFetchWith(
+        symbol: String,
+        modules: String,
+        get: suspend (url: String, cacheAs: String) -> HttpResult,
+        mint: suspend (force: Boolean) -> String,
+        invalidate: () -> Unit
+    ): YahooReply {
         var last = 0
         for (attempt in 0..1) {
-            val crumb = YahooAuth.crumb(force = attempt > 0)
+            val crumb = mint(attempt > 0)
             if (crumb.isBlank()) return YahooReply(null, last)
+            var sawUnauthorized = false
             for (host in listOf("query1", "query2")) {
                 val base = "https://$host.finance.yahoo.com/v10/finance/quoteSummary/" +
                     MarketData.enc(symbol) + "?modules=" + modules
@@ -215,10 +242,7 @@ object FundamentalsFeed {
                 // would not have helped either: the crumb is re-minted every twelve hours, so
                 // the URL for the same resource changes twice a day and every entry would be
                 // orphaned before it was ever used.
-                val r = Http.get(
-                    url, mapOf("Accept" to "application/json"),
-                    conditionalKey = true, cacheAs = base
-                )
+                val r = get(url, base)
                 // A COOLING HOST IS SKIPPED, NOT A REASON TO GIVE UP (Round 66 audit, H2).
                 // Cooldowns are armed per host, so query1 being left alone says nothing about
                 // query2 - and abandoning here dropped the Stats and Analysts tabs to their
@@ -228,7 +252,8 @@ object FundamentalsFeed {
                 last = r.code
                 if (r.code == 401) {
                     // The crumb is stale or was minted against a cookie we no longer hold.
-                    YahooAuth.invalidate()
+                    invalidate()
+                    sawUnauthorized = true
                     break                       // out of the host loop, into the retry
                 }
                 if (!r.ok) continue
@@ -238,6 +263,7 @@ object FundamentalsFeed {
                 }.getOrNull()
                 if (res != null) return YahooReply(res, r.code)
             }
+            if (!sawUnauthorized) break         // N-3: nothing a fresh crumb would change
         }
         return YahooReply(null, last)
     }
