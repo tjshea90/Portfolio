@@ -115,11 +115,20 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
     - [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
           tests; tick IDs here. Then full suite again; second audit round if anything major.
       - own: [x] gap-through-target graded WIN -> CLOSED_LOSS "gap-target" (DayTradingGraderTest)
-      - ui.md (complete, 27+2): [ ] UI-1 [ ] UI-2 [ ] UI-3 [ ] UI-4 [ ] UI-5 [ ] UI-6 [ ] UI-7
-        [ ] UI-8 [ ] UI-9 [ ] UI-10 [ ] UI-11 [ ] UI-12 [ ] UI-13 [ ] UI-14 [ ] UI-15 [ ] UI-16
-        [ ] UI-17 [ ] UI-18 [ ] UI-19 [ ] UI-20 [ ] UI-21 [ ] UI-22 [ ] UI-23 [ ] UI-24 [ ] UI-25
-        [ ] UI-26 [ ] UI-27 [ ] S-1 [ ] S-2
-      - daytrading.md: (pending)   - platform.md: (pending)
+      - ui.md (complete, 27+2): ALL FIXED [x] UI-1..UI-27, S-1, S-2 (edgeVerdict >=20, capped in
+        funded set, sameDecisions apply guard + applying flag + Default dispatcher, app group counts,
+        zero-state wording, row planEngine stamp + closed-market replan owed, grading caption,
+        R/%/PF/drawdown labels, lastApplyAt = change in force, Settings undo+saveable, review
+        wording/kind messages, small-slice marker + numeric version sort, evidence with stats,
+        nullable evidence, own engine picker, app/Claude split line, Details expander, TalkBack
+        roles, IntrinsicSize rows, screen-level confirm, history newest 10, plurals/unchecked,
+        capped-target text + muted NOT YET, Risk: prefix, claudeAge in detail). Tests: Learn UI 10,
+        EngineTuningTest +1 (applyRefusesToInstallWhatTheSheetDidNotShow).
+      - daytrading.md (complete, 21): [ ] DA-1(=PL-1) [ ] DA-2 [ ] DA-3 [ ] DA-4 [ ] DA-5 [ ] DA-6
+        [ ] DA-7 [ ] DA-8 [x] DA-9(=UI-1) [ ] DA-10 [ ] DA-11 [ ] DA-12(=PL-2) [ ] DA-13 [ ] DA-14
+        [ ] DA-15 [ ] DA-16 [ ] DA-17 [ ] DA-18 [ ] DA-19 [ ] DA-20 [ ] DA-21
+      - platform.md (complete, 15): [ ] PL-1 [ ] PL-2 [ ] PL-3 [ ] PL-4 [ ] PL-5 [ ] PL-6 [ ] PL-7
+        [ ] PL-8 [ ] PL-9 [ ] PL-10 [ ] PL-11 [ ] PL-12 [ ] PL-13 [ ] PL-14 [ ] PL-15
 - [ ] C2 Ship (auto-ship rule), post the Release link, summarize
 
 ## Tj's request, 2026-09-24b (his own words)
