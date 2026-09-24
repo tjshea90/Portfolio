@@ -54,12 +54,16 @@ class DayTradingSoundnessTest {
         premarketHigh: Double = 0.0,
         sessionHigh: Double = 0.0,
         sessionLow: Double = 0.0,
-        live: Boolean = true
+        live: Boolean = true,
+        // These fixtures describe a range that has finished printing; since the 2026-09-24
+        // full test (D-5) an incomplete one is not offered as a level, so say so explicitly.
+        orComplete: Boolean = true
     ) = DayTradingTechnicals.DayTechnicals(
         atr14 = atr,
         vwap = vwap,
         openingRangeHigh = orHigh,
         openingRangeLow = orLow,
+        openingRangeComplete = orComplete,
         or5High = or5High,
         or5Low = or5Low,
         openingBarBullish = openingBarBullish,
