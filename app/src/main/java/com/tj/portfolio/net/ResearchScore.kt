@@ -961,7 +961,8 @@ object ResearchScore {
         // A TUNED CAP ON THE TARGET (2026-09-24c) - off on the original engine. Applied before the
         // "target above the price" check below, so a cap that lands under the price is no plan.
         val capR = p.targetCapR(setup)
-        if (capR > 0.0 && target > entry + risk * capR) target = entry + risk * capR
+        val targetCapped = capR > 0.0 && target > entry + risk * capR
+        if (targetCapped) target = entry + risk * capR
         // AND THE SAME FLOOR ON THE LAST-RESORT PATH (second code-review pass). The two paths
         // above now measure from `above`, but the 2:1 convention below them is computed from the
         // entry alone, and on a pullback the entry sits below the last price - so with no
@@ -1022,7 +1023,7 @@ object ResearchScore {
             note = planNote(
                 price, entry, risk, target, tech, rawRisk, maxRisk,
                 minutesLeft, middayLull, earningsToday, vol, tooLate, targetFromRoom, p,
-                p.maxRiskAtrs(setup)
+                p.maxRiskAtrs(setup), targetCapped
             )
         )
         return plan to ""
@@ -1138,7 +1139,9 @@ object ResearchScore {
          */
         targetFromRoom: Boolean,
         p: DayTradingParams = DayTradingEngine.params,
-        maxRiskAtrs: Double = p[DayTradingParams.MAX_RISK]
+        maxRiskAtrs: Double = p[DayTradingParams.MAX_RISK],
+        /** The tuned engine's fixed-R cap set the target (2026-09-24c) - so no level or range did. */
+        targetCapped: Boolean = false
     ): String {
         val parts = ArrayList<String>(8)
 
@@ -1175,7 +1178,7 @@ object ResearchScore {
         // The other side of relaxing the old 3R cap: a target that needs a very large move is a
         // real reading of the levels AND a warning. See [MAX_REWARD_RISK_RATIO].
         val rr = rewardRisk(entry, risk, target)
-        if (rr > p.bigTargetWarnR) parts.add(
+        if (rr > p.bigTargetWarnR && !targetCapped) parts.add(
             (if (targetFromRoom)
                 "A normal day's remaining range puts the target ${Fmt.oneDp(rr)}x the risk away"
             else
@@ -1194,7 +1197,9 @@ object ResearchScore {
         // straight through the level that is going to stop the move.
         if (rr in 0.0..p.thinRewardR) parts.add(
             "Only ${Fmt.oneDp(rr)} to 1 - " +
-                (if (targetFromRoom)
+                (if (targetCapped)
+                    "the tuned engine takes profit at a fixed ${Fmt.oneDp(rr)}x the risk here"
+                else if (targetFromRoom)
                     "a normal day's range does not reach far enough above this entry for a 2:1 " +
                         "target"
                 else
