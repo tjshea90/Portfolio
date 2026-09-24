@@ -370,8 +370,8 @@ object EngineTuning {
             ))
         }
         return Proposal(
-            basedOnVersion = based?.let { num(it, "engineVersion")?.toInt() },
-            basedOnTrades = based?.let { num(it, "gradedTrades")?.toInt() },
+            basedOnVersion = based?.let { num(it, "engineVersion")?.takeIf { v -> v.isFinite() }?.toInt() },
+            basedOnTrades = based?.let { num(it, "gradedTrades")?.takeIf { v -> v.isFinite() }?.toInt() },
             verdict = ClaudeBridge.scrub(t.text("verdict")),
             analysis = ClaudeBridge.scrub(t.text("analysis")),
             keep = ClaudeBridge.scrub(t.text("keep")),

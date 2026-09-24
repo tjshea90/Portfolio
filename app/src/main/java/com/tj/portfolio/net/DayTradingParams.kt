@@ -161,6 +161,25 @@ class DayTradingParams private constructor(private val values: Map<String, Doubl
         const val LVL_R2 = "r2"
         val LEVELS = listOf(LVL_PREMARKET, LVL_OR5, LVL_OR, LVL_PREV_HIGH, LVL_SESSION_HIGH, LVL_R1, LVL_R2)
 
+        /**
+         * The words a plan's card names each level by - the one list [ResearchScore.planInternal]
+         * takes them from and the tuning evidence counts by (audit DA-3), so a level's trades can be
+         * found from its key. The prior session's high reads "last" before the open, "prior" live.
+         */
+        val LEVEL_LABELS: Map<String, List<String>> = mapOf(
+            LVL_PREMARKET to listOf("the premarket high"),
+            LVL_OR5 to listOf("the first 5-minute bar's high"),
+            LVL_OR to listOf("the opening-range high"),
+            LVL_PREV_HIGH to listOf("the prior session's high", "the last session's high"),
+            LVL_SESSION_HIGH to listOf("the high of day"),
+            LVL_R1 to listOf("pivot R1"),
+            LVL_R2 to listOf("pivot R2")
+        )
+
+        /** A level's card name - live, or [before] the open (only the prior session's high differs). */
+        fun levelLabel(level: String, before: Boolean = false): String =
+            LEVEL_LABELS.getValue(level).let { if (before && it.size > 1) it[1] else it[0] }
+
         private fun num(key: String, d: Double, lo: Double, hi: Double, doc: String, off: Boolean = false) =
             Spec(key, d, lo, hi, Kind.NUMBER, doc, off)
         private fun int(key: String, d: Int, lo: Int, hi: Int, doc: String, off: Boolean = false) =

@@ -785,21 +785,21 @@ object ResearchScore {
         val orLow = if (tech.openingRangeComplete) tech.openingRangeLow else 0.0
         val L = DayTradingParams
         val overhead = if (live) overheadOf(p,
-            Keyed(tech.premarketHigh, "the premarket high", L.LVL_PREMARKET),
+            Keyed(tech.premarketHigh, L.levelLabel(L.LVL_PREMARKET), L.LVL_PREMARKET),
             // THE FIVE-MINUTE OPENING RANGE COMES FIRST (Round 73) - it is the lowest of the
             // opening levels and therefore the earliest trigger, and it is the variant the
             // strongest published test of this setup found best while finding the 30-minute one
             // below it worst (see [DayTradingTechnicals.openingBar]). It needs no clock of its
             // own to stay honest: price passes it within minutes on any stock actually in play,
             // and the `>= price` filter below then drops it automatically.
-            Keyed(tech.or5High, "the first 5-minute bar's high", L.LVL_OR5),
+            Keyed(tech.or5High, L.levelLabel(L.LVL_OR5), L.LVL_OR5),
             // A RANGE STILL PRINTING IS NOT A LEVEL (D-5): before 10:00 "the opening-range high"
             // is only the high of day so far. The score side already required completion.
-            Keyed(orHigh, "the opening-range high", L.LVL_OR),
-            Keyed(tech.prevHigh, "the prior session's high", L.LVL_PREV_HIGH),
-            Keyed(tech.sessionHigh, "the high of day", L.LVL_SESSION_HIGH),
-            Keyed(tech.r1, "pivot R1", L.LVL_R1),
-            Keyed(tech.r2, "pivot R2", L.LVL_R2)
+            Keyed(orHigh, L.levelLabel(L.LVL_OR), L.LVL_OR),
+            Keyed(tech.prevHigh, L.levelLabel(L.LVL_PREV_HIGH), L.LVL_PREV_HIGH),
+            Keyed(tech.sessionHigh, L.levelLabel(L.LVL_SESSION_HIGH), L.LVL_SESSION_HIGH),
+            Keyed(tech.r1, L.levelLabel(L.LVL_R1), L.LVL_R1),
+            Keyed(tech.r2, L.levelLabel(L.LVL_R2), L.LVL_R2)
         ) else overheadOf(p,
             // BEFORE THE OPEN ONLY (full-tests audit 2026-09-22, D-L7). Outside the session this
             // reading can be one of two premarkets: THIS morning's, while it is still forming,
@@ -807,10 +807,10 @@ object ResearchScore {
             // shut means the day is over) - a premarket that has already been and gone. An
             // evening plan is for TOMORROW, and today's premarket high is not a level tomorrow's
             // gap-and-go trades against.
-            Keyed(if (tech.sessionHigh > 0.0) 0.0 else tech.premarketHigh, "the premarket high", L.LVL_PREMARKET),
-            Keyed(tech.prevHigh, "the last session's high", L.LVL_PREV_HIGH),
-            Keyed(tech.r1, "pivot R1", L.LVL_R1),
-            Keyed(tech.r2, "pivot R2", L.LVL_R2)
+            Keyed(if (tech.sessionHigh > 0.0) 0.0 else tech.premarketHigh, L.levelLabel(L.LVL_PREMARKET, before = true), L.LVL_PREMARKET),
+            Keyed(tech.prevHigh, L.levelLabel(L.LVL_PREV_HIGH, before = true), L.LVL_PREV_HIGH),
+            Keyed(tech.r1, L.levelLabel(L.LVL_R1), L.LVL_R1),
+            Keyed(tech.r2, L.levelLabel(L.LVL_R2), L.LVL_R2)
         )
         val below = if (live) levelsOf(
             tech.vwap to "VWAP",
