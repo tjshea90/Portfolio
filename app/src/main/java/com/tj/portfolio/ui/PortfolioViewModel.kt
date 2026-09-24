@@ -1971,9 +1971,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private val _engineReview = MutableStateFlow<com.tj.portfolio.net.EngineTuning.Review?>(null)
     val engineReview: StateFlow<com.tj.portfolio.net.EngineTuning.Review?> = _engineReview.asStateFlow()
 
-    /** Graded trades of the app's own plans, for the tuning card's readiness line. */
-    private val _engineEvidence = MutableStateFlow(0 to 0)
-    val engineEvidence: StateFlow<Pair<Int, Int>> = _engineEvidence.asStateFlow()
+    /** Graded trades of the app's own plans (total, since the change in force) - null until first counted (UI-18). */
+    private val _engineEvidence = MutableStateFlow<Pair<Int, Int>?>(null)
+    val engineEvidence: StateFlow<Pair<Int, Int>?> = _engineEvidence.asStateFlow()
+
+    /** True while an Apply is being checked and saved - the sheet's button waits on it (UI-13). */
+    private val _engineApplying = MutableStateFlow(false)
+    val engineApplying: StateFlow<Boolean> = _engineApplying.asStateFlow()
 
     /**
      * Form 4 filings for ONE stock, for its own detail screen.
@@ -2700,6 +2704,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private var dayTradingLiveJob: Job? = null
     /** When the Day Trading tab last graded the log on its own (2026-09-24c) - see [evaluateDayTradingLog]. */
     private var dayTradingAutoEvalAt = 0L
+    /**
+     * An engine change asks the list to re-plan once even with the market closed (UI-6) - the
+     * closed-market loop otherwise only sweeps once per rebuild, and plans from the previous engine
+     * would sit under the new one until tomorrow.
+     */
+    @Volatile private var dayTradingReplanOwed = false
     /** True while the Day Trading tab wants the live loop running - see [setForeground]'s
      *  note on why the job handle alone is not enough to know whether to restart it. */
     private var dayTradingLiveWanted = false
@@ -7413,9 +7423,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Off the main thread: a year of rows with their grids is real work for the Moto's small cores. */
+    /**
+     * Off the main thread: a year of rows with their grids is real work for the Moto's small cores.
+     * The tuning card's counts come from the SAME rows (UI-17) - no second read of the whole log.
+     */
     private suspend fun dayTradingStatsOf(rows: List<com.tj.portfolio.data.DayTradingLogEntry>) =
-        withContext(Dispatchers.Default) { com.tj.portfolio.net.DayTradingEval.stats(rows) }
+        withContext(Dispatchers.Default) {
+            val ev = com.tj.portfolio.net.EngineTuning.Evidence(rows, _engine.value.lastApplyAt)
+            _engineEvidence.value = ev.total to ev.sinceLastChange
+            com.tj.portfolio.net.DayTradingEval.stats(rows)
+        }
 
     /**
      * IN-APP LEVEL ALERTS (Day Trading idea 4, 2026-09-24b): while the live loop is running
@@ -8270,27 +8287,47 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun dismissEngineReview() { _engineReview.value = null }
 
-    /** Tj tapped Apply on the review sheet. */
+    /**
+     * Tj tapped Apply on the review sheet. Re-checked against the engine and the log as they are at
+     * the moment of the tap - and applied ONLY if that re-check decides exactly what the sheet showed
+     * (UI-3): grading can land while the sheet is open (the tab grades on opening) and move a change
+     * across a sample-size tier. When it differs, the fresh review replaces the sheet and nothing is
+     * installed until Tj taps Apply on what he can now see. Off the main thread (UI-12), and once per
+     * tap however fast the taps come (UI-13).
+     */
     fun applyEngineReview() {
-        val review = _engineReview.value ?: return
+        val shown = _engineReview.value ?: return
+        if (_engineApplying.value) return
+        _engineApplying.value = true
         viewModelScope.launch {
-            val ev = engineEvidenceNow()
-            // Re-checked against the engine as it is at the moment of the tap - an undo or another
-            // apply may have happened while the sheet was open.
-            val fresh = com.tj.portfolio.net.EngineTuning.review(review.proposal, _engine.value, ev.rows)
-            val next = com.tj.portfolio.net.EngineTuning.apply(fresh, _engine.value, System.currentTimeMillis())
-            if (next == null) {
-                _engineReview.value = fresh
-                toast("Nothing was applied - the checks changed since the review opened")
-                return@launch
+            try {
+                val ev = engineEvidenceNow()
+                val st = _engine.value
+                val fresh = withContext(Dispatchers.Default) {
+                    com.tj.portfolio.net.EngineTuning.review(shown.proposal, st, ev.rows)
+                }
+                if (!com.tj.portfolio.net.EngineTuning.sameDecisions(shown, fresh)) {
+                    _engineReview.value = fresh
+                    toast("The graded trades or the engine changed while this was open - check the " +
+                        "updated review, then tap Apply again")
+                    return@launch
+                }
+                val next = com.tj.portfolio.net.EngineTuning.apply(fresh, st, System.currentTimeMillis())
+                if (next == null) {
+                    _engineReview.value = fresh
+                    toast("Nothing was applied - there is nothing in this review that can change the engine")
+                    return@launch
+                }
+                _engineReview.value = null
+                saveEngine(next)
+                engineEvidenceNow()
+                toast("Engine v${next.version} applied - ${fresh.applicable.size} change" +
+                    "${if (fresh.applicable.size == 1) "" else "s"}. New plans use it from the next refresh; " +
+                    "ranking weights from the next list rebuild. Undo or revert any time.")
+                replanDayTradingNow()
+            } finally {
+                _engineApplying.value = false
             }
-            _engineReview.value = null
-            saveEngine(next)
-            engineEvidenceNow()
-            toast("Engine v${next.version} applied - ${fresh.applicable.size} change" +
-                "${if (fresh.applicable.size == 1) "" else "s"}. New plans use it from the next refresh; " +
-                "ranking weights from the next list rebuild. Undo or revert any time.")
-            replanDayTradingNow()
         }
     }
 
@@ -8318,8 +8355,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** A changed engine re-plans the open list at once rather than on the next 30-second tick. */
+    /**
+     * A changed engine re-plans the open list at once rather than on the next 30-second tick - and
+     * once even while the market is closed (UI-6), so no plan from the previous engine is left on
+     * screen under the new one's label.
+     */
     private fun replanDayTradingNow() {
+        dayTradingReplanOwed = true
         if (dayTradingLiveWanted) startDayTradingLive(dayTradingLiveOnly)
     }
 
@@ -8515,7 +8557,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // Only the LIST's sweep counts (diff review, R-7): a single-symbol run for an open
                 // detail screen never marks the sweep done, so it would have fetched every tick.
                 val closed = phase == com.tj.portfolio.net.MarketClock.Phase.CLOSED
-                val listSweepOwed = dayTradingLiveOnly == null && !dayTradingSweepDone
+                val listSweepOwed = dayTradingLiveOnly == null && (!dayTradingSweepDone || dayTradingReplanOwed)
                 if (online() && (!closed || listSweepOwed)) {
                     enrichDayTradingVisible()
                 }
@@ -8698,6 +8740,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // screen's one-symbol run, or a tick whose intraday requests all failed, refreshed no
         // list prices - and the prompt then called hours-old rows "live".
         if (changed && tickRefreshedList(only, fetched)) dayTradingLiveAt = System.currentTimeMillis()
+        // A whole-list pass re-planned every row under the engine now in force (UI-6).
+        if (only == null) dayTradingReplanOwed = false
         if (changed || sweeping) {
             _research.value = _research.value.withSection(name, finalRows)
             // A completed sweep re-sorted the list - worth writing now; an ordinary tick is not.

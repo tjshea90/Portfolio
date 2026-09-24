@@ -107,8 +107,12 @@ object EngineTuning {
         val isOriginal: Boolean get() = params.isDefault
         /** The most recent apply still in force - what "Undo last change" takes back. */
         val undoable: HistoryEntry? get() = history.lastOrNull { it.kind == KIND_APPLY && it.undoneAt == 0L }
-        /** When the last change Claude made was applied (0 = never) - the start of the "since then" count. */
-        val lastApplyAt: Long get() = history.lastOrNull { it.kind == KIND_APPLY }?.at ?: 0L
+        /**
+         * When the change now IN FORCE was applied (0 = none: never tuned, or every change taken back)
+         * - the start of the "since then" count. An undone or reverted change is not being measured
+         * any more, so it no longer holds the next one back (UI-10).
+         */
+        val lastApplyAt: Long get() = undoable?.at ?: 0L
 
         fun engineJson(): String = JSONObject().put("version", version).put("params", params.toJson()).toString()
         fun historyJson(): String = JSONArray().apply { history.forEach { put(it.toJson()) } }.toString()
@@ -466,6 +470,19 @@ object EngineTuning {
         }
         return true
     }
+
+    /**
+     * Would applying [b] do exactly what [a] showed? Same items, same fates, same values (UI-3): the
+     * sheet Tj approved must be the change that is installed, never a re-review's different one.
+     */
+    fun sameDecisions(a: Review, b: Review): Boolean =
+        a.blocker.isBlank() == b.blocker.isBlank() &&
+            a.items.size == b.items.size &&
+            a.items.zip(b.items).all { (x, y) ->
+                x.change.key == y.change.key && x.status == y.status &&
+                    (x.applied ?: Double.NaN).let { xa -> val ya = y.applied ?: Double.NaN
+                        (xa.isNaN() && ya.isNaN()) || kotlin.math.abs(xa - ya) < 1e-9 }
+            }
 
     /** Installs a reviewed answer's accepted and limited changes as a new engine version. */
     fun apply(review: Review, state: State, now: Long): State? {
