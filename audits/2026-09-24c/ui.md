@@ -18,9 +18,10 @@ Status: IN PROGRESS (findings appended as confirmed)
   confidence." Two statements about the same numbers that contradict each other, and the second
   overstates certainty exactly where the first warns against it. The t-interval also assumes roughly
   normal R, which a day-trade R distribution (a cluster near -1R and a cluster at +target) is not at small n.
-- Scenario: 6 decided trades, all target hits at +1.4..+1.8R net. mean 1.6, sd ~0.15, t(5)=2.57 ->
-  range +1.44R..+1.76R -> "a real edge so far, with 95% confidence." directly under the red
-  "6 graded trades - Too few trades to judge ...".
+- Scenario (ordinary luck, not an edge case): 10 decided trades, 7 target hits at +2R and 3 stops at
+  -1R. mean +1.10R, sd 1.45, t(9)=2.26 -> 95% range +0.06R..+2.14R -> edgeVerdict "positive" -> "a real
+  edge so far, with 95% confidence." directly under the red "10 graded trades - Too few trades to judge -
+  results this small can easily be luck either way". 7 of 10 at a true 40% hit rate happens ~5% of the time.
 - Fix: below `SAMPLE_TIERS[0].first` (20) never print a verdict: "95% range +1.44R to +1.76R - with
   under 20 trades this range is not reliable yet." At 20-49 soften to "above zero so far (early read)".
   Put the gate in `edgeVerdict` so the prompt and card agree.
