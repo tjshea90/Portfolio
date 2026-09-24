@@ -8139,7 +8139,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             dayTradingSweepDone = true
             if (claudeOrdered) updated else sortDayTradingForActionability(updated)
         } else updated
-        if (changed) dayTradingLiveAt = System.currentTimeMillis()
+        // ONLY A WHOLE-LIST TICK THAT GOT TODAY'S BARS (review 2026-09-24, R1-8): a detail
+        // screen's one-symbol run, or a tick whose intraday requests all failed, refreshed no
+        // list prices - and the prompt then called hours-old rows "live".
+        if (changed && only == null && fetched.values.any { it != null && it.sessionDay.isNotBlank() })
+            dayTradingLiveAt = System.currentTimeMillis()
         if (changed || sweeping) {
             _research.value = _research.value.withSection(name, finalRows)
             // A completed sweep re-sorted the list - worth writing now; an ordinary tick is not.

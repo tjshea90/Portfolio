@@ -268,7 +268,9 @@ object MarketData {
             if (!r.ok) continue
             val parsed = runCatching { parseBatch(r.body) }.getOrDefault(emptyList())
             if (parsed.isNotEmpty()) return Batch.OK to parsed
-            if (batchAnswered(r.body)) answeredEmpty = true
+            // AN ANSWER NEEDS NO SECOND HOST (review 2026-09-24, R1-9): query2 says the same, and
+            // asking it cost a second request every 15 s while an unlisted ticker's detail was open.
+            if (batchAnswered(r.body)) { answeredEmpty = true; break }
         }
         // Every host was cooling or rate-limited us (see [heldOff]). Not a verdict - and, since
         // Round 66, not a reason to fall back either. See [Batch.COOLING].
