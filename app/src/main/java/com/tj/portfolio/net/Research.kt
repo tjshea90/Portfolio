@@ -701,7 +701,15 @@ object Research {
             // [ResearchRow.dtLikelihood]'s header for what the two halves mean.
             .sortedByDescending { (_, sc, confidence) -> ResearchScore.blendedScore(sc.score, confidence) }
             .take(DAY_TRADING_BUFFER)
-            .map { (row, sc, confidence) -> toDayTradingRow(row, sc, confidence, trendBy[row.symbol]) }
+            .map { (row, sc, confidence) ->
+                toDayTradingRow(row, sc, confidence, trendBy[row.symbol]).copy(
+                    // The score's raw ingredients, for the tuning log (2026-09-24c).
+                    dtRvol = ResearchScore.pacedVolumeRatio(row.volumeRatio, sessionFraction),
+                    dtRangePos = row.rangePos,
+                    dtShorted = Screener.Lists.MOST_SHORTED in row.lists,
+                    dtCatalystSoon = row.earningsAt > 0 && daysUntilEarnings(row.earningsAt) in 0..1
+                )
+            }
             .toList()
     }
 

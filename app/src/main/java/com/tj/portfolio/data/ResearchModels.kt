@@ -287,6 +287,24 @@ data class ResearchRow(
      */
     val planAt: Long = 0L,
     /**
+     * A TUNED ENGINE'S "NOT YET" (2026-09-24c) - [com.tj.portfolio.net.ResearchScore.TradePlan.waitReason]:
+     * the levels are real, but the active engine starts no trade in this window (the first minutes
+     * after the open, or the midday lull), so the plan is not recorded as a recommendation yet.
+     */
+    val planWait: String = "",
+    /** The level the entry is built on ("the prior session's high") - logged with the plan (2026-09-24c). */
+    val planLevel: String = "",
+    /**
+     * THE RANKING'S RAW INPUTS AT BUILD TIME (2026-09-24c), kept so a logged plan carries what its
+     * score was made of - relative volume paced to the clock, where the price sat in its 52-week
+     * range (-1 unknown), most-shorted membership, earnings today/tomorrow. The tuning prompt needs
+     * these to tell Claude which of the score's ingredients actually predicted a good trade.
+     */
+    val dtRvol: Double = 0.0,
+    val dtRangePos: Double = -1.0,
+    val dtShorted: Boolean = false,
+    val dtCatalystSoon: Boolean = false,
+    /**
      * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
      * volume-weighted average price, and the 09:30-10:00 ET opening range. See
      * `net/DayTradingTechnicals.kt`'s header for the research these come from. All zero until
@@ -408,6 +426,12 @@ data class ResearchRow(
         if (planByClaude) put("planByClaude", true)
         if (planPrice > 0) put("planPrice", planPrice)
         if (planAt > 0) put("planAt", planAt)
+        if (planWait.isNotBlank()) put("planWait", planWait)
+        if (planLevel.isNotBlank()) put("planLevel", planLevel)
+        if (dtRvol > 0) put("dtRvol", dtRvol)
+        if (dtRangePos >= 0) put("dtRangePos", dtRangePos)
+        if (dtShorted) put("dtShorted", true)
+        if (dtCatalystSoon) put("dtCatalystSoon", true)
         if (atrIntraday > 0) put("atrIntraday", atrIntraday)
         if (adr > 0) put("adr", adr)
         if (prevHigh > 0) put("prevHigh", prevHigh)
@@ -524,6 +548,12 @@ data class ResearchRow(
                 planByClaude = o.optBoolean("planByClaude", false),
                 planPrice = o.optDouble("planPrice", 0.0).orZero(),
                 planAt = o.optLong("planAt", 0L),
+                planWait = o.text("planWait"),
+                planLevel = o.text("planLevel"),
+                dtRvol = o.optDouble("dtRvol", 0.0).orZero(),
+                dtRangePos = o.optDouble("dtRangePos", -1.0).let { if (it.isFinite() && it in 0.0..1.0) it else -1.0 },
+                dtShorted = o.optBoolean("dtShorted", false),
+                dtCatalystSoon = o.optBoolean("dtCatalystSoon", false),
                 atrIntraday = o.optDouble("atrIntraday", 0.0).orZero(),
                 adr = o.optDouble("adr", 0.0).orZero(),
                 prevHigh = o.optDouble("prevHigh", 0.0).orZero(),
