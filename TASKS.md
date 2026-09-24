@@ -182,8 +182,16 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
           keeps ticks via carriedChecks() (pure test)
       [x] R2-6 no recorded base -> row left as it was (test)
       [x] R2-7 addTxnRecord returns Boolean; all 3 editors close only on true (VM test)
-- [ ] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
+- [x] Ship per the 2026-09-19 auto-ship rule (bump version, ship.sh, trigger android.yml,
       record-release) and post the Release link; summarize for Tj
+      DONE 17:38 UTC: run #42 green, Release v7.40 published (Portfolio-v7.40.apk), BUILDLOG
+      recorded. https://github.com/tjshea90/Portfolio/releases/tag/v7.40
+- WAITING ON TJ (listed for him 17:30 UTC, his "which items are still open for my review"):
+  L-4 trim threshold (locked), C-7 pinch overwrites saved range, C-9 5D gap lines, the 09-19
+  DayTradingEval same-bar tie rule, U-Q5/U-Q6; A-4 numbered-copy rename to confirm on the
+  phone; told him R1-2b did the 09-19 deferred "or5/orComplete on ResearchRow" item (revert
+  if he wants); the audits' "Ideas - need Tj's approval" lists in audits/2026-09-24/*.md.
+  Nothing started on any of these without his answer.
       17:19 UTC: v7.40 / code 97 gated by ship.sh (checkinit ok, suite 1425/0) and pushed
       (dc9ffd11). android.yml full_build triggered: run 36033444388 (run #42). NEXT: when it
       is green -> get_release_by_tag v7.40 -> tools/record-release.sh (command in ckpt 1688)
@@ -1171,12 +1179,14 @@ repository visibility → Public.
 - [x] Found and disclosed the keystore-in-history exposure risk before
       acting on "make it public"
 - [x] Got Tj's explicit, risk-informed decision (public, accepts the risk)
-- [ ] **Tj**: flip visibility himself (I cannot do this from here) - OR
+- [x] **Tj**: flip visibility himself (I cannot do this from here) - DONE: confirmed
+      `"visibility":"public"` via search_repositories on 2026-09-24 - OR
       ask a future session to purge the keystore blob from history first,
       which I offered and he declined for now
-- [ ] Once the repo is confirmed public (a future session can check via
+- [x] Once the repo is confirmed public (a future session can check via
       `search_repositories`'s `visibility` field), the "log in to see the
       link" caveat can be dropped from how release links are announced
+      (public as of 2026-09-24; keystore blob still in history - purge not done)
 
 ## Tj's earlier request, 2026-09-19 (his own words)
 
