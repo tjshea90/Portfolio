@@ -331,4 +331,38 @@ class FullTest0924Test {
         assertTrue("the popup's weight must be capped by the panel's currency like the score's: " +
             "${rec.analystWeight} vs ${panel.currency}", rec.analystWeight <= panel.currency + 1e-9)
     }
+
+    // ---- S-4: an old Research / Advice answer ages from its own date.
+
+    @Test fun `S-4 an answer's asOf decides its age, today's or an unreadable one is now`() {
+        val now = java.time.ZonedDateTime.of(2026, 9, 24, 15, 0, 0, 0,
+            java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
+        val old = ClaudeBridge.answeredAt("2026-09-04", now)!!
+        assertEquals(20L, (now - old) / 86_400_000L)
+        assertEquals(old, ClaudeBridge.answeredAt("Sep 4, 2026", now))
+        assertNull(ClaudeBridge.answeredAt("2026-09-24", now))
+        assertNull(ClaudeBridge.answeredAt("", now))
+        assertNull(ClaudeBridge.answeredAt("yesterday-ish", now))
+    }
+
+    @Test fun `S-4 an old research answer's paragraphs are stamped with its date`() {
+        val tenDaysAgo = java.time.LocalDate.now(java.time.ZoneId.of("America/New_York")).minusDays(10)
+        val parsed = com.tj.portfolio.net.ResearchBridge.parse("""{"portfolioAppResponse":1,
+            "research":{"asOf":"$tenDaysAgo","best":[{"symbol":"XYZ","why":"Cheap today.","conviction":7}]}}""")
+        assertTrue(parsed.error ?: "", parsed.error == null)
+        val at = parsed.answeredAt!!
+        assertTrue(parsed.notes.contains("dated"))
+        val row = com.tj.portfolio.data.ResearchRow(symbol = "XYZ")
+        val merged = com.tj.portfolio.net.ResearchBridge.merge(listOf(row), parsed.best, at).single()
+        assertEquals(at, merged.whyAt)
+        val days = (System.currentTimeMillis() - merged.whyAt) / 86_400_000L
+        assertTrue("stamped $days days ago", days in 9L..10L)
+    }
+
+    @Test fun `S-4 an old advice answer is not generated just now`() {
+        val r = ClaudeBridge.parse("""{"portfolioAppResponse":1,"asOf":"2020-01-02",
+            "advice":{"summary":"Too concentrated in one name.","risks":"","actions":[],"stocks":[]}}""")
+        val gen = r.advice!!.generated
+        assertTrue("generated ${gen} should be in 2020", gen < 1_600_000_000_000L)
+    }
 }
