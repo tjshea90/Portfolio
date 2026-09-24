@@ -345,6 +345,7 @@ object MarketData {
                 Quote(
                     symbol = sym,
                     name = o.optString("shortName").ifBlank { o.optString("longName") },
+                    quoteType = o.optString("quoteType").uppercase(),
                     price = price,
                     // Same rule as the chart parser: never invent a previous close. Left at 0
                     // the UI prints "not available" instead of a confident +0.00%.

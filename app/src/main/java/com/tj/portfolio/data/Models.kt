@@ -179,7 +179,9 @@ data class Quote(
     /** Exchange timestamp of the last regular-session print, when the feed supplies it. */
     val quoteTime: Long = 0L,
     val updated: Long = 0L,
-    val stale: Boolean = false
+    val stale: Boolean = false,
+    /** Yahoo's own EQUITY / ETF / MUTUALFUND / INDEX, from the batch quote; "" when unknown. */
+    val quoteType: String = ""
 ) {
     val dayChange: Double get() = if (prevClose > 0) price - prevClose else 0.0
     val dayChangePct: Double get() = if (prevClose > 0) (price - prevClose) / prevClose * 100.0 else 0.0

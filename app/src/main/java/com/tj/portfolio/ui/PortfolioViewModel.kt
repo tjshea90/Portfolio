@@ -1331,6 +1331,9 @@ internal fun tickRefreshedList(
 internal fun loggedPlanPrice(r: com.tj.portfolio.data.ResearchRow): Double =
     r.planPrice.takeIf { r.planByClaude && it > 0.0 } ?: r.price
 
+/** Yahoo said this is an ordinary share - it has no fund holdings to ask about (2026-09-24b). */
+internal fun holdingsNotNeeded(q: Quote?): Boolean = q?.quoteType == "EQUITY"
+
 /** "1-5;9-12" -> [1..5, 9..12]; junk parts are skipped. See Keys.REPLAY_REPAIR_RANGES (A-2). */
 internal fun parseRepairRanges(raw: String?): List<LongRange> =
     raw.orEmpty().split(';').mapNotNull { part ->
@@ -5355,7 +5358,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
 
-                val fresh = withContext(Dispatchers.IO) {
+                // AN ORDINARY SHARE NEEDS NO SECOND REQUEST (2026-09-24b). The batch quote
+                // already carries Yahoo's own quoteType, and "EQUITY" is exactly the answer the
+                // holdings request would come back with ("not a fund") - one quoteSummary per
+                // stock opened instead of two. Anything else, or no quote yet, still asks.
+                val fresh = if (holdingsNotNeeded(_quotes.value[sym])) {
+                    com.tj.portfolio.data.FundHoldings(sym, isFund = false, quoteType = "EQUITY",
+                        fetched = System.currentTimeMillis())
+                } else withContext(Dispatchers.IO) {
                     runCatching { com.tj.portfolio.net.HoldingsFeed.holdings(sym) }.getOrNull()
                 }
                 if (fresh != null) holdingsRetry.success(sym) else holdingsRetry.failure(sym)
