@@ -5436,7 +5436,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                                 ?.takeIf { !it.stale() }
                                 ?.let { adoptAsSparkline(sym, it) }
                         }
-                
                     } finally {
                         // Released only once the rows are IN MEMORY, so a waiter finds them (C-11).
                         chartDiskInFlight.remove(sym, diskGate)

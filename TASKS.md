@@ -82,7 +82,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       every loser named; +2 tests, EtfExposureTest bounded-test rewritten to the new rule)  [x] U-2 Insider all-companies pull never refetches (Feed pull also refreshMarketInsidersIfEmpty)
       [x] U-3 feed sweep runs under reader/detail (feedListVisible + readerNow key; test)
     - L: C-6..C-12, D-6..D-14, L-5..L-7, N-5..N-12, A-5..A-11, S-3, S-9..S-12, U-4..U-8
-      (tick inline here as done: )
+      (tick inline here as done: C-6 compare mode keyed on a drawn overlay; C-8 1D tip = official close after
+      hours (same session); C-10 no 1969 filed date; C-11 chart disk read awaited; C-12 5D live tip.
+      C-7, C-9 -> Tj's call (see Ideas at the end of this section) )
     - Q: C-Q1..7, L-Q1..3, N-Q1..5, A-Q1..4, S-Q1..5, U-Q1..6 (fix the cheap/clear ones)
 - [ ] Re-run the full suite; re-check anything a fix touched
       (after all H+M: 1384 tests / 0 failures, 2026-09-24 ~15:40 UTC; re-run again after the Ls)
