@@ -4,9 +4,11 @@ package com.tj.portfolio.net
  * THE SAME YAHOO CHART BODY, FETCHED ONCE AND SHARED FOR A FEW SECONDS (full test 2026-09-23,
  * N-1).
  *
- * `range=1d&interval=5m&includePrePost=true` is ONE url with three consumers - the Day Trading
- * technicals ([DayTradingTechnicals]), the 1D chart ([ChartFeed]) and the row sparkline - and
- * the Day Trading sweep asked for it through two of them for every row. The code assumed the
+ * `range=1d&interval=5m&includePrePost=true` is ONE url with two consumers here - the Day
+ * Trading technicals ([DayTradingTechnicals]) and the 1D chart ([ChartFeed]) - and the Day
+ * Trading sweep asked for it through both for every row. (The row sparkline's own fetch,
+ * `MarketData.yahoo`, does not go through this memo - it runs on its own five-minute clock, and
+ * `adoptAsSparkline` already feeds it from a fresh 1D chart. Corrected 2026-09-24, N-Q2.) The code assumed the
  * repeat was a cheap bodyless 304; measured on 2026-09-23, Yahoo's chart endpoint sends no
  * ETag and no Last-Modified (only `cache-control: max-age=10`), so `Http`'s conditional cache
  * never engages for it and every repeat was a full download.
