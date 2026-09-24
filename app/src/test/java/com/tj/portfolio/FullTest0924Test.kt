@@ -6,6 +6,8 @@ import com.tj.portfolio.data.Db
 import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.net.ClaudeBridge
+import com.tj.portfolio.net.FundamentalsFeed
+import com.tj.portfolio.net.HttpResult
 import com.tj.portfolio.net.MarketData
 import com.tj.portfolio.net.SharedAnswer
 import org.junit.Assert.assertEquals
@@ -128,5 +130,42 @@ class FullTest0924Test {
         }
         assertNull(ClaudeBridge.epochDate(42))
         assertNull(ClaudeBridge.epochDate("1726156800000"))
+    }
+
+    // ---- N-3: quoteSummary re-mints the crumb only for a 401.
+
+    private class Probe(val codes: List<Int>) {
+        val urls = ArrayList<String>()
+        val mints = ArrayList<Boolean>()
+        var invalidations = 0
+        suspend fun run(): FundamentalsFeed.YahooReply = FundamentalsFeed.yahooFetchWith(
+            "SPX", "price",
+            get = { url, _ -> urls.add(url); HttpResult(codes[(urls.size - 1).coerceAtMost(codes.size - 1)], "") },
+            mint = { force -> mints.add(force); "crumb" },
+            invalidate = { invalidations++ }
+        )
+    }
+
+    @Test fun `N-3 a 404 on both hosts is two requests and no forced crumb mint`() = kotlinx.coroutines.runBlocking {
+        val p = Probe(listOf(404, 404))
+        assertNull(p.run().result)
+        assertEquals(2, p.urls.size)
+        assertEquals("never forces a handshake", listOf(false), p.mints)
+        assertEquals(0, p.invalidations)
+    }
+
+    @Test fun `N-3 a timeout on both hosts does not retry either`() = kotlinx.coroutines.runBlocking {
+        val p = Probe(listOf(-1, -1))
+        p.run()
+        assertEquals(2, p.urls.size)
+        assertEquals(listOf(false), p.mints)
+    }
+
+    @Test fun `N-3 a 401 still earns exactly one fresh-crumb retry`() = kotlinx.coroutines.runBlocking {
+        val p = Probe(listOf(401, 404, 404))
+        p.run()
+        assertEquals(listOf(false, true), p.mints)
+        assertEquals(1, p.invalidations)
+        assertEquals("401 on query1, then both hosts once more", 3, p.urls.size)
     }
 }

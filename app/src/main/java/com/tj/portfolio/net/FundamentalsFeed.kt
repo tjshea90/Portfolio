@@ -156,7 +156,7 @@ object FundamentalsFeed {
     // ================================================================== Yahoo
 
     /** What one quoteSummary request came back with, so the caller can tell WHY it failed. */
-    private class YahooReply(val result: JSONObject?, val code: Int) {
+    internal class YahooReply(val result: JSONObject?, val code: Int) {
         /**
          * The server understood the request but not the modules in it. Yahoo answers a bad
          * module name with a 4xx rather than by ignoring it, so this is the only condition
