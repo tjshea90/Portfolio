@@ -241,7 +241,7 @@ class EngineTuningTest {
         assertEquals("a small switch-on inside the step is taken as is", Status.ACCEPTED, by.getValue(DayTradingParams.MIN_RR).status)
         assertEquals(1.0, by.getValue(DayTradingParams.MIN_RR).applied!!, 1e-9)
         assertTrue(r.paramsAfter.let { EngineTuning.inconsistency(it) } == null)
-        val ceiling = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.breakout.maxRiskAtrs", 0, 1.5, "setup:breakout"))),
+        val ceiling = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.breakout.maxRiskAtrs", 0, 1.0, "setup:breakout"))),
             EngineTuning.State(), rows).items.single()
         assertEquals(Status.LIMITED, ceiling.status)
         assertEquals(2.5 - 1.2, ceiling.applied!!, 1e-9)                                              // from the global 2.5
