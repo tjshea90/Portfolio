@@ -612,4 +612,18 @@ class FullTest0924Test {
         assertFalse(e.answeredNoBars("<html>busy</html>"))
         assertFalse(e.answeredNoBars("""{"chart":{"result":null,"error":{"code":"Too Many Requests"}}}"""))
     }
+
+    // ---- D-6: after the close, "the last session" is today's.
+
+    @Test fun `D-6 today's session counts as completed from the close, not twenty minutes later`() {
+        val T = com.tj.portfolio.net.DayTradingTechnicals
+        fun day(d: Int) = com.tj.portfolio.net.DayTradingTechnicals.Bar(
+            t = ny(2026, 9, d, 9, 30) / 1000, open = 10.0, high = 11.0 + d, low = 9.0, close = 10.5, volume = 1e6)
+        val daily = listOf(day(24), day(25), day(28))
+        assertEquals("during the session today is still forming", 2,
+            T.completedSessions(daily, ny(2026, 9, 28, 15, 0)).size)
+        val at1605 = T.completedSessions(daily, ny(2026, 9, 28, 16, 5))
+        assertEquals("16:05 - the day is over", 3, at1605.size)
+        assertEquals(11.0 + 28, at1605.last().high, 1e-9)
+    }
 }
