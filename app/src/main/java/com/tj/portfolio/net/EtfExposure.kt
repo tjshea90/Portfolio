@@ -36,6 +36,7 @@ package com.tj.portfolio.net
 object EtfExposure {
 
     private val WHITESPACE = Regex("\\s+")
+    private val STATED_BAND = Regex(" \\d+ \\d+ (year|month) ")
 
     /**
      * One exposure group, or null when the name does not clearly say.
@@ -240,7 +241,6 @@ object EtfExposure {
      */
     /** The name states a maturity band of some kind ("0-5 year", "3-6 month") - R1-6. */
     private fun statesBand(n: String): Boolean = STATED_BAND.containsMatchIn(n)
-    private val STATED_BAND = Regex(" \\d+ \\d+ (year|month) ")
 
     private fun maturityKey(n: String, base: String): String? {
         val band = when {
