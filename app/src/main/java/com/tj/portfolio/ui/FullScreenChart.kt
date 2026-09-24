@@ -93,7 +93,13 @@ fun FullScreenChart(
     compare: ChartSeries?,
     compareLabel: String,
     compareLivePrice: Double,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    // THE "vs SPY" SWITCH IN HERE TOO (chart idea 4, 2026-09-24b) - turning the benchmark on or
+    // off used to mean closing the full-screen view to reach the chip under the inline chart.
+    compareOffered: Boolean = false,
+    compareOn: Boolean = false,
+    compareLoading: Boolean = false,
+    onToggleCompare: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -184,6 +190,10 @@ fun FullScreenChart(
                             loading = loadingRanges,
                             modifier = Modifier.weight(1f)
                         )
+                        if (compareOffered) {
+                            Spacer(Modifier.width(6.dp))
+                            CompareToggle(on = compareOn, loading = compareLoading, onClick = onToggleCompare)
+                        }
                         IconButton(
                             onClick = onClose,
                             modifier = Modifier.testTag(FULLSCREEN_CLOSE_TAG)

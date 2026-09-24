@@ -988,7 +988,15 @@ fun DetailScreen(
             compareLabel = BENCHMARK_SYMBOL,
             compareLivePrice = liveEdgePrice(
                 drawnCompare?.let { quotesMap[BENCHMARK_SYMBOL] }, drawnRange, drawnCompare),
-            onClose = { chartExpanded = false }
+            onClose = { chartExpanded = false },
+            compareOffered = !isBenchmark,
+            compareOn = compareOn && !isBenchmark,
+            compareLoading = chartLoadingSet.contains(compareKey),
+            onToggleCompare = {
+                val next = !compareOn
+                compareOn = next
+                vm.setChartCompare(next)
+            }
         )
     }
 
@@ -1709,7 +1717,7 @@ private fun NewsTab(
  * nearest thing to mis-tap is the range button next to it.
  */
 @Composable
-private fun CompareToggle(on: Boolean, loading: Boolean, onClick: () -> Unit) {
+internal fun CompareToggle(on: Boolean, loading: Boolean, onClick: () -> Unit) {
     // The same amber the line is painted in, so the control and what it turns on are visibly
     // one thing - and the text on it follows the theme, because white does not carry on the
     // bright value. See `benchmarkColor` and `onBenchmark`.
