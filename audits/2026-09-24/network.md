@@ -6,7 +6,8 @@ Read-only audit. No source edits, no network access (reasoned from the code and 
 Checked against HEAD `0b3b8e77`. Yesterday's N-1..N-11 fixes were re-read; see "Checked and
 fine" at the end. Two of them are incomplete and are reported below (N-6, N-10's 403 half).
 
-IN PROGRESS - findings below are verified; more may follow.
+Complete. Every finding below was verified against the code; severities and a summary table
+are at the end.
 
 ---
 
