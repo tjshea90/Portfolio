@@ -164,6 +164,10 @@ fun ResearchScreen(
     var howTo by remember { mutableStateOf(false) }
     val dayTradingStats by vm.dayTradingStats.collectAsState()
     val dayTradingStatsLoading by vm.dayTradingStatsLoading.collectAsState()
+    // The learning loop (2026-09-24c).
+    val engine by vm.engine.collectAsState()
+    val engineReview by vm.engineReview.collectAsState()
+    val engineEvidence by vm.engineEvidence.collectAsState()
 
     // Persisted rather than remembered: this screen leaves composition every time the user
     // visits another bottom-bar tab, so a plain `remember` would drop them back on Trending
@@ -236,6 +240,15 @@ fun ResearchScreen(
     DisposableEffect(section) {
         if (section == Section.DAY_TRADING) vm.startDayTradingLive()
         onDispose { if (section == Section.DAY_TRADING) vm.stopDayTradingLive() }
+    }
+
+    // The tuning card's readiness line follows the graded log (2026-09-24c) - a local read.
+    LaunchedEffect(section, dayTradingStats, engine.version) {
+        if (section == Section.DAY_TRADING) vm.refreshEngineEvidence()
+    }
+    // A Claude tuning answer waiting for approval - shared in or imported (2026-09-24c).
+    engineReview?.let { review ->
+        EngineReviewDialog(review, onApply = { vm.applyEngineReview() }, onDismiss = { vm.dismissEngineReview() })
     }
 
     // ---- "UP TODAY" IS ONLY TRUE WHEN THE MARKET ACTUALLY HAD A TODAY (Round 68 bug fix).
@@ -693,6 +706,17 @@ fun ResearchScreen(
                                 stats = dayTradingStats,
                                 loading = dayTradingStatsLoading,
                                 onCheck = { vm.evaluateDayTradingLog() }
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            EngineTuningCard(
+                                state = engine,
+                                graded = engineEvidence.first,
+                                sinceLastChange = engineEvidence.second,
+                                onMakePrompt = { vm.writeEngineTuningPrompt(sharePrompt) },
+                                onImport = { filePicker.launch(arrayOf("*/*")) },
+                                onUndo = { vm.undoEngineChange() },
+                                onRevert = { vm.revertEngine() },
+                                busy = dayTradingStatsLoading
                             )
                         }
 
