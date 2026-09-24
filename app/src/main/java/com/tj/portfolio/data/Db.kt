@@ -402,6 +402,21 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // Part 9 audit: quotes(updated) never had an index at all. See [createQuoteIndexes].
         runCatching { createQuoteIndexes(db) }
         runCatching { createDayTradingLog(db) }
+        // AND THE TWO ADDED COLUMNS (full test 2026-09-24, A-10). `addColumn` swallows every
+        // error, so an upgrade ALTER that failed for a real reason (disk full mid-upgrade) left
+        // the version stamped without the column - and `watchlistEntries()` selecting
+        // `added_price` then threw inside `init` on every launch. Checked first, so a normal
+        // open costs one PRAGMA per table rather than a thrown "duplicate column".
+        runCatching { ensureColumn(db, "quotes", "quote_time", "INTEGER NOT NULL DEFAULT 0") }
+        runCatching { ensureColumn(db, "watchlist", "added_price", "REAL NOT NULL DEFAULT 0") }
+    }
+
+    private fun ensureColumn(db: SQLiteDatabase, table: String, col: String, decl: String) {
+        val has = db.rawQuery("PRAGMA table_info($table)", null).use { c ->
+            val name = c.getColumnIndex("name")
+            generateSequence { if (c.moveToNext()) c.getString(name) else null }.any { it == col }
+        }
+        if (!has) addColumn(db, table, col, decl)
     }
 
     // ---------- HTTP response cache (Round 56) ----------
