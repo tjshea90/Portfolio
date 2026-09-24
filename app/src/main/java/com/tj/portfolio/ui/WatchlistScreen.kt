@@ -96,6 +96,12 @@ fun WatchTab(
             )
         }
 
+        // EACH SUB-TAB KEEPS ITS OWN SAVED STATE (full test 2026-09-24, U-5). The branch switched
+        // away from leaves composition, and without a holder its `rememberSaveable`s - every
+        // list's scroll position, Research's four section states - were discarded: peek at
+        // Research from row 30 of the watchlist and come back to the top.
+        val saved = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
+        saved.SaveableStateProvider("watch:$subTab") {
         if (subTab == WATCH_RESEARCH) {
             // Build on first sight, and only then - but WHICH list is built is decided inside
             // `ResearchScreen`, by which of its sections is showing (Round 63). The ETF list
@@ -107,6 +113,7 @@ fun WatchTab(
             ResearchScreen(vm, state, onOpen = onOpen, onOpenUrl = onOpenUrl)
         } else {
             WatchlistScreen(vm, state, onOpen, onOpenNews, onSearch)
+        }
         }
     }
 }
