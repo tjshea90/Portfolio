@@ -7716,6 +7716,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val cur = _research.value
         // The answer's own date when it names an earlier day (S-4) - see Parsed.answeredAt.
         val writtenAt = parsed.answeredAt ?: System.currentTimeMillis()
+        // ...but the list counts as refreshed NOW, whatever day the answer names (R1-4).
+        researchImportedAt = System.currentTimeMillis()
         // Rows Claude added go at the end of the page on screen, not after the buffer (S-11).
         fun pageEnd(section: String) =
             _researchShown.value[section] ?: com.tj.portfolio.data.ResearchSet.PAGE
@@ -7735,7 +7737,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 .merge(cur.etfs, parsed.etfs, writtenAt)
                 .sortedWith(compareByDescending<com.tj.portfolio.data.ResearchRow> { it.score }
                     .thenByDescending { it.conviction }),
-            explained = writtenAt.also { researchImportedAt = System.currentTimeMillis() },
+            explained = writtenAt,
             explainedBy = via,
             // MERGED, not overwritten - every other field in this copy is. A second reply
             // that simply omits `notes` used to erase the first one's paragraph.
@@ -7752,7 +7754,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             Triple(com.tj.portfolio.data.ResearchSet.SECTION_BEST, cur.best.size, merged.best.size)
         )) {
             val grew = after - before
-            if (grew > 0) _researchShown.value = _researchShown.value + (section to pageEnd(section) + grew)
+            if (grew > 0) _researchShown.value = _researchShown.value + (section to (pageEnd(section) + grew))
         }
         cacheResearch(merged)
         _researchError.value = null
