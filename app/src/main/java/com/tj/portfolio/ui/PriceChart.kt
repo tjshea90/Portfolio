@@ -64,6 +64,7 @@ import com.tj.portfolio.data.ChartRange
 import com.tj.portfolio.data.ChartSeries
 import com.tj.portfolio.data.ChartWindow
 import com.tj.portfolio.data.approxSpanMs
+import com.tj.portfolio.data.candleMs
 import com.tj.portfolio.util.Fmt
 
 /**
