@@ -8525,7 +8525,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             saveEngine(next)
             toast("Reverted - the day-trading engine is the original again (now v${next.version})")
             replanDayTradingNow()
-        }
+        } }
     }
 
     /**
@@ -9156,7 +9156,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 // point of this section is that it cannot be rebuilt from anywhere else, so
                 // "the backup ran" must not be reported over a copy that silently lost it.
                 val fileDt = got.optJSONArray("dayTradingLog")?.length() ?: -1
-                val liveDt = db.dayTradingLog().size
+                val liveDt = db.dayTradingLogCount()
                 val liveWatch = db.watchlist().size
                 val liveOv = db.overrides().size
                 val liveImp = db.importCount()
