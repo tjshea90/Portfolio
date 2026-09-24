@@ -365,4 +365,38 @@ class FullTest0924Test {
         val gen = r.advice!!.generated
         assertTrue("generated ${gen} should be in 2020", gen < 1_600_000_000_000L)
     }
+
+    // ---- S-5: the app's relative-date earnings line is rebuilt, never frozen as Claude's.
+
+    @Test fun `S-5 the app's earnings phrase is recognised and split from Claude's words`() {
+        val R = com.tj.portfolio.net.Research
+        assertEquals("Earnings in 6 days - Sep 27 (estimated)",
+            R.appEarningsPart("Earnings in 6 days - Sep 27 (estimated)"))
+        assertEquals("", R.claudeCatalystPart("Earnings in 6 days - Sep 27"))
+        assertEquals("FDA decision Friday", R.claudeCatalystPart("Earnings today - FDA decision Friday"))
+        assertEquals("FDA decision Friday", R.claudeCatalystPart("FDA decision Friday"))
+        // Claude's line keeps TODAY's earnings phrase in front, so "earnings due today" survives.
+        val merged = R.combineCatalyst("Earnings today", "Guidance risk on the call")
+        assertTrue(merged, merged.startsWith(R.CATALYST_EARNINGS_TODAY))
+        assertTrue(merged.endsWith("Guidance risk on the call"))
+        assertEquals("Earnings today", R.combineCatalyst("Earnings today", ""))
+        assertEquals("Buyback news", R.combineCatalyst("", "Buyback news"))
+    }
+
+    @Test fun `S-5 a rebuild does not carry a frozen app catalyst over the fresh one`() {
+        val now = System.currentTimeMillis()
+        val old = com.tj.portfolio.data.ResearchSet(best = listOf(com.tj.portfolio.data.ResearchRow(
+            symbol = "XYZ", why = "Cheap.", whyAt = now - 2 * 86_400_000L, conviction = 7,
+            catalyst = "Earnings in 6 days - Sep 27")), generated = now - 3_600_000L)
+        val fresh = com.tj.portfolio.data.ResearchSet(best = listOf(com.tj.portfolio.data.ResearchRow(
+            symbol = "XYZ", catalyst = "Earnings in 4 days - Sep 27")), generated = now)
+        val out = com.tj.portfolio.ui.carryExplanations(old, fresh, now).best.single()
+        assertEquals("Earnings in 4 days - Sep 27", out.catalyst)
+        assertEquals("Claude's paragraph still carries", "Cheap.", out.why)
+        // Claude's own words ride on top of the FRESH phrase.
+        val old2 = old.copy(best = listOf(old.best.single().copy(
+            catalyst = "Earnings in 6 days - Sep 27 - Guidance risk")))
+        assertEquals("Earnings in 4 days - Sep 27 - Guidance risk",
+            com.tj.portfolio.ui.carryExplanations(old2, fresh, now).best.single().catalyst)
+    }
 }
