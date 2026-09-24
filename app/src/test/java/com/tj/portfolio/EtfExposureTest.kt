@@ -253,10 +253,17 @@ class EtfExposureTest {
         assertEquals(exUs, EtfExposure.keyOf("Vanguard FTSE All-World ex-US Index Fund ETF Shares"))
     }
 
-    @Test fun `the list of alternatives is bounded`() {
+    /**
+     * CHANGED IN THE 2026-09-24 FULL TEST (S-8): every fund that lost its place is named. The
+     * old cap of three let a fourth member vanish with no mention anywhere, although the
+     * sources note promises "the rest are named on its card". What keeps the line short now is
+     * that strategy products (Top 50, High Income, High Beta ...) no longer join a plain
+     * index's group, so a real group is three to five funds.
+     */
+    @Test fun `every alternative is named, none silently dropped`() {
         val many = (1..9).map { F("S$it", "Issuer $it S&P 500 ETF") }
         val out = EtfExposure.dedupe(many, name = { it.name }, symbol = { it.sym })
         assertEquals(1, out.size)
-        assertTrue("naming eleven alternatives is a wall of text", out[0].second.size <= 3)
+        assertEquals((2..9).map { "S$it" }, out[0].second)
     }
 }
