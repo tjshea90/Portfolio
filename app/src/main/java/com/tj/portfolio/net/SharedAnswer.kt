@@ -41,6 +41,13 @@ object SharedAnswer {
          */
         BACKUP,
 
+        /**
+         * Only a link - most often the Claude app's "Share chat" link (2026-09-24b). The answer
+         * is not in it (the page behind it is rendered in a browser, behind a sign-in), so it
+         * is said plainly instead of reaching the parser as "no JSON found".
+         */
+        LINK,
+
         /** A Day Trading answer ([DayTradingBridge]). */
         DAY_TRADING,
 
@@ -63,6 +70,7 @@ object SharedAnswer {
         if (!looksLikeText(text)) return Kind.NOT_TEXT
         if (ClaudeBridge.isPromptFile(text)) return Kind.PROMPT_FILE
         if (isBackup(text)) return Kind.BACKUP
+        if (isOnlyLink(text)) return Kind.LINK
         if (DayTradingBridge.looksLikeDayTrading(text)) return Kind.DAY_TRADING
         if (ResearchBridge.looksLikeResearch(text)) return Kind.RESEARCH
         return Kind.CLAUDE
@@ -98,6 +106,15 @@ object SharedAnswer {
         }.getOrDefault(false)
     }
 
+    /** A share that is a URL and a few words at most, with no JSON anywhere in it. */
+    fun isOnlyLink(text: String): Boolean {
+        val t = text.trim()
+        if (t.length > 600 || t.contains('{')) return false
+        return LINK.containsMatchIn(t) && LINK.replace(t, "").trim().length <= 120
+    }
+
+    private val LINK = Regex("""https?://\S+""")
+
     /** What to say when a backup arrives where an answer was expected. */
     const val BACKUP_MESSAGE =
         "That's a Portfolio backup, not a Claude answer - nothing was imported. To restore it, " +
@@ -109,6 +126,10 @@ object SharedAnswer {
         Kind.NOT_TEXT ->
             "That isn't a text file. Share the .md answer file Claude wrote, not an image or PDF."
         Kind.BACKUP -> BACKUP_MESSAGE
+        Kind.LINK ->
+            "That's a link to the chat, not Claude's answer. In the chat, tap the answer file " +
+                "Claude made and share that to Portfolio - or copy Claude's whole reply and share " +
+                "the text."
         Kind.PROMPT_FILE ->
             "That is the prompt file this app wrote - the question, not Claude's answer. Share " +
                 "it to a Claude chat, then share the file Claude writes back here."
