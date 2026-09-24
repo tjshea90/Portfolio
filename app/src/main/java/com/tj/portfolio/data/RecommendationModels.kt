@@ -88,6 +88,12 @@ data class Recommendation(
     val analystDiscounted: Boolean get() = analystWeight < 0.95
 
     /**
+     * Worth a mark on the row's badge (research idea 2, 2026-09-24b): analyst input existed and
+     * was cut for age or thin coverage - so the verdict leans on less than it appears to.
+     */
+    val staleAnalystMark: Boolean get() = analystDiscounted && freshnessNote().isNotBlank()
+
+    /**
      * One line for the popup: how old this verdict's analyst input is and what was done about
      * it. Blank when there was no analyst input at all - a blank is honest, an invented
      * freshness claim is not.

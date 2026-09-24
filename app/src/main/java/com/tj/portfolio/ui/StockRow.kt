@@ -297,12 +297,24 @@ fun StockRowItem(
                             .padding(horizontal = 16.dp, vertical = 9.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            recommendation?.let { verdictWord(it.verdict) } ?: "...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = recommendation?.let { verdictTextColor(it.verdict) } ?: accentText
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                recommendation?.let { verdictWord(it.verdict) } ?: "...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = recommendation?.let { verdictTextColor(it.verdict) } ?: accentText
+                            )
+                            // OLD ANALYST INPUT, SAID ON THE ROW (research idea 2, 2026-09-24b) -
+                            // the popup explains it; the row only has to say it is there.
+                            if (recommendation?.staleAnalystMark == true) {
+                                Text(
+                                    "old ratings",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     }
                     Spacer(Modifier.width(8.dp))
                 }
