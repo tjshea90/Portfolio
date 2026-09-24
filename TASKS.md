@@ -49,7 +49,9 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       thread, ensureActive re-check; HttpCancelTest 3/0, MUTATION-CHECKED; also closes L-Q1)  [x] N-2 one unknown symbol kills
       v7 batch for session (well-formed empty = INCONCLUSIVE; MarketData.batchAnswered; FullTest0924Test)  [x] A-1 backup JSON shared in = Claude answer re-dated today (SharedAnswer.Kind.BACKUP refused on
       share + button paths; ClaudeBridge.epochDate for numeric dates; FullTest0924Test +2)
-      [ ] C-1 pinch/pan into unfetched range kills gesture + blanks chart  [ ] D-1 stale plans
+      [x] C-1 pinch/pan into unfetched range kills gesture + blanks chart (DetailScreen bridgedChart:
+      keep last series+range while a live zoom's series is coming; ZoomIntoUnfetchedUiTest 3/0 incl.
+      a no-bridge control that reproduces the dead gesture)  [ ] D-1 stale plans
       logged with later timestamp/old price
     - M: [ ] C-2 5D "truncated" Fridays  [ ] C-3 vs-SPY All range different starts  [ ] C-4 zoom
       hysteresis missing at 4 boundaries  [ ] C-5 stale benchmark carried flat  [ ] D-2 evening

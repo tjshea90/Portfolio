@@ -1,13 +1,13 @@
-# CHECKPOINT 1658 — read me first, then TASKS.md
+# CHECKPOINT 1659 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T13:49:03Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `b0d9e2e8` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T13:53:01Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `61e1788a` (this checkpoint is the commit after it)
 
 ## Just done
-N-2 fixed (empty well-formed v7 answer no longer disables batch) + A-1 fixed (backup refused as answer, epoch dates kept); FullTest0924Test 4/0, ShareFlowTest 13/0
+C-1 fixed: zoom into unfetched range keeps last series drawn (bridgedChart) so the gesture node survives; ZoomIntoUnfetchedUiTest 3/0 (control reproduces bug)
 
 ## Do this next
-C-1 (pinch into unfetched range), D-1 (stale DT plans logged), then Ms
+D-1 (stale DT plans logged), then Ms
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ C-1 (pinch into unfetched range), D-1 (stale DT plans logged), then Ms
 
 ## Last ten checkpoints
 ```
+  85278c6f ckpt 1658: N-2 fixed (empty well-formed v7 answer no longer disables batch) + A-1 fixed
   3a66627f ckpt 1657: L-1/N-1 fixed: Http cancel hook now fires on cancelling (was on completion =
   6fe3086d ckpt 1656: All 7 audit reports complete (7H/~25M/~50L). U-1 fixed: per-surface spinner 
   f993b5be ckpt 1655: Resumed after usage cap: 7 audit agents died 07:43 with partial reports (net
@@ -26,7 +27,6 @@ C-1 (pinch into unfetched range), D-1 (stale DT plans logged), then Ms
   d75a8027 ckpt 1651: Launched 7 parallel read-only audits -> audits/2026-09-24/*.md; floor gradle
   b8c15e9c ckpt 1650: Recorded Tj request 2026-09-24: full tests
   370bfa4c ckpt 1649: v7.39 shipped: run green on rerun, Release published, BUILDLOG recorded, TAS
-  3243632a ckpt 1648: v7.39 run 35894509527 failed in emulator SDK download (infra, before any tes
 ```
 
 (5 automatic checkpoint(s) since the last deliberate one — the
