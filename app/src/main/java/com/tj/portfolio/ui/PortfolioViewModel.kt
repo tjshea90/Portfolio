@@ -1361,6 +1361,10 @@ internal fun planCrossings(
     return out
 }
 
+/** A drop from [max] to [now] rows too large to be a slip: a fifth of the ledger, and at least ten rows. */
+internal fun ledgerShrankSilently(max: Int, now: Int): Boolean =
+    now in 1 until max && max - now >= maxOf(10, max / 5)
+
 /** Yahoo said this is an ordinary share - it has no fund holdings to ask about (2026-09-24b). */
 internal fun holdingsNotNeeded(q: Quote?): Boolean = q?.quoteType == "EQUITY"
 
@@ -2223,6 +2227,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private val _dataMissing = MutableStateFlow(false)
     val dataMissing: StateFlow<Boolean> = _dataMissing.asStateFlow()
+    /** (had, has) when the ledger shrank without a delete made in the app - see recompute(). */
+    private val _dataShrank = MutableStateFlow<Pair<Int, Int>?>(null)
+    val dataShrank: StateFlow<Pair<Int, Int>?> = _dataShrank.asStateFlow()
 
     /**
      * Set when this install has NEVER held a transaction, but a copy of a portfolio is
@@ -3038,6 +3045,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     fun dismissDataMissing() { _dataMissing.value = false }
 
+    /** A delete made in the app: the new, smaller count is the one to measure from. */
+    private fun acknowledgeTxnCount() {
+        runCatching { db.set(Keys.MAX_TXN_COUNT, db.txnCount().toString()) }
+        _dataShrank.value = null
+    }
+
+    /** "Yes, I meant that" - also what the warning's Dismiss does. */
+    fun dismissDataShrank() = acknowledgeTxnCount()
+
     /**
      * A moment inside the trading SESSION the current quotes describe.
      *
@@ -3071,6 +3087,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         } else if (known > 0) {
             _dataMissing.value = true
         }
+        // ---- AND A LEDGER THAT SHRANK WITHOUT A DELETE (2026-09-24b). Only ever a warning:
+        // it points at the kept larger copy and restores nothing by itself, so a false alarm
+        // cannot bring deliberately deleted rows back.
+        val max = db.get(Keys.MAX_TXN_COUNT).toIntOrNull() ?: 0
+        if (txns.size > max) db.set(Keys.MAX_TXN_COUNT, txns.size.toString())
+        else if (txns.isNotEmpty() && ledgerShrankSilently(max, txns.size)) _dataShrank.value = max to txns.size
 
         // The SESSION the quotes describe, not the wall clock - see sessionInstant().
         val session = sessionInstant()
@@ -4219,7 +4241,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** See [Keys.REPLAY_REPAIR_RANGES]. */
     private fun replayRepairRanges(): List<LongRange> = parseRepairRanges(db.get(Keys.REPLAY_REPAIR_RANGES))
 
-    fun deleteTxn(id: Long) { db.deleteTxn(id); resetMarkIfEmptied(); recompute() }
+    fun deleteTxn(id: Long) { db.deleteTxn(id); resetMarkIfEmptied(); acknowledgeTxnCount(); recompute() }
 
     /**
      * A ledger emptied BY HAND is not a ledger that vanished (full test 2026-09-23, A-11).
@@ -4242,6 +4264,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val sym = symbol.uppercase()
         snapshotBefore("delete-$sym")
         val n = db.deleteTxnsForSymbol(sym)
+        acknowledgeTxnCount()
         db.clearOverride(sym)
         db.removeWatch(sym)
         resetMarkIfEmptied()
@@ -8882,6 +8905,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 if (replace) snapshotBefore("replace")
                 preMax = db.maxTxnId()
                 runCatching { db.restoreJson(json, replace) }
+                    .also { if (replace) acknowledgeTxnCount() }
                     .getOrElse { Db.RestoreResult(error = "Restore failed: ${it.message}") }
             }
             if (r.error == null) {
@@ -8958,6 +8982,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun wipeTransactions() {
         snapshotBefore("wipe")
         db.deleteAllTxns()
+        acknowledgeTxnCount()
         // THE OVERRIDES GO WITH THEM (full test 2026-09-23, A-7). They pin a symbol's shares
         // and basis against its history; with no history they did nothing - until the usual
         // reason for a wipe, re-importing everything cleanly, brought them silently back into

@@ -57,6 +57,7 @@ fun PortfolioScreen(
     var pending by rememberSaveable(stateSaver = PendingAction.Saver) { mutableStateOf<PendingAction?>(null) }
     val rows = state.rows.filter { !it.watchOnly }
     val dataMissing by vm.dataMissing.collectAsState()
+    val dataShrank by vm.dataShrank.collectAsState()
     val recoverable by vm.recoverableBackup.collectAsState()
     var restoring by remember { mutableStateOf(false) }
 
@@ -144,6 +145,33 @@ fun PortfolioScreen(
 
         Refreshable(refreshing = state.pulling(PULL_PRICES), onRefresh = { vm.refresh(manual = true) }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            dataShrank?.let { (had, has) ->
+                item(key = "shrank") {
+                    Column(Modifier.fillMaxWidth().padding(16.dp)) {
+                        StatCard {
+                            Text(
+                                "${had - has} transactions may be missing",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = redText
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "This ledger held $had transactions and now holds $has, and " +
+                                    "nothing in the app deleted them. The larger copy is kept as " +
+                                    "portfolio-autosave-previous.json in Downloads/Portfolio, and in " +
+                                    "the daily copies - restore it from Settings > Backup and " +
+                                    "restore with Merge, which only adds what is missing.",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            OutlinedButton(
+                                onClick = { vm.dismissDataShrank() },
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                            ) { Text("I deleted them - dismiss") }
+                        }
+                    }
+                }
+            }
             item {
                 SummaryHeader(
                     state.totals, state.lastRefresh, state.error,

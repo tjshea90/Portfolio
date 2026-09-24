@@ -2344,6 +2344,13 @@ object Keys {
     const val LAST_TXN_COUNT = "last_txn_count"
 
     /**
+     * The most transactions the ledger has held, lowered ONLY by a delete, a wipe or a Replace
+     * restore made in the app (2026-09-24b, persistence idea 3). [LAST_TXN_COUNT] can only see
+     * "empty"; this sees a ledger that silently lost a large share of its rows.
+     */
+    const val MAX_TXN_COUNT = "max_txn_count"
+
+    /**
      * The first transaction id that postdates chronological imports - rows below it may still
      * be stored in screen order and are candidates for `Ledger.replayOrder`'s repair; rows at
      * or above it never are (full test 2026-09-23, A-2). Per device: ids are, so it is not
