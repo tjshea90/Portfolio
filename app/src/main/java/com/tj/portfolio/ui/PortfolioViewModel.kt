@@ -1276,6 +1276,7 @@ internal fun mergeDayTradingTech(
         planPrice = if (plan != null) price else keepOrClear(row.planPrice, confirmedDecline),
         planDeclineStreak = declineStreak,
         planByClaude = claudePlanStands,
+        planAt = if (claudePlanStands) row.planAt else 0L,   // R1-7: Claude's stamp, with its plan
         // SAME RULE AS THE LEVELS ABOVE, one tick later than `declined` alone. A real plan
         // clears it immediately; an UNCONFIRMED decline keeps whatever was already there
         // (blank, on a row that has never shown a reason yet) so the reason cannot flash in
