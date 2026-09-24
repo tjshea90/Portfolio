@@ -7121,13 +7121,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * error because Yahoo rate-limited one burst would be the app punishing the user for
      * Yahoo's throttle. Same rule `loadResearch` already follows for the stock lists.
      */
+    /**
+     * A pull (the only forced caller) that lands during a Claude pass or an analyst pass used to
+     * retract and do nothing, silently (full test 2026-09-24, U-4) - say why.
+     */
+    private fun toastResearchBusy() =
+        toast("Research is busy with another update - pull again when it finishes")
+
     fun loadEtfs(force: Boolean = false) {
         // Same cold-start rule as [loadResearch] (U-2): the fund list is in that same cache.
         if (!researchCacheReady.isCompleted) {
             viewModelScope.launch { researchCacheReady.await(); loadEtfs(force) }
             return
         }
-        if (_researchBusy.value.isNotEmpty()) return
+        if (_researchBusy.value.isNotEmpty()) { if (force) toastResearchBusy(); return }
         if (!force && !etfsStale()) return
         if (!force && researchRetry.blocked(RETRY_ETFS)) return
         if (force) researchRetry.clear()
@@ -7217,7 +7224,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             viewModelScope.launch { researchCacheReady.await(); loadResearch(force) }
             return
         }
-        if (_researchBusy.value.isNotEmpty()) return
+        if (_researchBusy.value.isNotEmpty()) { if (force) toastResearchBusy(); return }
         if (!force && !researchStale()) {
             // Cached rows can still be missing their per-row lookups - finish those instead.
             enrichVisible()
