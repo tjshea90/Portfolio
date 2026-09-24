@@ -3,6 +3,7 @@ package com.tj.portfolio
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import com.tj.portfolio.data.Db
+import com.tj.portfolio.data.approxSpanMs
 import com.tj.portfolio.data.Txn
 import com.tj.portfolio.data.TxnType
 import com.tj.portfolio.domain.Ledger
@@ -575,9 +576,9 @@ class FullTest0924Test {
 
     @Test fun `C-4 wobbling around every ladder boundary settles instead of flipping`() {
         val R = com.tj.portfolio.data.ChartRange
-        val ladder = R.ZOOM_LADDER
+        val ladder = R.ZOOM_LADDER          // widest first
         for (i in 0 until ladder.size - 1) {
-            val fine = ladder[i]; val coarse = ladder[i + 1]
+            val coarse = ladder[i]; val fine = ladder[i + 1]
             val edge = fine.approxSpanMs
             var cur = R.rangeForSpan((edge * 1.01).toLong(), fine)
             assertEquals("just past ${fine.label} needs ${coarse.label}", coarse, cur)
