@@ -109,7 +109,9 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
 ### Part 3 - verify and ship
 - [x] Full unit suite + checkinit green after all changes; review the whole diff for breakage
       (1452 tests / 0 failures; checkinit ok; callers of every changed signature re-grepped)
-- [ ] Ship (auto-ship rule), post the Release link, summarize
+- [x] Ship (auto-ship rule), post the Release link, summarize
+      DONE 18:40 UTC: run #43 green, Release v7.41 published (Portfolio-v7.41.apk), BUILDLOG
+      recorded. https://github.com/tjshea90/Portfolio/releases/tag/v7.41
       18:29 UTC: v7.41 / code 98 gated by ship.sh and pushed (d8bea44d); android.yml
       full_build run 36041591641 (#43). NEXT: green -> get_release_by_tag v7.41 ->
       tools/record-release.sh (command in ckpt 1697) -> post the link + summary.
