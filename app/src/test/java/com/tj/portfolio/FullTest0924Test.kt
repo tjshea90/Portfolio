@@ -1015,4 +1015,20 @@ class FullTest0924Test {
         assertTrue(done)
         assertEquals(0, vm.advicePreparing.value)
     }
+
+    // ---- S-Q1: the verdict band is symmetric at exact halves.
+
+    @Test fun `S-Q1 mirror-image scores get mirror-image verdicts`() {
+        val R = com.tj.portfolio.net.ResearchScore
+        assertEquals(62, R.roundTowardMid(62.5)); assertEquals(38, R.roundTowardMid(37.5))
+        assertEquals(63, R.roundTowardMid(62.6)); assertEquals(37, R.roundTowardMid(37.4))
+        assertEquals(50, R.roundTowardMid(50.5)); assertEquals(50, R.roundTowardMid(49.5))
+        for (d in listOf(12.5, 13.0, 12.4, 12.6, 20.0)) {
+            val up = R.verdictFor(R.roundTowardMid(50 + d))
+            val down = R.verdictFor(R.roundTowardMid(50 - d))
+            val mirror = mapOf(com.tj.portfolio.data.TradeVerdict.BUY to com.tj.portfolio.data.TradeVerdict.SELL,
+                com.tj.portfolio.data.TradeVerdict.HOLD to com.tj.portfolio.data.TradeVerdict.HOLD)
+            assertEquals("50 +/- $d", mirror[up], down)
+        }
+    }
 }

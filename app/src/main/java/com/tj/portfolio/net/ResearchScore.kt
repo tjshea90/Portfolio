@@ -2047,8 +2047,17 @@ object ResearchScore {
         // ROUNDED, NOT TRUNCATED (full test 2026-09-23, S-5): `toInt()` cuts toward zero, so the
         // band [verdictFor] draws around 50 was lopsided - SELL at anything under 38.0, BUY only
         // from 63.0 - and two mirror-image stocks got HOLD and SELL.
-        return Scored(s.coerceIn(0.0, 100.0).roundToInt(), why, confidence(have, want))
+        return Scored(roundTowardMid(s.coerceIn(0.0, 100.0)), why, confidence(have, want))
     }
+
+    /**
+     * Nearest integer, with an exact half going TOWARD 50 (full test 2026-09-24, S-Q1). Plain
+     * half-up rounding was still lopsided at the edges of [verdictFor]'s dead band: 62.5 became
+     * 63 (BUY) while its mirror 37.5 became 38 (HOLD). Both are "could not clear a real margin"
+     * cases, so both stay HOLD.
+     */
+    internal fun roundTowardMid(s: Double): Int =
+        if (s > 50.0) kotlin.math.ceil(s - 0.5).toInt() else kotlin.math.floor(s + 0.5).toInt()
 
     /**
      * How far above the entry a resistance level has to sit before it can be the target,
