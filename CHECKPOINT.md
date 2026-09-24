@@ -1,13 +1,13 @@
-# CHECKPOINT 1675 — read me first, then TASKS.md
+# CHECKPOINT 1676 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T15:46:19Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-tests-completion-tw9a1o` · **builds on:** `5feb55dc` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T15:57:32Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-tests-completion-tw9a1o` · **builds on:** `c4ebdf7d` (this checkpoint is the commit after it)
 
 ## Just done
-Resumed full tests (new session): resume point = D-9/D-10 then remaining Ls
+D-9 fixed: beginner card direction from plan (planPrice/setup), reached-entry branch; +2 tests green
 
 ## Do this next
-D-9, D-10, then L-5..7, N-5..12, A-5..11, S-3, S-9..12, U-4..8, Qs, suite, review, ship
+D-10 (tech bonus fixed at first sweep), then L-5..7, N-5..12, A-5..11, S-3, S-9..12, U-4..8
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ D-9, D-10, then L-5..7, N-5..12, A-5..11, S-3, S-9..12, U-4..8, Qs, suite, revie
 
 ## Last ten checkpoints
 ```
+  89ea37ee ckpt 1675: Resumed full tests (new session): resume point = D-9/D-10 then remaining Ls
   5feb55dc ckpt 1674: DT Ls fixed: D-6, D-7, D-8, D-11, D-12, D-13, D-14 (+tests); DT suites green
   dd6c0aac ckpt 1673: Chart Ls fixed: C-6, C-8, C-10, C-11, C-12 (C-7/C-9 are design questions for
   4207b8ac ckpt 1672: C-2..C-5 fixed (5D Friday truncation, SPY anchor, zoom hysteresis margin, st
@@ -27,3 +28,6 @@ D-9, D-10, then L-5..7, N-5..12, A-5..11, S-3, S-9..12, U-4..8, Qs, suite, revie
   4bf2d7a7 ckpt 1667: S-5 fixed: app's relative earnings phrase rebuilt each time, Claude's words 
   d1de6713 ckpt 1666: S-4 fixed: old Research/Advice answers age from their asOf (answeredAt), not
 ```
+
+(4 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
