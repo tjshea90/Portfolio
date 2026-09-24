@@ -1124,7 +1124,8 @@ internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
 @Composable
 internal fun BeginnerSummaryCard(r: ResearchRow) {
     val s = com.tj.portfolio.net.ResearchScore.beginnerSummary(
-        r.symbol, r.price, r.entryPrice, r.stopPrice, r.targetPrice, r.tooLateToStart
+        r.symbol, r.price, r.entryPrice, r.stopPrice, r.targetPrice, r.tooLateToStart,
+        setup = r.setup, planPrice = r.planPrice
     ) ?: return
     Spacer(Modifier.height(9.dp))
     Column(

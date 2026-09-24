@@ -1408,7 +1408,14 @@ object ResearchScore {
          * summary at all", and the beginner reading the simple sentence is precisely the reader
          * least equipped to notice the technical line above disagreeing with it.
          */
-        tooLateToStart: Boolean = false
+        tooLateToStart: Boolean = false,
+        /**
+         * The plan's own direction (D-9, full test 2026-09-24) - [com.tj.portfolio.data.
+         * ResearchRow.setup] and [com.tj.portfolio.data.ResearchRow.planPrice]. See
+         * [planEntryRises]; with neither known, the live price decides, as it always did.
+         */
+        setup: String = "",
+        planPrice: Double = 0.0
     ): BeginnerSummary? {
         if (price <= 0.0 || entry <= 0.0 || stop <= 0.0 || target <= 0.0) return null
         val risk = entry - stop
@@ -1461,8 +1468,26 @@ object ResearchScore {
                     "small.$thin",
                 skip = false
             )
+            // THE PRICE ALREADY TRADED THROUGH THE ENTRY (full test 2026-09-24, D-9). Reading
+            // the direction off the live price flipped the plan's own instruction here: a
+            // pullback plan (buy-limit at 100, made with the stock at 105) whose stock dipped
+            // to 99.20 read "Buy if it climbs to $100.00" - and a Claude plan is never re-planned,
+            // so it stayed that way. The plan's direction comes from the plan; the live price
+            // only says whether its buy level has been reached.
+            (planEntryRises(setup, entry, planPrice) ?: (entry > price)).let { rises ->
+                if (rises) price > entry else price < entry
+            } -> BeginnerSummary(
+                headline = "It already reached the buy price (${Fmt.price(entry)}) - sell at " +
+                    "${Fmt.price(target)} for a profit.",
+                explanation = "The level this plan was waiting for has already traded, so a " +
+                    "buy order sitting there would have gone through. If you're not in yet, " +
+                    "only buy close to ${Fmt.price(entry)} - not chasing it further. If it " +
+                    "falls to ${Fmt.price(stop)} instead of going up, sell there too to keep " +
+                    "a loss small.$thin",
+                skip = false
+            )
             else -> {
-                val climbing = entry > price
+                val climbing = planEntryRises(setup, entry, planPrice) ?: (entry > price)
                 val direction = if (climbing)
                     "It hasn't proven the move is real yet, so this waits for it to climb a " +
                         "little higher first - buying too early risks jumping in before " +
@@ -1481,6 +1506,20 @@ object ResearchScore {
                 )
             }
         }
+    }
+
+    /**
+     * Does this plan's entry sit ABOVE the price it was made at (a buy-stop the stock has to
+     * climb to) or BELOW it (a buy-limit it has to drop to)? Null when the plan does not say.
+     * The price at planning time is the direct answer; the setup name is exact for the app's
+     * own three setups ([tradePlan]'s header) and is not trusted for any other text, since a
+     * Claude setup is free text (see `DayTradingEval.entryRises` for the bug that caused).
+     */
+    internal fun planEntryRises(setup: String, entry: Double, planPrice: Double): Boolean? = when {
+        planPrice > 0.0 && abs(entry - planPrice) > 1e-9 -> entry > planPrice
+        setup == SETUP_PULLBACK -> false
+        setup == SETUP_BREAKOUT || setup == SETUP_RECLAIM -> true
+        else -> null
     }
 
     // ================================================== LIKELIHOOD x CONFIDENCE (Round 72)
