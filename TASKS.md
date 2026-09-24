@@ -10,10 +10,12 @@ one audits the WHOLE app again with a different split so fresh eyes land on code
 split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
 
 - [ ] Floor: `python3 tools/checkinit.py` + `bash tools/gradle.sh testDebugUnitTest`
-- [ ] 7 parallel read-only audits; each writes its FULL report to
+- [ ] 7 parallel read-only audits (launched ~session start 2026-09-24); each writes its FULL report to
       audits/2026-09-24/{scoring,daytrading,network,persistence,charts,screens,lifecycle}.md
       (a resumed session re-reads the files instead of re-running; a MISSING file = that
       agent did not finish -> re-run just that one). Agents: no network, no gradle, no git.
+      A report is complete ONLY if its last line is `## END OF REPORT (complete)`; a file
+      without it is partial -> re-run that agent (it may keep the partial file as a head start).
 - [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
       tests. Tick each ID here when fixed+tested, or mark "no change" with the reason.
 - [ ] Re-run the full suite; re-check anything a fix touched
