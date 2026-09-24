@@ -901,7 +901,14 @@ class FullTest0924Test {
     @Test fun `A-10 a watchlist missing added_price is repaired when the database opens`() {
         val db = Db(app)
         db.addWatch("AAPL")
-        db.writableDatabase.execSQL("ALTER TABLE watchlist DROP COLUMN added_price")
+        // The shape an upgrade whose v8 ALTER failed leaves behind (no DROP COLUMN in this SQLite).
+        db.writableDatabase.apply {
+            execSQL("CREATE TABLE w_old AS SELECT symbol, added FROM watchlist")
+            execSQL("DROP TABLE watchlist")
+            execSQL("CREATE TABLE watchlist(symbol TEXT PRIMARY KEY, added INTEGER)")
+            execSQL("INSERT INTO watchlist SELECT symbol, added FROM w_old")
+            execSQL("DROP TABLE w_old")
+        }
         db.close()
         val reopened = Db(app)
         assertEquals(listOf("AAPL"), reopened.watchlistEntries().map { it.symbol })
