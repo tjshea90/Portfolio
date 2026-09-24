@@ -562,10 +562,6 @@ object Http {
             return@withContext HttpResult(HttpResult.CODE_COOLDOWN, "rate limited, backing off")
         }
 
-        // Counted here, after the cooldown gate: a request the app declined to send is not
-        // traffic the provider ever saw, and including it would overstate the load.
-        noteRequest(host)
-
         val prior = if (conditionalKey) cachedFor(cacheKey) else null
         // AN ATOMIC HOLDER, NOT A CAPTURED `var`. The cancellation handler below runs on
         // whichever thread called `cancel()` - the main thread, from `setForeground(false)` -
@@ -592,6 +588,10 @@ object Http {
                 return@withPermit HttpResult(HttpResult.CODE_COOLDOWN, "rate limited, backing off")
             }
         }
+        // Counted here, after BOTH cooldown checks (full test 2026-09-24, N-Q3): a request the
+        // app declined to send is not traffic the provider ever saw, and including it would
+        // overstate the load.
+        noteRequest(host)
         // CANCELLATION HAS TO REACH THE SOCKET, or it is not cancellation.
         //
         // `HttpURLConnection` blocks in `read()`, and coroutine cancellation is cooperative -
@@ -735,8 +735,14 @@ object Http {
         if (st != null && System.currentTimeMillis() < st.until) {
             return@withContext HttpResult(HttpResult.CODE_COOLDOWN, "rate limited, backing off")
         }
-        noteRequest(host)
         gateFor(host).withPermit {
+            // Re-checked once the permit is held, and counted only then - same as get() (N-Q3).
+            hosts[host]?.let { h ->
+                if (System.currentTimeMillis() < h.until) {
+                    return@withContext HttpResult(HttpResult.CODE_COOLDOWN, "rate limited, backing off")
+                }
+            }
+            noteRequest(host)
             // Same reasoning as get()'s connRef: an AtomicReference, not a captured `var`,
             // so the cancellation handler (running on whichever thread called cancel()) is
             // guaranteed to see the connection the IO thread assigned.

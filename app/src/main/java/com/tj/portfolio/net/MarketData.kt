@@ -61,7 +61,8 @@ object MarketData {
      */
     private const val BATCH_FAILURES_BEFORE_GIVING_UP = 3
 
-    @Volatile private var batchFailures = 0
+    /** Atomic (N-Q4): `refresh()` and `fillPricesNow` can run `quotes()` at the same time. */
+    private val batchFailures = java.util.concurrent.atomic.AtomicInteger(0)
 
     /**
      * Give the batch endpoint another chance.
@@ -73,9 +74,9 @@ object MarketData {
      * ran one request per symbol. That is the exact traffic shape the batch exists to remove,
      * made permanent by the mechanism meant to protect against it.
      */
-    fun resetBatchState() { batchFailures = 0 }
+    fun resetBatchState() { batchFailures.set(0) }
 
-    val batchDisabled: Boolean get() = batchFailures >= BATCH_FAILURES_BEFORE_GIVING_UP
+    val batchDisabled: Boolean get() = batchFailures.get() >= BATCH_FAILURES_BEFORE_GIVING_UP
 
     /**
      * Quotes for many symbols, in as few requests as possible.
@@ -118,10 +119,10 @@ object MarketData {
             // exactly the moments when falling back to one request per symbol makes the
             // situation worse rather than better. Counting them was how three seconds of no
             // signal at launch could disable the batch for the whole session.
-            batchFailures = when (verdict) {
-                Batch.OK -> 0
-                Batch.INCONCLUSIVE, Batch.COOLING -> batchFailures
-                Batch.FAILED -> batchFailures + 1
+            when (verdict) {
+                Batch.OK -> batchFailures.set(0)
+                Batch.INCONCLUSIVE, Batch.COOLING -> Unit
+                Batch.FAILED -> batchFailures.incrementAndGet()
             }
             batchCooling = verdict == Batch.COOLING
         }

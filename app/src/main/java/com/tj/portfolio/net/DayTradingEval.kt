@@ -65,7 +65,7 @@ object DayTradingEval {
             // CONDITIONAL in case Yahoo ever sends a validator for this CLOSED, immutable window -
             // but as of 2026-09-23 its chart endpoint sends none, so this is a full download per
             // press (N-1); what bounds the cost is the per-press cap in `evaluateDayTradingLog`.
-            val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
+            val r = Http.get(url, mapOf("Accept" to "application/json"))
             if (r.throttledLocally) continue
             // A 404 IS AN ANSWER: "no data found, symbol may be delisted" (D-12) - and an
             // answer needs no second host asking the same question (N-12).

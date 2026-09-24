@@ -357,7 +357,7 @@ object DayTradingTechnicals {
             RecentBodies.get(url)?.let { body ->
                 runCatching { parseBars(body) }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
             }
-            val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
+            val r = Http.get(url, mapOf("Accept" to "application/json"))
             if (r.throttledLocally) continue
             if (!r.ok) continue
             val parsed = runCatching { parseBars(r.body) }.getOrNull()

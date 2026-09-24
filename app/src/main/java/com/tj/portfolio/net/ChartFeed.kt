@@ -62,7 +62,7 @@ object ChartFeed {
                 runCatching { parse(symbol, range, body) }.getOrNull()
                     ?.takeIf { !it.isEmpty }?.let { return it }
             }
-            val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
+            val r = Http.get(url, mapOf("Accept" to "application/json"))
             if (r.throttledLocally) continue
             if (!r.ok) continue
             val parsed = runCatching { parse(symbol, range, r.body) }.getOrNull()
