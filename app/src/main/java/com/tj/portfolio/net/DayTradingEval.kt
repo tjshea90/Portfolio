@@ -383,6 +383,7 @@ object DayTradingEval {
     fun stats(entries: List<DayTradingLogEntry>, now: Long = System.currentTimeMillis()): DayTradingStats {
         var targetHit = 0; var stopHit = 0; var closedProfit = 0; var closedLoss = 0
         var noEntry = 0; var pending = 0; var dataUnavailable = 0; var legacy = 0; var regrading = 0
+        var unchecked = 0; var appTrades = 0; var claudeTrades = 0
         var res1 = 0; var res5 = 0
         val returns = ArrayList<Double>()
         val netReturns = ArrayList<Double>()
@@ -420,11 +421,13 @@ object DayTradingEval {
                 rMultiples.add(r)
                 val perEquity = ResearchScore.dayTradeSharesPerEquity(e.entry, e.stop)
                 accountAll += perEquity * (got - paid)
-                if (perEquity < ResearchScore.dayTradeRiskFraction() / risk - 1e-12) capped++
+                val isCapped = perEquity < ResearchScore.dayTradeRiskFraction() / risk - 1e-12
+                if (isCapped) capped++
                 trades.add(Trade(e, r, perEquity * (got - paid), perEquity * paid,
-                    d?.fillAt ?: (e.recordedAt / 1000L), d?.exitAt ?: (e.recordedAt / 1000L)))
+                    d?.fillAt ?: (e.recordedAt / 1000L), d?.exitAt ?: (e.recordedAt / 1000L), isCapped))
             }
             if (d?.res == 1) res1++ else res5++
+            if (e.source == DayTradingLogEntry.SOURCE_CLAUDE) claudeTrades++ else appTrades++
         }
 
         for (e in entries) {
@@ -443,7 +446,9 @@ object DayTradingEval {
                 DayTradingOutcome.CLOSED_LOSS -> { closedLoss++; record(e, e.outcomeExitPrice ?: e.entry, d) }
                 DayTradingOutcome.NO_ENTRY -> noEntry++
                 DayTradingOutcome.DATA_UNAVAILABLE -> dataUnavailable++
-                else -> pending++ // null (never evaluated) reads the same as an explicit PENDING
+                // Never evaluated, for a session already over: "not checked yet", not "in progress" (UI-26).
+                null -> if (sessionSettled(e.tradingDay, now)) unchecked++ else pending++
+                else -> pending++
             }
         }
         val decided = targetHit + stopHit + closedProfit + closedLoss
@@ -476,7 +481,8 @@ object DayTradingEval {
             totalR = totalR,
             avgR = if (rMultiples.isNotEmpty()) totalR / rMultiples.size else 0.0,
             accountReturnPct = funded.sumOf { it.account } * 100.0,
-            cappedTrades = capped,
+            // OF THE TRADES IN THAT FIGURE (UI-2) - counted over every trade, it could exceed them.
+            cappedTrades = funded.count { it.capped },
             // EVERY row's session, not just the decided ones - "42 picks across 9 sessions" is
             // the context an average per trade needs, and a day whose picks all expired without
             // triggering is still a day the system was followed.
@@ -498,13 +504,17 @@ object DayTradingEval {
             profitableLow = pLow,
             profitableHigh = pHigh,
             unfundedTrades = trades.size - funded.size,
-            accountReturnAllPct = accountAll * 100.0
+            accountReturnAllPct = accountAll * 100.0,
+            fundedTrades = funded.size,
+            unchecked = unchecked,
+            appTrades = appTrades,
+            claudeTrades = claudeTrades
         )
     }
 
     /** One decided trade, for the capital simulation and the drawdown. */
     private class Trade(val e: DayTradingLogEntry, val r: Double, val account: Double,
-                        val notional: Double, val fillAt: Long, val exitAt: Long)
+                        val notional: Double, val fillAt: Long, val exitAt: Long, val capped: Boolean = false)
 
     /**
      * THE TRADES AN ACCOUNT COULD ACTUALLY HAVE HELD AT ONCE (2026-09-24c, audit E8). Each is
@@ -612,7 +622,7 @@ object DayTradingEval {
             com.tj.portfolio.data.StatSlice("Engine version (the app's plans)", label, rows.size,
                 rows.count { it.outcome == DayTradingOutcome.WIN }, rows.count { profitable(it) },
                 rows.sumOf { rOf(it) })
-        }.sortedBy { it.label }
+        }.sortedBy { it.label.substringAfterLast('v').toIntOrNull() ?: -1 }   // v2 before v10 (UI-16)
     }
 
     /** "v0" -> "Original engine", "v3" -> "Tuned engine v3"; older rows carry no label. */

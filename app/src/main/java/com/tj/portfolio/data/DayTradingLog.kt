@@ -211,14 +211,26 @@ data class DayTradingStats(
      */
     val unfundedTrades: Int = 0,
     /** [accountReturnPct] as if every trade could have been funded - shown only for comparison. */
-    val accountReturnAllPct: Double = 0.0
+    val accountReturnAllPct: Double = 0.0,
+    /** The decided trades [accountReturnPct] is made of - the fundable ones (UI-2). */
+    val fundedTrades: Int = 0,
+    /** Recommendations from a finished session that have not been graded yet (UI-26). */
+    val unchecked: Int = 0,
+    /** Decided trades from the app's own plans / from Claude's (UI-20). */
+    val appTrades: Int = 0,
+    val claudeTrades: Int = 0
 ) {
     /** How much weight the figures can bear, in words - see [SAMPLE_TIERS]. */
     val sampleNote: String get() = sampleNote(entriesTriggered)
 
-    /** "positive", "negative" or "" (not yet distinguishable from zero) - the expectancy's 95% interval. */
+    /**
+     * "positive", "negative" or "" (not yet distinguishable from zero) - the expectancy's 95% interval,
+     * and NEVER below the first sample tier (UI-1): under 20 trades the card says "too few to judge",
+     * and a confident verdict beside it would contradict it - and the t-interval is not reliable on a
+     * day-trade R distribution that small anyway.
+     */
     val edgeVerdict: String get() = when {
-        entriesTriggered < 2 -> ""
+        entriesTriggered < SAMPLE_TIERS[0].first -> ""
         avgRLow > 0.0 -> "positive"
         avgRHigh < 0.0 -> "negative"
         else -> ""
