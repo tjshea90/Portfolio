@@ -8327,6 +8327,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         com.tj.portfolio.net.DayTradingEngine.install(st.params, st.version)
         _engine.value = st
         val stored = !engineJson.isNullOrBlank() || !historyJson.isNullOrBlank()
+        // A version moved past the log's labels is stored, so it stays that number next launch.
+        if (stored && st.version != com.tj.portfolio.net.EngineTuning.load(engineJson, historyJson).version)
+            runCatching { db.set(Keys.DT_ENGINE, st.engineJson()) }
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
                 val saved = if (stored) null else readEngineBackupFiles(logVersion)

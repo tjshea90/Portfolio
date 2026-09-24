@@ -131,7 +131,8 @@ object EngineTuning {
      * [logVersion] is the highest `vN` label already in the day-trading log (audit DA-11 / PL-9): a
      * restore of an older backup rolls the engine store back while the log keeps rows made by the
      * later versions, and re-issuing "v3" for a different set of values would mix two engines in
-     * every per-version figure. The next version is always above anything the log has seen.
+     * every per-version figure. When the log is ahead, the engine becomes a version the log has
+     * never seen (the caller stores it, so it stays that number).
      *
      * An unreadable engine row with an intact history runs what the history says is in force (its
      * last entry's result), not the original under a tuned version number (DA-11 c).
@@ -143,7 +144,8 @@ object EngineTuning {
         val stored = e?.optJSONObject("params")
         return State(
             params = if (stored != null) DayTradingParams.fromJson(stored) else history.lastOrNull()?.paramsAfter ?: DayTradingParams.DEFAULTS,
-            version = maxOf(e?.optInt("version", 0) ?: 0, history.maxOfOrNull { it.version } ?: 0, logVersion),
+            version = maxOf(e?.optInt("version", 0) ?: 0, history.maxOfOrNull { it.version } ?: 0)
+                .let { v -> if (logVersion > v) logVersion + 1 else v },
             history = history
         )
     }

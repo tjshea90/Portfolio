@@ -318,7 +318,9 @@ class EngineTuningTest {
         assertEquals(3, corrupt.version)
         assertFalse("revert stays available", corrupt.isOriginal)
         // a restore rolled the store back to v2, but the log has plans made by v5
-        assertEquals(5, EngineTuning.load("""{"version":2,"params":{}}""", "[]", logVersion = 5).version)
+        assertEquals(6, EngineTuning.load("""{"version":2,"params":{}}""", "[]", logVersion = 5).version)
+        assertEquals("the log at the engine's own version is normal", 5,
+            EngineTuning.load("""{"version":5,"params":{}}""", "[]", logVersion = 5).version)
         assertEquals(5, EngineTuning.versionOfLabel("v5"))
         assertEquals(0, EngineTuning.versionOfLabel("claude"))
         assertEquals(0, EngineTuning.versionOfLabel(""))
