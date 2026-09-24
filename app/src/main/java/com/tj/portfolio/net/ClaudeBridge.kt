@@ -108,6 +108,7 @@ object ClaudeBridge {
      */
     private const val ADVICE_SHAPE = """{
   "portfolioAppResponse": 1,
+  "asOf": <string - today's date, YYYY-MM-DD>,
   "advice": {
     "summary": <string - 3-5 sentences on the portfolio as a whole: concentration, sector tilt, cash level, how the realized vs unrealized split looks, and the single biggest problem>,
     "risks": <string - 2-4 sentences on the specific risks in THIS portfolio>,
@@ -310,6 +311,28 @@ Share the file to the Portfolio app, or import it (or your saved reply) in the a
         if (templateHits(s) > 0) "" else s
 
     /** True when this is one of the app's own prompt files rather than a reply. */
+    /**
+     * When an answer says it was written (its `asOf`), as noon New York time on that day -
+     * or null when it is unreadable, missing, or today or later, all of which mean "treat it
+     * as written now" (full test 2026-09-24, S-4). Reads the YYYY-MM-DD the schemas ask for and
+     * the "Sep 23, 2026" form older prompt files sent and Claude echoed.
+     */
+    internal fun answeredAt(asOf: String, now: Long): Long? {
+        val ny = java.time.ZoneId.of("America/New_York")
+        val t = asOf.trim()
+        if (t.isEmpty()) return null
+        val day = Regex("""(\d{4})-(\d{2})-(\d{2})""").find(t)
+            ?.let { runCatching { java.time.LocalDate.parse(it.value) }.getOrNull() }
+            ?: runCatching {
+                java.time.LocalDate.parse(t,
+                    java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy", java.util.Locale.US))
+            }.getOrNull()
+            ?: return null
+        val today = java.time.Instant.ofEpochMilli(now).atZone(ny).toLocalDate()
+        if (!day.isBefore(today)) return null
+        return day.atTime(12, 0).atZone(ny).toInstant().toEpochMilli()
+    }
+
     /** Epoch milliseconds (or seconds) between 1990 and 2100 as a date; anything else null. */
     internal fun epochDate(v: Any?): Long? {
         val n = (v as? Number)?.toLong() ?: return null
@@ -399,7 +422,10 @@ Share the file to the Portfolio app, or import it (or your saved reply) in the a
                 actions = actions,
                 stocks = stocks,
                 risks = scrub(adviceObj.optString("risks")),
-                generated = System.currentTimeMillis()
+                // THE ANSWER'S OWN DATE when it has one (S-4): a review shared again from an
+                // old chat must not read "Generated just now".
+                generated = answeredAt(obj.optString("asOf"), System.currentTimeMillis())
+                    ?: System.currentTimeMillis()
             )
             // Everything scrubbed away means the block was the template after all.
             val empty = built.summary.isBlank() && built.risks.isBlank() &&
