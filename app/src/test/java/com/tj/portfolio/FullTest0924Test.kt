@@ -593,4 +593,23 @@ class FullTest0924Test {
             assertTrue("${coarse.label} -> ${deep.label}", deep.approxSpanMs <= fine.approxSpanMs)
         }
     }
+
+    // ---- D-11 / D-12: the evaluation honours the flat time; a failed fetch is not "no data".
+
+    @Test fun `D-11 bars from the plan's last ten minutes are not the trade's`() {
+        val e = com.tj.portfolio.net.DayTradingEval
+        assertTrue(e.beforeFlatTime(ny(2026, 9, 28, 15, 45) / 1000))
+        assertFalse(e.beforeFlatTime(ny(2026, 9, 28, 15, 50) / 1000))
+        assertFalse(e.beforeFlatTime(ny(2026, 9, 28, 15, 55) / 1000))
+        // Half day (the Friday after Thanksgiving): flat by 12:50.
+        assertFalse(e.beforeFlatTime(ny(2026, 11, 27, 12, 50) / 1000))
+        assertTrue(e.beforeFlatTime(ny(2026, 11, 27, 12, 45) / 1000))
+    }
+
+    @Test fun `D-12 an answered window with no bars is told apart from a failed request`() {
+        val e = com.tj.portfolio.net.DayTradingEval
+        assertTrue(e.answeredNoBars("""{"chart":{"result":[{"meta":{"symbol":"X"}}],"error":null}}"""))
+        assertFalse(e.answeredNoBars("<html>busy</html>"))
+        assertFalse(e.answeredNoBars("""{"chart":{"result":null,"error":{"code":"Too Many Requests"}}}"""))
+    }
 }

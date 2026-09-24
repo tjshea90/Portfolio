@@ -68,6 +68,8 @@ object DayTradingEval {
             // press (N-1); what bounds the cost is the per-press cap in `evaluateDayTradingLog`.
             val r = Http.get(url, mapOf("Accept" to "application/json"), conditionalKey = true)
             if (r.throttledLocally) continue
+            // A 404 IS AN ANSWER: "no data found, symbol may be delisted" (D-12).
+            if (r.code == 404) { answeredEmpty = true; continue }
             if (!r.ok) continue
             // `continue`, NOT `return`: a 200 that parses to nothing (a truncated body, a
             // proxy error page) used to end the loop, so query2 never got its turn and the
