@@ -52,11 +52,11 @@ class Review0924Test {
         y, mo, d, h, mi, 0, 0, java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
 
     /** A daily-only reading: the intraday request failed, the memoised daily leg did not. */
-    private fun dailyOnly() = DayTechnicals(atr14 = 2.0, adr = 2.5, prevHigh = 51.0, prevLow = 47.0,
+    private fun dailyOnly() = DayTechnicals(atr14 = 2.0, adr = 5.0, prevHigh = 51.0, prevLow = 47.0,
         prevClose = 49.0, sessionLive = true, intradayFetched = false)
 
     /** A full live reading for [day] at 11:00: opening range and the 09:30 bar both closed. */
-    private fun live(day: String) = DayTechnicals(atr14 = 2.0, adr = 2.5, prevHigh = 51.0,
+    private fun live(day: String) = DayTechnicals(atr14 = 2.0, adr = 5.0, prevHigh = 51.0,
         prevLow = 47.0, prevClose = 49.0, vwap = 49.4, openingRangeHigh = 50.2,
         openingRangeLow = 48.1, openingRangeComplete = true, or5High = 49.6, or5Low = 48.6,
         openingBarBullish = true, atrIntraday = 0.35, sessionHigh = 50.4, sessionLow = 48.0,
