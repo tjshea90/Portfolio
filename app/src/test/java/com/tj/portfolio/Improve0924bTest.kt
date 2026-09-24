@@ -156,6 +156,52 @@ class Improve0924bTest {
         assertFalse(fin(ChartRange.M6, fri0930, sat, sun))
     }
 
+    // ---- Charts: gaps, volume, market time.
+
+    @Test fun `C-9 an intraday line breaks at a closed market, a daily one never does`() {
+        val fri1530 = ny(2026, 9, 25, 15, 30) / 1000; val mon0930 = ny(2026, 9, 28, 9, 30) / 1000
+        val d5 = listOf(com.tj.portfolio.data.ChartPoint(fri1530 - 1800, 10.0),
+            com.tj.portfolio.data.ChartPoint(fri1530, 10.1), com.tj.portfolio.data.ChartPoint(mon0930, 10.5),
+            com.tj.portfolio.data.ChartPoint(mon0930 + 1800, 10.6))
+        assertEquals(listOf(false, true, false, false),
+            com.tj.portfolio.ui.closedGaps(d5, ChartRange.D5).toList())
+        val daily = listOf(com.tj.portfolio.data.ChartPoint(fri1530, 10.0),
+            com.tj.portfolio.data.ChartPoint(mon0930, 10.5))
+        assertTrue(com.tj.portfolio.ui.closedGaps(daily, ChartRange.M1).none { it })
+    }
+
+    @Test fun `volume survives the chart cache, and an older row reads as none`() {
+        val s = com.tj.portfolio.data.ChartSeries("AAA", ChartRange.D1,
+            listOf(com.tj.portfolio.data.ChartPoint(1_000L, 10.0, 500.0),
+                com.tj.portfolio.data.ChartPoint(1_300L, 10.2, 0.0)), fetched = 1L)
+        val back = com.tj.portfolio.data.ChartJson.decode(com.tj.portfolio.data.ChartJson.encode(s))!!
+        assertEquals(listOf(500.0, 0.0), back.points.map { it.volume })
+        val old = org.json.JSONObject(com.tj.portfolio.data.ChartJson.encode(s)).apply { remove("vol") }
+        assertEquals(listOf(0.0, 0.0), com.tj.portfolio.data.ChartJson.decode(old.toString())!!.points.map { it.volume })
+    }
+
+    @Test fun `Yahoo's volume array is read beside the closes`() {
+        val body = """{"chart":{"result":[{"meta":{"currency":"USD","symbol":"AAA",
+            "regularMarketPrice":10.3,"chartPreviousClose":9.9},
+            "timestamp":[1758800000,1758801800,1758803600],
+            "indicators":{"quote":[{"close":[10.0,10.1,10.3],"volume":[1200,null,900]}]}}]}}"""
+        val s = com.tj.portfolio.net.ChartFeed.parse("AAA", ChartRange.D5, body)!!
+        assertEquals(listOf(1200.0, 0.0, 900.0), s.points.map { it.volume })
+    }
+
+    @Test fun `intraday chart times are market time, labelled ET`() {
+        val was = java.util.TimeZone.getDefault()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("America/Los_Angeles"))
+            val open = ny(2026, 9, 28, 9, 30)
+            assertEquals("9:30 AM", com.tj.portfolio.ui.axisLabel(open, ChartRange.D1, withDate = false))
+            assertEquals("9:30 AM ET",
+                com.tj.portfolio.ui.axisLabel(open, ChartRange.D1, withDate = false, zoned = true))
+            // A 9 PM Pacific print is already the next day in New York - dated by the market.
+            assertTrue(com.tj.portfolio.ui.spansMoreThanADay(ny(2026, 9, 28, 16), ny(2026, 9, 29, 0, 30)))
+        } finally { java.util.TimeZone.setDefault(was) }
+    }
+
     // ---- L-4: Android 14+ only ever sends 20 and 40.
 
     private fun settle() {
