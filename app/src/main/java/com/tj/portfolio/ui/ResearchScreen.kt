@@ -1018,7 +1018,9 @@ internal fun ResearchCard(
                         .padding(10.dp)
                 ) {
                     Text(
-                        "CLAUDE",
+                        // WHEN IT WAS WRITTEN (research idea 1, 2026-09-24b): a paragraph ages -
+                        // "CLAUDE, 3 DAYS AGO" says so without opening anything.
+                        "CLAUDE" + claudeAge(r.whyAt),
                         style = MaterialTheme.typography.labelSmall,
                         color = accentText,
                         fontWeight = FontWeight.Bold
@@ -1547,5 +1549,23 @@ private fun ClaudeAppButtons(
             enabled = importEnabled,
             modifier = Modifier.weight(1f)
         ) { Text("Import answer") }
+    }
+}
+
+/**
+ * ", TODAY" / ", YESTERDAY" / ", 3 DAYS AGO" after a Claude label - by calendar day in New York,
+ * the day a paragraph about markets is about; blank when the paragraph has no stamp.
+ */
+internal fun claudeAge(whyAt: Long, now: Long = System.currentTimeMillis()): String {
+    if (whyAt <= 0L) return ""
+    val ny = java.time.ZoneId.of("America/New_York")
+    val days = java.time.temporal.ChronoUnit.DAYS.between(
+        java.time.Instant.ofEpochMilli(whyAt).atZone(ny).toLocalDate(),
+        java.time.Instant.ofEpochMilli(now).atZone(ny).toLocalDate()
+    )
+    return when {
+        days <= 0L -> ", TODAY"
+        days == 1L -> ", YESTERDAY"
+        else -> ", $days DAYS AGO"
     }
 }
