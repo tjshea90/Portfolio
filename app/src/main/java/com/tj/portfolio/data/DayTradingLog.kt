@@ -181,8 +181,59 @@ data class DayTradingStats(
      * (the app or Claude), by setup, and by the time of day it was recommended - the breakdown
      * trading journals lead with. Only groups with at least one decided trade.
      */
-    val breakdown: List<StatSlice> = emptyList()
-)
+    val breakdown: List<StatSlice> = emptyList(),
+
+    // ---- 2026-09-24c: WHAT THE NUMBERS REST ON, AND THE ACCOUNT THAT COULD REALLY HOLD THEM.
+
+    /** Rows graded by an older, less strict grader whose bars are gone - kept, not counted. */
+    val legacyExcluded: Int = 0,
+    /** Decided trades graded on one-minute / five-minute bars. */
+    val graded1m: Int = 0,
+    val graded5m: Int = 0,
+    /** Average net R of the winning / losing trades (a loss is negative). */
+    val avgWinR: Double = 0.0,
+    val avgLossR: Double = 0.0,
+    /** Gross won R over gross lost R; infinite with no losing trade yet, 0 with no trades. */
+    val profitFactor: Double = 0.0,
+    /** Worst peak-to-trough run of the cumulative net R, in exit order. */
+    val maxDrawdownR: Double = 0.0,
+    /** 95% interval on [avgR] - where the true expectancy plausibly sits. */
+    val avgRLow: Double = 0.0,
+    val avgRHigh: Double = 0.0,
+    /** Wilson 95% interval on [profitableRate], in percent. */
+    val profitableLow: Double = 0.0,
+    val profitableHigh: Double = 0.0,
+    /**
+     * Decided trades the portfolio could NOT have funded when they filled - already 100% invested
+     * in other picks at 25% each - and so left out of [accountReturnPct] (audit E8).
+     */
+    val unfundedTrades: Int = 0,
+    /** [accountReturnPct] as if every trade could have been funded - shown only for comparison. */
+    val accountReturnAllPct: Double = 0.0
+) {
+    /** How much weight the figures can bear, in words - see [SAMPLE_TIERS]. */
+    val sampleNote: String get() = sampleNote(entriesTriggered)
+
+    /** "positive", "negative" or "" (not yet distinguishable from zero) - the expectancy's 95% interval. */
+    val edgeVerdict: String get() = when {
+        entriesTriggered < 2 -> ""
+        avgRLow > 0.0 -> "positive"
+        avgRHigh < 0.0 -> "negative"
+        else -> ""
+    }
+
+    companion object {
+        /** Below each count, the wording the card and the prompt use for the sample. */
+        val SAMPLE_TIERS = listOf(
+            20 to "Too few trades to judge - results this small can easily be luck either way",
+            50 to "An early read - treat it with caution",
+            100 to "Moderate evidence"
+        )
+
+        fun sampleNote(n: Int): String =
+            SAMPLE_TIERS.firstOrNull { n < it.first }?.second ?: "A solid sample"
+    }
+}
 
 /** One slice of [DayTradingStats.breakdown]: [decided] trades, how many hit target / made money net. */
 data class StatSlice(
@@ -190,8 +241,11 @@ data class StatSlice(
     val label: String,
     val decided: Int,
     val targetHits: Int,
-    val profitable: Int
+    val profitable: Int,
+    /** The slice's summed net R (2026-09-24c) - expectancy, not just a hit rate. */
+    val sumR: Double = 0.0
 ) {
+    val avgR: Double get() = if (decided > 0) sumR / decided else 0.0
     val targetHitRate: Double get() = if (decided > 0) targetHits * 100.0 / decided else 0.0
     val profitableRate: Double get() = if (decided > 0) profitable * 100.0 / decided else 0.0
 }

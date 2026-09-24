@@ -616,4 +616,3 @@ object DayTradingEval {
         else -> "Tuned engine $engine"
     }
 }
-}
