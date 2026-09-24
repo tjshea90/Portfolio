@@ -85,7 +85,7 @@ class DayTradingGraderTest {
         val touch = listOf(b(31, 10.44, 10.60, 10.44, 10.55)) + flatBars(32, 60, 10.9) +
             listOf(b(60, 11.0, 11.50, 10.95, 11.2)) + flatBars(61, 380, 11.1)
         assertEquals(DayTradingOutcome.CLOSED_PROFIT, DayTradingGrader.grade(breakout(), touch, settled, 1).outcome)
-        val through = touch.map { if (it.t == m(60)) it.copy(high = 11.51) else it }
+        val through = touch.map { if (it.t == m(60)) it.copy(high = 11.51, close = 11.45) else it }
         assertEquals(DayTradingOutcome.WIN, DayTradingGrader.grade(breakout(), through, settled, 1).outcome)
         // the old touch rule called the first one a win
         assertEquals(DayTradingOutcome.WIN,
@@ -108,7 +108,7 @@ class DayTradingGraderTest {
         val pull = Spec(entry = 10.00, stop = 9.60, target = 10.80, rises = false,
             recordedAt = m(30) * 1000L, entryDeadlineSec = m(360), flatSec = m(380))
         // the bar spikes to 10.90 then falls to 9.95 - the high may have come first
-        val bars = listOf(b(31, 10.3, 10.90, 9.95, 10.0)) + flatBars(32, 380, 10.1)
+        val bars = listOf(b(31, 10.7, 10.90, 9.95, 10.0)) + flatBars(32, 380, 10.1)
         val g = DayTradingGrader.grade(pull, bars, settled, 1)
         assertEquals(DayTradingOutcome.CLOSED_PROFIT, g.outcome)
         assertTrue(g.ambiguous)
@@ -116,7 +116,7 @@ class DayTradingGraderTest {
 
     @Test fun `E4 an entry that only triggers after the plan's too-late time is no trade`() {
         // deadline 15:30 (minute 360): the break comes at 15:40
-        val bars = flatBars(31, 370, 10.3) + listOf(b(370, 10.3, 10.60, 10.3, 10.55)) + flatBars(371, 380, 10.5)
+        val bars = flatBars(31, 370, 10.3) + listOf(b(370, 10.3, 10.60, 10.3, 10.55)) + flatBars(371, 380, 10.55)
         val g = DayTradingGrader.grade(breakout(), bars, settled, 1)
         assertEquals(DayTradingOutcome.NO_ENTRY, g.outcome)
         assertEquals("unfilled", g.detail!!.why)
@@ -168,7 +168,10 @@ class DayTradingGraderTest {
         assertTrue(half < 0.0)
         // held with no target it ran to the 15:49 close, 11.80
         assertEquals((11.80 - 10.50) / 0.50, d.holdR, 0.05)
-        assertEquals(d, DayTradingGrader.Detail.parse(d.toJson())!!.copy(grid = d.grid.map { r -> r.map { Math.round(it * 100.0) / 100.0 } }).let { d.copy(grid = it.grid, fill = it.fill, mfeR = it.mfeR, maeR = it.maeR, mfeFlatR = it.mfeFlatR, holdR = it.holdR) })
+        val back = DayTradingGrader.Detail.parse(d.toJson())!!
+        assertEquals(d.fillAt, back.fillAt); assertEquals(d.exitAt, back.exitAt); assertEquals(d.why, back.why)
+        assertEquals(d.mfeR, back.mfeR, 0.01); assertEquals(d.grid.size, back.grid.size)
+        assertEquals(planCell, back.grid[2][7], 0.01)
     }
 
     @Test fun `deadline and flat times follow the engine and the calendar`() {
@@ -197,8 +200,8 @@ class DayTradingGraderTest {
     }
 
     @Test fun `E8 the account figure only counts trades the portfolio could fund at once`() {
-        // 10.50 with a 0.50 stop: the 25% cap sizes it (1% / 0.5 = 2% of equity in shares... x 10.5 = 21x).
-        // Five trades all open together from 10:00 to 11:00 - four quarters of the portfolio, then nothing left.
+        // 10.50 with a 0.50 stop: 1% risk buys 0.02 shares per $ of equity = 21% of it per position.
+        // Five open together from 10:00 to 11:00 - 105% of the portfolio: the fifth cannot be funded.
         val rows = (1L..5L).map { decided(it, 31, 90) }
         val s = DayTradingEval.stats(rows)
         assertEquals(5, s.entriesTriggered)

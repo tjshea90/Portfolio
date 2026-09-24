@@ -158,9 +158,13 @@ object DayTradingGrader {
         return r[r.size / 2]
     }
 
+    /** A wick this many times the day's median bar range, and this share of the price, before it can be a bad print. */
+    private const val SPIKE_MEDIANS = 6.0
+    private const val SPIKE_PRICE_FRACTION = 0.015
+
     /**
      * Is bar [i]'s high a lone bad print for a [level] it seems to reach? The wick above the bar's
-     * own body is more than four times the day's median bar range AND more than 1% of the price,
+     * own body is more than six times the day's median bar range AND more than 1.5% of the price,
      * and neither neighbour reaches [level]. Real, tradeable wicks are left alone; the kind of
      * single erroneous tick that data feeds do occasionally carry is not credited as a fill.
      */
@@ -168,7 +172,7 @@ object DayTradingGrader {
         val b = bars[i]
         val body = if (b.open.isFinite()) maxOf(b.open, b.close) else b.close
         val wick = b.high - body
-        if (median <= 0.0 || wick <= 4.0 * median || wick <= 0.01 * b.high) return false
+        if (median <= 0.0 || wick <= SPIKE_MEDIANS * median || wick <= SPIKE_PRICE_FRACTION * b.high) return false
         val prevReaches = i > 0 && bars[i - 1].high >= level
         val nextReaches = i + 1 < bars.size && bars[i + 1].high >= level
         return !prevReaches && !nextReaches
