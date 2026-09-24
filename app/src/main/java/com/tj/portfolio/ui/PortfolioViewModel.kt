@@ -984,11 +984,20 @@ private fun carryWhy(
     // every time, which is the point of a rebuild. BUT ONLY WHILE IT IS STILL RECENT - see
     // [WHY_STALE_MS]. Past that window this stops carrying `why` forward at all, which is the
     // actual eviction: the next `cacheResearch` persists this row with `why` blank again.
-    if (p == null || !stillCurrent(p.why, p.whyAt, now)) return r
+    if (p == null) return r
+    // CLAUDE'S PLAN IS CARRIED ON ITS OWN CLOCK (review 2026-09-24, R1-7) - a levels-only answer
+    // has no current paragraph, and used to lose its plan at the first rebuild.
+    val carryPlan = dayTrading && p.planByClaude && sameTradingDay(claudePlanTime(p), now)
+    fun withPlan(to: com.tj.portfolio.data.ResearchRow) = if (!carryPlan) to else to.copy(
+        entryPrice = p.entryPrice, stopPrice = p.stopPrice, targetPrice = p.targetPrice,
+        setup = p.setup, trigger = p.trigger, planNote = p.planNote, planExit = p.planExit,
+        planByClaude = true, planPrice = p.planPrice, planAt = p.planAt
+    )
+    if (!stillCurrent(p.why, p.whyAt, now)) return withPlan(r)
     // A DAY TRADING PARAGRAPH IS ABOUT ITS OWN SESSION (full test 2026-09-24, S-7) - the same
     // gate as the plan below. Monday's "squeezing on the halt, buy the break" must not sit on
     // Thursday's card as today's reasoning.
-    if (dayTrading && !sameTradingDay(p.whyAt, now)) return r
+    if (dayTrading && !sameTradingDay(p.whyAt, now)) return withPlan(r)
     // `conviction > 0` is the mark of a row Claude answered for - the app never sets it - and
     // only then is a catalyst that differs from the fresh screener's Claude's own line.
     val claude = p.conviction > 0
@@ -1004,13 +1013,12 @@ private fun carryWhy(
         else r.catalyst,
         conviction = if (claude) p.conviction else r.conviction
     )
-    if (!dayTrading || !p.planByClaude || !sameTradingDay(p.whyAt, now)) return base
-    return base.copy(
-        entryPrice = p.entryPrice, stopPrice = p.stopPrice, targetPrice = p.targetPrice,
-        setup = p.setup, trigger = p.trigger, planNote = p.planNote, planExit = p.planExit,
-        planByClaude = true, planPrice = p.planPrice
-    )
+    return withPlan(base)
 }
+
+/** When a Claude plan was made: its own stamp, or (older caches) its paragraph's (R1-7). */
+internal fun claudePlanTime(r: com.tj.portfolio.data.ResearchRow): Long =
+    if (r.planAt > 0L) r.planAt else r.whyAt
 
 /**
  * The other half of [com.tj.portfolio.net.DayTradingBridge]'s level check, run once a price
@@ -1036,7 +1044,7 @@ internal fun dropUnusableClaudeLevels(
     ) r
     else r.copy(
         entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
-        setup = "", trigger = "", planByClaude = false, planPrice = 0.0
+        setup = "", trigger = "", planByClaude = false, planPrice = 0.0, planAt = 0L
     )
 }
 
@@ -1069,7 +1077,7 @@ internal fun evictStaleDayTradingPlan(
             entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
             setup = "", trigger = "", planNote = "", planExit = "",
             tooLateToStart = false, planByClaude = false, planDeclineStreak = 0, planReason = "",
-            planPrice = 0.0
+            planPrice = 0.0, planAt = 0L
         )
     }
 }
@@ -1152,8 +1160,9 @@ internal fun mergeDayTradingTech(
     val claudeLevelsUnusable = row.planByClaude && livePrice != null &&
         !com.tj.portfolio.net.DayTradingBridge.levelsUsable(
             livePrice, row.entryPrice, row.stopPrice, row.targetPrice)
+    val planTime = claudePlanTime(row)   // R1-7: the plan's own import time
     val claudePlanStands = row.planByClaude && !claudeLevelsUnusable && (!sessionChanged ||
-        (now > 0L && row.whyAt > 0L && planStillForSession(row.whyAt, now)))
+        (now > 0L && planTime > 0L && planStillForSession(planTime, now)))
     val (plan, declineReason) = if (claudePlanStands) null to ""
     else com.tj.portfolio.net.ResearchScore.planInternal(
         price,

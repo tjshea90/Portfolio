@@ -279,6 +279,12 @@ data class ResearchRow(
      */
     val planPrice: Double = 0.0,
     /**
+     * WHEN CLAUDE'S PLAN (the levels above) WAS IMPORTED (review 2026-09-24, R1-7) - 0 for the
+     * app's own plan or an older cache. [whyAt] is the PARAGRAPH's time, and a levels-only answer
+     * does not move it, so an evening plan with no paragraph was read as yesterday's at 04:00.
+     */
+    val planAt: Long = 0L,
+    /**
      * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
      * volume-weighted average price, and the 09:30-10:00 ET opening range. See
      * `net/DayTradingTechnicals.kt`'s header for the research these come from. All zero until
@@ -387,6 +393,7 @@ data class ResearchRow(
         if (tooLateToStart) put("tooLateToStart", true)
         if (planByClaude) put("planByClaude", true)
         if (planPrice > 0) put("planPrice", planPrice)
+        if (planAt > 0) put("planAt", planAt)
         if (atrIntraday > 0) put("atrIntraday", atrIntraday)
         if (adr > 0) put("adr", adr)
         if (prevHigh > 0) put("prevHigh", prevHigh)
@@ -496,6 +503,7 @@ data class ResearchRow(
                 planNote = o.text("planNote"),
                 planByClaude = o.optBoolean("planByClaude", false),
                 planPrice = o.optDouble("planPrice", 0.0).orZero(),
+                planAt = o.optLong("planAt", 0L),
                 atrIntraday = o.optDouble("atrIntraday", 0.0).orZero(),
                 adr = o.optDouble("adr", 0.0).orZero(),
                 prevHigh = o.optDouble("prevHigh", 0.0).orZero(),

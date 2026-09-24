@@ -491,7 +491,10 @@ $SHAPE
         // crashes on a repeated key, and a model repeating a ticker is not a hypothetical.
         return incoming.distinctBy { it.symbol }.map { c ->
             val app = byExisting[c.symbol]
-                ?: return@map if (c.why.isNotBlank()) c.copy(whyAt = now) else c
+                ?: return@map c.copy(
+                    whyAt = if (c.why.isNotBlank()) now else c.whyAt,
+                    planAt = if (c.planByClaude) now else 0L          // R1-7
+                )
             val takeLevels = c.planByClaude &&
                 levelsUsable(app.price, c.entryPrice, c.stopPrice, c.targetPrice)
             app.copy(
@@ -537,8 +540,9 @@ $SHAPE
                 // session clock on every tick for every row, Claude's included, so an import at
                 // 15:45 correctly carries the late-session badge the app would give its own.
                 planByClaude = takeLevels,
-                // The price Claude's levels were just checked against (D-9).
+                // The price Claude's levels were just checked against (D-9), and when (R1-7).
                 planPrice = if (takeLevels) app.price else app.planPrice,
+                planAt = if (takeLevels) now else app.planAt,
                 // The app's "declined" state belongs to the app's plan (D-2): a row the app had
                 // declined but Claude planned is a planned row, and must be loggable as one.
                 planDeclineStreak = if (takeLevels) 0 else app.planDeclineStreak,
