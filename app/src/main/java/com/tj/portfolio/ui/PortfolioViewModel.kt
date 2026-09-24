@@ -6718,8 +6718,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * Imports whatever `ShareImportActivity` left in the inbox, then asks `App` to open the
      * screen it filled. Called by `MainActivity` for every [com.tj.portfolio.util.ShareInbox.ACTION_IMPORT]
-     * intent; [com.tj.portfolio.util.ShareInbox.take] deletes the file as it reads it, so a
-     * re-delivered intent imports nothing twice.
+     * intent. Each file is read with [com.tj.portfolio.util.ShareInbox.next] and deleted with
+     * [com.tj.portfolio.util.ShareInbox.done] once imported, so a re-delivered intent imports
+     * nothing twice.
      */
     fun importSharedInbox() {
         viewModelScope.launch {

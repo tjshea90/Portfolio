@@ -244,7 +244,11 @@ object Fmt {
         }
     }
 
-    /** Parse yyyy-MM-dd (or MM/dd/yyyy) into epoch millis at local midnight. */
+    /**
+     * Parse yyyy-MM-dd (or MM/dd/yyyy) into epoch millis at local NOON - not midnight: a
+     * midday stamp keeps the date the same in any nearby time zone, and the ledger's
+     * same-day replay order relies on it (A-Q3, doc corrected 2026-09-24).
+     */
     fun parseDate(s: String): Long? {
         val t = s.trim()
         val patterns = listOf("yyyy-MM-dd", "MM/dd/yyyy", "M/d/yyyy", "MM/dd/yy", "MMM d, yyyy", "MMM d yyyy")
