@@ -6921,9 +6921,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             }
             return
         }
+        // NOTHING FROM THE PLAN'S LAST TEN MINUTES (full test 2026-09-24, D-11): it says "be flat by
+        // 15:50" (12:50 on a half day), so a stop or target touched at 15:52 is not this trade's,
+        // and an unresolved trade closes at the 15:50 print, not the 16:00 one.
+        val tradable = bars.filter { com.tj.portfolio.net.DayTradingEval.beforeFlatTime(it.t) }
         val (outcome, exitPrice) = com.tj.portfolio.net.DayTradingEval.evaluate(
             entry.setup, entry.entry, entry.stop, entry.target, entry.priceAtRecommendation,
-            entry.recordedAt, bars, stillOpen
+            entry.recordedAt, tradable, stillOpen
         )
         db.setDayTradingOutcome(entry.id, outcome, exitPrice)
     }

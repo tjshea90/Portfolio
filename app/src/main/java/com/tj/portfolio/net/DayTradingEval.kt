@@ -242,10 +242,9 @@ object DayTradingEval {
         // far worse mistake: crediting an entry/target/stop touch that may have happened before
         // the recommendation was ever made, which is exactly what Tj's own requirement (this
         // file's header) rules out.
-        // AND NOTHING FROM THE LAST TEN MINUTES (full test 2026-09-24, D-11): the plan says "be
-        // flat by 15:50" (12:50 on a half day), so a stop or target touched at 15:52 is not this
-        // trade's, and an unresolved trade closes at the 15:50 print, not the 16:00 one.
-        val after = bars.filter { it.t * 1000L >= recordedAt && beforeFlatTime(it.t) }
+        // (The plan's "flat by 15:50" cut is applied by the caller to real bars - see
+        // [beforeFlatTime], D-11.)
+        val after = bars.filter { it.t * 1000L >= recordedAt }
         val rises = entryRises(setup, entry, priceAtRecommendation)
         val entryIndex = after.indexOfFirst { bar -> if (rises) bar.high >= entry else bar.low <= entry }
         if (entryIndex < 0) {
