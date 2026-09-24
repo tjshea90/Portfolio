@@ -67,7 +67,8 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       [x] A-3 dup check hides real second fill (Db.duplicateTolerance = rounding+fees, flat $1
       misread rule kept; prompts match on amount too; +1 test, DbTest 58/0)  [x] A-4 autosave name after reinstall (findOwnDownload also matches own "name (n).ext",
       newest wins; matchesOwnName test; platform rename behaviour still to confirm on the phone)
-      [ ] S-1 S-9 popup fix unreachable  [ ] S-2 detail screen ratings-only verdict frozen
+      [x] S-1 S-9 popup fix unreachable (ratingsDated = panel != null; weight capped by panel.currency
+      like the scorer; test)  [x] S-2 detail screen ratings-only verdict frozen (effect keyed on the fundamentals object)
       [ ] S-4 Research asOf ignored / Advice undated  [ ] S-5 carry freezes relative catalyst
       [ ] S-6 stale Claude fund permanent  [ ] S-7 DT paragraphs carried 14 days  [ ] S-8 ETF
       dedupe merges different products  [x] U-2 Insider all-companies pull never refetches (Feed pull also refreshMarketInsidersIfEmpty)
