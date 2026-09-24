@@ -331,7 +331,9 @@ object EngineTuning {
         val applied: Double?,
         /** The current value. */
         val current: Double?,
-        val reason: String
+        val reason: String,
+        /** The cited group's graded trades BY THE APP'S OWN COUNT (UI-4); null when it could not be counted. */
+        val groupCount: Int? = null
     )
 
     data class Review(
@@ -356,6 +358,9 @@ object EngineTuning {
     }
 
     fun describe(key: String, v: Double): String = fmt(v, DayTradingParams.SPEC_BY_KEY[key])
+
+    private fun raw(v: Double): String =
+        java.math.BigDecimal(v).setScale(4, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
 
     /**
      * Every proposed change checked against the CURRENT engine and the log as it stands now:
@@ -392,21 +397,28 @@ object EngineTuning {
         for (c in proposal.changes) {
             val spec = DayTradingParams.SPEC_BY_KEY[c.key]
             val current = spec?.let { state.params[it.key] }
-            fun refuse(why: String) = Reviewed(c, Status.REFUSED, null, current, why)
+            val counted = ev.count(c.basis)
+            fun refuse(why: String) = Reviewed(c, Status.REFUSED, null, current, why, counted)
             val r: Reviewed = when {
                 spec == null -> refuse("Not a parameter this app has - nothing to change.")
                 !seen.add(c.key) -> refuse("Listed twice - only the first is used.")
-                blocker.isNotBlank() -> refuse(blocker.substringBefore(" - ").let { "Not applied: $it." })
+                blocker.isNotBlank() -> refuse("Not applied - see the reason above.")
                 c.from != null && current != null && kotlin.math.abs(c.from - current) > 1e-6 ->
                     refuse("Claude read it as ${fmt(c.from, spec)}, but it is ${fmt(current, spec)} now - the prompt is out of date.")
                 current != null && kotlin.math.abs(c.to - current) < 1e-9 ->
-                    Reviewed(c, Status.UNCHANGED, current, current, "Already ${fmt(current, spec)}.")
+                    Reviewed(c, Status.UNCHANGED, current, current, "Already ${fmt(current, spec)} - nothing to change.", counted)
+                // THE WRONG KIND OF VALUE, said as such (UI-15) - rounding 0.7 to "on" first would
+                // print "on is outside what this parameter allows (off to on)".
+                spec.kind == DayTradingParams.Kind.BOOL && c.to != 0.0 && c.to != 1.0 ->
+                    refuse("${raw(c.to)} - this setting is on/off only (0 or 1).")
+                spec.kind == DayTradingParams.Kind.INT && c.to != Math.rint(c.to) ->
+                    refuse("${raw(c.to)} - this setting takes whole numbers only.")
                 !spec.allows(c.to) -> refuse("${fmt(c.to, spec)} is outside what this parameter allows " +
                     "(${fmt(spec.min, spec)} to ${fmt(spec.max, spec)}${if (spec.offAllowed) ", or off" else ""}).")
                 else -> {
                     val isSwitch = spec.kind == DayTradingParams.Kind.BOOL ||
                         (spec.offAllowed && (current == 0.0 || c.to == 0.0))
-                    val groupN = ev.count(c.basis)
+                    val groupN = counted
                     when {
                         used >= tier.maxChanges ->
                             refuse("More changes than ${n} graded trades allow at once (${tier.maxChanges}) - the rest wait for the next review.")
@@ -445,9 +457,9 @@ object EngineTuning {
                                     params = candidate
                                     used++
                                     if (limited) Reviewed(c, Status.LIMITED, to, current,
-                                        "Limited to ${fmt(to, spec)} - with $n graded trades one import may move it at most " +
-                                            "${(tier.maxStep * 100).toInt()}% of its range. The direction stands; the next review can go further.")
-                                    else Reviewed(c, Status.ACCEPTED, to, current, "")
+                                        "Will apply, limited to ${fmt(to, spec)} - with $n graded trades one import may move it at most " +
+                                            "${(tier.maxStep * 100).toInt()}% of its range. The direction stands; the next review can go further.", counted)
+                                    else Reviewed(c, Status.ACCEPTED, to, current, "", counted)
                                 }
                             }
                         }

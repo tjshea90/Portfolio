@@ -8288,6 +8288,21 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     fun dismissEngineReview() { _engineReview.value = null }
 
     /**
+     * The tuning card's own "Import answer" (UI-19) - only a tuning answer belongs here, and anything
+     * else is told so in words about the tuning loop, next to the card, not in the research banner.
+     */
+    fun importEngineFile(text: String): String =
+        when (com.tj.portfolio.net.SharedAnswer.classify(text)) {
+            com.tj.portfolio.net.SharedAnswer.Kind.ENGINE_TUNING -> importEngineTuning(text)
+            com.tj.portfolio.net.SharedAnswer.Kind.PROMPT_FILE ->
+                "That is the tuning prompt the app wrote - share it to Claude, then import the answer file Claude makes."
+            com.tj.portfolio.net.SharedAnswer.Kind.DAY_TRADING ->
+                "That is a Day Trading list answer, not an engine tuning - use Import answer at the top of the list."
+            else -> "That file has no engine-tuning answer in it. Share Claude's reply to the tuning prompt " +
+                "(the file named ${com.tj.portfolio.net.ClaudeBridge.ANSWER_ENGINE})."
+        }
+
+    /**
      * Tj tapped Apply on the review sheet. Re-checked against the engine and the log as they are at
      * the moment of the tap - and applied ONLY if that re-check decides exactly what the sheet showed
      * (UI-3): grading can land while the sheet is open (the tab grades on opening) and move a change
