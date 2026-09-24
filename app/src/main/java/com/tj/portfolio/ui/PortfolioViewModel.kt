@@ -1193,6 +1193,18 @@ internal fun mergeDayTradingTech(
     )
 }
 
+/** "1-5;9-12" -> [1..5, 9..12]; junk parts are skipped. See Keys.REPLAY_REPAIR_RANGES (A-2). */
+internal fun parseRepairRanges(raw: String?): List<LongRange> =
+    raw.orEmpty().split(';').mapNotNull { part ->
+        val bits = part.trim().split('-')
+        val a = bits.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
+        val b = bits.getOrNull(1)?.toLongOrNull() ?: return@mapNotNull null
+        if (b >= a) a..b else null
+    }
+
+internal fun formatRepairRanges(ranges: List<LongRange>): String =
+    ranges.joinToString(";") { "${it.first}-${it.last}" }
+
 /**
  * The Day Trading rows that count as a RECOMMENDATION right now - what
  * `captureDayTradingRecommendations` may write to the permanent log. Pure, for the test.
@@ -2680,7 +2692,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
         // The SESSION the quotes describe, not the wall clock - see sessionInstant().
         val session = sessionInstant()
-        cachedPositions = Ledger.positions(txns, overrides, costMethod(), session, replayRepairBelowId())
+        cachedPositions = Ledger.positions(txns, overrides, costMethod(), session, replayRepairBelowId(), replayRepairRanges())
         cachedTxns = txns
         cachedSums = Ledger.sums(txns)
         cachedTxnsDesc = txns.sortedWith(
@@ -3178,7 +3190,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private fun allTrackedSymbols(): List<String> {
         val fromRows = _ui.value.rows.map { it.symbol }
         return if (fromRows.isNotEmpty()) fromRows
-        else (Ledger.positions(db.allTxns(), db.overrides(), costMethod(), repairBelowId = replayRepairBelowId())
+        else (Ledger.positions(db.allTxns(), db.overrides(), costMethod(), repairBelowId = replayRepairBelowId(), repairRanges = replayRepairRanges())
             .filter { it.shares > 1e-9 }.map { it.symbol } + db.watchlist()).distinct()
     }
 
@@ -3811,6 +3823,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         return mark
     }
 
+    /** See [Keys.REPLAY_REPAIR_RANGES]. */
+    private fun replayRepairRanges(): List<LongRange> = parseRepairRanges(db.get(Keys.REPLAY_REPAIR_RANGES))
+
     fun deleteTxn(id: Long) { db.deleteTxn(id); resetMarkIfEmptied(); recompute() }
 
     /**
@@ -3900,7 +3915,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
         // EVERY position, not the open ones - a symbol that was oversold into a closed
         // position is exactly the case with nowhere else to surface. See FeeAudit.oversold.
-        val short = Ledger.positions(txns, db.overrides(), costMethod(), repairBelowId = replayRepairBelowId())
+        val short = Ledger.positions(txns, db.overrides(), costMethod(), repairBelowId = replayRepairBelowId(), repairRanges = replayRepairRanges())
             .filter { it.oversold > 1e-9 }
             .map { it.symbol to it.oversold }
         return FeeAudit(
@@ -8311,17 +8326,31 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun restoreAsync(json: String, replace: Boolean, onDone: (Db.RestoreResult) -> Unit) {
         viewModelScope.launch {
+            var preMax = 0L
             val r = withContext(Dispatchers.IO) {
                 // A Replace throws the current ledger away wholesale - see [snapshotBefore].
                 if (replace) snapshotBefore("replace")
+                preMax = db.maxTxnId()
                 runCatching { db.restoreJson(json, replace) }
                     .getOrElse { Db.RestoreResult(error = "Restore failed: ${it.message}") }
             }
             if (r.error == null) {
                 _lastImport.value = withContext(Dispatchers.IO) {
                     // Restored rows are re-inserted with NEW ids, and may be a pre-fix device's
-                    // screen-ordered imports - make them repair candidates again (A-2).
-                    db.set(Keys.REPLAY_REPAIR_BELOW_ID, (db.maxTxnId() + 1).toString())
+                    // screen-ordered imports - make them repair candidates again (A-2). ONLY
+                    // THEM (full test 2026-09-24, A-2): a Replace leaves nothing else, so the
+                    // mark moves past everything; a Merge adds just the id range it inserted,
+                    // leaving every row already here - chronologically imported since the fix -
+                    // exactly as it was. A merge that inserted nothing changes nothing.
+                    val postMax = db.maxTxnId()
+                    if (replace) {
+                        db.set(Keys.REPLAY_REPAIR_BELOW_ID, (postMax + 1).toString())
+                        db.set(Keys.REPLAY_REPAIR_RANGES, "")
+                    } else if (postMax > preMax) {
+                        replayRepairBelowId()   // make sure the base mark exists first
+                        db.set(Keys.REPLAY_REPAIR_RANGES, formatRepairRanges(
+                            replayRepairRanges() + listOf((preMax + 1)..postMax)))
+                    }
                     db.lastImport()
                 }
                 recompute()

@@ -2128,7 +2128,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         k == Keys.RESEARCH_CACHE || k == Keys.INSIDER_CACHE || k == Keys.INSIDER_SKIP ||
             k == Keys.FEED_AT || k == Keys.FILINGS_AT ||
             k == Keys.AUTOSAVE_AT || k == Keys.AUTO_BACKUP_AT || k == Keys.DOWNLOADS_TIDIED ||
-            k == Keys.PENDING_IMPORT || k == Keys.REPLAY_REPAIR_BELOW_ID
+            k == Keys.PENDING_IMPORT || k == Keys.REPLAY_REPAIR_BELOW_ID ||
+            k == Keys.REPLAY_REPAIR_RANGES
 
     private fun appVersionName(): String = try {
         ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
@@ -2297,6 +2298,13 @@ object Keys {
      * backed up, and a restore resets it (restored rows are re-inserted with new ids).
      */
     const val REPLAY_REPAIR_BELOW_ID = "replay_repair_below_id"
+
+    /**
+     * Extra repair-candidate id ranges ABOVE [REPLAY_REPAIR_BELOW_ID], as "first-last;..." -
+     * the rows each Merge restore inserted (full test 2026-09-24, A-2). Per device, like the
+     * mark itself; a Replace restore clears it.
+     */
+    const val REPLAY_REPAIR_RANGES = "replay_repair_ranges"
 
     /** When the uninstall-proof copy in Downloads was last written. */
     const val AUTOSAVE_AT = "autosave_at"
