@@ -1,13 +1,13 @@
-# CHECKPOINT 1704 — read me first, then TASKS.md
+# CHECKPOINT 1705 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T19:53:41Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/day-trading-success-claude-learn-t9ot3u` · **builds on:** `3b40456d` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T19:56:36Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/day-trading-success-claude-learn-t9ot3u` · **builds on:** `836778ee` (this checkpoint is the commit after it)
 
 ## Just done
-Logging gates E5 (planWaiting, price>=1) + E6 (replannedLive: newest bar <=10 min old, DayTechnicals.lastBarAt); features JSON + engine label at capture (DayTradingFeatures); resolve v2 (1m first, failed 1m retried, plan's own deadline/flat); re-grade rows from older grader (dayTradingRowsNeedingGrade); auto-eval on tab open (15 min throttle); stats v2 (real fills, legacy excluded, CIs, PF, drawdown, capital-constrained account); tests updated/added, affected suites green
+DayTradingGraderTest (16): E1 fill+stop inside first minutes (old rule credited WIN), E2 open fills + gap-through-stop, E3 trade-through target/limit, buy-limit fill-bar deferral, E4 deadline, flat-time exit, mid-session finality, E7 spike filter (6x median & 1.5%), grid plan cell == verdict, deadline/flat calendar incl. half day, E8 capital constraint, E9 legacy exclusion + re-grade queue, E10 intervals, bar opens parsed
 
 ## Do this next
-Write DayTradingGraderTest (E1-E4,E7 scenarios + grid consistency + features/deadline), then the success-card UI v2, then Part B tuning
+Success card UI v2 (ResearchScreen.DayTradingSuccessRate): sample note, expectancy+CI, PF, drawdown, unfunded/legacy/resolution notes, avg R per slice; then Part B
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ Write DayTradingGraderTest (E1-E4,E7 scenarios + grid consistency + features/dea
 
 ## Last ten checkpoints
 ```
+  7cef5c18 ckpt 1704: Logging gates E5 (planWaiting, price>=1) + E6 (replannedLive: newest bar <=1
   504d1186 ckpt 1703: db v10 (engine/features/eval_version/eval_detail, additive + onOpen repair +
   0bfe1dc0 ckpt 1702: B1 done: DayTradingParams wired into ResearchScore (defaults == original eng
   db990fbe ckpt 1701: Golden fixture captured from the ORIGINAL engine (daytrading_golden_v1.txt, 
@@ -25,8 +26,7 @@ Write DayTradingGraderTest (E1-E4,E7 scenarios + grid consistency + features/dea
   d8bea44d ckpt 1697: gated v7.41 (code 98) and pushed it: checkinit, the full unit suite and the 
   41dc978e ckpt 1696: All of 09-24b implemented or skipped-with-reason; full suite 1452/0; version
   51baee47 ckpt 1695: Research+Screens batch: Claude age labels, old-ratings mark, ETF alternative
-  7608fbed ckpt 1694: Data batch: restored-snapshot recovery, silent-shrink warning (MAX_TXN_COUNT
 ```
 
-(10 automatic checkpoint(s) since the last deliberate one — the
+(3 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
