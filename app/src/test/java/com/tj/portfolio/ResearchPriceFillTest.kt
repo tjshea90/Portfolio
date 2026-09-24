@@ -325,7 +325,10 @@ class ResearchPriceFillTest {
     ) = ResearchRow(
         symbol = "GME", price = price,
         score = ResearchScore.blendedScore(likelihood, confidence),
-        reasons = reasons, dtLikelihood = likelihood, dtConfidence = confidence
+        reasons = reasons, dtLikelihood = likelihood, dtConfidence = confidence,
+        // As `Research.build` makes it: the build-time halves recorded (D-10). A row without them
+        // is an older build's cache, which is left alone until a rebuild (review 2026-09-24, R2-6).
+        dtBaseLikelihood = likelihood, dtBaseConfidence = confidence, dtBaseReasonCount = reasons.size
     )
 
     @Test fun `the likelihood half still updates from withTechnicals, exactly as before this round`() {
