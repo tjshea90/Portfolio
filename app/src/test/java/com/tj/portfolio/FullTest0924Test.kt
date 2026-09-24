@@ -274,4 +274,26 @@ class FullTest0924Test {
         assertEquals(emptyList<LongRange>(), com.tj.portfolio.ui.parseRepairRanges(null))
         assertEquals(listOf(3L..4L), com.tj.portfolio.ui.parseRepairRanges("x-y;9-2;3-4;7"))
     }
+
+    // ---- A-3: a second same-size fill at a different price is a different trade.
+
+    @Test fun `A-3 a second same-size fill a few cents a share away is not a duplicate`() {
+        val db = Db(app)
+        val day = 1_756_909_800_000L
+        val morning = Txn(type = TxnType.BUY, symbol = "NVDA", quantity = 10.0, price = 180.0,
+            amount = -1800.0, date = day)
+        val id = db.insertTxn(morning)
+        val afternoon = morning.copy(price = 180.80, amount = -1808.0, date = day + 3_600_000L)
+        assertNull("10 @ 180.80 is a new trade, not the 10 @ 180.00 already on file",
+            db.findDuplicateId(afternoon))
+        assertNull(db.findDuplicateIdAnyDate(afternoon))
+        // The same trade re-imported with a cent-rounded price still matches.
+        val again = morning.copy(price = 180.0, amount = -1800.04)
+        assertEquals(id, db.findDuplicateId(again))
+        // A big sale's SEC/TAF fee difference still matches.
+        val bigId = db.insertTxn(Txn(type = TxnType.SELL, symbol = "AAPL", quantity = 100.0,
+            price = 180.0, amount = 18_000.0, date = day))
+        assertEquals(bigId, db.findDuplicateId(Txn(type = TxnType.SELL, symbol = "AAPL",
+            quantity = 100.0, price = 180.0, amount = 17_999.49, date = day)))
+    }
 }
