@@ -1,13 +1,13 @@
-# CHECKPOINT 1677 — read me first, then TASKS.md
+# CHECKPOINT 1678 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T16:01:13Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-tests-completion-tw9a1o` · **builds on:** `28492820` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T16:04:29Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-tests-completion-tw9a1o` · **builds on:** `f5ddb7bb` (this checkpoint is the commit after it)
 
 ## Just done
-D-10 fixed: DT technicals bonus idempotent per tick from persisted build-time base; all D-* done
+L-5, L-6, L-7 fixed (+2 tests, L-7 mutation-checked)
 
 ## Do this next
-L-5..7, N-5..12, A-5..11, S-3, S-9..12, U-4..8, then Qs, suite, review, ship
+N-5..12, A-5..11, S-3, S-9..12, U-4..8, then Qs, suite, review, ship
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -17,6 +17,7 @@ L-5..7, N-5..12, A-5..11, S-3, S-9..12, U-4..8, then Qs, suite, review, ship
 
 ## Last ten checkpoints
 ```
+  c71263d9 ckpt 1677: D-10 fixed: DT technicals bonus idempotent per tick from persisted build-tim
   6188da75 ckpt 1676: D-9 fixed: beginner card direction from plan (planPrice/setup), reached-entr
   89ea37ee ckpt 1675: Resumed full tests (new session): resume point = D-9/D-10 then remaining Ls
   5feb55dc ckpt 1674: DT Ls fixed: D-6, D-7, D-8, D-11, D-12, D-13, D-14 (+tests); DT suites green
@@ -26,7 +27,6 @@ L-5..7, N-5..12, A-5..11, S-3, S-9..12, U-4..8, then Qs, suite, review, ship
   f8cdd52a ckpt 1670: D-2 (evening Claude plan survives post-close stamp + 04:00) + D-3 (weekend/h
   1c69d494 ckpt 1669: S-8 fixed: ETF groups exclude strategy/state/HY-band funds; every deduped fu
   36a766f8 ckpt 1668: S-6 (stale Claude fund dropped, stale words expire together) + S-7 (DT parag
-  4bf2d7a7 ckpt 1667: S-5 fixed: app's relative earnings phrase rebuilt each time, Claude's words 
 ```
 
 (3 automatic checkpoint(s) since the last deliberate one — the
