@@ -1198,6 +1198,26 @@ private fun OverviewTab(
                     // ledger passes 0.0 and `ResearchScore.positionSize` returns null rather
                     // than sizing a trade against an account that does not exist.
                     DayTradingPlanContent(dayTradingRow, state.totals?.totalEquity ?: 0.0)
+                    // ---- THE PLAN THE SUCCESS RATE SCORES (2026-09-24b). The log keeps each
+                    // stock's FIRST plan of the day and grades that one; the plan above moves
+                    // with the tape. Said here so the recorded recommendation is not silent.
+                    val logged by androidx.compose.runtime.produceState<com.tj.portfolio.data.DayTradingLogEntry?>(
+                        null, symbol, dayTradingRow.sessionDay, dayTradingRow.entryPrice
+                    ) { value = loggedPlan(symbol) }
+                    logged?.let { e ->
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Logged at ${Fmt.clock(e.recordedAt)} (" +
+                                (if (e.source == com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE)
+                                    "Claude's plan" else "the app's plan") +
+                                "): buy ${Fmt.price(e.entry)}, stop ${Fmt.price(e.stop)}, target " +
+                                "${Fmt.price(e.target)}. That is the plan the success rate grades" +
+                                (if (kotlin.math.abs(e.entry - dayTradingRow.entryPrice) > 1e-9)
+                                    " - the plan above has moved since." else "."),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Spacer(Modifier.height(4.dp))
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline)
                 }

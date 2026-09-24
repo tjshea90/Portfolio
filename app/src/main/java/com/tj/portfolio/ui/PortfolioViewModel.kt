@@ -7196,6 +7196,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Today's logged plan for [symbol], if the log took one (2026-09-24b) - off the main thread. */
+    suspend fun loggedPlanToday(symbol: String): com.tj.portfolio.data.DayTradingLogEntry? =
+        withContext(Dispatchers.IO) {
+            runCatching { db.dayTradingLogFor(symbol, com.tj.portfolio.net.MarketClock.dayKey()) }.getOrNull()
+        }
+
     /** One log row's own fetch-and-decide step, split out of [evaluateDayTradingLog] so the
      *  gate above bounds it the same way every other per-symbol network loop in this file is
      *  bounded. */

@@ -1593,13 +1593,23 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     }
 
     /** Every recommendation ever recorded, newest first. */
-    fun dayTradingLog(): List<DayTradingLogEntry> {
+    fun dayTradingLog(): List<DayTradingLogEntry> = readDayTradingLog("", emptyArray())
+
+    /**
+     * The one plan logged for [symbol] on [tradingDay], or null - what the stock's detail screen
+     * shows as "the plan the success rate scores" (2026-09-24b). One indexed row read.
+     */
+    fun dayTradingLogFor(symbol: String, tradingDay: String): DayTradingLogEntry? =
+        readDayTradingLog("WHERE symbol=? AND trading_day=?", arrayOf(symbol.uppercase(), tradingDay))
+            .firstOrNull()
+
+    private fun readDayTradingLog(where: String, args: Array<String>): List<DayTradingLogEntry> {
         val out = ArrayList<DayTradingLogEntry>()
         readableDatabase.rawQuery(
             """SELECT id, symbol, trading_day, recorded_at, setup, entry, stop, target,
                 price_at_recommendation, source, outcome, outcome_exit_price, outcome_evaluated_at
-               FROM day_trading_log ORDER BY recorded_at DESC""",
-            null
+               FROM day_trading_log $where ORDER BY recorded_at DESC""",
+            args
         ).use { c ->
             while (c.moveToNext()) {
                 out.add(
