@@ -858,6 +858,35 @@ internal fun applyAnalystEnrichment(
 }
 
 /**
+ * The rule behind [PortfolioViewModel]'s private `intradayChartIsFinal(held)` - see its KDoc.
+ * Top-level and pure so ChartTest tests THIS, not a restated copy that had gone stale (full test
+ * 2026-09-24, C-Q3: the copy predated the N-6 `sparkIsFinal` clause).
+ */
+internal fun intradayChartIsFinal(
+    range: com.tj.portfolio.data.ChartRange,
+    endMs: Long,
+    fetched: Long,
+    now: Long
+): Boolean {
+    val MC = com.tj.portfolio.net.MarketClock
+    val phase = MC.phase(now)
+    if (phase == MC.Phase.OPEN) return false
+    if (endMs <= 0L) return false
+    return when (range) {
+        // AND FROM THE LATEST SESSION (full test 2026-09-23, N-6): a series that ended in ANY
+        // past regular session used to count - so after one failed fetch on a Saturday,
+        // Wednesday's chart stayed on screen as "1D" until Monday's open. [sparkIsFinal] is
+        // the same question already answered for the row line: fetched outside the session,
+        // and no session has opened since.
+        com.tj.portfolio.data.ChartRange.D1 ->
+            MC.phase(endMs) == MC.Phase.OPEN && sparkIsFinal(fetched, now)
+        com.tj.portfolio.data.ChartRange.OVERNIGHT ->
+            phase == MC.Phase.CLOSED && MC.phase(fetched) == MC.Phase.CLOSED
+        else -> false
+    }
+}
+
+/**
  * A row sparkline pulled at [fetchedAt] cannot have changed by [now] (full-tests audit
  * 2026-09-22, N-M3). `Quote.spark` is the REGULAR session only, so a series fetched outside it
  * already holds that whole session, and stays the latest one until the next opening bell. The
@@ -5430,23 +5459,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * Only the AUTOMATIC path consults this. `force` - which is what pull-to-refresh passes -
      * never reaches it, so a deliberate pull always re-fetches.
      */
-    private fun intradayChartIsFinal(held: ChartSeries): Boolean {
-        val now = MarketClock.phase()
-        if (now == MarketClock.Phase.OPEN) return false
-        if (held.endMs <= 0L) return false
-        return when (held.range) {
-            // AND FROM THE LATEST SESSION (full test 2026-09-23, N-6): a series that ended in ANY
-            // past regular session used to count - so after one failed fetch on a Saturday,
-            // Wednesday's chart stayed on screen as "1D" until Monday's open. [sparkIsFinal] is
-            // the same question already answered for the row line: fetched outside the session,
-            // and no session has opened since.
-            ChartRange.D1 -> MarketClock.phase(held.endMs) == MarketClock.Phase.OPEN &&
-                sparkIsFinal(held.fetched, System.currentTimeMillis())
-            ChartRange.OVERNIGHT -> now == MarketClock.Phase.CLOSED &&
-                MarketClock.phase(held.fetched) == MarketClock.Phase.CLOSED
-            else -> false
-        }
-    }
+    private fun intradayChartIsFinal(held: ChartSeries): Boolean =
+        intradayChartIsFinal(held.range, held.endMs, held.fetched, System.currentTimeMillis())
 
     /**
      * Use a freshly fetched 1D chart as this symbol's sparkline as well.

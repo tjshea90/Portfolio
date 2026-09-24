@@ -350,26 +350,15 @@ class ChartTest {
 
     // -------------------------------------------------- the market-aware refresh gate
     //
-    // `intradayChartIsFinal` is private to the ViewModel, so its RULE is restated here
-    // against the same MarketClock it consults. What matters is that the three cases behave
-    // differently, because the one that is easy to get wrong - pre-market - is the one where
-    // stopping the refresh would freeze a chart that is still filling in.
+    // The REAL rule, `com.tj.portfolio.ui.intradayChartIsFinal` (full test 2026-09-24, C-Q3 -
+    // this file used to restate a copy, which had gone stale). What matters is that the three
+    // cases behave differently, because the one that is easy to get wrong - pre-market - is the
+    // one where stopping the refresh would freeze a chart that is still filling in.
 
     private fun phaseAt(ms: Long) = com.tj.portfolio.net.MarketClock.phase(ms)
 
-    /** Rebuilds the rule under test, so a change to it has to be reflected here too. */
-    private fun isFinal(range: ChartRange, endMs: Long, fetched: Long, nowMs: Long): Boolean {
-        val now = phaseAt(nowMs)
-        if (now == com.tj.portfolio.net.MarketClock.Phase.OPEN) return false
-        if (endMs <= 0L) return false
-        return when (range) {
-            ChartRange.D1 -> phaseAt(endMs) == com.tj.portfolio.net.MarketClock.Phase.OPEN
-            ChartRange.OVERNIGHT ->
-                now == com.tj.portfolio.net.MarketClock.Phase.CLOSED &&
-                    phaseAt(fetched) == com.tj.portfolio.net.MarketClock.Phase.CLOSED
-            else -> false
-        }
-    }
+    private fun isFinal(range: ChartRange, endMs: Long, fetched: Long, nowMs: Long): Boolean =
+        com.tj.portfolio.ui.intradayChartIsFinal(range, endMs, fetched, nowMs)
 
     /** An epoch millisecond at a given US/Eastern wall-clock time on a known weekday. */
     private fun et(year: Int, month: Int, day: Int, hour: Int, minute: Int): Long {
@@ -438,6 +427,14 @@ class ChartTest {
         assertFalse("stopped before any post-close fetch",
             isFinal(ChartRange.OVERNIGHT, after1800, after1800, night2200))
         assertTrue(isFinal(ChartRange.OVERNIGHT, after1800, night2200, night2200))
+    }
+
+    /** N-6 (09-23): Wednesday's final 1D chart is not final once Thursday's session has run. */
+    @Test
+    fun `a past session's 1D chart is not final after a later session opened`() {
+        val saturday = et(2026, 9, 12, 11, 0)
+        assertFalse(isFinal(ChartRange.D1, close1555, after1800, saturday))
+        assertTrue(isFinal(ChartRange.D1, close1555, et(2026, 9, 11, 20, 30), saturday))
     }
 
     /** Longer ranges are governed by their TTL alone; this gate does not apply to them. */
