@@ -172,7 +172,8 @@ val redText: Color
  * already inside composition; nothing outside the UI ever asked this question.
  */
 @Composable
-fun signColor(v: Double): Color = if (v >= 0) greenText else redText
+/** Zero at the precision the figures are shown at is not a loss (U-7) - see [Fmt.snapZero]. */
+fun signColor(v: Double): Color = if (Fmt.snapZero(v) >= 0) greenText else redText
 
 /**
  * THE LINE BETWEEN ONE STOCK AND THE NEXT, AS A COLOUR (Round 66 audit, PUI-4).

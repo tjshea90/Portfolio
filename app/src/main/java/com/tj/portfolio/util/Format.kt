@@ -61,9 +61,23 @@ object Fmt {
     private val priceFmt: java.text.DecimalFormat get() = priceTl.get()!!
     private val qty: java.text.DecimalFormat get() = qtyTl.get()!!
 
-    fun usd(v: Double): String = "$" + money.format(v)
+    /**
+     * A value that ROUNDS to zero at the precision shown IS zero (full test 2026-09-24, U-7):
+     * float noise in a realised P/L (-1e-15) printed "-$0.00" in red, and `pctSigned(-0.0)`
+     * printed "+-0.00%". Also returns +0.0 for -0.0.
+     */
+    internal fun snapZero(v: Double, eps: Double = 0.005): Double = if (abs(v) < eps) 0.0 else v
 
-    fun usdSigned(v: Double): String = (if (v >= 0) "+$" else "-$") + money.format(abs(v))
+    /** Sign outside the dollar, like [price] (U-7: this read "$-1,234.56"). */
+    fun usd(v: Double): String {
+        val s = snapZero(v)
+        return (if (s < 0) "-$" else "$") + money.format(abs(s))
+    }
+
+    fun usdSigned(v: Double): String {
+        val s = snapZero(v)
+        return (if (s >= 0) "+$" else "-$") + money.format(abs(s))
+    }
 
     /**
      * Sub-dollar stocks get more precision, matching how brokers print them.
@@ -82,30 +96,38 @@ object Fmt {
     fun priceBare(v: Double): String =
         if (v != 0.0 && abs(v) < 1.0) money3.format(v) else priceFmt.format(v)
 
-    fun pct(v: Double): String = String.format(Locale.US, "%.2f%%", v)
+    fun pct(v: Double): String = String.format(Locale.US, "%.2f%%", snapZero(v))
 
-    fun pctSigned(v: Double): String =
-        (if (v >= 0) "+" else "") + String.format(Locale.US, "%.2f%%", v)
+    fun pctSigned(v: Double): String {
+        val s = snapZero(v)
+        return (if (s >= 0) "+" else "") + String.format(Locale.US, "%.2f%%", s)
+    }
 
-    fun changeSigned(v: Double): String =
-        (if (v >= 0) "+" else "-") + priceBare(abs(v))
+    fun changeSigned(v: Double): String {
+        val s = snapZero(v, 0.0005)          // priceBare shows up to three decimals
+        return (if (s >= 0) "+" else "-") + priceBare(abs(s))
+    }
 
     /**
      * A price change sized to the stock, not to the change. A 13-cent move on an $89 ETF
      * should read "+0.13", not "+0.1300" - the extra digits pushed the percentage off the
      * edge of the row. Sub-dollar stocks still get four decimals, where they matter.
      */
-    fun changeFor(price: Double, v: Double): String =
-        (if (v >= 0) "+" else "-") +
-            (if (price > 0 && price < 1.0) money4 else priceFmt).format(abs(v))
+    fun changeFor(price: Double, v: Double): String {
+        val sub = price > 0 && price < 1.0
+        val s = snapZero(v, if (sub) 0.00005 else 0.0005)
+        return (if (s >= 0) "+" else "-") + (if (sub) money4 else priceFmt).format(abs(s))
+    }
 
     /**
      * Same digits as [changeFor], written as money: "+$1.24", "-$0.0135". Used where the
      * change sits next to an actual price, so a bare "+1.24" would be ambiguous.
      */
-    fun changeMoney(price: Double, v: Double): String =
-        (if (v >= 0) "+$" else "-$") +
-            (if (price > 0 && price < 1.0) money4 else priceFmt).format(abs(v))
+    fun changeMoney(price: Double, v: Double): String {
+        val sub = price > 0 && price < 1.0
+        val s = snapZero(v, if (sub) 0.00005 else 0.0005)
+        return (if (s >= 0) "+$" else "-$") + (if (sub) money4 else priceFmt).format(abs(s))
+    }
 
     fun shares(v: Double): String = qty.format(v)
 
@@ -167,12 +189,14 @@ object Fmt {
 
     fun compact(v: Double): String {
         val a = abs(v)
+        // THE UNIT IS PICKED AFTER ROUNDING (U-7): 999,995 is "1.00M", not "1000.00K".
+        fun reaches(scale: Double) = a >= scale * (1 - 5e-6)
         return when {
-            a >= 1e12 -> String.format(Locale.US, "%.2fT", v / 1e12)
-            a >= 1e9 -> String.format(Locale.US, "%.2fB", v / 1e9)
-            a >= 1e6 -> String.format(Locale.US, "%.2fM", v / 1e6)
-            a >= 1e3 -> String.format(Locale.US, "%.2fK", v / 1e3)
-            else -> money.format(v)
+            reaches(1e12) -> String.format(Locale.US, "%.2fT", v / 1e12)
+            reaches(1e9) -> String.format(Locale.US, "%.2fB", v / 1e9)
+            reaches(1e6) -> String.format(Locale.US, "%.2fM", v / 1e6)
+            reaches(1e3) -> String.format(Locale.US, "%.2fK", v / 1e3)
+            else -> money.format(snapZero(v))
         }
     }
 
@@ -183,7 +207,7 @@ object Fmt {
      * the ETF card prints five of these and one of them missing its sign reads as a share
      * count. Round 63.
      */
-    fun compactMoney(v: Double): String = "$" + compact(v)
+    fun compactMoney(v: Double): String = (if (v < 0) "-$" else "$") + compact(abs(v))
 
     /** One decimal place. For quantities where two is false precision - a fund's age. */
     fun oneDp(v: Double): String = String.format(Locale.US, "%.1f", v)

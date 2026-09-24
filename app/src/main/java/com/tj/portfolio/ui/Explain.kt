@@ -115,7 +115,7 @@ object Explain {
     private fun x(v: Double): String = String.format(java.util.Locale.US, "%.2f", v)
 
     private fun money(v: Double): String =
-        if (abs(v) >= 1_000_000) "$" + Fmt.compact(v) else Fmt.usd(v)
+        if (abs(v) >= 1_000_000) Fmt.compactMoney(v) else Fmt.usd(v)   // "-$18.40M" (U-7)
 
     /**
      * Whole calendar days from now to [ms], floor-rounded so a timestamp in the PAST reads
