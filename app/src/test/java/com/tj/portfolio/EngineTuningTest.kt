@@ -297,8 +297,10 @@ class EngineTuningTest {
         val vm = PortfolioViewModel(app)
         settle()
         val msg = vm.importShared(answer(0, change(DayTradingParams.MIN_RISK, 1.5, 1.6))).message
-        assertTrue(msg, msg.contains("ready for you to approve"))
+        assertTrue(msg, msg.contains("Checking"))
+        repeat(20) { if (vm.engineReview.value == null) settle() }
         assertNotNull(vm.engineReview.value)
+        assertTrue(vm.engineReviewMessage(vm.engineReview.value!!).contains("ready for you to approve"))
         assertEquals("nothing changes before Apply", DEFAULTS, DayTradingEngine.params)
         vm.applyEngineReview()
         repeat(20) { if (vm.engine.value.version == 0 || vm.engineReview.value != null) settle() }

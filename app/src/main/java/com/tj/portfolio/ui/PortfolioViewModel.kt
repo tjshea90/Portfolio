@@ -8230,14 +8230,25 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val proposal = runCatching { com.tj.portfolio.net.EngineTuning.parse(text) }
             .getOrElse { return "Couldn't read that file: ${it.message}" }
         if (proposal.error != null && proposal.changes.isEmpty() && proposal.verdict.isBlank()) return proposal.error
-        // A local read: the log is small, and the review must see it as it is right now.
-        val log = runCatching { db.dayTradingLog() }.getOrDefault(emptyList())
-        val review = com.tj.portfolio.net.EngineTuning.review(proposal, _engine.value, log)
-        _engineReview.value = review
+        // The review reads the whole log (with every trade's grading detail) - off the main thread;
+        // the sheet opens, and says what it found, when that is done.
+        viewModelScope.launch {
+            val ev = engineEvidenceNow()
+            val review = withContext(Dispatchers.Default) {
+                com.tj.portfolio.net.EngineTuning.review(proposal, _engine.value, ev.rows)
+            }
+            _engineReview.value = review
+            toast(engineReviewMessage(review))
+        }
+        return "Checking Claude's engine review..."
+    }
+
+    /** What an opened review sheet found, in one line. */
+    internal fun engineReviewMessage(review: com.tj.portfolio.net.EngineTuning.Review): String {
         val ok = review.applicable.size
         return when {
-            review.blocker.isNotBlank() && proposal.changes.isNotEmpty() -> "Claude's review loaded - no changes can be applied yet (see why)"
-            proposal.changes.isEmpty() -> "Claude's review loaded - it recommends no changes this time"
+            review.blocker.isNotBlank() && review.proposal.changes.isNotEmpty() -> "Claude's review loaded - no changes can be applied yet (see why)"
+            review.proposal.changes.isEmpty() -> "Claude's review loaded - it recommends no changes this time"
             ok == 0 -> "Claude's review loaded - none of its changes pass the app's checks (see why)"
             else -> "Claude's review loaded - $ok change${if (ok == 1) "" else "s"} ready for you to approve"
         }
