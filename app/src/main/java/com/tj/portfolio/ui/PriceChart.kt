@@ -320,6 +320,8 @@ fun PriceChart(
         shown?.takeIf { it.points.size >= 2 }?.let { ChartWindow(it.startMs, it.endMs) }
     )
     val liveCanPan = rememberUpdatedState(canPanNow)
+    // The double-tap's reset: only while the chart is moved from its default view (idea 8).
+    val liveReset = rememberUpdatedState(if (movedAll) onResetWindow else null)
     // Captured here because a pointer handler is not a composition and cannot read a
     // CompositionLocal; the tick itself is fired from inside the gesture.
     val haptics = LocalHapticFeedback.current
@@ -473,6 +475,9 @@ fun PriceChart(
                 // two independent flags cannot describe it without a moment where both are
                 // wrong.
                 canPan = { liveCanPan.value },
+                // A press shows its value at once wherever a drag would scrub anyway (idea 2).
+                pressShows = { !liveCanPan.value },
+                doubleTap = { liveReset.value },
                 onHold = {
                     // The tick that says "the chart has taken this gesture". Without it a
                     // press-and-hold on a zoomed chart is indistinguishable from a pan that
@@ -2012,10 +2017,26 @@ internal suspend fun PointerInputScope.chartGestures(
     canPan: () -> Boolean = { false },
     /** Fired once, when a press-and-hold takes the gesture. The caller ticks the phone. */
     onHold: () -> Unit = {},
+    /**
+     * SHOW THE VALUE THE MOMENT A FINGER LANDS (chart idea 2, 2026-09-24b) - as Robinhood and
+     * most broker apps do - instead of only after a sideways drag has crossed the slop. Only
+     * where a one-finger drag scrubs anyway (an unzoomed chart); nothing is consumed, so a drag
+     * that turns out to be the page's scroll still scrolls, and the crosshair goes with it.
+     */
+    pressShows: () -> Boolean = { false },
+    /**
+     * DOUBLE-TAP TO RESET THE ZOOM (chart idea 8, 2026-09-24b). A provider like the others:
+     * the reset callback while the chart is moved away from its default view, else null - so a
+     * double-tap on an unzoomed chart does nothing.
+     */
+    doubleTap: () -> (() -> Unit)? = { null },
     /** Which gesture owns the window now. Called only when the answer changes. */
     onGesture: (ChartGesture) -> Unit
 ) {
     val slop = viewConfiguration.touchSlop
+    // Across gestures, for the double-tap: when and where the last plain tap lifted.
+    var lastTapUp = 0L
+    var lastTapAt = androidx.compose.ui.geometry.Offset.Zero
     /**
      * How far a finger may wander and still count as "not moving".
      *
@@ -2064,6 +2085,12 @@ internal suspend fun PointerInputScope.chartGestures(
         fun report(g: ChartGesture) {
             if (reported != g) { reported = g; onGesture(g) }
         }
+        // Still a candidate for a TAP: one finger throughout, never past the slop.
+        var tapLike = true
+        var liftedAt = 0L
+        var liftedPos = first.position
+
+        if (pressShows()) pointAt(first.position.x)
 
         try {
             while (true) {
@@ -2104,7 +2131,11 @@ internal suspend fun PointerInputScope.chartGestures(
                 }
 
                 val pressed = event.changes.count { it.pressed }
-                if (pressed == 0) break
+                if (pressed == 0) {
+                    event.changes.firstOrNull()?.let { liftedAt = it.uptimeMillis; liftedPos = it.position }
+                    break
+                }
+                if (pressed > 1) tapLike = false
 
                 val onZoomStep = zoom()
                 val onPinch = pinch()
@@ -2260,6 +2291,7 @@ internal suspend fun PointerInputScope.chartGestures(
                 if (nearDown) {
                     nearDown = (change.position - first.position).getDistance() <= slop
                 }
+                if (!nearDown) tapLike = false
                 val stillFor = change.uptimeMillis - stillSince
                 wait = HOLD_SCRUB_MS - stillFor
 
@@ -2321,6 +2353,21 @@ internal suspend fun PointerInputScope.chartGestures(
             // comes off.
             clearPoint()
             report(ChartGesture.NONE)
+        }
+        // ---- A PLAIN TAP: the second of two inside the double-tap window resets the zoom.
+        val tap = tapLike && !holdArmed && liftedAt > 0L &&
+            liftedAt - first.uptimeMillis < viewConfiguration.longPressTimeoutMillis
+        if (!tap) {
+            lastTapUp = 0L
+        } else if (lastTapUp > 0L &&
+            first.uptimeMillis - lastTapUp <= viewConfiguration.doubleTapTimeoutMillis &&
+            (liftedPos - lastTapAt).getDistance() <= slop * 4f
+        ) {
+            lastTapUp = 0L
+            doubleTap()?.invoke()
+        } else {
+            lastTapUp = liftedAt
+            lastTapAt = liftedPos
         }
     }
 }
