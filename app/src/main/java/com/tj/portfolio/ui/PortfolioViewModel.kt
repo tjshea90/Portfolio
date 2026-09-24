@@ -2011,6 +2011,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** True while an Apply is being checked and saved - the sheet's button waits on it (UI-13). */
     private val _engineApplying = MutableStateFlow(false)
+    /**
+     * One engine change at a time (audit PL-10): Apply from the review sheet and Revert from
+     * Settings, or a double confirm, each read the engine, suspended, then wrote a new version built
+     * from the SAME base - the second silently erased the first, whose toast had said "applied".
+     */
+    private val engineMutex = kotlinx.coroutines.sync.Mutex()
     val engineApplying: StateFlow<Boolean> = _engineApplying.asStateFlow()
 
     /**
@@ -8305,43 +8311,78 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Reads the stored engine and installs it - at start-up and after a backup restore. Anything
-     * missing or corrupt reads as the original engine ([com.tj.portfolio.net.EngineTuning.load]).
+     * missing or corrupt reads as the original engine ([com.tj.portfolio.net.EngineTuning.load]); the
+     * version is never below a label the log already holds (audit PL-9).
+     *
+     * THE BACKUP FILES ARE READ, NOT OVERWRITTEN, WHEN SETTINGS HAVE NO ENGINE (audit PL-4) - that is
+     * exactly the case they exist for (a database lost or rebuilt while app storage survived, as
+     * Android's own backup does): a tuned engine found in them is adopted and said so, and only an
+     * engine at least as new as theirs is ever written over them.
      */
     private fun loadEngine() {
-        val st = com.tj.portfolio.net.EngineTuning.load(
-            runCatching { db.get(Keys.DT_ENGINE) }.getOrNull(),
-            runCatching { db.get(Keys.DT_ENGINE_HISTORY) }.getOrNull()
-        )
+        val engineJson = runCatching { db.get(Keys.DT_ENGINE) }.getOrNull()
+        val historyJson = runCatching { db.get(Keys.DT_ENGINE_HISTORY) }.getOrNull()
+        val logVersion = runCatching { db.dayTradingLogMaxEngineVersion() }.getOrDefault(0)
+        val st = com.tj.portfolio.net.EngineTuning.load(engineJson, historyJson, logVersion)
         com.tj.portfolio.net.DayTradingEngine.install(st.params, st.version)
         _engine.value = st
-        viewModelScope.launch(Dispatchers.IO) { runCatching { writeEngineBackupFiles(st) } }
+        val stored = !engineJson.isNullOrBlank() || !historyJson.isNullOrBlank()
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                val saved = if (stored) null else readEngineBackupFiles(logVersion)
+                if (saved != null && (!saved.isOriginal || saved.history.isNotEmpty())) {
+                    engineMutex.withLock { if (_engine.value === st) saveEngine(saved) }
+                    if (!saved.isOriginal) toast("Restored the tuned day-trading engine (v${saved.version}) from its backup file in app storage")
+                } else writeEngineBackupFiles(st, replace = stored)
+            }
+        }
     }
 
     /** Persists, installs and backs up a new engine state - the one path every change goes through. */
     private suspend fun saveEngine(st: com.tj.portfolio.net.EngineTuning.State) {
         withContext(Dispatchers.IO) {
-            db.set(Keys.DT_ENGINE, st.engineJson())
-            db.set(Keys.DT_ENGINE_HISTORY, st.historyJson())
+            db.setAll(mapOf(Keys.DT_ENGINE to st.engineJson(), Keys.DT_ENGINE_HISTORY to st.historyJson()))
         }
         com.tj.portfolio.net.DayTradingEngine.install(st.params, st.version)
         _engine.value = st
-        withContext(Dispatchers.IO) { runCatching { writeEngineBackupFiles(st) } }
+        withContext(Dispatchers.IO) { runCatching { writeEngineBackupFiles(st, replace = true) } }
     }
+
+    private fun engineBackupDir() = java.io.File(getApplication<Application>().filesDir, "daytrading-engine")
 
     /**
      * THE BACKUP FILE TJ ASKED FOR (rule 3) - plain JSON in the app's private storage:
      * `daytrading-engine/original.json` (the original engine, every parameter), `current.json` and
      * `history.json`. The revert itself never depends on these - the original is compiled into the
      * app - but they are a readable record that survives a corrupt settings table, and they travel
-     * with Android's own app backup.
+     * with Android's own app backup. Written through a temporary file and a rename, so a crash
+     * mid-write can never leave half a file (PL-4); with [replace] false, never over a newer record.
      */
-    private fun writeEngineBackupFiles(st: com.tj.portfolio.net.EngineTuning.State) {
-        val dir = java.io.File(getApplication<Application>().filesDir, "daytrading-engine").apply { mkdirs() }
-        val original = java.io.File(dir, "original.json")
-        if (!original.exists()) original.writeText(com.tj.portfolio.net.DayTradingParams.DEFAULTS.toFullJson().toString(2))
-        java.io.File(dir, "current.json").writeText(
-            org.json.JSONObject().put("version", st.version).put("params", st.params.toFullJson()).toString(2))
-        java.io.File(dir, "history.json").writeText(org.json.JSONArray(st.historyJson()).toString(2))
+    private fun writeEngineBackupFiles(st: com.tj.portfolio.net.EngineTuning.State, replace: Boolean) {
+        val dir = engineBackupDir().apply { mkdirs() }
+        fun write(name: String, text: String) {
+            val tmp = java.io.File(dir, "$name.tmp")
+            tmp.writeText(text)
+            if (!tmp.renameTo(java.io.File(dir, name))) { java.io.File(dir, name).writeText(text); tmp.delete() }
+        }
+        if (!java.io.File(dir, "original.json").exists())
+            write("original.json", com.tj.portfolio.net.DayTradingParams.DEFAULTS.toFullJson().toString(2))
+        val current = java.io.File(dir, "current.json")
+        if (!replace && current.exists()) {
+            val onFile = runCatching { org.json.JSONObject(current.readText()).optInt("version", 0) }.getOrDefault(0)
+            if (onFile > st.version) return
+        }
+        write("current.json", org.json.JSONObject().put("version", st.version).put("params", st.params.toFullJson()).toString(2))
+        write("history.json", org.json.JSONArray(st.historyJson()).toString(2))
+    }
+
+    /** The engine the backup files record, or null when there are none (or they are unreadable). */
+    private fun readEngineBackupFiles(logVersion: Int): com.tj.portfolio.net.EngineTuning.State? {
+        val dir = engineBackupDir()
+        val current = java.io.File(dir, "current.json").takeIf { it.exists() } ?: return null
+        val history = java.io.File(dir, "history.json").takeIf { it.exists() }?.readText()
+        val cur = runCatching { org.json.JSONObject(current.readText()) }.getOrNull() ?: return null
+        return com.tj.portfolio.net.EngineTuning.load(cur.toString(), history, logVersion)
     }
 
     /** Graded trades of the app's own plans - total, and since the last applied change. */
@@ -8432,7 +8473,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (_engineApplying.value) return
         _engineApplying.value = true
         viewModelScope.launch {
-            try {
+            try { engineMutex.withLock {
                 val ev = engineEvidenceNow()
                 val st = _engine.value
                 val fresh = withContext(Dispatchers.Default) {
@@ -8457,7 +8498,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     "${if (fresh.applicable.size == 1) "" else "s"}. New plans use it from the next refresh; " +
                     "ranking weights from the next list rebuild. Undo or revert any time.")
                 replanDayTradingNow()
-            } finally {
+            } } finally {
                 _engineApplying.value = false
             }
         }
@@ -8465,19 +8506,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** "Undo last change". */
     fun undoEngineChange() {
-        viewModelScope.launch {
+        viewModelScope.launch { engineMutex.withLock {
             val ev = engineEvidenceNow()
             val next = com.tj.portfolio.net.EngineTuning.undo(_engine.value, System.currentTimeMillis(), ev.total)
                 ?: return@launch toast("Nothing to undo")
             saveEngine(next)
             toast("Undone - the engine is back to how it was before that change (now v${next.version})")
             replanDayTradingNow()
-        }
+        } }
     }
 
     /** "Revert to the original engine" - every change ever applied, taken back. */
     fun revertEngine() {
-        viewModelScope.launch {
+        viewModelScope.launch { engineMutex.withLock {
             val ev = engineEvidenceNow()
             val next = com.tj.portfolio.net.EngineTuning.revert(_engine.value, System.currentTimeMillis(), ev.total)
                 ?: return@launch toast("The engine is already the original")
