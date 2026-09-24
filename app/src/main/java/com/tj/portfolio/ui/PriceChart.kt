@@ -613,7 +613,7 @@ fun PriceChart(
         // The principle, for every range: zooming and dragging change WHICH PART of the chart is
         // on screen, never WHAT the lines measure.
         val prevCloseRange = range == ChartRange.D1 || range == ChartRange.OVERNIGHT
-        val compareAnchorT = if (compare != null) compareAnchorFor(shown, range) else null
+        val compareAnchorT = if (compare != null) compareAnchorFor(shown, range, compare) else null
 
         // ---- COMPARISON MODE, computed once per data change rather than per frame.
         //
@@ -2432,11 +2432,21 @@ const val BENCHMARK_SYMBOL = "SPY"
  *
  *  - 1D and Overnight: null - each line from its own previous close, as the unzoomed chart and
  *    the 1D chip measure them.
- *  - Every other range, 5D included: the first candle of the fetched series.
+ *  - Every other range, 5D included: the first candle of the fetched series - or the
+ *    BENCHMARK's first candle when that is later (full test 2026-09-24, C-3). KO, IBM or MSFT
+ *    on "All" start decades before SPY (1993); anchored at the stock's first candle, SPY fell
+ *    back to its own first close and the chart measured the stock from 1962 and SPY from 1993
+ *    under a caption saying "both lines from the same start". Both now start where both exist.
  */
-internal fun compareAnchorFor(shown: ChartSeries, range: ChartRange): Long? =
+internal fun compareAnchorFor(
+    shown: ChartSeries,
+    range: ChartRange,
+    benchmark: ChartSeries? = null
+): Long? =
     if (range == ChartRange.D1 || range == ChartRange.OVERNIGHT) null
-    else shown.points.firstOrNull()?.t
+    else shown.points.firstOrNull()?.t?.let { t ->
+        maxOf(t, benchmark?.points?.firstOrNull()?.t ?: t)
+    }
 
 /**
  * Both comparison lines over [drawn] (the on-screen slice of [shown]), measured from the ONE fixed
@@ -2452,7 +2462,7 @@ internal fun compareLines(
     tipT: Long = Long.MAX_VALUE,
     zoomedIn: Boolean = false
 ): ComparePair? {
-    val anchorT = compareAnchorFor(shown, range)
+    val anchorT = compareAnchorFor(shown, range, benchmark)
     val other = comparePercents(drawn, benchmark, tipT, anchorT) ?: return null
     val ownFrom = if (anchorT != null) valueAtOrBefore(shown.points, anchorT) else shown.from
     val own = primaryPercents(drawn, fromPoint = zoomedIn, fromValue = ownFrom) ?: return null
@@ -2490,19 +2500,31 @@ internal fun comparePercents(
     if (primary.isEmpty || compare.isEmpty) return null
     val pts = primary.points
     val cs = compare.points
+    // A BENCHMARK THAT ENDS BEFORE THE STOCK'S WINDOW BEGINS IS NOT A COMPARISON (full test
+    // 2026-09-24, C-5): every lookup carried its last value forward, so SPY drew flat at
+    // yesterday's move beside today's pre-market line. And on 1D both lines must describe the
+    // SAME session, or the spread subtracts yesterday's SPY move from today's stock move.
+    if (cs.last().t < pts.first().t) return null
+    if (primary.range == ChartRange.D1 && compare.range == ChartRange.D1 &&
+        com.tj.portfolio.net.MarketClock.dayKey(cs.last().t * 1000L) !=
+        com.tj.portfolio.net.MarketClock.dayKey(pts.last().t * 1000L)
+    ) return null
 
     val base = if (baseT != null) {
         // A ZOOMED CHART. The window's own first point is the shared zero, for both lines -
         // including on an intraday range, where the previous close is no longer what the
         // reader is being shown a percentage of.
-        valueAtOrBefore(cs, baseT) ?: cs.first().close
+        // NO FALLBACK TO THE BENCHMARK'S OWN FIRST CLOSE (C-3): that is a different start
+        // from the stock's, which is precisely the comparison this must never draw.
+        valueAtOrBefore(cs, baseT) ?: return null
     } else if (primary.range == ChartRange.D1 || primary.range == ChartRange.OVERNIGHT) {
         // Both lines measured from their own previous close - the same reference the readout
         // and the chips use for an intraday window.
         compare.from
     } else {
-        // Rebased to where the benchmark stood when THIS window opened.
-        valueAtOrBefore(cs, pts.first().t) ?: cs.first().close
+        // Rebased to where the benchmark stood when THIS window opened - and no overlay when it
+        // did not exist yet (C-3), rather than a line measured from a later start.
+        valueAtOrBefore(cs, pts.first().t) ?: return null
     }
     if (base <= 0.0 || !base.isFinite()) return null
 
