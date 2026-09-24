@@ -7440,7 +7440,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // it (its features), or the original engine's for a row logged before they were recorded.
         val (deadline, flat) = com.tj.portfolio.net.DayTradingFeatures.timesFor(
             entry.tradingDay, entry.recordedAt, entry.features)
-        val spec = G.Spec(
+        val spec = com.tj.portfolio.net.DayTradingGrader.Spec(
             entry = entry.entry, stop = entry.stop, target = entry.target,
             rises = E.entryRises(entry.setup, entry.entry, entry.priceAtRecommendation),
             recordedAt = entry.recordedAt,
