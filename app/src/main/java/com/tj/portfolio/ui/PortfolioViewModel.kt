@@ -5394,48 +5394,53 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 } else {
                     val diskGate = kotlinx.coroutines.CompletableDeferred<Unit>()
                     chartDiskInFlight[sym] = diskGate
-                    // UN-MARKED IF THE READ DOES NOT FINISH. The mark is set before the
-                    // query so two ranges loading at once do not both run it - but that also
-                    // means a cancellation between the two leaves the symbol marked as read
-                    // with nothing loaded, and the disk cache is then never consulted again
-                    // for it this session. Same trap, same fix, as the `sparkAt` marks.
-                    var read = false
-                    val disk = try {
-                        withContext(Dispatchers.IO) {
-                            runCatching { db.cachedCharts(sym) }.getOrDefault(emptyMap())
-                        }.also { read = true }
+                    try {
+                        // UN-MARKED IF THE READ DOES NOT FINISH. The mark is set before the
+                        // query so two ranges loading at once do not both run it - but that also
+                        // means a cancellation between the two leaves the symbol marked as read
+                        // with nothing loaded, and the disk cache is then never consulted again
+                        // for it this session. Same trap, same fix, as the `sparkAt` marks.
+                        var read = false
+                        val disk = try {
+                            withContext(Dispatchers.IO) {
+                                runCatching { db.cachedCharts(sym) }.getOrDefault(emptyMap())
+                            }.also { read = true }
+                        } finally {
+                            if (!read) chartDiskRead.remove(sym)
+                        }
+                        if (disk.isNotEmpty()) {
+                            val m = HashMap(_charts.value)
+                            // Never let a disk row overwrite something newer already in memory:
+                            // a fetch for another range can land while this query is suspended.
+                            disk.forEach { (r, s) ->
+                                val k = chartKey(sym, r)
+                                val live = m[k]
+                                if (live == null || live.fetched < s.fetched) m[k] = s
+                            }
+                            _charts.value = m
+                            // ONE REQUEST, TWO CONSUMERS - on this path as well as the fetch one.
+                            // A restored 1D series is the same thing `refreshSparklines` would go
+                            // and fetch, so adopting it here saves that request outright, and it
+                            // is what lets that pass safely skip a symbol whose chart is fresh.
+                            // `adoptAsSparkline` checks its own preconditions and does nothing if
+                            // there is no quote to attach it to yet.
+                            // ONLY IF IT IS STILL FRESH. `adoptAsSparkline` checks that the
+                            // series is regular-session and that a quote exists to attach it to,
+                            // but not how OLD it is - which is fine on the fetch path, where it
+                            // is fresh by construction, and wrong here, where it is whatever
+                            // SQLite held. Adopting a stale one stamps `sparkAt` and so
+                            // suppresses the real refresh for five minutes, drawing yesterday's
+                            // intraday line against today's previous close: the very bug this
+                            // adoption was added to prevent, arriving from the other side.
+                            m[chartKey(sym, ChartRange.D1)]
+                                ?.takeIf { !it.stale() }
+                                ?.let { adoptAsSparkline(sym, it) }
+                        }
+                
                     } finally {
-                        if (!read) chartDiskRead.remove(sym)
+                        // Released only once the rows are IN MEMORY, so a waiter finds them (C-11).
                         chartDiskInFlight.remove(sym, diskGate)
                         diskGate.complete(Unit)
-                    }
-                    if (disk.isNotEmpty()) {
-                        val m = HashMap(_charts.value)
-                        // Never let a disk row overwrite something newer already in memory:
-                        // a fetch for another range can land while this query is suspended.
-                        disk.forEach { (r, s) ->
-                            val k = chartKey(sym, r)
-                            val live = m[k]
-                            if (live == null || live.fetched < s.fetched) m[k] = s
-                        }
-                        _charts.value = m
-                        // ONE REQUEST, TWO CONSUMERS - on this path as well as the fetch one.
-                        // A restored 1D series is the same thing `refreshSparklines` would go
-                        // and fetch, so adopting it here saves that request outright, and it
-                        // is what lets that pass safely skip a symbol whose chart is fresh.
-                        // `adoptAsSparkline` checks its own preconditions and does nothing if
-                        // there is no quote to attach it to yet.
-                        // ONLY IF IT IS STILL FRESH. `adoptAsSparkline` checks that the
-                        // series is regular-session and that a quote exists to attach it to,
-                        // but not how OLD it is - which is fine on the fetch path, where it
-                        // is fresh by construction, and wrong here, where it is whatever
-                        // SQLite held. Adopting a stale one stamps `sparkAt` and so
-                        // suppresses the real refresh for five minutes, drawing yesterday's
-                        // intraday line against today's previous close: the very bug this
-                        // adoption was added to prevent, arriving from the other side.
-                        m[chartKey(sym, ChartRange.D1)]
-                            ?.takeIf { !it.stale() }
-                            ?.let { adoptAsSparkline(sym, it) }
                     }
                 }
 
