@@ -377,7 +377,9 @@ object ResearchScore {
          * Round 73 meant. See [pacedVolumeRatio] for why the raw ratio cannot be compared to
          * these thresholds mid-session.
          */
-        sessionFraction: Double = 1.0
+        sessionFraction: Double = 1.0,
+        /** The ranking weights (2026-09-24c) - the active engine's unless a caller pins one. */
+        p: DayTradingParams = DayTradingEngine.params
     ): Scored {
         val why = ArrayList<String>()
         var s = 0.0
@@ -391,7 +393,7 @@ object ResearchScore {
         val partial = sessionFraction < 1.0
         if (rvol > 0) {
             have++
-            s += ramp(rvol, 1.0, 5.0, 30.0)
+            s += ramp(rvol, 1.0, p["score.rvolFullAt"], p["score.rvolPoints"])
             if (rvol >= 2.0) why.add(
                 if (partial)
                     "Running at ${Fmt.priceBare(rvol)}x its normal volume pace" +
@@ -408,7 +410,7 @@ object ResearchScore {
         want++
         if (r.changePct.isFinite() && r.price > 0) {
             have++
-            s += ramp(r.changePct, 0.0, 12.0, 20.0)
+            s += ramp(r.changePct, 0.0, p["score.moveFullAt"], p["score.movePoints"])
             if (r.changePct >= 3.0) why.add("Up ${pct(r.changePct)} $sessionWord")
         }
 
@@ -420,11 +422,11 @@ object ResearchScore {
             have++
             var chat = 0.0
             if (t.mentions > 0 && maxMentions > 0) {
-                chat += ramp(t.mentions.toDouble(), 0.0, maxMentions.toDouble(), 12.0)
+                chat += ramp(t.mentions.toDouble(), 0.0, maxMentions.toDouble(), p["score.mentionPoints"])
                 why.add("${t.mentions} r/wallstreetbets mentions today")
             }
             if (t.newsCount > 0 && maxNews > 0) {
-                chat += ramp(t.newsCount.toDouble(), 0.0, maxNews.toDouble(), 8.0)
+                chat += ramp(t.newsCount.toDouble(), 0.0, maxNews.toDouble(), p["score.newsPoints"])
                 why.add("${t.newsCount} news ${if (t.newsCount == 1) "story" else "stories"} today")
             }
             s += chat
@@ -436,8 +438,8 @@ object ResearchScore {
         // slow-moving structural fact (FINRA reports it twice a month), not a trigger for
         // today, so plain membership earns far less than the combination does.
         if (Screener.Lists.MOST_SHORTED in r.lists) {
-            val squeeze = rvol >= 2.0 && r.changePct >= 3.0
-            s += if (squeeze) 20.0 else 8.0
+            val squeeze = rvol >= p["conf.rvolThreshold"] && r.changePct >= p["conf.moveThreshold"]
+            s += if (squeeze) p["score.squeezePoints"] else p["score.shortedPoints"]
             why.add(
                 if (squeeze)
                     "Heavily shorted AND moving up on strong volume - a classic short-squeeze shape"
@@ -450,15 +452,15 @@ object ResearchScore {
         if (r.price > 0 && r.fiftyDayAvg > 0) {
             have++
             if (r.rangePos in 0.0..1.0 && r.rangePos > 0.85) {
-                s += 10.0
+                s += p["score.nearHighPoints"]
                 why.add("Within 15% of its 52-week high - breaking out")
             } else if (r.price > r.fiftyDayAvg) {
-                s += 5.0
+                s += p["score.aboveFiftyDayPoints"]
             }
         }
 
         if (catalystSoon) {
-            s += 8.0
+            s += p["score.catalystPoints"]
             why.add("Reports earnings today or tomorrow")
         }
 
@@ -1576,7 +1578,8 @@ object ResearchScore {
         r: ScreenRow,
         tech: DayTradingTechnicals.DayTechnicals? = null,
         /** See [dayTrading]'s parameter of the same name, and [pacedVolumeRatio]. */
-        sessionFraction: Double = 1.0
+        sessionFraction: Double = 1.0,
+        p: DayTradingParams = DayTradingEngine.params
     ): Int {
         var confirmed = 0
         // PACED, LIKE THE SCORE ITSELF. Testing a half-day volume figure against a whole-day
@@ -1585,10 +1588,12 @@ object ResearchScore {
         // blended score on screen, was systematically depressed all morning for reasons that had
         // nothing to do with the stock.
         val rvol = pacedVolumeRatio(r.volumeRatio, sessionFraction)
-        if (rvol >= 2.0) confirmed++
-        if (r.changePct.isFinite() && r.changePct >= 3.0) confirmed++
+        val rvolAt = p["conf.rvolThreshold"]
+        val moveAt = p["conf.moveThreshold"]
+        if (rvol >= rvolAt) confirmed++
+        if (r.changePct.isFinite() && r.changePct >= moveAt) confirmed++
         val squeeze = Screener.Lists.MOST_SHORTED in r.lists &&
-            rvol >= 2.0 && r.changePct >= 3.0
+            rvol >= rvolAt && r.changePct >= moveAt
         val nearHigh = r.rangePos in 0.0..1.0 && r.rangePos > 0.85
         if (squeeze || nearHigh) confirmed++
         return confirmed * 100 / CONFIRMATION_CHECKS + technicalConfirmationBonus(r.price, tech)
@@ -1720,7 +1725,12 @@ object ResearchScore {
      * follows: a condition that is not met earns nothing and prints nothing, rather than a
      * "why this DIDN'T score" line no other line in this list has a counterpart for.
      */
-    fun withTechnicals(base: Scored, tech: DayTradingTechnicals.DayTechnicals, price: Double): Scored {
+    fun withTechnicals(
+        base: Scored,
+        tech: DayTradingTechnicals.DayTechnicals,
+        price: Double,
+        p: DayTradingParams = DayTradingEngine.params
+    ): Scored {
         if (tech.isEmpty || price <= 0.0) return base
         var s = base.score.toDouble()
         val why = ArrayList(base.reasons)
@@ -1730,13 +1740,13 @@ object ResearchScore {
         // session that ended hours ago.
         val word = if (tech.sessionLive) "today" else "in the last session"
         if (tech.vwap > 0.0 && price > tech.vwap) {
-            s += 8.0
+            s += p["score.vwapPoints"]
             why.add(
                 "Trading above its session VWAP (${Fmt.price(tech.vwap)}) - buyers in control $word"
             )
         }
         if (tech.openingRangeComplete && tech.openingRangeHigh > 0.0 && price > tech.openingRangeHigh) {
-            s += 12.0
+            s += p["score.orbPoints"]
             why.add(
                 "Broke above its opening-range high (${Fmt.price(tech.openingRangeHigh)}) on " +
                     "the first 30 minutes' volume - a classic opening-range breakout"
