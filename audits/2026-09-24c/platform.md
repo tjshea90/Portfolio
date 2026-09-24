@@ -92,3 +92,66 @@ overwrite when the stored state is "smaller" (settings key absent / version lowe
 — and optionally offer to adopt the file's state when settings has no `dt_engine`. Write via
 temp + rename (as `Storage.saveToAppFolder` does) so a crash mid-write cannot truncate them.
 
+### PL-5 (M) — Backups will outgrow the 8 MB read cap; the restore / verify / recovery paths then fail
+**Where:** `data/Db.kt:1793-1815` (each log row now exports `features` + `evalDetail` as ESCAPED JSON
+strings inside a `toString(1)` document); `util/Storage.kt:260` `readText(maxBytes = 8_000_000)`, used by
+`readPickedFile` (Settings restore picker, 9285-9293), `readOwnDownload` (autosave recovery card,
+`autoBackupIfDue`'s shrink guard) and `backupToDownloads`' read-back verification (8902-8904).
+**Problem.** A log row was ~350 B in the backup; with `features` (~25 keys, ~480 B escaped) and
+`evalDetail` (45-cell grid + fields, ~470 B escaped) it is ~1.3 KB. At the 10-20 plans a day the tab
+records, that is ~3-6.5 MB of log per year, on top of the ledger. Once the file passes 8,000,000
+bytes: "Backup" reports "Wrote ... but couldn't read it back to verify" every time; the Downloads
+autosave can no longer be read back by the one-tap recovery card; the Settings restore picker
+returns null ("couldn't read that file"); and the shrink guard reads `oldJson = null`, so a
+shrinking autosave is no longer preserved as `-previous`. The copy that survives an uninstall
+becomes unrestorable in-app — in roughly 1-3 years of normal use.
+**Fix.** Give backup reads their own, much larger cap (e.g. 64 MB; `readPickedFile` for restore,
+`readOwnDownload` for AUTOSAVE_FILE, the verification read), and export the day-trading log
+compactly (nested objects rather than escaped strings, or `toString()` without indentation for
+that array). Add a test that a backup with N log rows stays readable (size per row pinned).
+
+### PL-6 (M) — Closed-session bars are never kept, so every future grader bump re-downloads 55 days and silently DOWNGRADES 1-minute grades to 5-minute ones
+**Where:** `net/DayTradingEval.kt:65-98` (`fetchDaySeries`: no disk cache; comment says Yahoo sends
+no validator, so `http_cache` never engages), `dayTradingRowsNeedingGrade` (1479-1487),
+`DayTradingGrader.VERSION`.
+**Problem.** A settled session's bars are immutable, but the 1m series used to grade a row is thrown
+away. The design already expects further grader changes ("Bump when the rules above change: every
+row graded by an older version is re-graded"). On the next bump every row inside 55 days is
+re-fetched (the same 180-per-open burst as PL-3), and every row 30-55 days old can only get
+5-minute bars — its accurate 1m grade (and 1m-based grid/MFE) is overwritten by a coarser 5m one.
+That is fetched data silently lost, contrary to BRIEF's "nothing already stored should be
+downloaded again" and to the whole point of E1.
+**Fix.** Persist the parsed OHLC of a SETTLED session per (symbol, day, interval) — compact
+(t,o,h,l,c arrays, ~15 KB/day for 1m) in `chart_cache` under a distinct `range_key` or a
+purgeable cache table (derived data, excluded from backups, purge after 60 days). Grade from it
+first; a re-grade then costs zero requests and never loses resolution. Alternatively, at minimum,
+do not re-grade a row whose stored `res == 1` when only 5m bars remain (keep it and mark legacy).
+
+### PL-7 (L) — The auto re-grade keeps running after the Day Trading tab is closed
+**Where:** `evaluateDayTradingLog` (7337) launches an untracked `fgScope` job; `stopDayTradingLive`
+(8514-8519) cancels only `dayTradingLiveJob`.
+**Problem.** Tj's rule for this feature is "only when I have that tab open ... asleep when I'm not
+using it". The automatic (not pressed) run of up to 180 chart requests continues after he switches
+to Trending/another bottom tab; only ON_STOP stops it. Also, `dayTradingAutoEvalAt` is stamped
+BEFORE the launch (7335), so a run that is cancelled by ON_STOP a second later — or a launch into an
+already-cancelled `fgScope` (e.g. `applyDayTradingAnswer` → `startDayTradingLive` after a slow Claude
+API answer landed while the app was in the background) — still suppresses the next auto run for 15
+minutes.
+**Fix.** Keep the auto run's Job and cancel it in `stopDayTradingLive` (not a pressed "Check");
+stamp `dayTradingAutoEvalAt` only when the run completes (or clear it in the `finally` when the job
+was cancelled).
+
+### PL-8 (L) — Uncaught DB exceptions in the auto-eval coroutine crash the app, now on tab open
+**Where:** `ui/PortfolioViewModel.kt:7340, 7352-7356, 7383, 7385` (`db.dayTradingLog()` /
+`setDayTradingOutcome` without `runCatching`) and `resolveOneDayTradingEntry` (7445, 7472, 7491-7493)
+— inside `fgScope.launch`, which has no `CoroutineExceptionHandler`.
+**Problem.** Previously only a press could hit this; now `startDayTradingLive()` runs it
+automatically. Any persistent SQLite failure (SQLiteFullException on the UPDATE, or the v10 columns
+missing after a failed ALTER — `addColumn` swallows the error and `readDayTradingLog` then fails with
+"no such column") throws out of a launched coroutine → process crash. Because `RESEARCH_TAB`/
+`LAST_TAB` restore the Day Trading section at launch and `dayTradingAutoEvalAt` resets to 0 with
+the process, that becomes a crash on every launch. (Same missing-column state also makes
+`exportJson` throw → every backup/autosave fails until the onOpen repair succeeds.)
+**Fix.** Wrap the body of the eval (and each `resolveOneDayTradingEntry`) in `runCatching`/try-catch,
+logging to CrashLog; consider a `CoroutineExceptionHandler` on `newForegroundScope()`.
+
