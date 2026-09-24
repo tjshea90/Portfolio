@@ -976,7 +976,7 @@ private fun carryWhy(
     return base.copy(
         entryPrice = p.entryPrice, stopPrice = p.stopPrice, targetPrice = p.targetPrice,
         setup = p.setup, trigger = p.trigger, planNote = p.planNote, planExit = p.planExit,
-        planByClaude = true
+        planByClaude = true, planPrice = p.planPrice
     )
 }
 
@@ -1004,7 +1004,7 @@ internal fun dropUnusableClaudeLevels(
     ) r
     else r.copy(
         entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
-        setup = "", trigger = "", planByClaude = false
+        setup = "", trigger = "", planByClaude = false, planPrice = 0.0
     )
 }
 
@@ -1036,7 +1036,8 @@ internal fun evictStaleDayTradingPlan(
         else r.copy(
             entryPrice = 0.0, stopPrice = 0.0, targetPrice = 0.0,
             setup = "", trigger = "", planNote = "", planExit = "",
-            tooLateToStart = false, planByClaude = false, planDeclineStreak = 0, planReason = ""
+            tooLateToStart = false, planByClaude = false, planDeclineStreak = 0, planReason = "",
+            planPrice = 0.0
         )
     }
 }
@@ -1226,6 +1227,8 @@ internal fun mergeDayTradingTech(
         trigger = plan?.trigger ?: keepOrClear(row.trigger, confirmedDecline),
         planNote = plan?.note ?: keepOrClear(row.planNote, confirmedDecline),
         planExit = plan?.exit ?: keepOrClear(row.planExit, confirmedDecline),
+        // D-9: the price THIS plan was made at - a standing Claude plan keeps its own.
+        planPrice = if (plan != null) price else keepOrClear(row.planPrice, confirmedDecline),
         planDeclineStreak = declineStreak,
         planByClaude = claudePlanStands,
         // SAME RULE AS THE LEVELS ABOVE, one tick later than `declined` alone. A real plan

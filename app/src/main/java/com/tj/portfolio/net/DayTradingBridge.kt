@@ -537,6 +537,8 @@ $SHAPE
                 // session clock on every tick for every row, Claude's included, so an import at
                 // 15:45 correctly carries the late-session badge the app would give its own.
                 planByClaude = takeLevels,
+                // The price Claude's levels were just checked against (D-9).
+                planPrice = if (takeLevels) app.price else app.planPrice,
                 // The app's "declined" state belongs to the app's plan (D-2): a row the app had
                 // declined but Claude planned is a planned row, and must be loggable as one.
                 planDeclineStreak = if (takeLevels) 0 else app.planDeclineStreak,

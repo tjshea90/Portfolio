@@ -271,6 +271,14 @@ data class ResearchRow(
      */
     val planReason: String = "",
     /**
+     * THE PRICE THE PLAN ABOVE WAS MADE AT (full test 2026-09-24, D-9) - 0 when not known (a
+     * Claude-ADDED row, a cache from an older build). An entry above it is a buy-stop the price
+     * has to climb to; below it, a buy-limit it has to drop to. The live price cannot answer
+     * that once it has traded THROUGH the entry: a pullback plan's stock dipping under its
+     * limit read as "Buy if it climbs to..." - the plan's own instruction, reversed.
+     */
+    val planPrice: Double = 0.0,
+    /**
      * REAL TECHNICALS BEHIND THE RISK PLAN ABOVE (Round 68) - Wilder's ATR(14), the session's
      * volume-weighted average price, and the 09:30-10:00 ET opening range. See
      * `net/DayTradingTechnicals.kt`'s header for the research these come from. All zero until
@@ -363,6 +371,7 @@ data class ResearchRow(
         if (planExit.isNotBlank()) put("planExit", planExit)
         if (tooLateToStart) put("tooLateToStart", true)
         if (planByClaude) put("planByClaude", true)
+        if (planPrice > 0) put("planPrice", planPrice)
         if (atrIntraday > 0) put("atrIntraday", atrIntraday)
         if (adr > 0) put("adr", adr)
         if (prevHigh > 0) put("prevHigh", prevHigh)
@@ -465,6 +474,7 @@ data class ResearchRow(
                 trigger = o.text("trigger"),
                 planNote = o.text("planNote"),
                 planByClaude = o.optBoolean("planByClaude", false),
+                planPrice = o.optDouble("planPrice", 0.0).orZero(),
                 atrIntraday = o.optDouble("atrIntraday", 0.0).orZero(),
                 adr = o.optDouble("adr", 0.0).orZero(),
                 prevHigh = o.optDouble("prevHigh", 0.0).orZero(),
