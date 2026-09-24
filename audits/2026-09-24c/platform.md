@@ -8,7 +8,25 @@ Http, RecentBodies, SharedAnswer, EngineTuning(+Prompt), Storage, ShareImportAct
 Severity: H = data loss / crash / wrong numbers / runaway battery or network; M = real but
 narrower; L = minor.
 
-(Work in progress — findings appended as confirmed.)
+Summary (15 findings): 1 H, 5 M, 9 L.
+
+| id | sev | one line |
+|---|---|---|
+| PL-1 | H | Mid-session grades store a grid/holdR/runR truncated at "now", final forever - biased tuning evidence |
+| PL-2 | M | Re-grade turns a legacy WIN/LOSS into DATA_UNAVAILABLE on an empty/404 answer (verdict lost) |
+| PL-3 | M | Auto-eval fires up to 180 Yahoo chart requests back-to-back on tab open; spills onto query2 |
+| PL-4 | M | `loadEngine` overwrites the engine backup files with v0 exactly when settings were lost |
+| PL-5 | M | Backups grow ~1.3 KB/log row; the 8 MB read cap will make restore/verify/recovery fail |
+| PL-6 | M | Settled bars not kept: a future grader bump re-downloads 55 days and downgrades 1m grades to 5m |
+| PL-7 | L | Auto re-grade not cancelled when the tab closes; throttle stamped before the run |
+| PL-8 | L | Uncaught SQLite errors in the auto-eval crash the app (crash-loop via restored tab) |
+| PL-9 | L | Engine version labels can repeat after a restore, mixing engines in "engine:vN" evidence |
+| PL-10 | L | Apply/undo/revert not serialised; engine + history written non-atomically |
+| PL-11 | L | Apply re-review parses every row's features on Main; stats parse eval_detail ~8x per row |
+| PL-12 | L | Whole log (with JSON blobs) loaded ~7 times per tab open; backup check loads it for a count |
+| PL-13 | L | Perpetual retries of DATA_UNAVAILABLE rows / 1m 4xx with no 5m fallback, oldest-first starvation |
+| PL-14 | L | Tuning-answer routing nits (navigates on error; Advice/Activity import has no review screen) |
+| PL-15 | L | Minor notes (no undo after revert, corrupt-engine load, busy-disabled buttons, per-tick features) |
 
 ## Findings
 
@@ -240,4 +258,66 @@ chat recovers it — hence L).
 **Fix.** Return `dest = null` when `importEngineTuning` reports an error; have `importClaudeFile`
 publish `_shareNav = DAY_TRADING` (or `jumpToResearch`) for a tuning answer; optionally persist the
 pending proposal text in a non-backed-up setting like `PENDING_IMPORT`.
+
+### PL-15 (L) — Minor notes (each verified, each small)
+- **No way back from a Revert.** `EngineTuning.revert` marks every apply `undoneAt`, so
+  `State.undoable` is null afterwards and "Undo last change" says "Nothing to undo"
+  (`net/EngineTuning.kt:109, 149-159`). A mistaken revert (Settings has its own button) can only be
+  recovered by re-importing old answers, although the tuned params are sitting in the history's last
+  `paramsAfter`. Consider letting Undo take back the most recent history entry of ANY kind.
+- **Corrupt `dt_engine` with an intact history** loads DEFAULTS params under the history's highest
+  version (`EngineTuning.load`, 118-127): the card reads "original engine (v3)" and new plans are
+  logged as `v3` while made by the defaults. Rebuild params from the last history entry's
+  `paramsAfter` when the engine row is unreadable. Similarly `DayTradingParams.fromJson` silently
+  drops a stored value outside a spec's bounds — if a future build narrows a bound, the running
+  engine changes with no history entry.
+- **Tuning buttons disabled during every auto-eval.** `EngineTuningCard(busy = dayTradingStatsLoading)`
+  (`ResearchScreen.kt:719`) greys out Make prompt / Import / Undo / Revert for the whole automatic
+  run — up to a minute or more on the first post-update open (PL-3) — with no hint why.
+- **Features JSON rebuilt for already-logged rows every tick.** `captureDayTradingRecommendations`
+  builds `DayTradingFeatures.build(...)` for every loggable row every 30 s and the DB then
+  `CONFLICT_IGNORE`s nearly all of them (7276-7306). Cheap per tick, but an in-memory
+  "logged today" set would skip both the JSON and the transaction.
+- **Writes on `fgScope`.** `resolveOneDayTradingEntry`'s `setDayTradingOutcome` runs inside the
+  cancellable foreground scope (BRIEF: "DB writes stay on viewModelScope"). A cancel between the
+  fetch and the write only loses that grade (it is re-fetched later), so no data loss — noted for
+  consistency.
+- **v9 → v10 migration itself is sound.** `ensureDayTradingLogV10` is additive, idempotent, repeated
+  in `onOpen` with a PRAGMA check; fresh installs get the v10 columns from `createDayTradingLog`;
+  backup export/restore carry `engine`/`features`/`evalVersion`/`evalDetail` in both modes
+  (log additive on Replace and Merge; engine keys are ordinary settings: Merge keeps the device's,
+  Replace takes the file's) and `restoreAsync` reloads the engine and the stats. The only
+  migration risks found are the crash/backup consequences of a column that failed to add (PL-8).
+- **Routing order is right.** `SharedAnswer.classify` checks prompt marker → backup → link →
+  ENGINE_TUNING → DAY_TRADING → RESEARCH; the tuning prompt carries `PROMPT_MARK`, each detector
+  requires its own payload key (`has("dayTradingEngine")` / `has("dayTrading")` / `has("research")`),
+  so no existing answer type is newly misrouted. (`importResearchFile` still lacks the `isBackup`
+  guard `importClaudeFile` has — pre-existing, the parse just fails with a generic message.)
+
+## Test gaps worth adding
+
+1. **Mid-session grade then settle** (PL-1): grade a WIN with `decidedThroughSec = 0` on partial
+   bars, then feed the full session — the row must be re-graded (or its grid/holdR/mfeFlat must be
+   absent until settled); `dayTradingRowsNeedingGrade` must select it after `sessionSettled`.
+2. **Stale verdict + empty answer** (PL-2): a v0 WIN inside 55 days, `Http.scriptedForTests` answering
+   404 for 1m and 5m → outcome, exit price and evalVersion unchanged; same for an unparseable day.
+3. **Auto-eval request budget** (PL-3): script query1 to 429 after N requests and count what
+   `evaluateDayTradingLog(auto = true)` sends in total, and to which hosts — it should stop, not
+   spill onto query2 and continue for 180 rows.
+4. **`loadEngine` with empty settings and existing files** (PL-4): pre-write `current.json` (v3) and
+   `history.json`, start the VM with no `dt_engine` → files must not be replaced by v0.
+5. **Backup size per log row** (PL-5): export a log of N fully graded rows and assert the bytes/row
+   budget, and that `readPickedFile`/`readOwnDownload` can read a backup of the size a few years of
+   use produce.
+6. **A real v9 → v10 upgrade with rows**: build a v9 `day_trading_log` (no engine/features/
+   eval_version/eval_detail) holding graded rows, open with `Db` → rows intact, `evalVersion == 0`,
+   `engine == ""`, re-grade selection picks them; reopen is idempotent; and a simulated failed
+   ALTER (column absent) does not crash `exportJson`/`evaluateDayTradingLog` (PL-8).
+7. **Engine mutations** (PL-10): interleave `applyEngineReview` and `revertEngine` (test dispatcher) →
+   the final history contains both entries with distinct versions; `saveEngine` writes both keys
+   atomically.
+8. **Version labels after a Replace restore of an older file** (PL-9): the next apply's version must
+   exceed every `vN` label already in the log.
+9. **Share routing**: a tuning answer via `importClaudeFile` (Advice/Activity) navigates to the review;
+   an unreadable tuning share returns `dest = null` (PL-14).
 
