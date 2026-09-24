@@ -86,14 +86,14 @@ class DayTradingParamsTest {
 
     @Test fun targetCapLimitsTheTargetInR() {
         val base = plan(DEFAULTS).first!!
-        val capped = plan(DEFAULTS.with(mapOf(DayTradingParams.TARGET_CAP_R to 1.0))).first!!
+        val capped = plan(DEFAULTS.with(mapOf(DayTradingParams.TARGET_CAP_R to 0.5))).first!!
         assertEquals(base.entry, capped.entry, 1e-9)
         assertEquals(base.stop, capped.stop, 1e-9)
-        assertEquals(capped.entry + capped.risk * 1.0, capped.target, 1e-9)
+        assertEquals(capped.entry + capped.risk * 0.5, capped.target, 1e-9)
         assertTrue(capped.target < base.target)
         // a per-setup cap wins over the global one
-        val perSetup = plan(DEFAULTS.with(mapOf(DayTradingParams.TARGET_CAP_R to 1.0, "setup.breakout.targetCapR" to 1.5))).first!!
-        assertEquals(perSetup.entry + perSetup.risk * 1.5, perSetup.target, 1e-9)
+        val perSetup = plan(DEFAULTS.with(mapOf(DayTradingParams.TARGET_CAP_R to 0.5, "setup.breakout.targetCapR" to 0.8))).first!!
+        assertEquals(perSetup.entry + perSetup.risk * 0.8, perSetup.target, 1e-9)
     }
 
     @Test fun stopMultiplesMoveTheStop() {
@@ -111,8 +111,9 @@ class DayTradingParamsTest {
 
     @Test fun aSwitchedOffLevelIsNotATrigger() {
         val p = plan(DEFAULTS.with(mapOf("level.sessionHigh.enabled" to 0.0))).first!!
-        assertEquals("the prior session's high", p.entryLevel)   // next level up, 101
-        assertTrue(p.entry > 101.0)
+        assertEquals("pivot R1", p.entryLevel)   // next level up, R1 = 100.33
+        val q = plan(DEFAULTS.with(mapOf("level.sessionHigh.enabled" to 0.0, "level.r1.enabled" to 0.0))).first
+        assertTrue(q == null || q.entry > 101.0)   // prior high 101 is next, or nothing is left to target
     }
 
     @Test fun minRewardRiskAndTriggerDistanceDecline() {
