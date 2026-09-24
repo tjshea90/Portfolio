@@ -83,11 +83,14 @@ read and may drift by a few lines.
   the step limit runs only `if (!isSwitch)`).
 - Problem: switching an optional filter ON is treated as a pure on/off decision, so the value it is switched on
   AT is only bounds-checked. Rule 1 ("no major changes on small samples") is then enforced for moving
-  `stop.maxRiskAtrs` 2.5 -> 2.0 (limited to 20% of range at MEDIUM) but not for turning on
-  `setup.breakout.maxRiskAtrs = 1.0`, which cuts every breakout stop by 60% in one step.
+  `stop.minRiskAtrs` 1.5 -> 2.5 (LIMITED to 2.2 at MEDIUM: 20% of its 3.5 range) but not for switching on
+  `setup.breakout.minRiskAtrs = 2.5`, which moves every breakout's stop floor 1.5 -> 2.5 ATR (+67%) in one step
+  (passes `consistent()`: 2.5 <= the global 2.5 ceiling).
 - Failing scenario (MEDIUM, 75+ trades, basis "all" per DA-3): `filter.minScore` 0 -> 80 (blocks nearly every
   plan), `time.earliestEntryMinutes` 0 -> 120 (no plan before 11:30), `filter.minRewardRisk` 0 -> 4.0,
-  `target.capR` 0 -> 0.5 (every target at +0.5R), `setup.breakout.maxRiskAtrs` 0 -> 1.0. All ACCEPTED unchanged.
+  `target.capR` 0 -> 0.5 (every target at +0.5R), `setup.breakout.minRiskAtrs` 0 -> 2.5,
+  `setup.breakout.maxRiskAtrs` 0 -> 1.5 (ceiling 2.5 -> 1.5, every breakout stop pinned at 1.5 ATR). All ACCEPTED
+  unchanged.
 - Fix: when turning an `offAllowed` param ON, limit the value to the tier's step measured from the least
   restrictive end (e.g. `minScore <= 1 + step`, `minRewardRisk <= 0.5 + step`, `earliestEntryMinutes <= 1 + step`,
   `capR >= 10 - step`), and for a per-setup override measure the step from the global value it replaces
