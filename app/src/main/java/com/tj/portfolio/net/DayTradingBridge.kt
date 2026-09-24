@@ -521,7 +521,9 @@ $SHAPE
                 // whoever planned it. No clock is passed - this bridge has none, and the runner
                 // and flat-by rules are not clock-dependent.
                 planExit = if (takeLevels)
-                    ResearchScore.exitPlan(c.targetPrice, minutesLeft = 0, live = false)
+                    ResearchScore.exitPlan(c.targetPrice, minutesLeft = 0, live = false,
+                        // The close of the session this plan is for - 12:50 on a half day (D-7).
+                        closeMinute = MarketClock.planCloseMinute(now))
                 else app.planExit,
                 // `tooLateToStart` IS NOT SET HERE AT ALL, in either direction. It is a fact
                 // about the clock rather than about whose plan this is, and pinning it to an
