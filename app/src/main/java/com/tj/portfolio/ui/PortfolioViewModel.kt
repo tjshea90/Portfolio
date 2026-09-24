@@ -1309,6 +1309,20 @@ internal fun dayTradingRowsToResolve(
 private const val DAY_TRADING_DECLINE_CONFIRM_TICKS = 2
 
 /**
+ * The undo snapshot's file name (full test 2026-09-24, A-6). NEVER AN EXISTING FILE: names have
+ * minute resolution and the write replaces, so a second Replace-all in the same minute (a
+ * hurried retry after the wrong file) overwrote the only copy of the original ledger with the
+ * already-replaced one. And [what] is SANITISED: "delete-BRK/B" named a missing subfolder, the
+ * write threw into a `runCatching`, and the delete went ahead without the undo it promised.
+ */
+internal fun snapshotFileName(what: String, stamp: String, exists: (String) -> Boolean): String {
+    val base = com.tj.portfolio.util.Storage.BEFORE_PREFIX +
+        what.replace(Regex("[^A-Za-z0-9._-]"), "_") + "-" + stamp
+    return (sequenceOf("$base.json") + (2..99).asSequence().map { "$base-$it.json" })
+        .firstOrNull { !exists(it) } ?: "$base-${System.nanoTime()}.json"
+}
+
+/**
  * Whether `[dayStart, todayStart)` - both local midnights - holds a weekday, i.e. a session
  * whose close the %-since-added baseline could be (N-7). Holidays are not modelled: one costs a
  * single request that finds nothing, and the next weekday covers it.
@@ -8489,9 +8503,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         runCatching {
             if (db.txnCount() == 0) return
             val json = db.exportJson()
+            val dir = com.tj.portfolio.util.Storage.appBackupDir(getApplication())
             com.tj.portfolio.util.Storage.saveToAppFolder(
                 getApplication(),
-                "portfolio-before-$what-" + com.tj.portfolio.util.Storage.stamp() + ".json",
+                snapshotFileName(what, com.tj.portfolio.util.Storage.stamp()) {
+                    java.io.File(dir, it).exists()
+                },
                 json
             )
         }
