@@ -257,8 +257,8 @@ class Improve0924bTest {
 
     @Test fun `today's logged plan can be read back for one stock`() {
         val db = Db(app)
-        db.logDayTradingRecommendation("GME", "20260921", 1_000L, "Breakout", 23.0, 21.5, 26.0, 22.5,
-            com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE)
+        db.logDayTradingRecommendation("GME", "20260921", "Breakout", 23.0, 21.5, 26.0, 22.5,
+            com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE, recordedAt = 1_000L)
         val e = db.dayTradingLogFor("gme", "20260921")!!
         assertEquals(23.0, e.entry, 1e-9)
         assertEquals(com.tj.portfolio.data.DayTradingLogEntry.SOURCE_CLAUDE, e.source)
