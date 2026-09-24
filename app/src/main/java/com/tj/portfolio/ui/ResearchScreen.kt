@@ -1484,8 +1484,35 @@ internal fun DayTradingSuccessRate(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    DayTradingBreakdown(stats.breakdown)
                 }
             }
+        }
+    }
+}
+
+/**
+ * WHAT WORKED (2026-09-24b) - the decided trades split by who planned them, by setup and by
+ * the time of day, so "the app vs Claude" and "breakouts vs pullbacks" can be read straight
+ * off the card. Not coloured, for the same reason as the rates above it.
+ */
+@Composable
+private fun DayTradingBreakdown(slices: List<com.tj.portfolio.data.StatSlice>) {
+    if (slices.isEmpty()) return
+    Spacer(Modifier.height(8.dp))
+    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+    Spacer(Modifier.height(8.dp))
+    Text("What worked", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+    slices.groupBy { it.group }.forEach { (group, rows) ->
+        Spacer(Modifier.height(6.dp))
+        Text(group, style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        rows.forEach { sl ->
+            KeyValue(
+                sl.label,
+                "${Fmt.oneDp(sl.targetHitRate)}% target, ${Fmt.oneDp(sl.profitableRate)}% profitable " +
+                    "(${sl.decided} trade" + (if (sl.decided == 1) ")" else "s)")
+            )
         }
     }
 }
