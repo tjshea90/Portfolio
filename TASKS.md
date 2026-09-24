@@ -110,6 +110,9 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
 - [x] Full unit suite + checkinit green after all changes; review the whole diff for breakage
       (1452 tests / 0 failures; checkinit ok; callers of every changed signature re-grepped)
 - [ ] Ship (auto-ship rule), post the Release link, summarize
+      18:29 UTC: v7.41 / code 98 gated by ship.sh and pushed (d8bea44d); android.yml
+      full_build run 36041591641 (#43). NEXT: green -> get_release_by_tag v7.41 ->
+      tools/record-release.sh (command in ckpt 1697) -> post the link + summary.
 
 ## Tj's request, 2026-09-24 (his own words)
 
