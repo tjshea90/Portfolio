@@ -7541,10 +7541,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 val batch = dayTradingRowsToResolve(pendingRows)
                 val results = withContext(Dispatchers.IO) {
                     val gate = Semaphore(parallel)
+                    // An automatic run stops asking the moment one request goes unanswered - the
+                    // rows still queued in this batch are left for the next check, not sent into
+                    // whatever made Yahoo stop answering.
+                    val giveUp = java.util.concurrent.atomic.AtomicBoolean(false)
                     batch.map { entry ->
                         async {
                             gate.withPermit {
-                                if (auto && yahooChartCoolingDown()) DtResolve.FAILED
+                                if (auto && (giveUp.get() || yahooChartCoolingDown())) DtResolve.FAILED
                                 else try {
                                     resolveOneDayTradingEntry(entry)
                                 } catch (c: kotlinx.coroutines.CancellationException) {
@@ -7552,7 +7556,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                                 } catch (t: Throwable) {
                                     android.util.Log.w("Portfolio", "grading ${entry.symbol} failed", t)
                                     DtResolve.FAILED
-                                }
+                                }.also { if (it == DtResolve.FAILED) giveUp.set(true) }
                             }
                         }
                     }.awaitAll()
