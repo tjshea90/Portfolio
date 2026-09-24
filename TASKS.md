@@ -23,7 +23,7 @@ recorded under "WAITING ON TJ" in the 09-24 section below: the decisions, and th
 `claude/complete-code-tests-crujka`, builds on 12d0989a (v7.40 shipped).)
 
 ### Part 1 - the recommended changes (skip only what would cost accuracy/function; say why)
-- [ ] Decisions: [x] L-4  [x] C-7  [x] C-9  [x] tie  [x] U-Q5  [x] U-Q6 -- L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
+- [x] Decisions: [x] L-4  [x] C-7  [x] C-9  [x] tie  [x] U-Q5  [x] U-Q6 -- L-4 trim at level 40 (disk-backed heap caches only; BRIEF row updated),
       C-7 chip-only range persistence + reset to chip, C-9 5D closed-market gaps, same-bar
       entry/stop tie in DayTradingEval resolved with finer bars (pessimistic only if unknowable),
       U-Q5 back from a searched stock returns to the results, U-Q6 ticking "updated" labels
