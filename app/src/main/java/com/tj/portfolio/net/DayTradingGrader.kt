@@ -54,10 +54,10 @@ object DayTradingGrader {
     fun tick(price: Double): Double = if (price >= 1.0) 0.01 else 0.0001
 
     /** Stop distances the grid tries, as multiples of the plan's own risk (1.0 = the plan's stop). */
-    val GRID_STOPS = doubleArrayOf(0.5, 0.75, 1.0, 1.5, 2.0)
+    val GRID_STOPS = listOf(0.5, 0.75, 1.0, 1.5, 2.0)
 
     /** Target distances the grid tries, in R above the entry; [GRID_PLAN] = the plan's own target, [GRID_NONE] = no target, hold to the flat time. */
-    val GRID_TARGETS = doubleArrayOf(0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, GRID_PLAN, GRID_NONE)
+    val GRID_TARGETS = listOf(0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, GRID_PLAN, GRID_NONE)
     const val GRID_PLAN = -1.0
     const val GRID_NONE = -2.0
 
