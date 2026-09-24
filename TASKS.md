@@ -62,8 +62,11 @@ split covered lightly (charts, persistence/Db, lifecycle/battery, screens).
       stale pass can't clear the new one's flag; FullTest0924Test, MUTATION-CHECKED)
       [x] L-3 answer landing in background never priced (pendingPriceFill flushed on return; test)  [ ] L-4 trim handler unreachable on
       Android 14+ (LOCKED decision - needs Tj)  [x] N-3 quoteSummary retries every failure (only a 401 retries; yahooFetchWith injectable; +3 tests)
-      [x] N-4 SEC 10 req/s not enforced as rate (Insider.secGet paced 125ms; +1 test)  [ ] A-2 merge restore moves replay watermark
-      [ ] A-3 dup check hides real second fill  [ ] A-4 autosave name after reinstall (device-only)
+      [x] N-4 SEC 10 req/s not enforced as rate (Insider.secGet paced 125ms; +1 test)  [x] A-2 merge restore moves replay watermark (Ledger repairRanges; merge adds only its inserted
+      id range, replace moves the mark; Keys.REPLAY_REPAIR_RANGES; +2 tests)
+      [x] A-3 dup check hides real second fill (Db.duplicateTolerance = rounding+fees, flat $1
+      misread rule kept; prompts match on amount too; +1 test, DbTest 58/0)  [x] A-4 autosave name after reinstall (findOwnDownload also matches own "name (n).ext",
+      newest wins; matchesOwnName test; platform rename behaviour still to confirm on the phone)
       [ ] S-1 S-9 popup fix unreachable  [ ] S-2 detail screen ratings-only verdict frozen
       [ ] S-4 Research asOf ignored / Advice undated  [ ] S-5 carry freezes relative catalyst
       [ ] S-6 stale Claude fund permanent  [ ] S-7 DT paragraphs carried 14 days  [ ] S-8 ETF

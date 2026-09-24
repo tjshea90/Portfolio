@@ -1,13 +1,13 @@
-# CHECKPOINT 1663 — read me first, then TASKS.md
+# CHECKPOINT 1664 — read me first, then TASKS.md
 
-**Written:** 2026-09-24T14:01:44Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `3a12d03f` (this checkpoint is the commit after it)
+**Written:** 2026-09-24T14:06:49Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/full-app-tests-91htyl` · **builds on:** `af75f16c` (this checkpoint is the commit after it)
 
 ## Just done
-U-2 (Feed pull retries empty All-companies insider list) + U-3 (headline sweep stops under reader/detail) fixed, test written
+A-2 (merge re-arms repair only for inserted ids), A-3 (dup tolerance = rounding, not 0.5%), A-4 (numbered autosave copies recognised) fixed with tests
 
 ## Do this next
-A-2, A-3, then S-*, D-2..5, C-2..5; run suite after the batch
+Run FullTest0924Test; then S-1,S-2,S-4..S-8, D-2..D-5, C-2..C-5
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -18,6 +18,7 @@ A-2, A-3, then S-*, D-2..5, C-2..5; run suite after the batch
 
 ## Last ten checkpoints
 ```
+  01258ec7 ckpt 1663: U-2 (Feed pull retries empty All-companies insider list) + U-3 (headline swe
   ef549bf9 ckpt 1662: L-2 (quote re-entry judged on job + generation counter) + L-3 (background pr
   004f4a8f ckpt 1661: N-3 (quoteSummary retry only on 401) + N-4 (SEC requests paced 8/s) fixed; F
   0ffc1803 ckpt 1660: D-1 fixed: DT recommendations logged only from the live sweep for rows re-pl
@@ -27,8 +28,7 @@ A-2, A-3, then S-*, D-2..5, C-2..5; run suite after the batch
   6fe3086d ckpt 1656: All 7 audit reports complete (7H/~25M/~50L). U-1 fixed: per-surface spinner 
   f993b5be ckpt 1655: Resumed after usage cap: 7 audit agents died 07:43 with partial reports (net
   d1129bc4 ckpt 1654: T-1 fixed: unit tests offline (Http gate via portfolio.test.offline, loopbac
-  60420aee ckpt 1653: Floor green: checkinit ok, suite 1337/0
 ```
 
-(1 automatic checkpoint(s) since the last deliberate one — the
+(8 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)

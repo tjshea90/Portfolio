@@ -296,4 +296,17 @@ class FullTest0924Test {
         assertEquals(bigId, db.findDuplicateId(Txn(type = TxnType.SELL, symbol = "AAPL",
             quantity = 100.0, price = 180.0, amount = 17_999.49, date = day)))
     }
+
+    // ---- A-4: MediaStore's numbered copy of the autosave is still ours.
+
+    @Test fun `A-4 the autosave's numbered copies are recognised, look-alikes are not`() {
+        val m = com.tj.portfolio.util.Storage::matchesOwnName
+        assertTrue(m("portfolio-autosave.json", "portfolio-autosave.json"))
+        assertTrue(m("portfolio-autosave (1).json", "portfolio-autosave.json"))
+        assertTrue(m("portfolio-autosave (12).json", "portfolio-autosave.json"))
+        assertFalse(m("portfolio-autosave-previous (1).json", "portfolio-autosave.json"))
+        assertFalse(m("portfolio-autosave (x).json", "portfolio-autosave.json"))
+        assertFalse(m("portfolio-autosave (1).json.bak", "portfolio-autosave.json"))
+        assertFalse(m("other (1).json", "portfolio-autosave.json"))
+    }
 }
