@@ -834,4 +834,77 @@ class FullTest0924Test {
             com.tj.portfolio.net.Http.clearCooldowns()
         }
     }
+
+    // ---- A-5: a write the database refused is not counted as written.
+
+    private fun txn(sym: String, px: Double = 10.0) = Txn(type = TxnType.BUY, symbol = sym,
+        quantity = 1.0, price = px, amount = -px, fees = 0.0, date = 1_758_000_000_000L,
+        note = null, source = "MANUAL")
+
+    @Test fun `A-5 a Replace restore that loses a row to a write error rolls back and says so`() {
+        val src = Db(app)
+        src.insertTxn(txn("GOOD")); src.insertTxn(txn("BAD"))
+        val json = src.exportJson()
+        src.close(); app.deleteDatabase(Db.DB_NAME)
+
+        val db = Db(app)
+        db.insertTxn(txn("KEEP"))
+        db.writableDatabase.execSQL("CREATE TRIGGER no_bad BEFORE INSERT ON txns " +
+            "WHEN NEW.symbol = 'BAD' BEGIN SELECT RAISE(ABORT, 'disk full'); END")
+        val r = db.restoreJson(json, replace = true)
+        assertTrue("the failed write must be reported: $r", r.error != null)
+        assertEquals(listOf("KEEP"), db.allTxns().map { it.symbol })
+        db.close()
+    }
+
+    // ---- A-6: undo snapshots never overwrite each other, and any symbol gets one.
+
+    @Test fun `A-6 snapshot names are unique within a minute and safe for any symbol`() {
+        val taken = HashSet<String>()
+        val a = com.tj.portfolio.ui.snapshotFileName("replace", "2026-09-24-1600") { it in taken }
+        taken += a
+        val b = com.tj.portfolio.ui.snapshotFileName("replace", "2026-09-24-1600") { it in taken }
+        assertTrue(a != b)
+        val brk = com.tj.portfolio.ui.snapshotFileName("delete-BRK/B", "2026-09-24-1600") { false }
+        assertFalse("no path separator in a file name: $brk", brk.contains('/'))
+        assertTrue(brk.startsWith(com.tj.portfolio.util.Storage.BEFORE_PREFIX))
+    }
+
+    // ---- A-7: a late extraction joins the review already waiting.
+
+    @Test fun `A-7 a late extraction is added to a waiting review, an error leaves it alone`() {
+        val shared = com.tj.portfolio.net.ExtractResult(listOf(txn("SHR")), "shared")
+        val late = com.tj.portfolio.net.ExtractResult(listOf(txn("SCR")), "screens")
+        val merged = com.tj.portfolio.ui.mergeIntoPendingReview(shared, late)
+        assertEquals(listOf("SHR", "SCR"), merged.transactions.map { it.symbol })
+        val failed = com.tj.portfolio.net.ExtractResult(emptyList(), "", "Extraction failed")
+        assertTrue(com.tj.portfolio.ui.mergeIntoPendingReview(shared, failed) === shared)
+        assertTrue(com.tj.portfolio.ui.mergeIntoPendingReview(null, late) === late)
+    }
+
+    // ---- A-8: a non-finite number in a backup cannot break every later export.
+
+    @Test fun `A-8 a backup carrying Infinity restores without poisoning the export`() {
+        val db = Db(app)
+        db.insertTxn(txn("INF"))
+        val root = org.json.JSONObject(db.exportJson())
+        root.getJSONArray("transactions").getJSONObject(0).put("price", "Infinity")
+        val r = db.restoreJson(root.toString(), replace = true)
+        assertNull(r.error)
+        val again = db.exportJson()          // threw on the stored Infinity before the fix
+        assertTrue(again.contains("INF"))
+        db.close()
+    }
+
+    // ---- A-10: a column an interrupted upgrade never added is put back on open.
+
+    @Test fun `A-10 a watchlist missing added_price is repaired when the database opens`() {
+        val db = Db(app)
+        db.addWatch("AAPL")
+        db.writableDatabase.execSQL("ALTER TABLE watchlist DROP COLUMN added_price")
+        db.close()
+        val reopened = Db(app)
+        assertEquals(listOf("AAPL"), reopened.watchlistEntries().map { it.symbol })
+        reopened.close()
+    }
 }
