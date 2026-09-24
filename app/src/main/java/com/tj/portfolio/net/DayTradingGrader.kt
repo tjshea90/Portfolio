@@ -132,7 +132,15 @@ object DayTradingGrader {
         val holdR: Double = 0.0,
         /** Net R per [GRID_STOPS] x [GRID_TARGETS] cell - each variant measured in its OWN risk. */
         val grid: List<List<Double>> = emptyList(),
-        val ambiguous: Boolean = false
+        val ambiguous: Boolean = false,
+        /**
+         * The bars did not reach the flat time when this was graded (a stop or a target decided it
+         * mid-session, or a settled day's series stops short): the verdict is final, but
+         * [mfeFlatR], [holdR] and [grid] - which need the rest of the day - are left out rather
+         * than measured to "whatever time it was then" (audit DA-1). A mid-session one is graded
+         * again once the session settles ([needsSettledRegrade]).
+         */
+        val partial: Boolean = false
     ) {
         fun toJson(): String = JSONObject().apply {
             put("res", res)
@@ -140,10 +148,12 @@ object DayTradingGrader {
             if (exitAt > 0) put("exitAt", exitAt)
             if (why.isNotBlank()) put("why", why)
             if (fill > 0) {
-                put("mfe", r2(mfeR)); put("mae", r2(maeR)); put("mfeFlat", r2(mfeFlatR)); put("hold", r2(holdR))
+                put("mfe", r2(mfeR)); put("mae", r2(maeR))
+                if (!partial) { put("mfeFlat", r2(mfeFlatR)); put("hold", r2(holdR)) }
             }
-            if (grid.isNotEmpty()) put("grid", JSONArray().apply { grid.forEach { row -> put(JSONArray(row.map { r2(it) })) } })
+            if (grid.isNotEmpty() && !partial) put("grid", JSONArray().apply { grid.forEach { row -> put(JSONArray(row.map { r3(it) })) } })
             if (ambiguous) put("amb", true)
+            if (partial) put(PARTIAL_KEY, true)
         }.toString()
 
         companion object {
@@ -167,14 +177,21 @@ object DayTradingGrader {
                                 (0 until row.length()).map { row.optDouble(it, 0.0) }
                             }
                         }.orEmpty(),
-                        ambiguous = o.optBoolean("amb", false)
+                        ambiguous = o.optBoolean("amb", false),
+                        partial = o.optBoolean(PARTIAL_KEY, false)
                     )
                 }.getOrNull()
             }
+
+            private const val PARTIAL_KEY = "partial"
+
+            /** Cheap test on the stored JSON - no parse - for the re-grade selection over the whole log. */
+            fun isPartial(json: String?): Boolean = json != null && json.contains("\"$PARTIAL_KEY\":true")
         }
     }
 
     private fun r2(v: Double) = if (v.isFinite()) Math.round(v * 100.0) / 100.0 else 0.0
+    private fun r3(v: Double) = if (v.isFinite()) Math.round(v * 1000.0) / 1000.0 else 0.0
     private fun r4(v: Double) = if (v.isFinite()) Math.round(v * 10000.0) / 10000.0 else 0.0
 
     /** Median bar range of the day - the ruler a "bad print" is measured against. */
