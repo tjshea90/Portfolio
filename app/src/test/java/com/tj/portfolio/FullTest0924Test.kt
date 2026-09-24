@@ -741,4 +741,81 @@ class FullTest0924Test {
             assertNull(disk.get(H))
         } finally { H.attachDiskCache(null) }
     }
+
+    // ---- N-5: a late 401 cannot wipe a crumb minted after the one it was sent with.
+
+    @Test fun `N-5 invalidate clears only the crumb the failed request used`() {
+        val auth = com.tj.portfolio.net.YahooAuth
+        val f = auth::class.java.getDeclaredField("crumb").apply { isAccessible = true }
+        val before = f.get(auth)
+        try {
+            f.set(auth, "NEWcrumb")
+            auth.invalidate(used = "OLDcrumb")
+            assertEquals("NEWcrumb", f.get(auth))
+            auth.invalidate(used = "NEWcrumb")
+            assertEquals("", f.get(auth))
+        } finally { f.set(auth, before) }
+    }
+
+    // ---- N-6: TLS failures are classified by type, not by the message's wording.
+
+    @Test fun `N-6 an Android-worded certificate failure is recognised as TLS`() {
+        val H = com.tj.portfolio.net.Http
+        assertTrue(H.isTlsFailure(javax.net.ssl.SSLHandshakeException("Chain validation failed")))
+        assertTrue(H.isTlsFailure(java.io.IOException("wrapped",
+            java.security.cert.CertificateExpiredException("timestamp check failed"))))
+        assertFalse(H.isTlsFailure(java.net.UnknownHostException("api.tradestie.com")))
+        assertFalse(H.isTlsFailure(java.net.SocketTimeoutException("timeout")))
+    }
+
+    // ---- N-7: no baseline fetch until the add-day's window can hold a close.
+
+    @Test fun `N-7 a baseline window with no weekday session is not worth a request`() {
+        fun day(y: Int, m: Int, d: Int) = java.util.Calendar.getInstance().apply {
+            clear(); set(y, m - 1, d)
+        }.timeInMillis
+        val has = com.tj.portfolio.ui::baselineWindowHasSession
+        assertFalse("added today", has(day(2026, 9, 24), day(2026, 9, 24)))
+        assertTrue("added yesterday (Wed)", has(day(2026, 9, 23), day(2026, 9, 24)))
+        // Added Saturday 26 Sep: Sunday and Monday have nothing closed yet; Tuesday does.
+        assertFalse(has(day(2026, 9, 26), day(2026, 9, 27)))
+        assertFalse(has(day(2026, 9, 26), day(2026, 9, 28)))
+        assertTrue(has(day(2026, 9, 26), day(2026, 9, 29)))
+    }
+
+    // ---- N-9: a recent chart body carries the time it was fetched.
+
+    @Test fun `N-9 a shared body is stamped with its fetch time, not the read time`() {
+        val r = com.tj.portfolio.net.RecentBodies
+        r.clear()
+        val url = com.tj.portfolio.net.ChartFeed.url("query1", "GME", com.tj.portfolio.data.ChartRange.D1)
+        r.put(url, "body", now = 1_000L)
+        assertEquals(1_000L to "body", r.getStamped(url, now = 20_000L))
+        assertNull(r.getStamped(url, now = 40_000L))
+        r.clear()
+    }
+
+    // ---- N-10: a Claude 403 is an answer with a reason, not a throttle.
+
+    @Test fun `N-10 a 403 from a POST keeps its error body and arms no cooldown`() {
+        val server = com.sun.net.httpserver.HttpServer.create(java.net.InetSocketAddress("127.0.0.1", 0), 0)
+        server.createContext("/") { ex ->
+            ex.requestBody.readBytes()
+            val b = """{"error":{"type":"permission_error","message":"no access to this model"}}"""
+                .toByteArray()
+            ex.sendResponseHeaders(403, b.size.toLong()); ex.responseBody.use { it.write(b) }
+        }
+        server.start()
+        try {
+            val url = "http://127.0.0.1:${server.address.port}/v1/messages"
+            val first = kotlinx.coroutines.runBlocking { com.tj.portfolio.net.Http.postJson(url, "{}") }
+            assertEquals(403, first.code)
+            assertTrue(first.body, first.body.contains("no access to this model"))
+            val again = kotlinx.coroutines.runBlocking { com.tj.portfolio.net.Http.postJson(url, "{}") }
+            assertEquals("the retry must reach the server, not a local cooldown", 403, again.code)
+        } finally {
+            server.stop(0)
+            com.tj.portfolio.net.Http.clearCooldowns()
+        }
+    }
 }
