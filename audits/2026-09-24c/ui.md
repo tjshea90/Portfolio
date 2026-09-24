@@ -160,9 +160,10 @@ Status: IN PROGRESS (findings appended as confirmed)
   ("off the main thread"), but `applyEngineReview` calls it again inside `viewModelScope.launch`
   (Main) after `engineEvidenceNow()` returns. `review` calls `Evidence.count` per proposed change;
   a "level:..." basis parses every decided row's `features` JSON (`levelOf`), a "time:..." basis builds a
-  ZonedDateTime per row. With 8 changes and a year of log that is thousands of JSON parses on the UI
-  thread at the moment of the tap - a visible freeze on the Moto's small cores, with the dialog still
-  up and Apply still enabled (see UI-13).
+  ZonedDateTime per row. With several level-based changes and a year of log (~1,000+ decided rows) that
+  is thousands of JSON parses on the UI thread at the moment of the tap - an estimated few hundred ms
+  freeze on the Moto's small cores (estimate, not measured), with the dialog still up and Apply still
+  enabled (see UI-13). Small today (the log began 2026-09-16); grows with the log.
 - Fix: `val fresh = withContext(Dispatchers.Default) { EngineTuning.review(...) }` and the same for
   `apply`; cache `levelOf` per row id if it is called repeatedly.
 
