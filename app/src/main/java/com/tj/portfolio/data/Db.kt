@@ -1843,10 +1843,13 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 val t = Txn(
                     type = type,
                     symbol = sym,
-                    quantity = o.optDouble("quantity", 0.0),
-                    price = o.optDouble("price", 0.0),
-                    amount = o.optDouble("amount", 0.0),
-                    fees = o.optDouble("fees", 0.0),
+                    // FINITE ONLY (full test 2026-09-24, A-8): org.json parses "Infinity", SQLite
+                    // stores it, and every export after that threw - the daily autosave just
+                    // stopped, with no message.
+                    quantity = o.finiteOrZero("quantity"),
+                    price = o.finiteOrZero("price"),
+                    amount = o.finiteOrZero("amount"),
+                    fees = o.finiteOrZero("fees"),
                     date = o.optLong("date", 0L),
                     note = if (o.isNull("note")) null else o.optString("note").ifBlank { null },
                     source = o.optString("source", "RESTORE").ifBlank { "RESTORE" }
@@ -1996,18 +1999,18 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 // malformed row in a file cannot put something in the table that the app
                 // would never have written itself.
                 if (symD.isBlank() || dayD.isBlank()) continue
-                val en = o.optDouble("entry", 0.0); val st2 = o.optDouble("stop", 0.0)
-                val tg = o.optDouble("target", 0.0)
+                val en = o.finiteOrZero("entry"); val st2 = o.finiteOrZero("stop")
+                val tg = o.finiteOrZero("target")
                 if (!(en > 0.0) || !(st2 > 0.0) || !(tg > 0.0)) continue
                 val cv = ContentValues().apply {
                     put("symbol", symD); put("trading_day", dayD)
                     put("recorded_at", o.optLong("recordedAt"))
                     put("setup", o.optString("setup", ""))
                     put("entry", en); put("stop", st2); put("target", tg)
-                    put("price_at_recommendation", o.optDouble("priceAtRecommendation", 0.0))
+                    put("price_at_recommendation", o.finiteOrZero("priceAtRecommendation"))
                     put("source", o.optString("source", "RESTORE"))
                     if (!o.isNull("outcome")) put("outcome", o.optString("outcome"))
-                    if (!o.isNull("outcomeExitPrice"))
+                    if (!o.isNull("outcomeExitPrice") && o.optDouble("outcomeExitPrice").isFinite())
                         put("outcome_exit_price", o.optDouble("outcomeExitPrice"))
                     if (!o.isNull("outcomeEvaluatedAt"))
                         put("outcome_evaluated_at", o.optLong("outcomeEvaluatedAt"))
@@ -2148,6 +2151,10 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             k == Keys.AUTOSAVE_AT || k == Keys.AUTO_BACKUP_AT || k == Keys.DOWNLOADS_TIDIED ||
             k == Keys.PENDING_IMPORT || k == Keys.REPLAY_REPAIR_BELOW_ID ||
             k == Keys.REPLAY_REPAIR_RANGES
+
+    /** A backup's number, or 0 when missing, malformed or not finite (A-8). */
+    private fun JSONObject.finiteOrZero(key: String): Double =
+        optDouble(key, 0.0).takeIf { it.isFinite() } ?: 0.0
 
     private fun appVersionName(): String = try {
         ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName ?: ""
