@@ -563,12 +563,11 @@ fun DetailScreen(
         arrayOfNulls<Pair<com.tj.portfolio.data.ChartSeries, com.tj.portfolio.data.ChartRange>>(1)
     }
     if (chart != null && !chart.isEmpty) lastDrawn[0] = chart to chartRange
-    val chartBridge = lastDrawn[0]?.takeIf {
-        (chart == null || chart.isEmpty) && chartWindow != null &&
-            (chartPinching || zoomSettling || chartLoading)
-    }
-    val drawnChart = chartBridge?.first ?: chart
-    val drawnRange = chartBridge?.second ?: chartRange
+    val (drawnChart, drawnRange) = bridgedChart(
+        chart, chartRange, lastDrawn[0],
+        zoomed = chartWindow != null,
+        awaiting = chartPinching || zoomSettling || chartLoading
+    )
 
     val onChartWindow: (com.tj.portfolio.data.ChartWindow) -> Unit = { w ->
         chartWindow = w
@@ -1761,3 +1760,20 @@ private fun liveEdgePrice(
         else -> 0.0
     }
 }
+
+/**
+ * What the chart draws while a zoom crosses into a range not fetched yet (full test 2026-09-24,
+ * C-1): the [last] series drawn, with its own range, when [chart] has nothing to draw, a zoom
+ * window is live and its series is still [awaiting] (fingers down, settle running or fetch in
+ * flight). Otherwise exactly [chart] and [range]. A null series would swap PriceChart's chart
+ * node for its placeholder node and orphan the fingers already on the glass.
+ */
+internal fun bridgedChart(
+    chart: com.tj.portfolio.data.ChartSeries?,
+    range: com.tj.portfolio.data.ChartRange,
+    last: Pair<com.tj.portfolio.data.ChartSeries, com.tj.portfolio.data.ChartRange>?,
+    zoomed: Boolean,
+    awaiting: Boolean
+): Pair<com.tj.portfolio.data.ChartSeries?, com.tj.portfolio.data.ChartRange> =
+    if ((chart == null || chart.isEmpty) && zoomed && awaiting && last != null) last
+    else chart to range
