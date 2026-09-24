@@ -2602,6 +2602,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** When set, the live loop sweeps ONLY this symbol - a detail screen showing its plan,
      *  not the Day Trading list. See [startDayTradingLive]'s `only`. */
     private var dayTradingLiveOnly: String? = null
+    /** "sym|level|day" already announced - each level speaks once a day (2026-09-24b). */
+    private val announcedLevels = java.util.Collections.synchronizedSet(HashSet<String>())
+
     /** When a Claude Research answer was last imported (R1-4) - see [researchStale]. In memory:
      *  after a process death the list simply follows its own clocks again. */
     private var researchImportedAt = 0L
@@ -7220,9 +7223,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** "sym|level|day" already announced - each level speaks once a day (2026-09-24b). */
-    private val announcedLevels = java.util.Collections.synchronizedSet(HashSet<String>())
-
     /**
      * IN-APP LEVEL ALERTS (Day Trading idea 4, 2026-09-24b): while the live loop is running
      * anyway, say when a plan's buy, stop or target price was just reached. No request of its
@@ -8340,7 +8340,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // "not empty" - and on a failed first 09:30 tick its pre-market plan and price were
             // logged, and the one-row-per-day rule then locked the real plan out.
             captureDayTradingRecommendations(finalRows, replannedLive(fetched))
-            announceLevels(rows, finalRows, replannedLive(fetched))
+            announceLevels(current, finalRows, replannedLive(fetched))
         }
     }
 
