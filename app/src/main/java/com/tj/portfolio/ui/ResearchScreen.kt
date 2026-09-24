@@ -807,17 +807,26 @@ internal fun ResearchCard(
                 // completely different kinds of claim, in identical type, on the list TJ is
                 // buying from. The badge now says which it is, and the scale says it too:
                 // out of 100 is measured, out of 10 is asserted.
-                val fromClaude = r.score <= 0 && r.conviction > 0
+                // AND A ROW NOTHING SCORED AT ALL (full test 2026-09-24, S-11): a Trending row
+                // Claude added carries no conviction either, and drew "SCORE 0" - a number the
+                // app never computed.
+                val fromClaude = claudeSourced(r)
                 val badge = if (fromClaude) "CLAUDE" else "SCORE"
-                val shown = if (fromClaude) "${r.conviction}/10" else "${r.score}"
+                val shown = when {
+                    !fromClaude -> "${r.score}"
+                    r.conviction > 0 -> "${r.conviction}/10"
+                    else -> "-"
+                }
                 Column(
                     Modifier
                         .size(46.dp)
                         .background(c.copy(alpha = 0.16f), CircleShape)
                         .semantics(mergeDescendants = true) {
                             contentDescription = when {
-                                fromClaude -> "Claude's conviction ${r.conviction} out of 10; " +
-                                    "this fund was not scored by the app"
+                                fromClaude && r.conviction > 0 ->
+                                    "Claude's conviction ${r.conviction} out of 10; " +
+                                        "this pick was not scored by the app"
+                                fromClaude -> "Added by Claude; this pick was not scored by the app"
                                 // A DAY-TRADING SCORE IS A BLEND, NOT A RAW SIGNAL (Round 72) -
                                 // Tj: "make the scores reflect a blend of how likely the stock
                                 // is to rise... and how confident this prediction is." Said once
@@ -1110,6 +1119,10 @@ internal fun EtfFactsGrid(f: com.tj.portfolio.data.EtfFacts) {
         }
     }
 }
+
+/** A row whose number is not the app's: Claude added it, and nothing here scored it (S-11). */
+internal fun claudeSourced(r: com.tj.portfolio.data.ResearchRow): Boolean =
+    r.score <= 0 && (r.conviction > 0 || r.reasons.isEmpty())
 
 /**
  * "Buy if it climbs to $12.40, then sell at $13.10" - the same [ResearchRow.entryPrice]/

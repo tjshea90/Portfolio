@@ -419,7 +419,14 @@ $SHAPE
         existing: List<ResearchRow>,
         incoming: List<ResearchRow>,
         /** When the answer was written - see [Parsed.answeredAt] (S-4). */
-        at: Long = System.currentTimeMillis()
+        at: Long = System.currentTimeMillis(),
+        /**
+         * Where rows Claude ADDED go (full test 2026-09-24, S-11): the caller passes the end of
+         * the page on screen. Appended after a 50-row buffer they needed four or five "Load
+         * more" taps to find - after a toast saying "2 added" - and the next prompt, built from
+         * the rows on screen, never sent them back.
+         */
+        insertAt: Int = Int.MAX_VALUE
     ): List<ResearchRow> {
         if (incoming.isEmpty()) return existing
         // STAMPED ONLY WHEN `why` ITSELF IS FRESH (full-tests audit, round 79 sweep) - THE BUG
@@ -458,6 +465,7 @@ $SHAPE
         // that cannot open its own screen.
         val added = incoming.filter { it.symbol !in known }.distinctBy { it.symbol }
             .map { if (it.why.isNotBlank()) it.copy(whyAt = now) else it }
-        return merged + added
+        val cut = insertAt.coerceIn(0, merged.size)
+        return merged.take(cut) + added + merged.drop(cut)
     }
 }

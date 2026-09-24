@@ -7637,9 +7637,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val cur = _research.value
         // The answer's own date when it names an earlier day (S-4) - see Parsed.answeredAt.
         val writtenAt = parsed.answeredAt ?: System.currentTimeMillis()
+        // Rows Claude added go at the end of the page on screen, not after the buffer (S-11).
+        fun pageEnd(section: String) =
+            _researchShown.value[section] ?: com.tj.portfolio.data.ResearchSet.PAGE
         val merged = cur.copy(
-            trending = com.tj.portfolio.net.ResearchBridge.merge(cur.trending, parsed.trending, writtenAt),
-            best = com.tj.portfolio.net.ResearchBridge.merge(cur.best, parsed.best, writtenAt),
+            trending = com.tj.portfolio.net.ResearchBridge.merge(cur.trending, parsed.trending,
+                writtenAt, insertAt = pageEnd(com.tj.portfolio.data.ResearchSet.SECTION_TRENDING)),
+            best = com.tj.portfolio.net.ResearchBridge.merge(cur.best, parsed.best,
+                writtenAt, insertAt = pageEnd(com.tj.portfolio.data.ResearchSet.SECTION_BEST)),
             // RE-SORTED, unlike the stock lists. Claude is asked to ADD funds the app's
             // screener universe cannot see - which is the whole point of researching this
             // list online - and `merge` puts additions last.
