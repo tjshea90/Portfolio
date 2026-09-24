@@ -315,6 +315,11 @@ fun DetailScreen(
     val tabs = remember(fundHoldings?.isFund) { visibleTabs(fundHoldings?.isFund == true) }
 
     var chartRange by remember { mutableStateOf(vm.chartRange()) }
+    // ---- THE RANGE TJ PICKED, as opposed to the resolution a pinch is drawing (full test
+    // 2026-09-24, C-7; Tj approved 2026-09-24b). Only a chip tap sets it and only a chip tap is
+    // saved: a pinch used to persist whatever rung it passed through, so "Reset zoom" returned
+    // to 6M after a 1Y chart was pinched down, and the next stock opened on 6M too.
+    var chosenRange by remember { mutableStateOf(chartRange) }
     val chartMap by vm.charts.collectAsState()
     val quotesMap by vm.quotes.collectAsState()
     val chartLoadingSet by vm.chartLoading.collectAsState()
@@ -496,13 +501,18 @@ fun DetailScreen(
     // range for the symbol in one query, so zooming across ground already covered is instant
     // and free either way.
     var zoomSettling by remember(symbol) { mutableStateOf(false) }
+    // "Reset zoom" goes back to the chip Tj picked, not to the rung the pinch ended on (C-7).
+    val resetZoom: () -> Unit = {
+        zoomSettling = false
+        chartWindow = null
+        chartRange = chosenRange
+    }
     val onChartZoom: (Int) -> Unit = remember(symbol) {
         { steps ->
             val next = com.tj.portfolio.data.ChartRange.zoomed(chartRange, steps)
             if (next != null && next != chartRange) {
                 zoomSettling = true
-                chartRange = next
-                vm.setChartRange(next)
+                chartRange = next                 // not saved - only a chip tap is (C-7)
             }
         }
     }
@@ -608,8 +618,7 @@ fun DetailScreen(
             // crosses three rungs in half a second must not start three fetches for windows
             // the fingers were only passing through.
             zoomSettling = true
-            chartRange = next
-            vm.setChartRange(next)
+            chartRange = next                     // not saved - only a chip tap is (C-7)
         }
     }
 
@@ -677,8 +686,7 @@ fun DetailScreen(
         )
         if (want != chartRange) {
             zoomSettling = true
-            chartRange = want
-            vm.setChartRange(want)
+            chartRange = want                     // not saved - only a chip tap is (C-7)
         }
     }
 
@@ -877,13 +885,14 @@ fun DetailScreen(
                         // which is the chart lying about what it is showing.
                         chartWindow = null
                         chartRange = r
+                        chosenRange = r
                         vm.setChartRange(r)
                     },
                     onChartZoom = onChartZoom,
                     chartWindow = chartWindow,
                     chartBounds = chartBounds,
                     onChartWindow = onChartWindow,
-                    onResetChartWindow = { zoomSettling = false; chartWindow = null },
+                    onResetChartWindow = resetZoom,
                     onExpandChart = { chartExpanded = true },
                     onChartPinching = { chartPinching = it },
                     compare = drawnCompare,
@@ -963,6 +972,7 @@ fun DetailScreen(
                 zoomSettling = false
                 chartWindow = null
                 chartRange = r
+                chosenRange = r
                 vm.setChartRange(r)
             },
             perf = chartPerf,
@@ -972,7 +982,7 @@ fun DetailScreen(
             window = chartWindow,
             windowBounds = chartBounds,
             onWindow = onChartWindow,
-            onResetWindow = { zoomSettling = false; chartWindow = null },
+            onResetWindow = resetZoom,
             onZoomingChanged = { chartPinching = it },
             compare = if (compareOn && !isBenchmark) drawnCompare else null,
             compareLabel = BENCHMARK_SYMBOL,
