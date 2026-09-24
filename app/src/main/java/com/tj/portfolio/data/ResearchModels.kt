@@ -291,6 +291,8 @@ data class ResearchRow(
     val vwap: Double = 0.0,
     val openingRangeHigh: Double = 0.0,
     val openingRangeLow: Double = 0.0,
+    /** Whether the two values above are the COMPLETE 09:30-10:00 range (R1-2) - see D-5. */
+    val openingRangeComplete: Boolean = false,
     /**
      * THE LEVELS THE ROUND 69 TRIGGER IS CHOSEN FROM - the 5-minute ATR the stop is sized by,
      * the average daily range the target is bounded by, and the four structural prices an
@@ -377,6 +379,7 @@ data class ResearchRow(
         if (vwap > 0) put("vwap", vwap)
         if (openingRangeHigh > 0) put("openingRangeHigh", openingRangeHigh)
         if (openingRangeLow > 0) put("openingRangeLow", openingRangeLow)
+        if (openingRangeComplete) put("orComplete", true)
         if (setup.isNotBlank()) put("setup", setup)
         if (trigger.isNotBlank()) put("trigger", trigger)
         if (planNote.isNotBlank()) put("planNote", planNote)
@@ -485,6 +488,7 @@ data class ResearchRow(
                 vwap = o.optDouble("vwap", 0.0).orZero(),
                 openingRangeHigh = o.optDouble("openingRangeHigh", 0.0).orZero(),
                 openingRangeLow = o.optDouble("openingRangeLow", 0.0).orZero(),
+                openingRangeComplete = o.optBoolean("orComplete", false),
                 planExit = o.text("planExit"),
                 tooLateToStart = o.optBoolean("tooLateToStart", false),
                 setup = o.text("setup"),

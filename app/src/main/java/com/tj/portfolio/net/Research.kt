@@ -808,10 +808,22 @@ object Research {
      * before the close" warning on the one day it existed for. A blank Claude part keeps the
      * app's line alone.
      */
-    internal fun combineCatalyst(app: String, claude: String): String {
+    internal fun combineCatalyst(
+        app: String,
+        claude: String,
+        /**
+         * True when [claude] is a CARRIED line (the previous build's row), whose leading earnings
+         * phrase is a frozen app phrase to drop. On a fresh MERGE it is Claude's own words, and
+         * with no app phrase to replace it they are kept whole (review 2026-09-24, R1-3: "Earnings
+         * today after the close..." became "after the close...", and the earnings-today warning
+         * went with it).
+         */
+        fromCarry: Boolean = false
+    ): String {
+        val earnings = appEarningsPart(app)
+        if (earnings == null && !fromCarry) return claude.trim().ifBlank { app }
         val own = claudeCatalystPart(claude)
         if (own.isBlank()) return app
-        val earnings = appEarningsPart(app)
         return if (earnings != null) "$earnings - $own" else own
     }
 

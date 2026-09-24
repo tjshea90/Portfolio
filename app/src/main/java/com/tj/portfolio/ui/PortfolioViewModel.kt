@@ -1000,7 +1000,7 @@ private fun carryWhy(
         // Sep 27", and this carried that frozen, relative-date string over every fresh one
         // for up to 14 days - announcing a print that had already happened.
         catalyst = if (claude && com.tj.portfolio.net.Research.claudeCatalystPart(p.catalyst).isNotBlank())
-            com.tj.portfolio.net.Research.combineCatalyst(r.catalyst, p.catalyst)
+            com.tj.portfolio.net.Research.combineCatalyst(r.catalyst, p.catalyst, fromCarry = true)
         else r.catalyst,
         conviction = if (claude) p.conviction else r.conviction
     )
@@ -1227,6 +1227,7 @@ internal fun mergeDayTradingTech(
         vwap = effective.vwap,
         openingRangeHigh = effective.openingRangeHigh,
         openingRangeLow = effective.openingRangeLow,
+        openingRangeComplete = effective.openingRangeComplete,   // R1-2
         atrIntraday = effective.atrIntraday,
         adr = effective.adr,
         prevHigh = effective.prevHigh,
@@ -1547,6 +1548,11 @@ internal fun effectiveTechnicals(
         else if (keepIntraday) row.openingRangeHigh else 0.0,
         openingRangeLow = if (tech.openingRangeLow > 0) tech.openingRangeLow
         else if (keepIntraday) row.openingRangeLow else 0.0,
+        // THE FLAG TRAVELS WITH THE RANGE IT DESCRIBES (review 2026-09-24, R1-2). The plan uses
+        // the range only once it is complete (D-5); carried without its flag, every failed
+        // intraday tick after 10:00 dropped the range from the plan and the levels jumped.
+        openingRangeComplete = if (tech.openingRangeHigh > 0) tech.openingRangeComplete
+        else keepIntraday && row.openingRangeComplete,
         atrIntraday = if (tech.atrIntraday > 0) tech.atrIntraday
         else if (keepIntraday) row.atrIntraday else 0.0,
         premarketHigh = if (tech.premarketHigh > 0) tech.premarketHigh
@@ -2491,6 +2497,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private var dayTradingLiveOnly: String? = null
     /** When [cacheResearch] last wrote the research set to disk, and whether a throttled
      *  write is still owed - see its `throttleMs`. */
+    /** When a Claude Research answer was last imported (R1-4) - see [researchStale]. In memory:
+     *  after a process death the list simply follows its own clocks again. */
+    private var researchImportedAt = 0L
     private var researchPersistedAt = 0L
     @Volatile private var researchPersistOwed = false
     /** Publish order of research-cache writes, and the newest one on disk (A-11) - see
@@ -7236,7 +7245,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // SHARE is immediately: the app navigates there to show the answer. Tj then watched the
         // answer he had just imported be replaced. The list Claude just read and reworked is as
         // current as a rebuild; the TTL runs from whichever happened last.
-        val freshAt = maxOf(s.generated, s.explained, s.dtExplained)
+        // AND THE MOMENT OF AN IMPORT, not the answer's own date (review 2026-09-24, R1-4): S-4
+        // stamps `explained` with an older answer's `asOf`, which made the list read as stale
+        // - and rebuild - the moment the share navigated to it.
+        val freshAt = maxOf(s.generated, s.explained, s.dtExplained, researchImportedAt)
         return s.isEmpty ||
             System.currentTimeMillis() - freshAt > com.tj.portfolio.net.Research.TTL_MS
     }
@@ -7695,7 +7707,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 .merge(cur.etfs, parsed.etfs, writtenAt)
                 .sortedWith(compareByDescending<com.tj.portfolio.data.ResearchRow> { it.score }
                     .thenByDescending { it.conviction }),
-            explained = writtenAt,
+            explained = writtenAt.also { researchImportedAt = System.currentTimeMillis() },
             explainedBy = via,
             // MERGED, not overwritten - every other field in this copy is. A second reply
             // that simply omits `notes` used to erase the first one's paragraph.
@@ -8134,9 +8146,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             cacheResearch(_research.value, throttleMs = if (sweeping) 0L else DAY_TRADING_PERSIST_MS)
             // THE ONE PLACE A RECOMMENDATION IS LOGGED (D-1): the rows this tick re-planned from
             // a live, market-open fetch - never a row whose fetch failed and kept an older plan.
+            // TODAY'S INTRADAY BARS, not merely a non-empty reading (review 2026-09-24, R1-1):
+            // the daily leg is memoised, so a row whose intraday request failed still read as
+            // "not empty" - and on a failed first 09:30 tick its pre-market plan and price were
+            // logged, and the one-row-per-day rule then locked the real plan out.
             captureDayTradingRecommendations(
                 finalRows,
-                fetched.filterValues { it != null && !it.isEmpty && it.sessionLive }.keys
+                fetched.filterValues {
+                    it != null && it.sessionLive && it.sessionDay.isNotBlank() && it.lastPrice > 0.0
+                }.keys
             )
         }
     }
