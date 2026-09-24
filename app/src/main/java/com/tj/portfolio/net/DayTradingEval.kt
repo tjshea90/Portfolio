@@ -82,6 +82,11 @@ object DayTradingEval {
             // A 404 IS AN ANSWER: "no data found, symbol may be delisted" (D-12) - and an
             // answer needs no second host asking the same question (N-12).
             if (r.code == 404) return emptyList()
+            // AND SO IS YAHOO'S REFUSAL OF A WINDOW IT DOES NOT SERVE (audit PL-13): one-minute
+            // bars older than its limit come back 422 ("must be within the last 30 days"), a bad
+            // window 400. Read as "nothing here", the caller falls back to five-minute bars instead
+            // of asking the same question on every check until the row ages out.
+            if (r.code == 400 || r.code == 422) return emptyList()
             if (!r.ok) continue
             // `continue`, NOT `return`: a 200 that parses to nothing (a truncated body, a
             // proxy error page) used to end the loop, so query2 never got its turn and the
@@ -96,6 +101,47 @@ object DayTradingEval {
         // promised only a real answer could mean.
         return null
     }
+
+    /**
+     * A settled session's bars as a compact, deflated blob for [com.tj.portfolio.data.Db.cacheDayBars]
+     * (audit PL-6): one `t,o,h,l,c` line per bar, the open left empty when unknown.
+     */
+    fun encodeBars(bars: List<IntradayBar>): ByteArray {
+        val sb = StringBuilder(bars.size * 40)
+        fun n(v: Double) = if (v.isFinite()) java.math.BigDecimal(v).setScale(6, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString() else ""
+        for (b in bars) sb.append(b.t).append(',').append(n(b.open)).append(',').append(n(b.high)).append(',')
+            .append(n(b.low)).append(',').append(n(b.close)).append('\n')
+        val out = java.io.ByteArrayOutputStream()
+        java.util.zip.DeflaterOutputStream(out).use { it.write(sb.toString().toByteArray(Charsets.UTF_8)) }
+        return out.toByteArray()
+    }
+
+    /** TOTAL - an unreadable blob is an empty list (the caller then fetches again). */
+    fun decodeBars(blob: ByteArray?): List<IntradayBar> = runCatching {
+        if (blob == null || blob.isEmpty()) return@runCatching emptyList()
+        val text = java.util.zip.InflaterInputStream(blob.inputStream()).use { it.readBytes() }.toString(Charsets.UTF_8)
+        text.lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
+            val f = line.split(',')
+            if (f.size != 5) return@mapNotNull null
+            val t = f[0].toLongOrNull() ?: return@mapNotNull null
+            val h = f[2].toDoubleOrNull() ?: return@mapNotNull null
+            val l = f[3].toDoubleOrNull() ?: return@mapNotNull null
+            val c = f[4].toDoubleOrNull() ?: return@mapNotNull null
+            IntradayBar(t, h, l, c, f[1].toDoubleOrNull() ?: Double.NaN)
+        }.toList()
+    }.getOrDefault(emptyList())
+
+    /**
+     * A row logged before 2026-09-24c (no `features`) whose own price at the time shows the card
+     * told Tj NOT to take it (audit DA-19): already at or past its target, at or under its stop,
+     * or with no price to show either way. The logging gate that now keeps such plans out (E5)
+     * did not exist then, and re-grading one as a live order - its direction read from a price
+     * that was past the target - credited trades the card said to skip. Never graded, never
+     * counted; the card says how many.
+     */
+    fun notTradeableOldRow(e: DayTradingLogEntry): Boolean =
+        e.features.isBlank() &&
+            !(e.priceAtRecommendation > 0.0 && e.stop < e.priceAtRecommendation && e.priceAtRecommendation < e.target)
 
     /** A well-formed chart reply for the window - `chart.result[0]` present, no error - with no bars in it. */
     internal fun answeredNoBars(body: String): Boolean = runCatching {
