@@ -501,12 +501,6 @@ fun DetailScreen(
     // range for the symbol in one query, so zooming across ground already covered is instant
     // and free either way.
     var zoomSettling by remember(symbol) { mutableStateOf(false) }
-    // "Reset zoom" goes back to the chip Tj picked, not to the rung the pinch ended on (C-7).
-    val resetZoom: () -> Unit = {
-        zoomSettling = false
-        chartWindow = null
-        chartRange = chosenRange
-    }
     val onChartZoom: (Int) -> Unit = remember(symbol) {
         { steps ->
             val next = com.tj.portfolio.data.ChartRange.zoomed(chartRange, steps)
@@ -533,6 +527,12 @@ fun DetailScreen(
     // not inherit the last one's window.
     var chartWindow by remember(symbol) {
         mutableStateOf<com.tj.portfolio.data.ChartWindow?>(null)
+    }
+    // "Reset zoom" goes back to the chip Tj picked, not to the rung the pinch ended on (C-7).
+    val resetZoom: () -> Unit = {
+        zoomSettling = false
+        chartWindow = null
+        chartRange = chosenRange
     }
 
     // ---- THE FULL-SCREEN VIEWER (Round 64). See [FullScreenChart] for what it does and why
