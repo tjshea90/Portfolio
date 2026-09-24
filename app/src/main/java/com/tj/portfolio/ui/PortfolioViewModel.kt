@@ -2445,6 +2445,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     private val chartDiskRead = java.util.Collections.synchronizedSet(HashSet<String>())
 
+    /**
+     * The disk read [chartDiskRead] has started but not finished, per symbol (full test
+     * 2026-09-24, C-11). A second range loading inside that window saw the symbol marked as
+     * read, found nothing in memory yet and went to the network for a series SQLite was about
+     * to hand over. It now waits for the read instead.
+     */
+    private val chartDiskInFlight =
+        java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.CompletableDeferred<Unit>>()
+
     // ================================================================ FUND HOLDINGS
 
     /** What each fund holds, by symbol. Absent means "not looked up yet". */
@@ -5380,7 +5389,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             _chartLoading.value = _chartLoading.value + key
             try {
                 // ---- 1. disk first, every range for this symbol in one query
-                if (chartDiskRead.add(sym)) {
+                if (!chartDiskRead.add(sym)) {
+                    chartDiskInFlight[sym]?.await()   // C-11: another range is reading it now
+                } else {
+                    val diskGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+                    chartDiskInFlight[sym] = diskGate
                     // UN-MARKED IF THE READ DOES NOT FINISH. The mark is set before the
                     // query so two ranges loading at once do not both run it - but that also
                     // means a cancellation between the two leaves the symbol marked as read
@@ -5393,6 +5406,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                         }.also { read = true }
                     } finally {
                         if (!read) chartDiskRead.remove(sym)
+                        chartDiskInFlight.remove(sym, diskGate)
+                        diskGate.complete(Unit)
                     }
                     if (disk.isNotEmpty()) {
                         val m = HashMap(_charts.value)
