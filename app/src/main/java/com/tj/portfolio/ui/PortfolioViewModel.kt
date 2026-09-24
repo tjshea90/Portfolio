@@ -1111,7 +1111,15 @@ internal fun mergeDayTradingTech(
     // stamps today's date on the row - so the 04:00 tick read "new session" and replaced
     // Claude's plan for tomorrow with the app's. The plan's own time (`whyAt`, written with it)
     // decides which session it is for.
-    val claudePlanStands = row.planByClaude && (!sessionChanged ||
+    //
+    // AND ONLY WHILE ITS LEVELS STILL MAKE SENSE AGAINST A REAL PRICE (full test 2026-09-24,
+    // D-13). The import-time check needs a quote, and a night import whose quote fill failed
+    // left a decimal-slipped Claude level on screen - and logged - unchecked. The live price
+    // is the check this tick can always make.
+    val claudeLevelsUnusable = row.planByClaude && livePrice != null &&
+        !com.tj.portfolio.net.DayTradingBridge.levelsUsable(
+            livePrice, row.entryPrice, row.stopPrice, row.targetPrice)
+    val claudePlanStands = row.planByClaude && !claudeLevelsUnusable && (!sessionChanged ||
         (now > 0L && row.whyAt > 0L && planStillForSession(row.whyAt, now)))
     val (plan, declineReason) = if (claudePlanStands) null to ""
     else com.tj.portfolio.net.ResearchScore.planInternal(
@@ -1174,7 +1182,8 @@ internal fun mergeDayTradingTech(
         else -> row.planDeclineStreak
     }
     val confirmedDecline = (declined && declineStreak >= DAY_TRADING_DECLINE_CONFIRM_TICKS) ||
-        (sessionChanged && plan == null && !claudePlanStands)   // D-2: a standing plan is kept
+        (sessionChanged && plan == null && !claudePlanStands) ||   // D-2: a standing plan is kept
+        (claudeLevelsUnusable && plan == null)                     // D-13: never keep bad levels
     return row.copy(
         price = price,
         // Only while the regular session is open is "vs the previous close" today's move;
@@ -7639,6 +7648,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val newSymbols = merged.dayTrading
             .filter { it.price <= 0.0 }.map { it.symbol }.distinct().take(MAX_PRICE_FILL)
         if (newSymbols.isNotEmpty()) fillResearchPrices(newSymbols)
+        // A NEW LIST DESERVES ITS ONE SWEEP (D-13): the rows Claude added get the app's plan
+        // (where Claude gave none) and a live price check now, not at 04:00. D-8 keeps the
+        // order Claude chose.
+        dayTradingSweepDone = false
+        dayTradingRebuildGen++
+        if (dayTradingLiveWanted) startDayTradingLive(dayTradingLiveOnly)
         // SAYS WHAT ACTUALLY HAPPENED, INCLUDING THE REMOVALS (Round 69). Claude's list now
         // REPLACES the section rather than annotating it, so a run that quietly deleted six
         // rows the user had been reading must not report itself as "6 explained".
@@ -7892,9 +7907,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // as the header above still requires - this fires once per rebuild, not every 30 seconds.
         // ONLY IF THE LIST IT FETCHED FOR IS STILL THE LIST (D-4) - see [dayTradingRebuildGen].
         val sweptThisList = sweeping && sweepGen == dayTradingRebuildGen
+        // CLAUDE'S ORDER IS KEPT (full test 2026-09-24, D-8): when the list was last written by
+        // a Claude answer, its "best first" order is the ranking - re-sorting by the app's own
+        // score dropped Claude-added names (scored 0) below "Load more", never shown or logged.
+        val claudeOrdered = _research.value.let { it.dtExplained > it.generated }
         val finalRows = if (sweptThisList) {
             dayTradingSweepDone = true
-            sortDayTradingForActionability(updated)
+            if (claudeOrdered) updated else sortDayTradingForActionability(updated)
         } else updated
         if (changed || sweeping) {
             _research.value = _research.value.withSection(name, finalRows)
