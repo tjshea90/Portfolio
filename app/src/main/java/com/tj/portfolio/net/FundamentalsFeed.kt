@@ -110,10 +110,18 @@ object FundamentalsFeed {
         // Last resort, and a scrape, so it has to be earning its place: only when the two
         // APIs between them still left the page half empty.
         if (out.values.size < MIN_USABLE_VALUES) {
-            out = Fundamentals.merge(out, finviz(sym))
+            out = Fundamentals.merge(out, coreFill(finviz(sym)))
         }
         return out.copy(fetched = System.currentTimeMillis())
     }
+
+    /**
+     * A fallback's answer for the CORE row, minus its per-firm rating rows (full test 2026-09-24,
+     * S-9). Those belong to [ratings], which has its own Finviz fallback; carried in the core row
+     * as well, they sat in `_fundamentals` beside Yahoo's daily ratings, and a firm the two feeds
+     * spell differently ("B of A Securities" / "BofA Securities") voted twice in the panel.
+     */
+    internal fun coreFill(f: Fundamentals): Fundamentals = f.copy(ratings = emptyList())
 
     /**
      * Analyst actions, newest first, with each firm's target. Yahoo first; Finviz fills in
