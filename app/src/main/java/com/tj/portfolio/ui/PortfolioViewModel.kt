@@ -810,8 +810,11 @@ internal fun carryExplanations(
         val carried = list.map { r -> carryWhy(r, prior[r.symbol], now, dayTrading) }
         val present = list.mapTo(HashSet()) { it.symbol }
         val added = from.filter { p ->
-            p.symbol !in present && p.score <= 0 && stillCurrent(p.why, p.whyAt, now) &&
-                (!dayTrading || sameTradingDay(p.whyAt, now))
+            p.symbol !in present && p.score <= 0 && (
+                (stillCurrent(p.why, p.whyAt, now) && (!dayTrading || sameTradingDay(p.whyAt, now))) ||
+                    // A levels-only Claude pick is kept by its plan's own clock (R1-7).
+                    (dayTrading && p.planByClaude && sameTradingDay(claudePlanTime(p), now))
+                )
         }
         return carried + added
     }
