@@ -869,8 +869,10 @@ internal fun intradayChartIsFinal(
     now: Long
 ): Boolean {
     val MC = com.tj.portfolio.net.MarketClock
+    val open = com.tj.portfolio.net.MarketClock.Phase.OPEN
+    val closed = com.tj.portfolio.net.MarketClock.Phase.CLOSED
     val phase = MC.phase(now)
-    if (phase == MC.Phase.OPEN) return false
+    if (phase == open) return false
     if (endMs <= 0L) return false
     return when (range) {
         // AND FROM THE LATEST SESSION (full test 2026-09-23, N-6): a series that ended in ANY
@@ -879,9 +881,9 @@ internal fun intradayChartIsFinal(
         // the same question already answered for the row line: fetched outside the session,
         // and no session has opened since.
         com.tj.portfolio.data.ChartRange.D1 ->
-            MC.phase(endMs) == MC.Phase.OPEN && sparkIsFinal(fetched, now)
+            MC.phase(endMs) == open && sparkIsFinal(fetched, now)
         com.tj.portfolio.data.ChartRange.OVERNIGHT ->
-            phase == MC.Phase.CLOSED && MC.phase(fetched) == MC.Phase.CLOSED
+            phase == closed && MC.phase(fetched) == closed
         else -> false
     }
 }
