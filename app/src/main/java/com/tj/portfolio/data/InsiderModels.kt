@@ -100,10 +100,16 @@ data class InsiderFiling(
         }
         if (same.size == 1) return@lazy best
         val shares = same.sumOf { it.shares }
-        val paid = same.sumOf { it.shares * it.price }
+        // AVERAGED OVER THE LINES THAT STATE A PRICE (full test 2026-09-24, S-12). A price given
+        // only as a footnote parses to 0; counting that line's shares in the divisor turned
+        // 1,000 at $50 + 1,000 footnoted into "2,000 shares at $25.00 - $50K". Every line's
+        // shares still count toward the total, at the priced lines' average.
+        val priced = same.filter { it.price > 0.0 }
+        val pricedShares = priced.sumOf { it.shares }
         best.copy(
             shares = shares,
-            price = if (shares > 0) paid / shares else best.price,
+            price = if (pricedShares > 0) priced.sumOf { it.shares * it.price } / pricedShares
+            else best.price,
             date = same.maxOf { it.date },
             // The LAST line, not the latest-dated one. A Form 4's table is in chronological
             // order and several lines routinely share a date - the NVDA fixture has four on
