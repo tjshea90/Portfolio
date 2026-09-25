@@ -142,6 +142,21 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
         files adopted/atomic, Db.setAll + mutex, 64 MB backup reads, COUNT for the backup check,
         tuning answers route to the review, logged-today set.)
     - [ ] Second audit round (3 agents, read-only) on everything changed since 5576e0fb; fix; suite
+      Reports complete: audits/2026-09-24c/round2-{grading,platform,tuning}.md (10 + 8 + 24 findings).
+      - grading: [x] R2G-2 (both readings of a suspect low, worse stands) [x] R2G-4 (truncation on raw
+        reply) [x] R2G-5 (causal bad-print ruler) [x] R2G-6 (gap open unknown -> against the trade)
+        [x] R2G-8 (old row through its buy price) [x] R2G-9 (VERSION 3) [x] R2G-10 (window < 1 bar ->
+        PENDING) -- code written, tests pending; [ ] R2G-1 (never replace a decided 1m verdict with a
+        5m grade) [ ] R2G-3 (=R2P-7 cache only complete series) [ ] R2G-7 (persisted retry column)
+      - platform: [x] R2P-2 (bars rounded to 1/10000 + EPS compares) [x] R2P-3 (only 422, both hosts)
+        -- tests pending; [ ] R2P-1 (=R2T-1 undo-a-revert wording) [ ] R2P-4 (OOM-safe reads, verify
+        read wrapped, shrink guard fails closed) [ ] R2P-5 (old-row sentence) [ ] R2P-6 (=R2T-13 index
+        on engine) [ ] R2P-8 (pressed Check stamps the auto clock)
+      - tuning: [ ] R2T-2 (since = when the params in force came in) [ ] R2T-3 H (obb only once the bar
+        closed; table group for early plans) [ ] R2T-4 [ ] R2T-5 [ ] R2T-6 [ ] R2T-7 [ ] R2T-8 [ ] R2T-9
+        [ ] R2T-10 [ ] R2T-11 [ ] R2T-12 [ ] R2T-14 (golden regen, only that text) [ ] R2T-15 [ ] R2T-16
+        [ ] R2T-17 [ ] R2T-18 [ ] R2T-19 [ ] R2T-20 [ ] R2T-21 [ ] R2T-22 [ ] R2T-23 [ ] R2T-24
+      - own: [ ] prompt: 'off' for offAllowed INT at 0; blank line after tables; Portfolio vs summed %
 - [ ] C2 Ship (auto-ship rule), post the Release link, summarize
 
 ## Tj's request, 2026-09-24b (his own words)
