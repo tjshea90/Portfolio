@@ -430,12 +430,13 @@ class DayTradingGraderTest {
         val g = DayTradingGrader.grade(pullback(), flush, settled, 1)
         assertEquals("not a quiet NO_ENTRY", DayTradingOutcome.LOSS, g.outcome)
         assertTrue(g.ambiguous)
-        // A suspect low above the stop, then a real dip and a rally: the worse reading (the first
-        // fill) stands - here that is also the win; with no later fill it would be no trade.
+        // A suspect low above the stop: "filled, held to a small profit" and "never filled" - the
+        // worse of the two, no trade, stands. It never becomes a win on a fill that may not have happened.
         val shallow = quiet(0, 100, 50.60) + listOf(b(100, 50.62, 50.64, 49.80, 50.61)) + quiet(101, 380, 50.60)
-        assertEquals("filled-and-held reads worse than no trade only when it lost", DayTradingOutcome.NO_ENTRY,
-            DayTradingGrader.grade(pullback(), shallow.map { if (it.t == m(379)) b(379, 50.6, 50.6, 50.5, 50.55) else it }, settled, 1)
-                .let { if (it.outcome == DayTradingOutcome.CLOSED_PROFIT) DayTradingOutcome.NO_ENTRY else it.outcome })
+        assertEquals(DayTradingOutcome.NO_ENTRY, DayTradingGrader.grade(pullback(), shallow, settled, 1).outcome)
+        // ...and when holding it would have lost, the loss stands.
+        val fading = quiet(0, 100, 50.60) + listOf(b(100, 50.62, 50.64, 49.80, 50.61)) + quiet(101, 380, 49.60)
+        assertEquals(DayTradingOutcome.CLOSED_LOSS, DayTradingGrader.grade(pullback(), fading, settled, 1).outcome)
     }
 
     @Test fun `R2G-5 a print is judged the same mid-session and after the close`() {
