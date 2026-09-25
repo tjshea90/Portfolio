@@ -175,6 +175,9 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
     - [x] FINAL: checkinit ok; full suite 1561 tests / 0 failures (2026-09-25). (Container: ~/.gradle/init.d/central-mirror.gradle
       recreated again - Maven Central 429 - Google's mirror, incl. robolectric.dependency.repo.url.)
 - [ ] C2 Ship (auto-ship rule), post the Release link, summarize
+      2026-09-25 ~02:35 UTC: v8.0 / code 99 gated by ship.sh and pushed (4f47e631, main in sync);
+      android.yml full_build triggered on main. NEXT: run green -> get_release_by_tag v8.0 ->
+      tools/record-release.sh (command in ckpt 1733) -> post the link + summary.
 
 ## Tj's request, 2026-09-24b (his own words)
 
