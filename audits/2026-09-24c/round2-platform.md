@@ -96,3 +96,34 @@ second half: export `features`/`evalDetail` as nested objects (or drop the `toSt
 which roughly halves the per-row bytes. (d) Make the `autoBackupIfDue` shrink guard fail CLOSED (keep
 the old file as `-previous` when it cannot be read) rather than open.
 
+### R2P-5 (L) - The success card's "older recommendations not counted" sentence misstates one of its three cases
+**Where:** `ui/ResearchScreen.kt:1426-1431` (`dayTradingCounts`) vs `net/DayTradingEval.kt`
+`notTradeableOldRow` (`features.isBlank() && !(p > 0 && stop < p && p < target)`) and the
+`DayTradingStats.oldSkipped` doc ("past the target, under the stop, or no price recorded").
+**Problem.** The card says every such row "was already past the target or under the stop when shown (a
+plan the card said to skip)". Rows with no recorded price (`priceAtRecommendation <= 0` - e.g. early
+Claude-added picks logged before the price fill, a case the D-9/R2-3 notes describe) are in the same
+count, but the card never said to skip those; the app simply cannot tell their direction. When every
+old row is of this kind, Tj is told something about his plans that did not happen. Also "at or past"
+/ "at or under" (the test is inclusive) reads as strictly past.
+**Failing scenario.** 12 pre-09-24c rows, 9 with `priceAtRecommendation = 0` -> "12 older
+recommendations ... were already past the target or under the stop when shown ... not counted."
+**Fix.** Split the count (`oldSkippedNoPrice` vs `oldSkippedPast`) or word it to cover both: "N older
+recommendations recorded before these rules can't be graded fairly (the price when shown was at or past
+the target, at or under the stop, or not recorded), so they are not counted." Add the no-price case to
+the existing text test.
+
+### R2P-6 (L) - `loadEngine` now full-scans the day-trading log on the main thread at every cold start and after every restore
+**Where:** `ui/PortfolioViewModel.kt:8392-8403` (`loadEngine`, called from `init` at 3021 and from
+`restoreAsync` at 9561 - both on Main), `data/Db.kt` `dayTradingLogMaxEngineVersion`
+(`SELECT DISTINCT engine FROM day_trading_log`, no index on `engine`); plus a possible synchronous
+`db.set(Keys.DT_ENGINE, ...)` on Main when the version is moved.
+**Problem.** The PL-9 fix is correct, but the scan walks every row's page (rows are ~1-1.5 KB now with
+`features` + `eval_detail`), on the UI thread, before the first frame. Negligible today; linear in log
+age (a few thousand rows = several MB of pages read cold from flash at launch, tens of ms of jank on a
+mid-range phone, on top of the other `init` reads).
+**Fix.** Either `CREATE INDEX IF NOT EXISTS idx_dtlog_engine ON day_trading_log(engine)` (the DISTINCT
+then reads the index only), or keep the synchronous install from the settings keys and move the
+log-version reconciliation (+ its `db.set`) into the existing `viewModelScope.launch(Dispatchers.IO)`
+block under `engineMutex`, re-installing only if the version moved.
+
