@@ -2117,6 +2117,20 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
 
             var sN = 0
             val st = root.optJSONObject("settings")
+            // THE DAY-TRADING ENGINE AND ITS HISTORY ARE ONE FACT, and on a Merge the NEWER one wins
+            // (audit R2T-9): Merge keeps the device's settings, but an engine the device adopted from
+            // its own backup files at first launch (PL-4) may be older than the one in this file -
+            // keeping it dropped the latest change from the history for good.
+            val engineKeys = setOf(Keys.DT_ENGINE, Keys.DT_ENGINE_HISTORY)
+            val takeFileEngine = st != null && !replace && st.has(Keys.DT_ENGINE_HISTORY) && run {
+                fun lastAt(json: String?): Long = runCatching {
+                    val a = JSONArray(json ?: "")
+                    (0 until a.length()).maxOfOrNull { a.optJSONObject(it)?.optLong("at", 0L) ?: 0L } ?: 0L
+                }.getOrDefault(0L)
+                val stored = db.rawQuery("SELECT v FROM settings WHERE k=?", arrayOf(Keys.DT_ENGINE_HISTORY))
+                    .use { c -> if (c.moveToFirst()) c.getString(0) else null }
+                lastAt(st.optString(Keys.DT_ENGINE_HISTORY)) > lastAt(stored)
+            }
             if (st != null) for (k in st.keys()) {
                 if (isSecret(k)) continue
                 // Symmetrical with the export filter: a file written by a build that did
@@ -2127,7 +2141,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 // flipped the cost-basis method, reset the refresh interval and rewrote
                 // the "last backup" date to a stale one. Replace still takes the file
                 // wholesale - that is the device-transfer path.
-                if (!replace && hasSetting(k)) continue
+                if (!replace && hasSetting(k) && !(takeFileEngine && k in engineKeys)) continue
                 // NOT `set` - see `writeSetting`. Calling it here, inside the transaction,
                 // is the deadlock. The whole cache is dropped in the `finally` below.
                 writeSetting(db, k, st.optString(k)); sN++
