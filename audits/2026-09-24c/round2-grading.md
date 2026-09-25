@@ -55,9 +55,8 @@ Status: IN PROGRESS (findings appended as verified)
   flush that recovered within the minute); neighbours' lows are 50.58. `isSpikeLow`: wick 1.31 > 0.30 and
   > 0.76 -> spike -> no fill. Price never trades back to 49.99 -> NO_ENTRY. In real life the resting 50.00
   limit fills and the 49.40 stop triggers in that same minute: about -1.2R after costs that the stats never see.
-  (With a later rally to 51.25 instead, the filter still skips the flush and the row is graded... NO_ENTRY; if
-  the price later dips to 49.99 and rallies it is a WIN - a trade whose real first fill had already been
-  stopped out.)
+  Variant: if the price later dips to 49.99 again and then rallies to 51.25, the row is graded a WIN - on an
+  order whose real first fill had already been stopped out, so it could not have been open for that rally.
 - Suggested fix: read the suspect print against the trade, as the rest of the grader does: when the spike bar
   would fill the limit AND its low is at or below the stop, grade the fill (LOSS, ambiguous) instead of
   skipping it; only skip a spike fill whose wick stays above the stop - and even then only if the trade it
