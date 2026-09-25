@@ -282,7 +282,9 @@ object DayTradingGrader {
         tick: Double,
         complete: Boolean,
         spikeFilter: Boolean,
-        ruler: DoubleArray
+        ruler: DoubleArray,
+        /** A missing open is a real gap ([withKnownOpens] filled every continuous one); false for the touch rules. */
+        realOpens: Boolean = true
     ): Exit {
         // A limit that filled at an open already under the stop is stopped out at once.
         if (fill <= stop + EPS) return Exit(DayTradingOutcome.LOSS, fill, fillIdx, false, "gap-stop")
@@ -311,7 +313,7 @@ object DayTradingGrader {
                 // with no known open that straddles the stop may have opened under it - filled below the
                 // stop - so it is marked ambiguous, like the entry's own straddle (audit R3G-2).
                 return Exit(DayTradingOutcome.LOSS, stop, i,
-                    ambiguous = deferred || (first && rises) || reachesTarget || (!first && !b.open.isFinite()),
+                    ambiguous = deferred || (first && rises) || reachesTarget || (realOpens && !first && !b.open.isFinite()),
                     reason = "stop")
             }
             // In a buy-limit's own fill bar the high may have printed BEFORE the fill - a target
@@ -453,18 +455,19 @@ object DayTradingGrader {
                 }
             }
         }
-        val main = settle(spec, day, ruler, fillIdx, fill, fillAmbiguous, complete, entryWindowOver, res, spikeFilter, withGrid, tk)
+        val main = settle(spec, day, ruler, fillIdx, fill, fillAmbiguous, complete, entryWindowOver, res, spikeFilter, withGrid, tk, realOpens)
         if (spikeIdx < 0) return main
         // BOTH READINGS OF THE SUSPECT PRINT - it filled (and whatever followed), or it did not - and
         // the WORSE one stands (audit R2G-2).
-        val alt = settle(spec, day, ruler, spikeIdx, spec.entry, true, complete, entryWindowOver, res, spikeFilter, withGrid, tk)
+        val alt = settle(spec, day, ruler, spikeIdx, spec.entry, true, complete, entryWindowOver, res, spikeFilter, withGrid, tk, realOpens)
         return worseOf(main, alt, spec)
     }
 
     /** The rest of [grade] from a fill (or none): the exit, the working, and the grid. */
     private fun settle(
         spec: Spec, day: List<IntradayBar>, ruler: DoubleArray, fillIdx: Int, fill: Double, fillAmbiguous: Boolean,
-        complete: Boolean, entryWindowOver: Boolean, res: Int, spikeFilter: Boolean, withGrid: Boolean, tk: Double
+        complete: Boolean, entryWindowOver: Boolean, res: Int, spikeFilter: Boolean, withGrid: Boolean, tk: Double,
+        realOpens: Boolean
     ): Graded {
         if (fillIdx < 0) {
             // Unfilled until the plan's own cut-off (or the end of the session): the order is
@@ -474,7 +477,7 @@ object DayTradingGrader {
         }
 
         // ---- the exit
-        val exit = runPosition(day, fillIdx, fill, spec.rises, spec.stop, spec.target, tk, complete, spikeFilter, ruler)
+        val exit = runPosition(day, fillIdx, fill, spec.rises, spec.stop, spec.target, tk, complete, spikeFilter, ruler, realOpens)
         if (exit.outcome == DayTradingOutcome.PENDING)
             return Graded(DayTradingOutcome.PENDING, null, exit.ambiguous || fillAmbiguous, null, complete)
         val ambiguous = exit.ambiguous || fillAmbiguous
@@ -505,7 +508,7 @@ object DayTradingGrader {
                 mfeR = inR(mfeTo(exit.idx)), maeR = inR(worst), ambiguous = ambiguous, partial = true
             ), complete)
         }
-        val hold = runPosition(day, fillIdx, fill, spec.rises, spec.stop, null, tk, true, spikeFilter, ruler)
+        val hold = runPosition(day, fillIdx, fill, spec.rises, spec.stop, null, tk, true, spikeFilter, ruler, realOpens)
         val paid = DayTradingEval.Costs.entryFill(fill)
         val grid = if (!withGrid || risk <= 1e-9) emptyList() else GRID_STOPS.map { s ->
             val stopV = spec.entry - s * risk
@@ -515,7 +518,7 @@ object DayTradingGrader {
                     GRID_NONE -> null
                     else -> spec.entry + t * risk
                 }
-                val e = runPosition(day, fillIdx, fill, spec.rises, stopV, tgt, tk, true, spikeFilter, ruler)
+                val e = runPosition(day, fillIdx, fill, spec.rises, stopV, tgt, tk, true, spikeFilter, ruler, realOpens)
                 accountPct(spec.entry, stopV, paid, DayTradingEval.Costs.exitFill(e.outcome, e.price ?: fill))
             }
         }
