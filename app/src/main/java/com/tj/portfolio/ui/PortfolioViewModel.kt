@@ -7403,7 +7403,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         val engineParams = snap.params
         val engineVersion = snap.version
         val priced = loggableDayTradingRows(rows.take(shown), today, liveNow).filter { r ->
-            "${r.symbol}|$today" !in dtLoggedToday && beforeOwnCutoff(r, today, recordedAt, engineParams)
+            "${r.symbol}|$today" !in dtLoggedToday && beforeOwnCutoff(r, today, recordedAt, engineParams) &&
+                // PLANNED BY THE ENGINE IT WILL BE LABELLED WITH (audit R2T-16): an apply, undo or revert
+                // landing mid-tick would log an old engine's plan under the new label - the next tick
+                // re-plans it and logs it then.
+                (r.planByClaude || r.planEngine == snap.tunedLabel)
         }
         if (priced.isEmpty()) return
         val mso = com.tj.portfolio.net.MarketClock.minutesSinceOpen(recordedAt)
