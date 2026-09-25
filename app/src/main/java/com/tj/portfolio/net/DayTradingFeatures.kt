@@ -88,6 +88,9 @@ object DayTradingFeatures {
         val price = row.price
         val risk = row.entryPrice - row.stopPrice
         put("v", if (claude) -1 else engineVersion)
+        // WHICH VALUES MADE IT, not just which number (audit R2T-17): two engines can share a version
+        // number across a restore of another copy's backup; this tells them apart.
+        if (!claude) put("eh", Integer.toHexString(p.toJson().toString().hashCode()).takeLast(4))
         if (row.setup.isNotBlank()) put("setup", row.setup)
         if (row.planLevel.isNotBlank()) put("lvl", row.planLevel)
         put("px", r(price, 4))
@@ -118,7 +121,9 @@ object DayTradingFeatures {
         if (row.mentions > 0) put("ment", row.mentions)
         if (row.newsCount > 0) put("news", row.newsCount)
         put("orc", row.openingRangeComplete)
-        put("obb", row.openingBarBullish)
+        // THE OPENING BAR'S DIRECTION ONLY ONCE IT HAS CLOSED (audit R2T-3): before 09:35 "not
+        // bullish" meant "not there yet", and every first-five-minute plan was filed as a down bar.
+        if (row.or5High > 0.0) put("obb", row.openingBarBullish)
         if (minutesSinceOpen >= 0) put("mso", minutesSinceOpen)
         if (minutesLeft > 0) put("mleft", minutesLeft)
         if (middayLull) put("lull", true)

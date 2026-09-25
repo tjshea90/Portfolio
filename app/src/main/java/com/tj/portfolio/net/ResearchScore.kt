@@ -770,6 +770,10 @@ object ResearchScore {
             "Score $score is below the tuned engine's minimum of ${p.minScoreForPlan} for a plan."
         if (p.requireBullishOpeningBar && tech.sessionLive && tech.or5High > 0.0 && !tech.openingBarBullish)
             return null to "The first 5-minute bar did not close up - the tuned engine skips longs on that alone."
+        // No opening bar at all once it should have closed (a halt at the open, a thin feed): the
+        // filter cannot judge the day, so no plan - never "waiting" until the close (audit R2T-15).
+        if (p.requireBullishOpeningBar && tech.sessionLive && tech.or5High <= 0.0 && minutesSinceOpen >= 6)
+            return null to "No first 5-minute bar printed today - the tuned engine cannot judge the day's direction."
         val buffer = maxOf(0.01, vol * p.breakBufferAtrs)
 
         // ONLY THE LIVE SESSION'S LEVELS COUNT AS THE LIVE SESSION'S - a correction caught
