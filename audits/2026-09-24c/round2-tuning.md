@@ -156,3 +156,16 @@ Status: in progress (findings appended as verified)
 - **Problem:** an `SQLiteFullException` or a locked or corrupt DB propagates out of the coroutine and takes the process down. The transaction rolls back, so the engine and history stay consistent (good, thanks to PL-10's `setAll`), but Tj gets a crash instead of "couldn't save - nothing changed". `_engineApplying` is reset by `finally`; undo and revert have nothing to reset.
 - **Fix:** wrap `saveEngine`'s DB write, and on failure toast "Couldn't save the engine change - nothing was changed" without installing.
 
+### R2T-23 (L, pre-existing): a change with no `to` (or no `param`) is dropped without a word, and an answer whose every change is malformed reads as "Claude recommends no changes"
+
+- **Where:** `net/EngineTuning.kt:364-365` (`num(c, "to", onOff) ?: continue`, `if (key.isBlank()) continue`); `ui/EngineTuningUi.kt:258` ("No changes proposed - Claude recommends keeping the engine as it is."); `ui/PortfolioViewModel.kt:8513` ("it recommends no changes this time").
+- **Problem:** DA-5 made a missing `from` a visible refusal, but a missing or null `to` (e.g. Claude writes `"value"` or `"new"`, or `"to": null`) still removes the change before review. The sheet then misstates Claude's answer. Its own `analysis` text proposes changes while the app says it proposed none. Tj cannot tell that the file was malformed.
+- **Failing scenario:** `"changes":[{"param":"stop.minRiskAtrs","from":1.5,"value":1.8,"basis":"all"}]`. The toast says "it recommends no changes this time" and the sheet says "Claude recommends keeping the engine as it is", while the verdict reads "Widen the stop floor to 1.8".
+- **Fix:** keep such entries as REFUSED items ("Claude gave no new value (`to`) for it - make a new prompt"). Only treat `changes: []` as "no changes".
+
+### R2T-24 (L): a corrupt (non-blank but unreadable) `dt_engine_history` row overwrites the good `history.json` backup with `[]`
+
+- **Where:** `ui/PortfolioViewModel.kt:8399-8410` (`stored = !engineJson.isNullOrBlank() || !historyJson.isNullOrBlank()`, so `writeEngineBackupFiles(st, replace = true)`); `net/EngineTuning.kt:141-143` (`load`: an unparseable history reads as empty).
+- **Problem:** the PL-4 fix protects the files only when settings are *missing* the engine keys. When a key is present but corrupt (a damaged DB page, a truncated value), `load` returns an empty history, `stored` is true, and the launch rewrites `history.json` from it. That destroys the one intact record, which is exactly the case DESIGN.md says the files are for ("survives a corrupt settings table").
+- **Fix:** in `loadEngine`, treat "non-blank but did not parse" like "missing". Read the files and adopt their history (and params, when `dt_engine` is also unreadable). Never write the files from a state whose history came back empty from a non-empty stored string.
+
