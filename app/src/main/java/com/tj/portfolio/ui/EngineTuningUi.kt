@@ -321,7 +321,7 @@ private fun ReviewItem(item: EngineTuning.Reviewed) {
     // A REFUSED CHANGE DOES NOT LOOK LIKE ONE (UI-14): its heading keeps the current value.
     Text(
         if (will) "${c.key}: $cur -> ${EngineTuning.describe(c.key, item.applied ?: c.to)}"
-        else "${c.key}: stays $cur" + (if (item.status == EngineTuning.Status.REFUSED) " (Claude proposed ${EngineTuning.describe(c.key, c.to)})" else ""),
+        else "${c.key.ifBlank { "(no parameter named)" }}: stays $cur" + (if (item.status == EngineTuning.Status.REFUSED) " (Claude proposed ${EngineTuning.describe(c.key, c.to)})" else ""),
         style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold
     )
     DayTradingParams.SPEC_BY_KEY[c.key]?.let { Text(it.doc, style = MaterialTheme.typography.labelSmall, color = muted) }
@@ -340,9 +340,13 @@ private fun ReviewItem(item: EngineTuning.Reviewed) {
         }
     )
     // THE APP'S COUNT, not Claude's claim (UI-4) - Claude's shown only when it differs.
+    // The group the count is OF (R2T-4): the setting's own group when that is the smaller one.
+    val group = item.groupName.ifBlank { c.basis }
     val evidence = item.groupCount?.let { n ->
-        "Evidence (${c.basis}): ${gradedTrades(n)} by the app's count" +
-            (if (c.evidenceTrades > 0 && c.evidenceTrades != n) " - Claude cited ${c.evidenceTrades}" else "")
+        "Evidence (${group}): ${gradedTrades(n)} by the app's count" +
+            (if (group != c.basis) " - the trades this setting acts on (Claude cited ${c.basis}" +
+                (if (c.evidenceTrades > 0) ", ${c.evidenceTrades} trades" else "") + ")"
+            else if (c.evidenceTrades > 0 && c.evidenceTrades != n) " - Claude cited ${c.evidenceTrades}" else "")
     } ?: "Evidence (${c.basis}): not a group the app can count"
     Text(evidence, style = MaterialTheme.typography.bodySmall, color = muted)
     if (c.rationale.isNotBlank()) Text("Why: ${c.rationale}", style = MaterialTheme.typography.bodySmall, color = muted)

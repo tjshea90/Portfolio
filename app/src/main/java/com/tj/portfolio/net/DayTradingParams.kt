@@ -222,13 +222,12 @@ class DayTradingParams private constructor(private val values: Map<String, Doubl
                 add(num("setup.$k.minRewardRisk", 0.0, 0.5, 4.0, "OFF (= global $MIN_RR). Minimum reward:risk for $name plans only.", off = true))
             }
             // ---- breakout trigger levels
-            val levelDoc = mapOf(
-                LVL_PREMARKET to "the pre-market high", LVL_OR5 to "the first 5-minute bar's high",
-                LVL_OR to "the 30-minute opening-range high", LVL_PREV_HIGH to "the prior session's high",
-                LVL_SESSION_HIGH to "the high of day", LVL_R1 to "floor pivot R1", LVL_R2 to "floor pivot R2"
-            )
+            // Named exactly as the plans and the tables name them (LEVEL_LABELS, audit R2T-19), so a
+            // basis copied from this table counts that level's trades.
+            val levelNote = mapOf(LVL_OR to " (the first 30 minutes)", LVL_R1 to " (floor pivot)", LVL_R2 to " (floor pivot)")
             for (l in LEVELS) add(bool("level.$l.enabled", true,
-                "${levelDoc[l]} may be a breakout trigger and a target. OFF = ignored as a level overhead."))
+                "\"${LEVEL_LABELS.getValue(l)[0]}\"${levelNote[l] ?: ""} may be a breakout trigger and a target. " +
+                    "OFF = ignored as a level overhead. Evidence group: level:$l."))
             // ---- ranking (ResearchScore.dayTrading / withTechnicals / dayTradingConfidence)
             add(num("score.rvolPoints", 30.0, 0.0, 60.0, "Likelihood points for relative volume (paced to the clock), ramped from 1x to score.rvolFullAt."))
             add(num("score.rvolFullAt", 5.0, 2.0, 10.0, "Relative volume that earns the full rvol points."))
@@ -253,16 +252,25 @@ class DayTradingParams private constructor(private val values: Map<String, Doubl
         val DEFAULTS = DayTradingParams(emptyMap())
 
         /**
-         * Reads a stored or imported params object. TOTAL: an unknown key (a newer app wrote it)
-         * or a value its spec does not allow (a corrupt file) is skipped - that one parameter keeps
-         * its original value - never an exception and never an out-of-bounds engine.
+         * Reads a stored or imported params object. TOTAL: an unknown key (a newer app wrote it) or an
+         * unreadable value is skipped - that one parameter keeps its original value - never an
+         * exception and never an out-of-bounds engine. A number just outside its range (a later build
+         * narrowed the range) is brought to the nearest allowed value rather than silently back to the
+         * original (audit R2T-21).
          */
         fun fromJson(o: JSONObject?): DayTradingParams {
             if (o == null) return DEFAULTS
             val m = HashMap<String, Double>()
             for (k in o.keys()) {
                 val spec = SPEC_BY_KEY[k] ?: continue
-                val v = o.optDouble(k, Double.NaN)
+                val raw = o.optDouble(k, Double.NaN)
+                if (!raw.isFinite()) continue
+                val v = when {
+                    spec.allows(raw) -> raw
+                    spec.kind == Kind.BOOL -> continue
+                    spec.offAllowed && raw <= 0.0 -> 0.0
+                    else -> raw.coerceIn(spec.min, spec.max).let { if (spec.kind == Kind.INT) Math.rint(it) else it }
+                }
                 if (spec.allows(v) && v != spec.default) m[k] = v
             }
             return DayTradingParams(m)
