@@ -326,6 +326,96 @@ class EngineTuningTest {
         assertEquals(0, EngineTuning.versionOfLabel(""))
     }
 
+    // ------------------------------------------------------------------ audit round 2 (round2-tuning.md)
+
+    @Test fun `R2T-5 a switched-off setting's "off" reads as 0, and is shown as off`() {
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_RR, "off", 1.0))),
+            EngineTuning.State(), log(80)).items.single()
+        assertEquals(Status.ACCEPTED, r.status)
+        assertEquals("off", EngineTuning.describe(DayTradingParams.MIN_SCORE, 0.0))
+        assertEquals("off", EngineTuning.describe(DayTradingParams.EARLIEST_ENTRY_MIN, 0.0))
+        // "on" is still not a number for a number
+        assertTrue(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_RR, 0, "on"))).changes.single().to.isNaN())
+    }
+
+    @Test fun `R2T-6 a consistent pair is accepted in either order, and only the culprit is refused`() {
+        val rows = log(160)
+        fun review(vararg cs: JSONObject) = EngineTuning.review(EngineTuning.parse(answer(0, *cs)), EngineTuning.State(), rows)
+        val floorFirst = review(change(DayTradingParams.MIN_RISK, 1.5, 2.7), change(DayTradingParams.MAX_RISK, 2.5, 3.5))
+        val ceilFirst = review(change(DayTradingParams.MAX_RISK, 2.5, 3.5), change(DayTradingParams.MIN_RISK, 1.5, 2.7))
+        assertTrue(floorFirst.items.all { it.status == Status.ACCEPTED })
+        assertTrue(ceilFirst.items.all { it.status == Status.ACCEPTED })
+        assertEquals(floorFirst.paramsAfter, ceilFirst.paramsAfter)
+        // a floor raised past a ceiling that stays: the floor is refused, the unrelated change stands
+        val r = review(change(DayTradingParams.BREAK_BUFFER, 0.15, 0.2), change(DayTradingParams.MIN_RISK, 1.5, 2.7))
+        assertEquals(Status.ACCEPTED, r.items[0].status)
+        assertEquals(Status.REFUSED, r.items[1].status)
+        assertTrue(r.items[1].reason, r.items[1].reason.contains("floor above its ceiling"))
+        assertEquals(null, EngineTuning.inconsistency(r.paramsAfter))
+    }
+
+    @Test fun `R2T-20 no answer can switch every setup off or leave no time to trade`() {
+        val rows = log(60, "Breakout") + log(60, "Pullback", startId = 1000) + log(60, com.tj.portfolio.net.ResearchScore.SETUP_RECLAIM, startId = 2000)
+        val r = EngineTuning.review(EngineTuning.parse(answer(0,
+            change("setup.breakout.enabled", 1, 0, "setup:breakout"),
+            change("setup.pullback.enabled", 1, 0, "setup:pullback"),
+            change("setup.reclaim.enabled", 1, 0, "setup:reclaim"))), EngineTuning.State(), rows)
+        assertEquals(2, r.items.count { it.status == Status.ACCEPTED })
+        assertTrue(r.items.last().reason, r.items.last().reason.contains("every setup off"))
+        assertTrue(DayTradingParams.SETUP_KEYS.values.any { r.paramsAfter.flag("setup.$it.enabled") })
+        assertEquals(390 - 30, EngineTuning.entryWindowMinutes(DEFAULTS))
+        val narrow = DEFAULTS.with(mapOf(DayTradingParams.EARLIEST_ENTRY_MIN to 120.0, DayTradingParams.LAST_ENTRY_MIN to 120.0,
+            DayTradingParams.AVOID_LULL to 1.0))
+        assertEquals(30, EngineTuning.entryWindowMinutes(narrow))   // 13:30-14:00 only
+    }
+
+    @Test fun `R2T-8 switching a per-setup override off is limited to one step toward the global`() {
+        val tuned = DEFAULTS.with(mapOf(DayTradingParams.MIN_RISK to 0.8, "setup.pullback.minRiskAtrs" to 2.3))
+        val rows = log(80, "Pullback")
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.pullback.minRiskAtrs", 2.3, 0, "setup:pullback"))),
+            EngineTuning.State(tuned, 0), rows).items.single()
+        assertEquals(Status.REFUSED, r.status)
+        assertTrue(r.reason, r.reason.contains("global"))
+        // near the global it is fine
+        val near = DEFAULTS.with(mapOf("setup.pullback.minRiskAtrs" to 1.8))
+        assertEquals(Status.ACCEPTED, EngineTuning.review(EngineTuning.parse(answer(0,
+            change("setup.pullback.minRiskAtrs", 1.8, 0, "setup:pullback"))), EngineTuning.State(near, 0), rows).items.single().status)
+    }
+
+    @Test fun `R2T-10 a limited step lands on the round value`() {
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_RISK, 1.5, 4.0))),
+            EngineTuning.State(), log(160)).items.single()
+        assertEquals(Status.LIMITED, r.status)
+        assertEquals(2.725, r.applied!!, 1e-12)   // 1.5 + 0.35 x 3.5, not 2.724
+    }
+
+    @Test fun `R2T-12 switching a setup back on rests on the cited group`() {
+        val off = DEFAULTS.with(mapOf("setup.reclaim.enabled" to 0.0))
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.reclaim.enabled", 0, 1, "all"))),
+            EngineTuning.State(off, 0), log(80)).items.single()
+        assertEquals("no reclaim trades exist while it is off - the whole sample carries it back", Status.ACCEPTED, r.status)
+    }
+
+    @Test fun `R2T-23 a change with no new value is shown refused, not dropped`() {
+        val raw = JSONObject().put("param", DayTradingParams.MIN_RISK).put("from", 1.5).put("value", 1.8).put("basis", "all")
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, raw)), EngineTuning.State(), log(40))
+        val item = r.items.single()
+        assertEquals(Status.REFUSED, item.status)
+        assertTrue(item.reason, item.reason.contains("no new value"))
+        assertEquals("?", EngineTuning.describe(DayTradingParams.MIN_RISK, item.change.to))
+    }
+
+    @Test fun `R2T-19 and R2T-4 groups are named the way they are counted`() {
+        val rows = log(40) + log(10, startId = 500).map { it.copy(symbol = "Q" + it.symbol, engine = "") }
+        assertEquals("v0 includes rows from before versions were recorded", 50, EngineTuning.Evidence(rows, 0).count("engine:v0"))
+        assertTrue(DayTradingParams.SPEC_BY_KEY.getValue("level.premarketHigh.enabled").doc.contains("the premarket high"))
+        val pullbacks = log(60) + log(25, "Pullback", startId = 1000)
+        val item = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.pullback.minRiskAtrs", 0, 1.6, "all"))),
+            EngineTuning.State(), pullbacks).items.single()
+        assertEquals("setup:pullback", item.groupName)
+        assertEquals(25, item.groupCount)
+    }
+
     // ------------------------------------------------------------------ rule 3: undo and revert
 
     @Test fun applyUndoAndRevertAreAChainThatAlwaysEndsAtTheOriginal() {
