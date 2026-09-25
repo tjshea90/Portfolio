@@ -2264,7 +2264,7 @@ S24|55|100|Running at 7.498x its normal volume pace - heavily in play;Up 7.98% t
 S25|8|50|Reports earnings today or tomorrow|0|0
 S26|10|75|Reports earnings today or tomorrow|0|0
 S27|18|75|Running at 2.75x its normal volume pace|20|3
-S28|28|75|Running at 2.406x its normal volume pace;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Within 15% of its 52-week high - breaking out|40|11
+S28|28|75|Running at 2.406x its normal volume pace;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;In the top 15% of its 52-week range - near the high, breaking out|40|11
 S29|40|75|Up 7.00% this session;62 r/wallstreetbets mentions today;5 news stories today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|8
 S30|17|75|Up 3.15% today;42 r/wallstreetbets mentions today;1 news story today|20|3
 S31|48|100|Running at 4.382x its normal volume pace;Up 5.41% in the last session;48 r/wallstreetbets mentions today;5 news stories today|40|19
@@ -2291,7 +2291,7 @@ S51|29|75|Running at 2.044x its normal volume pace;Up 11.40% this session;8 r/wa
 S52|58|75|Trading at 6.181x its normal volume this session - heavily in play;Up 18.83% this session;Reports earnings today or tomorrow|40|23
 S53|28|25|Up 12.62% this session;Reports earnings today or tomorrow|20|5
 S54|16|50|On Yahoo's most-shorted screen - squeeze-prone if volume picks up|0|0
-S55|44|100|Running at 12.653x its normal volume pace - heavily in play;23 r/wallstreetbets mentions today;Within 15% of its 52-week high - breaking out|40|17
+S55|44|100|Running at 12.653x its normal volume pace - heavily in play;23 r/wallstreetbets mentions today;In the top 15% of its 52-week range - near the high, breaking out|40|17
 S56|25|50|Up 15.81% in the last session|20|5
 S57|58|75|Running at 14.578x its normal volume pace - heavily in play;Up 17.80% today;Reports earnings today or tomorrow|40|23
 S58|20|50|Up 7.60% in the last session;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|4
@@ -2307,11 +2307,11 @@ S67|34|100|Trading at 2.314x its normal volume in the last session;Up 8.49% in t
 S68|29|75|Up 9.96% today;Reports earnings today or tomorrow|20|5
 S69|28|75|Up 15.58% this session;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|5
 S70|2|75|Screened in, but nothing about it stands out today|0|0
-S71|39|75|Trading at 2.372x its normal volume today;Up 11.62% today;Within 15% of its 52-week high - breaking out|60|23
+S71|39|75|Trading at 2.372x its normal volume today;Up 11.62% today;In the top 15% of its 52-week range - near the high, breaking out|60|23
 S72|14|75|Up 3.66% in the last session;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|2
 S73|32|100|Up 19.49% in the last session;33 r/wallstreetbets mentions today;2 news stories today|20|6
 S74|33|75|Up 8.00% today;68 r/wallstreetbets mentions today;4 news stories today|20|6
-S75|32|50|Up 8.71% today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Within 15% of its 52-week high - breaking out|40|12
+S75|32|50|Up 8.71% today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;In the top 15% of its 52-week range - near the high, breaking out|40|12
 S76|14|75|59 r/wallstreetbets mentions today;3 news stories today|0|0
 S77|36|75|Trading at 4.112x its normal volume this session;Up 7.81% this session|40|14
 S78|47|100|Running at 23.039x its normal volume pace - heavily in play;5 news stories today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|9
@@ -2320,20 +2320,20 @@ S80|20|50|Running at 2.277x its normal volume pace;Up 6.59% this session|40|8
 S81|4|50|Screened in, but nothing about it stands out today|0|0
 S82|5|75|5 r/wallstreetbets mentions today|0|0
 S83|20|50|Up 16.99% in the last session|20|4
-S84|43|100|Running at 10.627x its normal volume pace - heavily in play;26 r/wallstreetbets mentions today;Within 15% of its 52-week high - breaking out|40|17
+S84|43|100|Running at 10.627x its normal volume pace - heavily in play;26 r/wallstreetbets mentions today;In the top 15% of its 52-week range - near the high, breaking out|40|17
 S85|9|75|Up 5.48% today|20|1
 S86|20|75|Up 5.80% in the last session;18 r/wallstreetbets mentions today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|4
 S87|28|75|Up 12.12% this session;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|5
-S88|52|75|Up 12.17% in the last session;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Within 15% of its 52-week high - breaking out;Reports earnings today or tomorrow|40|20
+S88|52|75|Up 12.17% in the last session;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;In the top 15% of its 52-week range - near the high, breaking out;Reports earnings today or tomorrow|40|20
 S89|5|75|Screened in, but nothing about it stands out today|0|0
 S90|45|100|Running at 2.383x its normal volume pace;Up 15.40% this session;76 r/wallstreetbets mentions today;3 news stories today|40|18
 S91|38|100|Running at 18.119x its normal volume pace - heavily in play;46 r/wallstreetbets mentions today;1 news story today|20|7
-S92|54|75|Running at 23.063x its normal volume pace - heavily in play;Up 8.83% today;Within 15% of its 52-week high - breaking out|60|32
-S93|68|75|Running at 5.258x its normal volume pace - heavily in play;Up 19.16% this session;Within 15% of its 52-week high - breaking out;Reports earnings today or tomorrow|60|40
+S92|54|75|Running at 23.063x its normal volume pace - heavily in play;Up 8.83% today;In the top 15% of its 52-week range - near the high, breaking out|60|32
+S93|68|75|Running at 5.258x its normal volume pace - heavily in play;Up 19.16% this session;In the top 15% of its 52-week range - near the high, breaking out;Reports earnings today or tomorrow|60|40
 S94|10|50|On Yahoo's most-shorted screen - squeeze-prone if volume picks up|0|0
 S95|15|75|10 r/wallstreetbets mentions today;1 news story today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|0|0
 S96|22|75|Up 11.90% this session;12 r/wallstreetbets mentions today;1 news story today|20|4
-S97|62|100|Running at 3.302x its normal volume pace;Up 7.33% today;17 r/wallstreetbets mentions today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape;Within 15% of its 52-week high - breaking out|60|37
+S97|62|100|Running at 3.302x its normal volume pace;Up 7.33% today;17 r/wallstreetbets mentions today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape;In the top 15% of its 52-week range - near the high, breaking out|60|37
 S98|8|25|On Yahoo's most-shorted screen - squeeze-prone if volume picks up|0|0
 S99|12|100|32 r/wallstreetbets mentions today;2 news stories today|0|0
 S100|81|100|Running at 9.316x its normal volume pace - heavily in play;Up 12.96% today;44 r/wallstreetbets mentions today;4 news stories today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|48
@@ -2341,12 +2341,12 @@ S101|36|75|Trading at 6.101x its normal volume this session - heavily in play|20
 S102|70|50|Running at 9.866x its normal volume pace - heavily in play;Up 17.04% in the last session;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|42
 S103|11|50|Running at 2.008x its normal volume pace|20|2
 S104|17|75|Running at 2.718x its normal volume pace|20|3
-S105|60|75|Running at 6.91x its normal volume pace - heavily in play;Up 14.86% in the last session;Within 15% of its 52-week high - breaking out|60|36
+S105|60|75|Running at 6.91x its normal volume pace - heavily in play;Up 14.86% in the last session;In the top 15% of its 52-week range - near the high, breaking out|60|36
 S106|52|100|Running at 12.566x its normal volume pace - heavily in play;60 r/wallstreetbets mentions today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|10
 S107|41|50|Running at 22.108x its normal volume pace - heavily in play;Up 7.06% this session|40|16
 S108|17|100|67 r/wallstreetbets mentions today;2 news stories today|0|0
 S109|50|50|Running at 9.464x its normal volume pace - heavily in play;Up 12.60% today|60|30
-S110|67|100|Running at 4.991x its normal volume pace;Up 19.46% in the last session;5 r/wallstreetbets mentions today;5 news stories today;Within 15% of its 52-week high - breaking out|60|40
+S110|67|100|Running at 4.991x its normal volume pace;Up 19.46% in the last session;5 r/wallstreetbets mentions today;5 news stories today;In the top 15% of its 52-week range - near the high, breaking out|60|40
 S111|33|75|Up 16.14% today;4 r/wallstreetbets mentions today;4 news stories today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|6
 S112|3|50|Screened in, but nothing about it stands out today|0|0
 S113|18|100|Up 3.90% this session;28 r/wallstreetbets mentions today;Reports earnings today or tomorrow|20|3
@@ -2364,8 +2364,8 @@ S124|20|50|Up 15.81% this session|20|4
 S125|28|50|Up 16.45% in the last session;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|5
 S126|25|50|Up 13.28% this session|20|5
 S127|28|100|Up 9.22% in the last session;20 r/wallstreetbets mentions today;3 news stories today|20|5
-S128|39|75|Up 12.39% today;19 r/wallstreetbets mentions today;5 news stories today;Within 15% of its 52-week high - breaking out|40|15
-S129|30|75|Up 13.29% in the last session;Within 15% of its 52-week high - breaking out|40|12
+S128|39|75|Up 12.39% today;19 r/wallstreetbets mentions today;5 news stories today;In the top 15% of its 52-week range - near the high, breaking out|40|15
+S129|30|75|Up 13.29% in the last session;In the top 15% of its 52-week range - near the high, breaking out|40|12
 S130|60|100|Running at 3.012x its normal volume pace;Up 18.88% today;37 r/wallstreetbets mentions today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|36
 S131|59|100|Running at 2.091x its normal volume pace;Up 18.91% today;5 r/wallstreetbets mentions today;4 news stories today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|35
 S132|20|75|35 r/wallstreetbets mentions today;3 news stories today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|0|0
@@ -2398,7 +2398,7 @@ S158|73|100|Running at 7.284x its normal volume pace - heavily in play;Up 6.61% 
 S159|13|75|30 r/wallstreetbets mentions today;4 news stories today|0|0
 S160|38|75|Trading at 3.125x its normal volume today;Up 11.57% today;14 r/wallstreetbets mentions today;1 news story today|60|22
 S161|57|100|Running at 4.553x its normal volume pace;Up 10.95% in the last session;Reports earnings today or tomorrow|40|22
-S162|48|75|Running at 14.537x its normal volume pace - heavily in play;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Within 15% of its 52-week high - breaking out|40|19
+S162|48|75|Running at 14.537x its normal volume pace - heavily in play;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;In the top 15% of its 52-week range - near the high, breaking out|40|19
 S163|16|100|50 r/wallstreetbets mentions today;1 news story today;Reports earnings today or tomorrow|0|0
 S164|21|75|Running at 2.331x its normal volume pace;Up 6.90% this session|40|8
 S165|41|50|Running at 10.407x its normal volume pace - heavily in play;Up 7.14% in the last session|40|16
@@ -2415,7 +2415,7 @@ S175|32|75|Up 11.03% in the last session;On Yahoo's most-shorted screen - squeez
 S176|56|75|Running at 22.551x its normal volume pace - heavily in play;Up 8.28% today;47 r/wallstreetbets mentions today;4 news stories today|40|22
 S177|16|25|On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Reports earnings today or tomorrow|0|0
 S178|25|50|Up 16.59% in the last session|20|5
-S179|43|100|Up 12.68% in the last session;16 r/wallstreetbets mentions today;2 news stories today;Within 15% of its 52-week high - breaking out;Reports earnings today or tomorrow|40|17
+S179|43|100|Up 12.68% in the last session;16 r/wallstreetbets mentions today;2 news stories today;In the top 15% of its 52-week range - near the high, breaking out;Reports earnings today or tomorrow|40|17
 S180|7|75|24 r/wallstreetbets mentions today;3 news stories today|0|0
 S181|43|75|Running at 9.981x its normal volume pace - heavily in play;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|8
 S182|13|75|Up 8.04% today|20|2
@@ -2445,7 +2445,7 @@ S205|41|50|Trading at 3.851x its normal volume today;Up 15.24% today|40|16
 S206|37|50|Up 9.51% in the last session;47 r/wallstreetbets mentions today;5 news stories today;Reports earnings today or tomorrow|20|7
 S207|28|75|68 r/wallstreetbets mentions today;3 news stories today;Reports earnings today or tomorrow|0|0
 S208|14|50|1 r/wallstreetbets mentions today;5 news stories today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|0|0
-S209|49|100|Up 15.55% today;65 r/wallstreetbets mentions today;1 news story today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Within 15% of its 52-week high - breaking out|40|19
+S209|49|100|Up 15.55% today;65 r/wallstreetbets mentions today;1 news story today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;In the top 15% of its 52-week range - near the high, breaking out|40|19
 S210|57|100|Trading at 3.048x its normal volume in the last session;Up 8.35% in the last session;23 r/wallstreetbets mentions today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|34
 S211|28|25|Up 18.84% in the last session;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|5
 S212|50|50|Running at 9.271x its normal volume pace - heavily in play;Up 13.11% today|40|20
@@ -2453,9 +2453,9 @@ S213|22|75|77 r/wallstreetbets mentions today;4 news stories today|0|0
 S214|37|75|Up 15.69% this session;19 r/wallstreetbets mentions today;1 news story today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|7
 S215|58|100|Running at 2.037x its normal volume pace;Up 19.36% today;28 r/wallstreetbets mentions today;1 news story today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|34
 S216|38|75|Up 17.40% in the last session;72 r/wallstreetbets mentions today;2 news stories today|20|7
-S217|23|75|Trading at 2.821x its normal volume this session;Within 15% of its 52-week high - breaking out|40|9
+S217|23|75|Trading at 2.821x its normal volume this session;In the top 15% of its 52-week range - near the high, breaking out|40|9
 S218|9|50|Up 5.50% in the last session|20|1
-S219|19|50|Up 5.81% this session;Within 15% of its 52-week high - breaking out|40|7
+S219|19|50|Up 5.81% this session;In the top 15% of its 52-week range - near the high, breaking out|40|7
 S220|47|100|Up 13.93% today;42 r/wallstreetbets mentions today;2 news stories today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|9
 S221|43|75|Running at 4.081x its normal volume pace;Up 17.29% today|40|17
 S222|29|75|Trading at 4.944x its normal volume this session|20|5
@@ -2467,25 +2467,25 @@ S227|37|75|Running at 7.327x its normal volume pace - heavily in play;Up 4.21% i
 S228|2|75|Screened in, but nothing about it stands out today|0|0
 S229|70|100|Running at 7.196x its normal volume pace - heavily in play;Up 3.09% today;53 r/wallstreetbets mentions today;2 news stories today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|42
 S230|0|75|Screened in, but nothing about it stands out today|0|0
-S231|28|100|Running at 2.028x its normal volume pace;45 r/wallstreetbets mentions today;Within 15% of its 52-week high - breaking out|40|11
+S231|28|100|Running at 2.028x its normal volume pace;45 r/wallstreetbets mentions today;In the top 15% of its 52-week range - near the high, breaking out|40|11
 S232|42|50|Running at 5.997x its normal volume pace - heavily in play;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|8
 S233|21|75|Running at 2.179x its normal volume pace;Reports earnings today or tomorrow|20|4
 S234|25|75|Running at 2.653x its normal volume pace;Reports earnings today or tomorrow|20|5
-S235|48|75|Running at 9.089x its normal volume pace - heavily in play;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Within 15% of its 52-week high - breaking out|40|19
+S235|48|75|Running at 9.089x its normal volume pace - heavily in play;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;In the top 15% of its 52-week range - near the high, breaking out|40|19
 S236|40|75|Running at 3.981x its normal volume pace;Up 7.93% in the last session|40|16
 S237|41|75|Running at 19.152x its normal volume pace - heavily in play;57 r/wallstreetbets mentions today;2 news stories today|20|8
 S238|27|75|Up 11.93% this session|20|5
 S239|26|75|Up 3.55% today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Reports earnings today or tomorrow|20|5
 S240|13|75|30 r/wallstreetbets mentions today;3 news stories today|0|0
 S241|23|100|36 r/wallstreetbets mentions today;4 news stories today;Reports earnings today or tomorrow|0|0
-S242|45|100|Up 18.50% this session;22 r/wallstreetbets mentions today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Within 15% of its 52-week high - breaking out|40|18
-S243|62|100|Running at 3.287x its normal volume pace;Up 15.75% this session;70 r/wallstreetbets mentions today;4 news stories today;Within 15% of its 52-week high - breaking out|60|37
-S244|23|75|Running at 2.839x its normal volume pace;Within 15% of its 52-week high - breaking out|40|9
+S242|45|100|Up 18.50% this session;22 r/wallstreetbets mentions today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;In the top 15% of its 52-week range - near the high, breaking out|40|18
+S243|62|100|Running at 3.287x its normal volume pace;Up 15.75% this session;70 r/wallstreetbets mentions today;4 news stories today;In the top 15% of its 52-week range - near the high, breaking out|60|37
+S244|23|75|Running at 2.839x its normal volume pace;In the top 15% of its 52-week range - near the high, breaking out|40|9
 S245|8|50|On Yahoo's most-shorted screen - squeeze-prone if volume picks up|0|0
 S246|50|75|Trading at 6.397x its normal volume today - heavily in play;Up 15.47% today|40|20
-S247|43|75|Up 13.54% this session;Within 15% of its 52-week high - breaking out;Reports earnings today or tomorrow|40|17
+S247|43|75|Up 13.54% this session;In the top 15% of its 52-week range - near the high, breaking out;Reports earnings today or tomorrow|40|17
 S248|47|100|Running at 3.164x its normal volume pace;Up 5.25% in the last session;5 r/wallstreetbets mentions today;1 news story today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|28
-S249|55|75|Running at 2.545x its normal volume pace;Up 8.23% this session;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape;Within 15% of its 52-week high - breaking out|60|33
+S249|55|75|Running at 2.545x its normal volume pace;Up 8.23% this session;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape;In the top 15% of its 52-week range - near the high, breaking out|60|33
 S250|10|50|Up 6.56% this session|20|2
 S251|30|75|Up 6.73% in the last session;29 r/wallstreetbets mentions today;5 news stories today;Reports earnings today or tomorrow|20|6
 S252|41|100|Running at 2.826x its normal volume pace;Up 8.72% this session;72 r/wallstreetbets mentions today;2 news stories today|40|16
@@ -2503,7 +2503,7 @@ S263|5|50|Screened in, but nothing about it stands out today|0|0
 S264|61|100|Trading at 3.604x its normal volume today;Up 19.95% today;22 r/wallstreetbets mentions today;4 news stories today;Reports earnings today or tomorrow|40|24
 S265|69|100|Trading at 5.691x its normal volume in the last session - heavily in play;Up 17.95% in the last session;68 r/wallstreetbets mentions today;3 news stories today|40|27
 S266|23|75|Up 10.24% this session;15 r/wallstreetbets mentions today;3 news stories today|20|4
-S267|80|75|Running at 10.361x its normal volume pace - heavily in play;Up 18.96% this session;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape;Within 15% of its 52-week high - breaking out|60|48
+S267|80|75|Running at 10.361x its normal volume pace - heavily in play;Up 18.96% this session;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape;In the top 15% of its 52-week range - near the high, breaking out|60|48
 S268|56|75|Running at 3.245x its normal volume pace;Up 15.72% today;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|33
 S269|3|50|Screened in, but nothing about it stands out today|0|0
 S270|58|75|Trading at 2.86x its normal volume this session;Up 11.77% this session;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|34
@@ -2524,14 +2524,14 @@ S284|28|25|Up 16.04% today;On Yahoo's most-shorted screen - squeeze-prone if vol
 S285|27|75|Up 9.68% today;Reports earnings today or tomorrow|20|5
 S286|15|50|Up 6.41% this session|20|3
 S287|24|100|Up 8.76% this session;24 r/wallstreetbets mentions today;3 news stories today|20|4
-S288|60|75|Running at 12.606x its normal volume pace - heavily in play;Up 15.28% in the last session;Within 15% of its 52-week high - breaking out|60|36
+S288|60|75|Running at 12.606x its normal volume pace - heavily in play;Up 15.28% in the last session;In the top 15% of its 52-week range - near the high, breaking out|60|36
 S289|28|50|73 r/wallstreetbets mentions today;1 news story today;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Reports earnings today or tomorrow|0|0
 S290|28|50|Up 15.34% in the last session;Reports earnings today or tomorrow|20|5
 S291|9|100|9 r/wallstreetbets mentions today;Reports earnings today or tomorrow|0|0
 S292|56|100|Running at 4.505x its normal volume pace;Up 17.94% today;23 r/wallstreetbets mentions today;1 news story today|40|22
 S293|64|75|Running at 4.743x its normal volume pace;Up 10.06% this session;Heavily shorted AND moving up on strong volume - a classic short-squeeze shape|60|38
 S294|21|75|Running at 2.261x its normal volume pace;On Yahoo's most-shorted screen - squeeze-prone if volume picks up|20|4
-S295|17|100|16 r/wallstreetbets mentions today;Within 15% of its 52-week high - breaking out|20|3
+S295|17|100|16 r/wallstreetbets mentions today;In the top 15% of its 52-week range - near the high, breaking out|20|3
 S296|25|50|Up 16.68% in the last session|20|5
 S297|5|75|Screened in, but nothing about it stands out today|0|0
 S298|51|75|Running at 11.539x its normal volume pace - heavily in play;On Yahoo's most-shorted screen - squeeze-prone if volume picks up;Reports earnings today or tomorrow|20|10
