@@ -128,3 +128,36 @@ Status: IN PROGRESS (findings appended as verified)
   strictly more conservative (log any change), since its job (DA-1) is only to fill in grid/hold/run. Fixing
   R2G-2 removes the loss-erasing direction outright.
 
+### R2G-6 (L) - DA-8's proxy open lands on the FAVOURABLE edge of a gapped bar (best buy-stop fill, best stop exit), unlike the first-bar rule and the header's "read against the trade"
+
+- Where: `net/DayTradingGrader.kt:295-301` (`withKnownOpens`: `prevClose.coerceIn(low, high)`), used by the fill at
+  `:383` (`openKnown && b.open >= entry -> b.open`) and the gap-stop at `:257-258`; the test
+  `DayTradingGraderTest` "DA-8 with no open, a gap is priced where the bar really traded" pins this.
+- Problem: when the open is unknown and the previous close lies OUTSIDE the bar's range (a real gap - a halt,
+  news), coercing it clamps to the edge nearest the previous close: for a gap up that is the bar's LOW (the
+  cheapest a buy-stop could possibly have filled), for a gap down the bar's HIGH (the best a stop could have
+  sold). The true open is anywhere in [low, high]. The day's first bar with no open is read against the trade
+  (fill at the high, `ambiguous = true`); these are read for it and not flagged. Every price is one the bar did
+  trade at, so DA-8's letter holds, but its intent ("never flatter the system") does not.
+- Failing scenario (from the test itself): buy-stop 10.50, previous close 10.40, next bar H 10.90 L 10.70 with no
+  open -> fill 10.70; the real open could be 10.90 (20 cents = 0.4R worse on a 0.50 risk). Gap down through
+  the 10.00 stop to H 9.80 L 9.60 -> exit 9.80; could be 9.60. Rare (Yahoo seldom sends h/l/c without an open),
+  hence L.
+- Suggested fix: in `withKnownOpens`, when the previous close is inside [low, high] keep it (continuous trading);
+  when it is outside, leave the open NaN and let `grade` price it against the trade (buy-stop fill at the high,
+  gap-stop exit at the low) with `ambiguous = true`, the rule the first bar already uses.
+
+### R2G-7 (L) - "Came back empty" is remembered only in memory for DECIDED rows, so a partial or old-version row with a short/missing series is re-downloaded after every process start
+
+- Where: `ui/PortfolioViewModel.kt:7653-7656` (`noBars()`: decided -> `dtEmptyAnswers[id] = now`, nothing
+  persisted), `:7510-7511`, `:1563`; contrast `:1565` (an undecided row's DATA_UNAVAILABLE retry is gated on the
+  persisted `outcome_evaluated_at`).
+- Problem: for a partial row whose settled re-grade keeps returning PENDING (truncated, R2G-3/R2G-4) or EMPTY,
+  and for an old-version decided row whose symbol Yahoo no longer serves, the only back-off is the in-memory
+  map. Android kills the process whenever the app is in the background, so in practice every cold start with
+  the Day Trading tab open re-asks each such row (a 1m and then a 5m request each), for up to 55 days. It is
+  bounded (the auto run stops at the first failure and takes at most 180 rows), so this is waste, not a storm.
+- Suggested fix: persist the back-off for decided rows too - e.g. a small `eval_retry_at` column, or store the
+  attempt time inside `eval_detail` ("tried":ms) and test it in `dayTradingRowsNeedingGrade` (do NOT touch
+  `outcome_evaluated_at`: `needsSettledRegrade` reads it).
+
