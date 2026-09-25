@@ -31,7 +31,13 @@ data class DayTradingLogEntry(
     /** Which grader decided [outcome] - 0 = the pre-2026-09-24c rules ([com.tj.portfolio.net.DayTradingGrader.VERSION]). */
     val evalVersion: Int = 0,
     /** The grader's working, JSON ([com.tj.portfolio.net.DayTradingGrader.Detail]); "" when none. */
-    val evalDetail: String = ""
+    val evalDetail: String = "",
+    /**
+     * Not asked about again before this time (epoch ms; 0 = no wait) - a decided row whose re-grade
+     * came back with no usable bars keeps its verdict and waits (audit R2G-7: remembered in memory
+     * only, it was re-downloaded after every app restart). Not backed up: a restored row is asked afresh.
+     */
+    val retryAt: Long = 0L
 ) {
     companion object {
         const val SOURCE_APP = "APP"

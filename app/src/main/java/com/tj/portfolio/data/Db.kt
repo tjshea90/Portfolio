@@ -320,6 +320,10 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         ensureColumn(db, "day_trading_log", "features", "TEXT")
         ensureColumn(db, "day_trading_log", "eval_version", "INTEGER NOT NULL DEFAULT 0")
         ensureColumn(db, "day_trading_log", "eval_detail", "TEXT")
+        ensureColumn(db, "day_trading_log", "eval_retry_at", "INTEGER NOT NULL DEFAULT 0")
+        // The engine-version floor reads DISTINCT engine at every start (audit R2P-6): from the
+        // index, not by walking every row with its features and grading detail.
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_dtlog_engine ON day_trading_log(engine)")
     }
 
     /**
@@ -1676,7 +1680,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         readableDatabase.rawQuery(
             """SELECT id, symbol, trading_day, recorded_at, setup, entry, stop, target,
                 price_at_recommendation, source, outcome, outcome_exit_price, outcome_evaluated_at,
-                engine, features, eval_version, eval_detail
+                engine, features, eval_version, eval_detail, eval_retry_at
                FROM day_trading_log $where ORDER BY recorded_at DESC""",
             args
         ).use { c ->
@@ -1699,7 +1703,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                         engine = c.getString(13) ?: "",
                         features = if (c.isNull(14)) "" else c.getString(14),
                         evalVersion = c.getInt(15),
-                        evalDetail = if (c.isNull(16)) "" else c.getString(16)
+                        evalDetail = if (c.isNull(16)) "" else c.getString(16),
+                        retryAt = if (c.isNull(17)) 0L else c.getLong(17)
                     )
                 )
             }
@@ -1782,6 +1787,14 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         readableDatabase.rawQuery("SELECT COUNT(*) FROM day_trading_log", null)
             .use { c -> if (c.moveToNext()) c.getInt(0) else 0 }
     }.getOrDefault(0)
+
+    /** A decided row waits until [at] before it is asked about again (audit R2G-7). */
+    fun setDayTradingRetryAt(id: Long, at: Long) {
+        runCatching {
+            writableDatabase.update("day_trading_log", ContentValues().apply { put("eval_retry_at", at) },
+                "id=?", arrayOf(id.toString()))
+        }
+    }
 
     // ---------- backup ----------
 
