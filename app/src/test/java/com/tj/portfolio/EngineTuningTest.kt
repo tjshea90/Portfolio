@@ -382,6 +382,16 @@ class EngineTuningTest {
             change("setup.pullback.minRiskAtrs", 1.8, 0, "setup:pullback"))), EngineTuning.State(near, 0), rows).items.single().status)
     }
 
+    @Test fun `R3T-1 switching an override off when the global is off too says so, not "the global"`() {
+        // Global target cap is OFF (the default); a 2R cap for pullbacks switched off = no cap at all.
+        val tuned = DEFAULTS.with(mapOf("setup.pullback.targetCapR" to 2.0))
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change("setup.pullback.targetCapR", 2.0, 0, "setup:pullback"))),
+            EngineTuning.State(tuned, 0), log(80, "Pullback")).items.single()
+        assertEquals(Status.REFUSED, r.status)
+        assertTrue(r.reason, r.reason.contains("the global setting is off too"))
+        assertFalse(r.reason, r.reason.contains("to the global"))
+    }
+
     @Test fun `R2T-10 a limited step lands on the round value`() {
         val r = EngineTuning.review(EngineTuning.parse(answer(0, change("score.mentionPoints", 12, 0))),
             EngineTuning.State(), log(160)).items.single()
