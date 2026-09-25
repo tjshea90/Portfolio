@@ -163,6 +163,10 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
         [x] R2T-22 (save failure -> toast, nothing installed) [x] R2T-23 [x] R2T-24
         Tests: EngineTuningTest 28, DayTradingLoggingTest 14, DayTradingLearnUiTest 11, Params 13, golden.
       - own: [x] 'off' for offAllowed INT at 0; [x] blank line after tables; [x] Portfolio vs summed %
+    - [ ] Round 3 (focused) on the round-2 diff 8659e455..f4d2f8cb -> audits/2026-09-24c/round3-{grading,tuning}.md
+      Resume point (2026-09-25, branch claude/resume-in-progress-8vmll2): the 2 round-3 agents were cut
+      off by a usage limit after writing only headers. Redone INLINE by the resuming session (diff is
+      ~800 main-source lines; agents keep dying at the cap) - same two report files, same END marker.
 - [ ] C2 Ship (auto-ship rule), post the Release link, summarize
 
 ## Tj's request, 2026-09-24b (his own words)
