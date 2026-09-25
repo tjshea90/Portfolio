@@ -127,3 +127,35 @@ then reads the index only), or keep the synchronous install from the settings ke
 log-version reconciliation (+ its `db.set`) into the existing `viewModelScope.launch(Dispatchers.IO)`
 block under `engineMutex`, re-installing only if the version moved.
 
+### R2P-7 (L) - A known-truncated settled series is cached as the day's bars, freezing the truncation for every later re-grade
+**Where:** `ui/PortfolioViewModel.kt:7713-7716` (`if (settled && !fromCache) db.cacheDayBars(...)` in the
+non-PENDING branch, whatever `g.detail` says); `DayTradingGrader.grade` 364-368 / 439-443 (a settled
+series whose last bar is more than `TRUNCATED_SEC` short of the flat time still yields a final verdict
+when the stop/target was hit earlier, with a `partial` detail).
+**Problem.** DA-17 exists because Yahoo sometimes answers a closed session with a series that stops
+early (e.g. at 13:40 for a liquid stock). Such a reply can still decide the row (target hit at 10:40), so
+it is written - correctly - with a partial detail, and `needsSettledRegrade` then (by design) never asks
+again. But the truncated series is also stored in `dt_bars`, and every later re-grade (the next grader
+bump) reads it instead of the network, so the row can never get its grid / hold / run measures even if
+Yahoo's next answer would be complete. Before PL-6 a later bump at least re-fetched.
+**Failing scenario.** WIN decided on a reply truncated at 13:40 -> cached; grader VERSION bump two weeks
+later -> re-graded from the cached 13:40 series -> still partial; the row stays out of every grid/hold
+table in the tuning prompt for good.
+**Fix.** Cache only a series that reaches the flat time: `if (settled && !fromCache && g.detail?.partial != true)`
+(and for a NO_ENTRY, only when the last bar reaches the flat time too). Optionally let
+`needsSettledRegrade` retry a settled-partial row once more a day later.
+
+### R2P-8 (L) - A pressed "Check" does not reset the automatic clock, so the tab's own run can repeat the same requests moments later
+**Where:** `ui/PortfolioViewModel.kt:7489` / `7496` (`dayTradingAutoEvalAt` is stamped only `if (auto)`),
+gate at 7473.
+**Problem.** Mid-session every run re-fetches the 1m series of each of today's still-open rows. After a
+pressed Check (which just did exactly that), the next trigger - returning from a pick's detail screen,
+coming back from another app, an engine apply's `replanDayTradingNow` - starts an automatic run whenever the
+LAST AUTOMATIC run finished 15+ minutes ago, re-reading the whole log 2-4 times and re-requesting every
+open row of today again. Bounded (no loop, no burst), but pure duplicate traffic.
+**Failing scenario.** Last automatic run 10:30. Tj presses Check at 11:00 (20 open plans -> 20 chart
+requests), opens a pick at 11:01 and comes back at 11:02 -> automatic run -> the same 20 requests again.
+**Fix.** Stamp `dayTradingAutoEvalAt` at the end of a pressed run as well (it did the same work). Also
+update `evaluateDayTradingLog`'s KDoc, which still says "No automatic call anywhere near this - it runs
+ONLY when pressed".
+
