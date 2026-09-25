@@ -102,7 +102,7 @@ object DayTradingEval {
         // D-12). Both came back null, so a press that tripped a host cooldown wrote every
         // remaining settled row as "no price history available" - which is what the doc above
         // promised only a real answer could mean.
-        return null
+        return if (refused) emptyList() else null
     }
 
     /**
@@ -142,9 +142,20 @@ object DayTradingEval {
      * that was past the target - credited trades the card said to skip. Never graded, never
      * counted; the card says how many.
      */
-    fun notTradeableOldRow(e: DayTradingLogEntry): Boolean =
-        e.features.isBlank() &&
-            !(e.priceAtRecommendation > 0.0 && e.stop < e.priceAtRecommendation && e.priceAtRecommendation < e.target)
+    fun notTradeableOldRow(e: DayTradingLogEntry): Boolean {
+        if (e.features.isNotBlank()) return false
+        val p = e.priceAtRecommendation
+        if (!(p > 0.0 && e.stop < p && p < e.target)) return true
+        // AND ALREADY THROUGH ITS BUY PRICE (audit R2G-8), where the setup says which side the card's
+        // order was on - a Breakout or VWAP reclaim logged with the price above its buy-stop, a
+        // Pullback logged below its buy-limit, would otherwise be graded as the opposite order. A
+        // free-text Claude setup cannot be checked this way and is kept.
+        return when (ResearchScore.planEntryRises(e.setup, e.entry, 0.0)) {
+            true -> p >= e.entry
+            false -> p <= e.entry
+            null -> false
+        }
+    }
 
     /** A well-formed chart reply for the window - `chart.result[0]` present, no error - with no bars in it. */
     internal fun answeredNoBars(body: String): Boolean = runCatching {
@@ -152,6 +163,9 @@ object DayTradingEval {
         val err = chart.opt("error")
         chart.optJSONArray("result")?.optJSONObject(0) != null && (err == null || err == org.json.JSONObject.NULL)
     }.getOrDefault(false)
+
+    /** A price to 1/10000 of a dollar - the finest tick a US stock quotes in; NaN stays NaN. */
+    private fun px(v: Double): Double = if (v.isFinite()) Math.round(v * 10_000.0) / 10_000.0 else v
 
     /** TOTAL - malformed input is a real possibility (a proxy error page, a truncated body)
      *  and always reads as "nothing parsed", never an exception. */
@@ -170,9 +184,12 @@ object DayTradingEval {
         val out = ArrayList<IntradayBar>(n)
         for (i in 0 until n) {
             if (highs.isNull(i) || lows.isNull(i) || closes.isNull(i)) continue
-            val h = highs.optDouble(i, Double.NaN)
-            val l = lows.optDouble(i, Double.NaN)
-            val c = closes.optDouble(i, Double.NaN)
+            // ROUNDED TO 1/10000 OF A DOLLAR (audit R2P-2): Yahoo sends float32 values (12.34 arrives as
+            // 12.34000015258789), so an exact touch of a round-cent plan level was a coin toss - and
+            // a fresh reply and the same day read back from the phone's cache disagreed about it.
+            val h = px(highs.optDouble(i, Double.NaN))
+            val l = px(lows.optDouble(i, Double.NaN))
+            val c = px(closes.optDouble(i, Double.NaN))
             // NEVER READ A GAP AS ZERO - same rule every other parser in this app follows. A
             // fabricated 0.0 here would read as "price crashed to zero", which would fire
             // every stop-loss check unconditionally.
@@ -180,7 +197,7 @@ object DayTradingEval {
             val t = ts.optLong(i, 0L)
             if (t <= 0L) continue
             // An open outside the bar's own range is a bad value, not a gap - dropped, not used.
-            val o = opens?.takeIf { i < it.length() && !it.isNull(i) }?.optDouble(i, Double.NaN)
+            val o = opens?.takeIf { i < it.length() && !it.isNull(i) }?.optDouble(i, Double.NaN)?.let(::px)
                 ?.takeIf { it.isFinite() && it >= l - 1e-9 && it <= h + 1e-9 } ?: Double.NaN
             out.add(IntradayBar(t, h, l, c, o))
         }
