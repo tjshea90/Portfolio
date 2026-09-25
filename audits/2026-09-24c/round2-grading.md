@@ -161,3 +161,28 @@ Status: IN PROGRESS (findings appended as verified)
   attempt time inside `eval_detail` ("tried":ms) and test it in `dayTradingRowsNeedingGrade` (do NOT touch
   `outcome_evaluated_at`: `needsSettledRegrade` reads it).
 
+### R2G-8 (M) - DA-19's exclusion covers two of E5's three "skip" cases; an old row logged when the price was already THROUGH its buy price is re-graded as the opposite order type
+
+- Where: `net/DayTradingEval.kt:142-144` (`notTradeableOldRow` tests only `stop < price < target`), `:273-276`
+  (`entryRises` reads direction from `priceAtRecommendation` whenever it is set, never from the setup);
+  `ui/PortfolioViewModel.kt:1379-1384` (`planWaiting` - the E5 gate new rows pass - also requires the price on
+  the near side of the entry, using `ResearchScore.planEntryRises`, which knows the app's three setups);
+  `DayTradingGrader.RULES_TEXT` ("... or already through the buy price) are never recorded").
+- Problem: rows logged before 2026-09-24c (blank `features`) had no near-side test, and their
+  `priceAtRecommendation` was the logging price (the R2-3 comment in `captureDayTradingRecommendations` records
+  exactly this bug for Claude pullbacks: "scored as a breakout - the opposite of what the card told Tj"; the
+  mirror case is untouched for old rows). A Breakout / VWAP-reclaim row logged with the price already above
+  its entry (a Claude breakout logged after it broke; before D-M3 on 09-22, also an app plan still drawn during a
+  decline tick) passes `notTradeableOldRow` and is graded as a BUY-LIMIT at the entry - an order the card never
+  showed. The prompt's own rules text says such rows are never recorded.
+- Failing scenario: old Claude row, setup "Breakout", entry 20.00 / stop 19.50 / target 21.00,
+  `priceAtRecommendation` 20.30, no features. Kept (19.50 < 20.30 < 21.00). `entryRises` -> 20.00 > 20.30 false
+  -> buy-limit. The stock dips to 19.99 at 11:00 and rallies to 21.01 at 14:00 -> WIN, +~1.9R, counted - for
+  a breakout the card showed as a buy-stop already triggered (a chase it told Tj not to make).
+- Suggested fix: extend `notTradeableOldRow` with the part of the near-side test the row can prove: for a blank-
+  features row whose setup is one of the app's names (`planEntryRises(setup, entry, 0.0)` non-null), require
+  the price on that side of the entry (below it for Breakout / VWAP reclaim, above it for Pullback); a free-text
+  Claude setup cannot be checked and stays as is (say so). Test: the scenario above -> `oldSkipped`, not graded.
+  Also align the card/prompt wording, which today says "past the target or under the stop" while the rule also
+  drops rows with no recorded price (`ResearchScreen.kt:1425-1430`, `EngineTuningPrompt.kt` data header).
+
