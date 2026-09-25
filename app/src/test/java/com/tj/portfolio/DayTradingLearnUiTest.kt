@@ -179,7 +179,7 @@ class DayTradingLearnUiTest {
             var ask by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
             EngineTuningCard(st, evidence = 95 to 15, onMakePrompt = {}, onImport = {},
                 onUndo = { ask = com.tj.portfolio.ui.ENGINE_UNDO }, onRevert = { ask = com.tj.portfolio.ui.ENGINE_REVERT })
-            if (ask.isNotEmpty()) com.tj.portfolio.ui.EngineConfirmDialog(ask,
+            if (ask.isNotEmpty()) com.tj.portfolio.ui.EngineConfirmDialog(ask, st,
                 onConfirm = { if (ask == com.tj.portfolio.ui.ENGINE_REVERT) reverted = true; ask = "" }, onDismiss = { ask = "" })
         }
         val t = texts().joinToString(" | ")
@@ -217,5 +217,23 @@ class DayTradingLearnUiTest {
         assertEquals(0, applied)
         rule.onNodeWithText("Apply 1 change").performClick()
         assertEquals(1, applied)
+    }
+
+    @Test fun `R2P-1 after a revert, Undo says it brings the tuned engine back`() {
+        val tuned = DayTradingParams.DEFAULTS.with(mapOf(DayTradingParams.MIN_RISK to 1.8))
+        val applied = EngineTuning.State(tuned, 1, listOf(EngineTuning.HistoryEntry(1, 1000L,
+            EngineTuning.KIND_APPLY, listOf(EngineTuning.Change(DayTradingParams.MIN_RISK, 1.5, 1.8)), paramsAfter = tuned)))
+        assertEquals("Undo last change", com.tj.portfolio.ui.undoLabel(applied))
+        assertEquals("Undo the last change?", com.tj.portfolio.ui.engineConfirmText(com.tj.portfolio.ui.ENGINE_UNDO, applied).first)
+        val reverted = EngineTuning.revert(applied, 2000L, 40)!!
+        assertEquals("Undo revert", com.tj.portfolio.ui.undoLabel(reverted))
+        val (title, body) = com.tj.portfolio.ui.engineConfirmText(com.tj.portfolio.ui.ENGINE_UNDO, reverted)
+        assertEquals("Undo the revert?", title)
+        assertTrue(body, body.contains("comes back in force") && body.contains("1 setting different"))
+        // and in the history, the undone revert is marked
+        val back = EngineTuning.undo(reverted, 3000L, 40)!!
+        show { EngineTuningCard(back, evidence = 40 to 0, onMakePrompt = {}, onImport = {}, onUndo = {}, onRevert = {}) }
+        rule.onNodeWithText("Engine history (3)").performClick()
+        assertTrue(texts().joinToString(" | "), texts().any { it.contains("reverted to the original (later taken back)") })
     }
 }
