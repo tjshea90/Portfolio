@@ -307,9 +307,12 @@ object DayTradingGrader {
             val reachesTarget = need != null && b.high >= need - EPS &&
                 !(spikeFilter && isSpikeHigh(bars, i, need, ruler))
             if (b.low <= stop + EPS) {
-                // Stop first, always, when the bar could be read either way (see the header).
+                // Stop first, always, when the bar could be read either way (see the header). A gap bar
+                // with no known open that straddles the stop may have opened under it - filled below the
+                // stop - so it is marked ambiguous, like the entry's own straddle (audit R3G-2).
                 return Exit(DayTradingOutcome.LOSS, stop, i,
-                    ambiguous = deferred || (first && rises) || reachesTarget, reason = "stop")
+                    ambiguous = deferred || (first && rises) || reachesTarget || (!first && !b.open.isFinite()),
+                    reason = "stop")
             }
             // In a buy-limit's own fill bar the high may have printed BEFORE the fill - a target
             // there is deferred to the next bar, never credited from that bar alone.

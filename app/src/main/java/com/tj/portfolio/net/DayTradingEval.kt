@@ -71,8 +71,9 @@ object DayTradingEval {
         val bounds = sessionBoundsMs(tradingDay) ?: return null
         val period1 = bounds.first / 1000L
         val period2 = bounds.second / 1000L
-        var refused = false
-        for (host in listOf("query1", "query2")) {
+        var refusals = 0
+        val hosts = listOf("query1", "query2")
+        for (host in hosts) {
             val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
                 MarketData.enc(symbol) + "?period1=$period1&period2=$period2&interval=$interval"
             // CONDITIONAL in case Yahoo ever sends a validator for this CLOSED, immutable window -
@@ -89,7 +90,7 @@ object DayTradingEval {
             // bars. Only a 422: a 400 can be an edge or proxy blip, and reading it as "no one-minute
             // bars" would grade a row on the coarser bars for good (audit R2P-3) - it is a failure,
             // asked again next time.
-            if (r.code == 422) { refused = true; continue }
+            if (r.code == 422) { refusals++; continue }
             if (!r.ok) continue
             // `continue`, NOT `return`: a 200 that parses to nothing (a truncated body, a
             // proxy error page) used to end the loop, so query2 never got its turn and the
@@ -102,7 +103,9 @@ object DayTradingEval {
         // D-12). Both came back null, so a press that tripped a host cooldown wrote every
         // remaining settled row as "no price history available" - which is what the doc above
         // promised only a real answer could mean.
-        return if (refused) emptyList() else null
+        // BOTH, not either (audit R3G-1): one host's 422 beside the other's failure or cooldown is not
+        // yet an answer - read as one, the row was graded on five-minute bars for good.
+        return if (refusals == hosts.size) emptyList() else null
     }
 
     /**
