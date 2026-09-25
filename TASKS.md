@@ -174,7 +174,9 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
       test-only touch rules read a missing open as "not used" - Improve0924bTest caught it).
     - [x] FINAL: checkinit ok; full suite 1561 tests / 0 failures (2026-09-25). (Container: ~/.gradle/init.d/central-mirror.gradle
       recreated again - Maven Central 429 - Google's mirror, incl. robolectric.dependency.repo.url.)
-- [ ] C2 Ship (auto-ship rule), post the Release link, summarize
+- [x] C2 Ship (auto-ship rule), post the Release link, summarize
+      DONE 02:36 UTC 2026-09-25: run #44 (36085925328) green on 4f47e631, Release v8.0 published
+      (Portfolio-v8.0.apk), BUILDLOG recorded. https://github.com/tjshea90/Portfolio/releases/tag/v8.0
       2026-09-25 ~02:35 UTC: v8.0 / code 99 gated by ship.sh and pushed (4f47e631, main in sync);
       android.yml full_build triggered on main. NEXT: run green -> get_release_by_tag v8.0 ->
       tools/record-release.sh (command in ckpt 1733) -> post the link + summary.
