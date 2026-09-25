@@ -2,7 +2,7 @@
 
 Read-only audit of the fixes for DA-2, DA-3, DA-4, DA-5, DA-6 (prompt part), DA-10, DA-11, DA-14, DA-15, DA-16, DA-18, PL-4, PL-9, PL-10, PL-14, PL-15, plus new issues. Baseline for the diff: `5576e0fb`. HEAD at audit start: `0d77468f`.
 
-Status: in progress (findings appended as verified)
+Status: complete - 24 findings (1 H, 3 M, 20 L); see Summary at the end.
 
 ## Findings
 
@@ -170,3 +170,38 @@ Status: in progress (findings appended as verified)
 - **Problem:** the PL-4 fix protects the files only when settings are *missing* the engine keys. When a key is present but corrupt (a damaged DB page, a truncated value), `load` returns an empty history, `stored` is true, and the launch rewrites `history.json` from it. That destroys the one intact record, which is exactly the case DESIGN.md says the files are for ("survives a corrupt settings table").
 - **Fix:** in `loadEngine`, treat "non-blank but did not parse" like "missing". Read the files and adopt their history (and params, when `dt_engine` is also unreadable). Never write the files from a state whose history came back empty from a non-empty stored string.
 
+## Checked and sound (the fixer need not re-verify)
+
+- **DA-2:** `tickScore` is built from the same `row.copy(price = price)` and `effectiveTechnicals(row, tech)` that `scoreDayTradingRow` uses for the logged `features.score` (`PortfolioViewModel.kt:1186` vs `:8969`). "Unscored" is `dtLikelihood <= 0`, and `algorithm()` states the Claude-pick exception.
+- **DA-3:** `groupFor` covers `setup.<s>.*` -> `setup:<s>` (counted via `setupKey`), `level.<l>.enabled` -> `level:<l>` (key -> every label in `LEVEL_LABELS`, live and pre-market), the lull -> Midday, earliest entry -> First hour, last entry -> Last two hours, everything else -> all. `LEVEL_LABELS` is now the single source `planInternal` draws its overhead names from. Pullback supports carry ", now support", so they never inflate a level group. When the cited group is uncountable, the change is refused, whatever the own group says.
+- **DA-4:** `onBase` is right for every `offAllowed` spec. `target.capR`, `filter.maxTriggerAtrs` and `setup.*.targetCapR` (global off) start from the max. `filter.minRewardRisk`, `filter.minScore`, `time.earliestEntryMinutes` and `setup.*.minRewardRisk` (global off) start from the min. `setup.*.min/maxRiskAtrs` start from the global (always > 0). INT switch-ons floor or ceil toward the base. Switches remain barred below MEDIUM. A limited switch-on can never round to 0 and turn itself off.
+- **DA-5:** a missing or unreadable `basedOn.engineVersion` blocks the whole answer, but only when it proposes changes, so a "change nothing" answer still shows. A missing or NaN `from` is refused by name.
+- **DA-6 (prompt):** the account-% definition in the prompt equals `DayTradingGrader.accountPct` = `dayTradeSharesPerEquity(entry, stop) x (got - paid) x 100`, with `min(0.01/risk, 0.25/entry)`. The cap binds exactly when risk < 4% of entry. Grid cells are sized on each variant's own stop (`DayTradingGrader.kt:447-457`), so "the (1.0, plan) cell is what happened" holds. The tables' `profitable` (netR > 0) and `acct` share the same sign.
+- **DA-10:** `cutoffParams` strips only the lull, only for Claude rows, and is used consistently for `beforeOwnCutoff`, the logged `deadline` and the features.
+- **DA-11 / PL-9:** `load` falls back to `history.last().paramsAfter` when the engine row is unreadable. The version is `max(stored, history)`, bumped past the log only when the log is strictly ahead. The VM persists the bump, so it does not drift between launches. In the not-stored case the recomputed number is stable, because default-params plans are labelled `v0` and never raise `logVersion`. "v0" is consistent end to end: the log writes `v0` for default params, the card shows no tuned badge (`tunedLabel` ""), `engineLabel` merges ""/v0 as "Original engine", and `Evidence("engine:v0")` counts exactly the prompt table's `v0` line.
+- **DA-14:** re-checked `algorithm()` against the code. The near-high rule (`rangePos > 0.85`), $50M cap, "whenever not live", `vol` source and "about 09:55" (`atr14` needs 5 true ranges, i.e. 6 regular bars including the one printing), the opening-bar wait, "a minute before its own entry cut-off" (`beforeOwnCutoff`, lull start for app plans with the lull on), and the Claude-plan cut-off are all true to the code. The features' daily-ATR fallback is the same formula `planInternal` uses (`row.atr` = `effective.atr14`). The reason line is the exception (R2T-14).
+- **DA-15:** `inconsistency()` enforces `lastEntry >= flat + 10`, and the prompt states it.
+- **DA-16:** accepted and limited values are kept to 3 decimals. `FROM_TOLERANCE` (5e-4) also accepts `from` for values stored before the fix: 0.1875 is shown as 0.188, a difference of 0.0005, within tolerance. A `to` that rounds onto the current value is reported UNCHANGED. No limited step can round to zero (smallest steps: 0.025, and 5.5 for INT).
+- **DA-18:** `true`/`on`/`off` are read only for BOOL specs. Anything unreadable, NaN or ±Infinity becomes NaN and is refused by name. Duplicate params: the first is used and later ones are refused.
+- **PL-4:** the files are read and written on `Dispatchers.IO`, through tmp + rename. `replace = false` never writes over a higher file version. Adoption runs under `engineMutex` and only if `_engine.value` is still the state loaded at start, so it cannot overwrite an Apply, Undo, Revert or restore made in the meantime. A Replace restore of a pre-tuning backup does not delete the device's engine keys (Replace does not clear `settings`), so it never triggers an adoption.
+- **PL-10:** `Db.setAll` writes both keys in one transaction. `DayTradingEngine` is one volatile immutable `Snapshot`. Apply, Undo, Revert and adoption are serialised.
+- **PL-14:** an unreadable share returns `dest = null`. A tuning answer imported from Advice or Activity navigates to Day Trading. The review dialog is composed at ResearchScreen level for any section.
+- **PL-15:** undoing a revert restores exactly the applies that revert took back (`undoneAt == revert.at`) and leaves earlier-undone ones alone. The next Undo continues the chain correctly (EngineTuningTest). Only "Make tuning prompt" waits for grading.
+- **Crash-safety of `parse`/`review` against hostile input:** every map lookup is total or guarded, `params.with` runs in `runCatching`, `LEVEL_LABELS.getValue` is reached only with keys from `LEVELS`, and toasts from IO go through a StateFlow.
+
+## Summary
+
+24 findings: **1 H, 3 M, 20 L**.
+
+- **H:** R2T-3. The opening-bar table, the only evidence for `filter.requireBullishOpeningBar`, files every first-five-minute plan as "did not close up".
+- **M:**
+  - R2T-1: Undo after a revert re-installs the tuned engine while the dialog and toast describe the opposite.
+  - R2T-2: after an undo of a revert, the "since the change in force" count includes the original engine's trades.
+  - R2T-9: PL-4's adoption plus the recovery card's Merge restore can lock in a stale engine and drop the latest change from the history.
+- **L:** evidence label (R2T-4); `"off"` refused as `from` (R2T-5); order-dependent consistency (R2T-6); restore not serialised (R2T-7); unlimited override switch-off (R2T-8); `towards()` float error (R2T-10); double-Undo under the mutex (R2T-11); one-way switches after a grader bump (R2T-12); main-thread log scan (R2T-13); reason-line text (R2T-14); endless opening-bar wait (R2T-15); capture-time engine label (R2T-16); same-number engines (R2T-17); prompt nits (R2T-18, R2T-19); all-setups-off engine (R2T-20); `fromJson` drop (R2T-21); crash on DB write failure (R2T-22); silently dropped changes (R2T-23); corrupt history overwriting the file backup (R2T-24).
+- **Verdict on the round-1 tuning fixes:** DA-2, DA-3, DA-4, DA-5, DA-6 (prompt), DA-10, DA-11, DA-15, DA-16, DA-18, PL-9, PL-10 and PL-14 are correct.
+  - DA-14 is complete except the card's reason line (R2T-14).
+  - PL-4 is correct for missing keys but not for corrupt ones (R2T-24), and interacts badly with the Merge recovery path (R2T-9).
+  - PL-15's undo-of-revert logic is correct, but its UI and the "since" count were not updated (R2T-1, R2T-2).
+
+## END OF REPORT (complete)
