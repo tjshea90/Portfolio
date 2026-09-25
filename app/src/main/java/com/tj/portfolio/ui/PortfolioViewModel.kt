@@ -1560,7 +1560,7 @@ internal fun dayTradingRowsNeedingGrade(
 ): List<com.tj.portfolio.data.DayTradingLogEntry> = all.filter {
     val E = com.tj.portfolio.net.DayTradingEval
     val O = com.tj.portfolio.data.DayTradingOutcome
-    if (it.id in recentlyEmpty || E.notTradeableOldRow(it) || !E.intradayStillAvailable(it.tradingDay, now)) return@filter false
+    if (it.id in recentlyEmpty || it.retryAt > now || E.notTradeableOldRow(it) || !E.intradayStillAvailable(it.tradingDay, now)) return@filter false
     when {
         !O.isFinal(it.outcome) -> it.outcome != O.DATA_UNAVAILABLE || now - (it.outcomeEvaluatedAt ?: 0L) >= DT_RETRY_EMPTY_MS
         it.evalVersion < com.tj.portfolio.net.DayTradingGrader.VERSION -> true
@@ -2793,12 +2793,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile private var dtLoggedDay = ""
     /** The tab's own check, so closing the tab stops it (audit PL-7) - a pressed check is not in here. */
     private var dayTradingAutoEvalJob: Job? = null
-    /**
-     * Decided rows whose re-grade just came back with no bars (id -> when): they keep their verdict
-     * (audit PL-2) and are not asked again for [DT_RETRY_EMPTY_MS]. In memory only - at worst one
-     * wasted pair of requests per row after the process restarts.
-     */
-    private val dtEmptyAnswers = java.util.concurrent.ConcurrentHashMap<Long, Long>()
+
     /**
      * An engine change asks the list to re-plan once even with the market closed (UI-6) - the
      * closed-market loop otherwise only sweeps once per rebuild, and plans from the previous engine
@@ -7486,7 +7481,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     delay(DT_AUTO_EVAL_DELAY_MS)
                 }
                 runDayTradingEval(auto)
-                if (auto) dayTradingAutoEvalAt = System.currentTimeMillis()
+                // A pressed check did the same work - the tab's own is not due again for a while
+                // either (audit R2P-8).
+                dayTradingAutoEvalAt = System.currentTimeMillis()
             } catch (c: kotlinx.coroutines.CancellationException) {
                 throw c
             } catch (t: Throwable) {
@@ -7507,8 +7504,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             val now = System.currentTimeMillis()
             val all = withContext(Dispatchers.IO) { db.dayTradingLog() }
             if (auto && _dayTradingStats.value == null) _dayTradingStats.value = dayTradingStatsOf(all)
-            dtEmptyAnswers.entries.removeIf { now - it.value >= DT_RETRY_EMPTY_MS }
-            val needsEval = dayTradingRowsNeedingGrade(all, now, dtEmptyAnswers.keys.toSet())
+            val needsEval = dayTradingRowsNeedingGrade(all, now)
             // ---- AND A ROW THAT AGED OUT BEFORE IT WAS EVER DECIDED IS SAID TO BE SO
             // (full-tests audit 2026-09-22, D-L5). The gate above rightly stops fetching it,
             // but it was left null/PENDING - so the card counted it "still in progress" for
@@ -7651,7 +7647,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // history", losing it for good. Only a row that was never decided becomes DATA_UNAVAILABLE.
         val decided = O.isFinal(entry.outcome)
         fun noBars(): DtResolve {
-            if (decided) dtEmptyAnswers[entry.id] = now
+            if (decided) db.setDayTradingRetryAt(entry.id, now + DT_RETRY_EMPTY_MS)
             else db.setDayTradingOutcome(entry.id, O.DATA_UNAVAILABLE, null)
             return DtResolve.EMPTY
         }
@@ -7678,6 +7674,17 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             bars = E.fetchDaySeries(entry.symbol, entry.tradingDay, interval = "1m") ?: return DtResolve.FAILED
         }
         if (bars.isNullOrEmpty()) {
+            // A VERDICT DECIDED ON ONE-MINUTE BARS IS NEVER RE-DECIDED ON FIVE-MINUTE ONES (audit
+            // R2G-1): the coarser bars hide up to five minutes after the recommendation - exactly
+            // where a fill and a stop-out can sit - so a real loss could come back as a win. The
+            // verdict stands; a mid-session one keeps its partial working, stamped so the settled
+            // re-grade is not asked for again.
+            if (decided && com.tj.portfolio.net.DayTradingGrader.Detail.parse(entry.evalDetail)?.res == 1) {
+                if (entry.evalVersion >= G.VERSION)
+                    db.setDayTradingOutcome(entry.id, entry.outcome!!, entry.outcomeExitPrice, entry.evalVersion, entry.evalDetail)
+                else db.setDayTradingRetryAt(entry.id, now + DT_RETRY_EMPTY_MS)
+                return DtResolve.EMPTY
+            }
             res = 5
             bars = cached(5)
             fromCache = bars != null
@@ -7705,16 +7712,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // missed by a verdict that is final. A verdict reached mid-session carries a PARTIAL
         // working and is graded once more after the close (DA-1).
         val g = G.grade(spec, bars, decidedThroughSec = if (settled) Long.MAX_VALUE else 0L, res = res)
+        // ONLY A WHOLE DAY IS KEPT AS THE DAY'S BARS (audits R2G-3 / R2P-7): a reply that stops short
+        // is asked for again later, never frozen on the phone as though it were the session.
+        if (settled && !fromCache && g.complete) db.cacheDayBars(entry.symbol, entry.tradingDay, res, bars)
         if (g.outcome == O.PENDING) {
-            // A SETTLED day that still cannot be decided has a series that stops short of the
-            // flat time (DA-17) - not a verdict; asked again later like a missing day.
+            // A SETTLED day that still cannot be decided has a series that stops short of the flat
+            // time (DA-17), or an order window shorter than one bar (R2G-10) - not a verdict; asked
+            // again later like a missing day.
             if (settled) return noBars()
             db.setDayTradingOutcome(entry.id, g.outcome, null, G.VERSION, "")
         } else {
             db.setDayTradingOutcome(entry.id, g.outcome, g.exitPrice, G.VERSION, g.detail?.toJson() ?: "")
-            if (settled && !fromCache) db.cacheDayBars(entry.symbol, entry.tradingDay, res, bars)
         }
-        dtEmptyAnswers.remove(entry.id)
+        if (entry.retryAt > 0L) db.setDayTradingRetryAt(entry.id, 0L)
         return DtResolve.DONE
     }
 

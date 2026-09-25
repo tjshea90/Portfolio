@@ -302,6 +302,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
                 features TEXT,
                 eval_version INTEGER NOT NULL DEFAULT 0,
                 eval_detail TEXT,
+                eval_retry_at INTEGER NOT NULL DEFAULT 0,
                 UNIQUE(symbol, trading_day)
             )"""
         )
