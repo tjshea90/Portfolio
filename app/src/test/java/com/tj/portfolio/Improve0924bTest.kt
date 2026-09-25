@@ -236,7 +236,9 @@ class Improve0924bTest {
         com.tj.portfolio.data.DayTradingLogEntry(id = 0, symbol = "X", tradingDay = "20260921",
             recordedAt = ny(2026, 9, 21, hour, 5), setup = setup, entry = 10.0, stop = 9.5, target = 11.0,
             priceAtRecommendation = 9.8, source = source, outcome = outcome, outcomeExitPrice = exit,
-            evalVersion = com.tj.portfolio.net.DayTradingGrader.VERSION)
+            evalVersion = com.tj.portfolio.net.DayTradingGrader.VERSION,
+            // logged under the current rules - an old row shown past its buy price is not counted (R2G-8)
+            features = "{\"v\":0}")
 
     @Test fun `the success card splits by who planned it, setup and time of day`() {
         val O = com.tj.portfolio.data.DayTradingOutcome
