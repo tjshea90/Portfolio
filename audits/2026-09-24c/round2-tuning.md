@@ -136,6 +136,7 @@ Status: in progress (findings appended as verified)
 - **Where:** `net/DayTradingParams.kt:225-229` (`levelDoc`, printed in the prompt's parameter table: "the pre-market high", "the 30-minute opening-range high", "floor pivot R1/R2") vs `LEVEL_LABELS` (`:169-177`: "the premarket high", "the opening-range high", "pivot R1/R2"); `SHAPE` basis help: `"level:<a level key such as prevHigh, or a level name from the tables>"`.
 - **Problem:** the parameter table is one of "the tables". A basis copied from it (`"level:the pre-market high"`) counts 0 trades. Because the review takes `min(cited, own)`, the change is refused with "Only 0 graded trades in "level:the pre-market high"", although the level has plenty of trades. This fails safe but is confusing.
 - **Fix:** build `levelDoc` from `LEVEL_LABELS` (plus a description), or let `Evidence.count("level:…")` also accept the doc names. Or tell Claude to use the level KEY (`level:premarketHigh`), which always works.
+- **Same pattern, engine group:** the per-version table labels pre-versioning rows `v0 (logged before versions were recorded)` (`EngineTuningPrompt.kt:206-207`), but `Evidence.count("engine:…")` matches the stored `engine` string exactly, and for those rows that string is `""`. Citing that table label counts 0.
 
 ### R2T-20 (L): one answer can switch off every setup, leaving an engine that makes no plans (and so produces no further evidence)
 
