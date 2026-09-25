@@ -48,7 +48,7 @@ import org.json.JSONObject
 object DayTradingGrader {
 
     /** Bump when the rules above change: every row graded by an older version is re-graded. */
-    const val VERSION = 2
+    const val VERSION = 3
 
     /**
      * The rules above in plain words - shown on the success card ("How are trades graded?") and
@@ -110,7 +110,12 @@ object DayTradingGrader {
         /** The exit price (before costs), or null while undecided. */
         val exitPrice: Double?,
         val ambiguous: Boolean,
-        val detail: Detail?
+        val detail: Detail?,
+        /**
+         * The bars reached the flat time - the whole day (audit R2G-3): only such a series may be kept
+         * as the day's bars ([com.tj.portfolio.data.Db.cacheDayBars]); a short one is asked for again.
+         */
+        val complete: Boolean = false
     )
 
     /** The grader's working, stored as `eval_detail` JSON. */
@@ -194,30 +199,69 @@ object DayTradingGrader {
     private fun r3(v: Double) = if (v.isFinite()) Math.round(v * 1000.0) / 1000.0 else 0.0
     private fun r4(v: Double) = if (v.isFinite()) Math.round(v * 10000.0) / 10000.0 else 0.0
 
-    /** Median bar range of the day - the ruler a "bad print" is measured against. */
-    internal fun medianRange(bars: List<IntradayBar>): Double {
-        if (bars.isEmpty()) return 0.0
-        val r = bars.map { it.high - it.low }.sorted()
-        return r[r.size / 2]
-    }
+    /**
+     * Price-vs-level comparisons allow this much floating-point slop (audit R2P-2). Bars are rounded
+     * to 1/10000 of a dollar when parsed ([DayTradingEval.parseBars]) - Yahoo sends float32 values,
+     * 12.34 as 12.34000015 - and `entry - tick` is itself a floating result, so an exact touch must
+     * not depend on which way a binary fraction happened to round.
+     */
+    private const val EPS = 1e-7
 
-    /** A wick this many times the day's median bar range, and this share of the price, before it can be a bad print. */
+    /** A wick this many times the bar-range ruler, and this share of the price, before it can be a bad print. */
     private const val SPIKE_MEDIANS = 6.0
     private const val SPIKE_PRICE_FRACTION = 0.015
 
+    /** How many bars BEFORE a bar its bad-print ruler is measured over. */
+    private const val RULER_BARS = 30
+
+    /**
+     * The bad-print ruler of every bar: the median range of the (up to) [RULER_BARS] bars BEFORE it.
+     * Causal on purpose (audit R2G-5): a ruler taken over "the day so far" judged the same print one
+     * way at a 10:10 check (the volatile open only) and the other way after the close (a quiet
+     * afternoon included) - so the settled re-grade could rewrite a verdict. The bars before a bar
+     * are the same whenever the check runs. 0 = nothing before it: never called a bad print.
+     */
+    internal fun rulers(bars: List<IntradayBar>): DoubleArray {
+        val out = DoubleArray(bars.size)
+        for (i in 1 until bars.size) {
+            val r = (maxOf(0, i - RULER_BARS) until i).map { bars[it].high - bars[it].low }.sorted()
+            out[i] = r[r.size / 2]
+        }
+        return out
+    }
+
     /**
      * Is bar [i]'s high a lone bad print for a [level] it seems to reach? The wick above the bar's
-     * own body is more than six times the day's median bar range AND more than 1.5% of the price,
-     * and neither neighbour reaches [level]. Real, tradeable wicks are left alone; the kind of
-     * single erroneous tick that data feeds do occasionally carry is not credited as a fill.
+     * own body is more than six times its ruler ([rulers]) AND more than 1.5% of the price, and
+     * neither neighbour reaches [level]. Real, tradeable wicks are left alone; the kind of single
+     * erroneous tick that data feeds do occasionally carry is not credited as a fill.
      */
-    internal fun isSpikeHigh(bars: List<IntradayBar>, i: Int, level: Double, median: Double): Boolean {
+    internal fun isSpikeHigh(bars: List<IntradayBar>, i: Int, level: Double, ruler: DoubleArray): Boolean {
         val b = bars[i]
         val body = if (b.open.isFinite()) maxOf(b.open, b.close) else b.close
         val wick = b.high - body
-        if (median <= 0.0 || wick <= SPIKE_MEDIANS * median || wick <= SPIKE_PRICE_FRACTION * b.high) return false
-        val prevReaches = i > 0 && bars[i - 1].high >= level
-        val nextReaches = i + 1 < bars.size && bars[i + 1].high >= level
+        val m = ruler[i]
+        if (m <= 0.0 || wick <= SPIKE_MEDIANS * m || wick <= SPIKE_PRICE_FRACTION * b.high) return false
+        val prevReaches = i > 0 && bars[i - 1].high >= level - EPS
+        val nextReaches = i + 1 < bars.size && bars[i + 1].high >= level - EPS
+        return !prevReaches && !nextReaches
+    }
+
+    /**
+     * The mirror of [isSpikeHigh] for a BUY-LIMIT's fill (audit DA-7): bar [i]'s low looks like a lone
+     * bad print under [level]. [grade] does not simply drop such a fill - whether a one-minute flush
+     * is a bad tick or a real stop-run cannot be known from bars, so both readings are graded and the
+     * WORSE one stands (audit R2G-2: skipping it alone mostly deleted losses, since a wick that deep
+     * usually runs through the stop too).
+     */
+    internal fun isSpikeLow(bars: List<IntradayBar>, i: Int, level: Double, ruler: DoubleArray): Boolean {
+        val b = bars[i]
+        val body = if (b.open.isFinite()) minOf(b.open, b.close) else b.close
+        val wick = body - b.low
+        val m = ruler[i]
+        if (m <= 0.0 || wick <= SPIKE_MEDIANS * m || wick <= SPIKE_PRICE_FRACTION * body) return false
+        val prevReaches = i > 0 && bars[i - 1].low <= level + EPS
+        val nextReaches = i + 1 < bars.size && bars[i + 1].low <= level + EPS
         return !prevReaches && !nextReaches
     }
 
@@ -238,27 +282,31 @@ object DayTradingGrader {
         tick: Double,
         complete: Boolean,
         spikeFilter: Boolean,
-        median: Double
+        ruler: DoubleArray
     ): Exit {
         // A limit that filled at an open already under the stop is stopped out at once.
-        if (fill <= stop) return Exit(DayTradingOutcome.LOSS, fill, fillIdx, false, "gap-stop")
+        if (fill <= stop + EPS) return Exit(DayTradingOutcome.LOSS, fill, fillIdx, false, "gap-stop")
         // AND A BUY-STOP THAT FILLED AT AN OPEN ALREADY ABOVE THE TARGET (a jump straight through
         // both) is sold at once too: the attached sell-limit is below the market, so it fills at
         // the market - about the fill price - not at the target. Crediting that as a target WIN
         // counted a trade that lost its costs as a success.
-        if (target != null && fill >= target)
+        if (target != null && fill >= target - EPS)
             return Exit(DayTradingOutcome.CLOSED_LOSS, fill, fillIdx, false, "gap-target")
         var deferred = false
         val need = target?.let { it + tick }
         for (i in fillIdx until bars.size) {
             val b = bars[i]
             val first = i == fillIdx
-            // GAPPED THROUGH THE STOP between bars: the stop order fills at this bar's open.
-            if (!first && b.open.isFinite() && b.open <= stop)
+            // GAPPED THROUGH THE STOP between bars: the stop order fills at this bar's open - and when
+            // the open is not known (a gap the feed gave no open for), at the bar's low, read against
+            // the trade (audit R2G-6), never at a stop price the whole bar was below.
+            if (!first && b.open.isFinite() && b.open <= stop + EPS)
                 return Exit(DayTradingOutcome.LOSS, b.open, i, false, "gap-stop")
-            val reachesTarget = need != null && b.high >= need &&
-                !(spikeFilter && isSpikeHigh(bars, i, need, median))
-            if (b.low <= stop) {
+            if (!first && !b.open.isFinite() && b.high < stop - EPS)
+                return Exit(DayTradingOutcome.LOSS, b.low, i, true, "gap-stop")
+            val reachesTarget = need != null && b.high >= need - EPS &&
+                !(spikeFilter && isSpikeHigh(bars, i, need, ruler))
+            if (b.low <= stop + EPS) {
                 // Stop first, always, when the bar could be read either way (see the header).
                 return Exit(DayTradingOutcome.LOSS, stop, i,
                     ambiguous = deferred || (first && rises) || reachesTarget, reason = "stop")
@@ -271,7 +319,7 @@ object DayTradingGrader {
         if (!complete) return Exit(DayTradingOutcome.PENDING, null, -1, deferred, "")
         val last = bars.last()
         return Exit(
-            if (last.close > fill) DayTradingOutcome.CLOSED_PROFIT else DayTradingOutcome.CLOSED_LOSS,
+            if (last.close > fill + EPS) DayTradingOutcome.CLOSED_PROFIT else DayTradingOutcome.CLOSED_LOSS,
             last.close, bars.size - 1, deferred, "flat"
         )
     }
@@ -285,36 +333,19 @@ object DayTradingGrader {
     internal const val TRUNCATED_SEC = 15 * 60L
 
     /**
-     * Bars whose open the feed did not give (or gave outside the bar's own range) take the
-     * previous bar's close, kept inside their own range, as their open (audit DA-8). One-minute
-     * bars are continuous, so that is where trading in the bar began to within a tick or two -
-     * and, unlike the old "no open, no gap" reading, it never prices a fill or a stop exit at a
-     * level the bar did not trade at. The day's first bar has no previous one and keeps NaN;
-     * [grade] prices it against the trade.
+     * Bars whose open the feed did not give (or gave outside the bar's own range) take the previous
+     * bar's close as their open WHEN THAT CLOSE IS INSIDE THE BAR'S RANGE (audit DA-8): one-minute
+     * bars are continuous, so that is where trading in the bar began to within a tick or two. When it
+     * is outside - a real gap, a halt - the true open could be anywhere in the bar, so it stays unknown
+     * and [grade] / [runPosition] price it against the trade (audit R2G-6: clamping it to the nearest
+     * edge picked the best fill and the best stop exit the bar allowed). The day's first bar keeps NaN.
      */
     internal fun withKnownOpens(bars: List<IntradayBar>): List<IntradayBar> {
         if (bars.none { !it.open.isFinite() }) return bars
         return bars.mapIndexed { i, b ->
             if (b.open.isFinite() || i == 0) b
-            else b.copy(open = bars[i - 1].close.coerceIn(b.low, b.high))
+            else bars[i - 1].close.let { pc -> if (pc >= b.low - EPS && pc <= b.high + EPS) b.copy(open = pc) else b }
         }
-    }
-
-    /**
-     * The mirror of [isSpikeHigh] for a BUY-LIMIT's fill (audit DA-7): bar [i]'s low is a lone bad
-     * print under [level] - a wick below the body over six median ranges and 1.5% of the price,
-     * with neither neighbour reaching [level]. The same erroneous tick the target is protected
-     * from must not open a position at a limit nothing traded at, and then have the rest of the
-     * day credited to it. (A spike still counts against a STOP - that is the conservative side.)
-     */
-    internal fun isSpikeLow(bars: List<IntradayBar>, i: Int, level: Double, median: Double): Boolean {
-        val b = bars[i]
-        val body = if (b.open.isFinite()) minOf(b.open, b.close) else b.close
-        val wick = body - b.low
-        if (median <= 0.0 || wick <= SPIKE_MEDIANS * median || wick <= SPIKE_PRICE_FRACTION * body) return false
-        val prevReaches = i > 0 && bars[i - 1].low <= level
-        val nextReaches = i + 1 < bars.size && bars[i + 1].low <= level
-        return !prevReaches && !nextReaches
     }
 
     /**
@@ -337,7 +368,8 @@ object DayTradingGrader {
      * time". [res] is 1 or 5 (minutes per bar).
      *
      * A PENDING answer for a settled session means its series was too short to decide from
-     * ([TRUNCATED_SEC]) - the caller treats that like a failed fetch, never as a verdict.
+     * ([TRUNCATED_SEC]), or the order's window was shorter than one bar of [res] - the caller treats
+     * that like a failed fetch, never as a verdict.
      */
     fun grade(
         spec: Spec,
@@ -357,63 +389,91 @@ object DayTradingGrader {
         // minutes past the time the card said to be out. The same for the entry deadline below.
         val sorted = bars.filter { spec.flatSec == Long.MAX_VALUE || it.t + barSec <= spec.flatSec }.sortedBy { it.t }
         val day = if (realOpens) withKnownOpens(sorted) else sorted
-        val median = medianRange(day)
+        val ruler = rulers(day)
         val start = day.indexOfFirst { it.t * 1000L >= spec.recordedAt }
-        // HOW FAR THE BARS REALLY GO. A settled day is decided through its flat time only when
-        // its last bar gets there (DA-17); otherwise only as far as the data does.
+        // HOW FAR THE BARS REALLY GO. A settled day is decided through its flat time only when the
+        // reply reaches it (DA-17) - judged on the WHOLE reply, bars past the flat time included
+        // (audit R2G-4: a thin stock with no print in its last quarter-hour before the flat time
+        // is not a short reply when it printed at 15:52).
         val through = if (decidedThroughSec == Long.MAX_VALUE && spec.flatSec != Long.MAX_VALUE) {
-            val last = day.lastOrNull()?.t ?: 0L
+            val last = bars.maxOfOrNull { it.t } ?: 0L
             if (last >= spec.flatSec - TRUNCATED_SEC) Long.MAX_VALUE else last + barSec
         } else decidedThroughSec
         val complete = through >= spec.flatSec
         val entryWindowOver = through >= spec.entryDeadlineSec
 
+        // AN ORDER WINDOW SHORTER THAN ONE BAR CANNOT BE GRADED ON THESE BARS (audit R2G-10): a plan
+        // recorded at 11:26 with an 11:30 cut-off has no five-minute bar that starts after it and
+        // ends by the cut-off - "never filled" would be an artefact of the bar size, not the market.
+        if (spec.entryDeadlineSec != Long.MAX_VALUE) {
+            val recSec = (spec.recordedAt + 999L) / 1000L
+            val firstBar = ((recSec + barSec - 1) / barSec) * barSec
+            if (firstBar + barSec > spec.entryDeadlineSec)
+                return Graded(DayTradingOutcome.PENDING, null, false, null, complete)
+        }
+
         // ---- the entry
         var fillIdx = -1
         var fill = 0.0
         var fillAmbiguous = false
+        var spikeIdx = -1
         if (start >= 0) for (i in start until day.size) {
             val b = day[i]
             if (spec.entryDeadlineSec != Long.MAX_VALUE && b.t + barSec > spec.entryDeadlineSec) break
             val openKnown = b.open.isFinite()
             if (spec.rises) {
-                if (b.high >= spec.entry) {
+                if (b.high >= spec.entry - EPS) {
                     fillIdx = i
                     fill = when {
-                        openKnown && b.open >= spec.entry -> b.open
-                        // The whole bar traded above the trigger and where it began is unknown
-                        // (the day's first bar): read against the trade - its high.
-                        realOpens && !openKnown && b.low > spec.entry -> { fillAmbiguous = true; b.high }
+                        openKnown -> maxOf(b.open, spec.entry)
+                        // The open is unknown (a gap, or the day's first bar): read against the trade -
+                        // the bar's high when the whole bar traded above the trigger.
+                        realOpens && b.low > spec.entry + EPS -> { fillAmbiguous = true; b.high }
+                        realOpens -> { fillAmbiguous = true; spec.entry }
                         else -> spec.entry
                     }
                     break
                 }
             } else {
-                val opensBelow = openKnown && b.open < spec.entry
-                val tradedThrough = b.low <= spec.entry - tk &&
-                    !(spikeFilter && isSpikeLow(day, i, spec.entry - tk, median))
-                if (tradedThrough || opensBelow) {
-                    fillIdx = i
-                    fill = when {
-                        opensBelow -> b.open
-                        realOpens && !openKnown && b.high < spec.entry -> { fillAmbiguous = true; b.high }
-                        else -> spec.entry
+                if (openKnown && b.open < spec.entry - EPS) {
+                    fillIdx = i; fill = b.open; break
+                }
+                if (b.low <= spec.entry - tk + EPS) {
+                    if (spikeFilter && isSpikeLow(day, i, spec.entry - tk, ruler)) {
+                        // A SUSPECT PRINT: the first one is graded both ways below; keep looking.
+                        if (spikeIdx < 0) spikeIdx = i
+                        continue
                     }
+                    fillIdx = i
+                    fill = if (realOpens && !openKnown && b.high < spec.entry - EPS) { fillAmbiguous = true; b.high } else spec.entry
                     break
                 }
             }
         }
+        val main = settle(spec, day, ruler, fillIdx, fill, fillAmbiguous, complete, entryWindowOver, res, spikeFilter, withGrid, tk)
+        if (spikeIdx < 0) return main
+        // BOTH READINGS OF THE SUSPECT PRINT - it filled (and whatever followed), or it did not - and
+        // the WORSE one stands (audit R2G-2).
+        val alt = settle(spec, day, ruler, spikeIdx, spec.entry, true, complete, entryWindowOver, res, spikeFilter, withGrid, tk)
+        return worseOf(main, alt, spec)
+    }
+
+    /** The rest of [grade] from a fill (or none): the exit, the working, and the grid. */
+    private fun settle(
+        spec: Spec, day: List<IntradayBar>, ruler: DoubleArray, fillIdx: Int, fill: Double, fillAmbiguous: Boolean,
+        complete: Boolean, entryWindowOver: Boolean, res: Int, spikeFilter: Boolean, withGrid: Boolean, tk: Double
+    ): Graded {
         if (fillIdx < 0) {
             // Unfilled until the plan's own cut-off (or the end of the session): the order is
             // cancelled, and no trade happened - not a win, not a loss.
-            if (!(entryWindowOver || complete)) return Graded(DayTradingOutcome.PENDING, null, false, null)
-            return Graded(DayTradingOutcome.NO_ENTRY, null, false, Detail(res = res, why = "unfilled"))
+            if (!(entryWindowOver || complete)) return Graded(DayTradingOutcome.PENDING, null, false, null, complete)
+            return Graded(DayTradingOutcome.NO_ENTRY, null, false, Detail(res = res, why = "unfilled"), complete)
         }
 
         // ---- the exit
-        val exit = runPosition(day, fillIdx, fill, spec.rises, spec.stop, spec.target, tk, complete, spikeFilter, median)
+        val exit = runPosition(day, fillIdx, fill, spec.rises, spec.stop, spec.target, tk, complete, spikeFilter, ruler)
         if (exit.outcome == DayTradingOutcome.PENDING)
-            return Graded(DayTradingOutcome.PENDING, null, exit.ambiguous || fillAmbiguous, null)
+            return Graded(DayTradingOutcome.PENDING, null, exit.ambiguous || fillAmbiguous, null, complete)
         val ambiguous = exit.ambiguous || fillAmbiguous
 
         val risk = spec.risk
@@ -440,9 +500,9 @@ object DayTradingGrader {
             return Graded(exit.outcome, exit.price, ambiguous, Detail(
                 res = res, fill = fill, fillAt = day[fillIdx].t, exitAt = day[exit.idx].t, why = exit.reason,
                 mfeR = inR(mfeTo(exit.idx)), maeR = inR(worst), ambiguous = ambiguous, partial = true
-            ))
+            ), complete)
         }
-        val hold = runPosition(day, fillIdx, fill, spec.rises, spec.stop, null, tk, true, spikeFilter, median)
+        val hold = runPosition(day, fillIdx, fill, spec.rises, spec.stop, null, tk, true, spikeFilter, ruler)
         val paid = DayTradingEval.Costs.entryFill(fill)
         val grid = if (!withGrid || risk <= 1e-9) emptyList() else GRID_STOPS.map { s ->
             val stopV = spec.entry - s * risk
@@ -452,7 +512,7 @@ object DayTradingGrader {
                     GRID_NONE -> null
                     else -> spec.entry + t * risk
                 }
-                val e = runPosition(day, fillIdx, fill, spec.rises, stopV, tgt, tk, true, spikeFilter, median)
+                val e = runPosition(day, fillIdx, fill, spec.rises, stopV, tgt, tk, true, spikeFilter, ruler)
                 accountPct(spec.entry, stopV, paid, DayTradingEval.Costs.exitFill(e.outcome, e.price ?: fill))
             }
         }
@@ -469,7 +529,25 @@ object DayTradingGrader {
             grid = grid,
             ambiguous = ambiguous
         )
-        return Graded(exit.outcome, exit.price, ambiguous, detail)
+        return Graded(exit.outcome, exit.price, ambiguous, detail, complete)
+    }
+
+    /**
+     * The worse of two readings of the same order (R2G-2), by what it did after costs - no trade
+     * counts as 0. Either one undecided: undecided (a later check sees more). Different answers are
+     * marked ambiguous.
+     */
+    private fun worseOf(a: Graded, b: Graded, spec: Spec): Graded {
+        if (a.outcome == DayTradingOutcome.PENDING || b.outcome == DayTradingOutcome.PENDING)
+            return Graded(DayTradingOutcome.PENDING, null, true, null, a.complete)
+        fun value(g: Graded): Double {
+            if (g.outcome == DayTradingOutcome.NO_ENTRY) return 0.0
+            val fill = g.detail?.fill?.takeIf { it > 0.0 } ?: spec.entry
+            return DayTradingEval.Costs.exitFill(g.outcome, g.exitPrice ?: fill) - DayTradingEval.Costs.entryFill(fill)
+        }
+        val pick = if (value(b) < value(a) - 1e-12) b else a
+        if (a.outcome == b.outcome && a.exitPrice == b.exitPrice) return pick
+        return Graded(pick.outcome, pick.exitPrice, true, pick.detail?.copy(ambiguous = true), pick.complete)
     }
 
     /**
