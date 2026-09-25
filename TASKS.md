@@ -103,16 +103,16 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
       import->apply->restart->revert + backup files), DayTradingLearnUiTest 5. Full suite
       1501/0 (was 1452).
 ### Part C - verify and ship
-- [ ] C1 Full tests protocol (CLAUDE.md): floor, parallel audits (<=3 agents at once),
+- [x] C1 Full tests protocol (CLAUDE.md): floor, parallel audits (<=3 agents at once),
       fix everything, re-run, repeat until confident; Moto G 2026 / Android 16 perf focus
     - [x] Floor: checkinit ok; full suite 1501/0 (after Parts A+B, before the audits)
-    - [ ] 3 read-only audits (launched together, at most 3 at once), each writing its FULL report
+    - [x] 3 read-only audits (launched together, at most 3 at once), each writing its FULL report
           to audits/2026-09-24c/{daytrading,platform,ui}.md; a report is complete ONLY if its last
           line is `## END OF REPORT (complete)` - a missing/partial one = re-run that agent alone.
           daytrading = grading/logging/stats/tuning correctness + prompt-vs-code; platform =
           network/caching/persistence/backup/battery/threading + whole-app regressions; ui =
           Compose screens, wording, perf on the Moto G, accessibility.
-    - [ ] Verify + fix every finding (agents can be wrong - check each against the code), with
+    - [x] Verify + fix every finding (agents can be wrong - check each against the code), with
           tests; tick IDs here. Then full suite again; second audit round if anything major.
       - own: [x] gap-through-target graded WIN -> CLOSED_LOSS "gap-target" (DayTradingGraderTest)
       - ui.md (complete, 27+2): ALL FIXED [x] UI-1..UI-27, S-1, S-2 (edgeVerdict >=20, capped in
@@ -141,7 +141,7 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
         cooldown, cancelled with the tab, stamped on completion, never a crash), engine backup
         files adopted/atomic, Db.setAll + mutex, 64 MB backup reads, COUNT for the backup check,
         tuning answers route to the review, logged-today set.)
-    - [ ] Second audit round (3 agents, read-only) on everything changed since 5576e0fb; fix; suite
+    - [x] Second audit round (3 agents, read-only) on everything changed since 5576e0fb; fix; suite
       Reports complete: audits/2026-09-24c/round2-{grading,platform,tuning}.md (10 + 8 + 24 findings).
       - grading ALL FIXED: [x] R2G-1 (decided 1m verdict never re-decided on 5m) [x] R2G-2 (both
         readings of a suspect low, the worse stands) [x] R2G-3 (only a whole day is cached) [x] R2G-4
@@ -170,7 +170,9 @@ Design notes / decisions for this job: audits/2026-09-24c/DESIGN.md (written bef
       DONE: both reports complete. [x] R3G-1 (a 422 counts only from BOTH hosts - one 422 + a failure
       graded rows on 5m for good) [x] R3G-2 (no-open gap bar straddling the stop -> ambiguous) [x] R3T-1
       (switch-off refusal/prompt wording when the global is off too). Tests: DayTradingGraderTest 33,
-      EngineTuningTest 29. Nothing major -> no round 4. (Container: ~/.gradle/init.d/central-mirror.gradle
+      EngineTuningTest 29. Nothing major -> no round 4. R3G-2's flag is scoped to real opens (the
+      test-only touch rules read a missing open as "not used" - Improve0924bTest caught it).
+    - [x] FINAL: checkinit ok; full suite 1561 tests / 0 failures (2026-09-25). (Container: ~/.gradle/init.d/central-mirror.gradle
       recreated again - Maven Central 429 - Google's mirror, incl. robolectric.dependency.repo.url.)
 - [ ] C2 Ship (auto-ship rule), post the Release link, summarize
 
