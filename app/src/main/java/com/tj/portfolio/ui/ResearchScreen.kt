@@ -258,7 +258,11 @@ fun ResearchScreen(
     var engineConfirm by rememberSaveable { mutableStateOf("") }
     if (engineConfirm.isNotEmpty()) EngineConfirmDialog(
         kind = engineConfirm,
-        onConfirm = { if (engineConfirm == ENGINE_UNDO) vm.undoEngineChange() else vm.revertEngine(); engineConfirm = "" },
+        state = engine,
+        onConfirm = {
+            if (engineConfirm == ENGINE_UNDO) vm.undoEngineChange(engine.version) else vm.revertEngine(engine.version)
+            engineConfirm = ""
+        },
         onDismiss = { engineConfirm = "" }
     )
     // The tuning card's own file picker (UI-19): its errors speak about tuning answers, not research.

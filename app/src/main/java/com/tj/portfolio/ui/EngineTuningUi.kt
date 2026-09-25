@@ -135,7 +135,7 @@ internal fun EngineTuningCard(
         // EACH BUTTON KEEPS HALF THE ROW (UI-23), so neither is squeezed to a sliver at 2x text.
         Row(Modifier.height(IntrinsicSize.Min)) {
             TextButton(onClick = onUndo, enabled = state.undoable != null,
-                modifier = Modifier.weight(1f).fillMaxHeight()) { Text("Undo last change") }
+                modifier = Modifier.weight(1f).fillMaxHeight()) { Text(undoLabel(state)) }
             TextButton(onClick = onRevert, enabled = !state.isOriginal,
                 modifier = Modifier.weight(1f).fillMaxHeight()) { Text("Revert to original") }
         }
@@ -176,10 +176,10 @@ private fun HistoryLine(h: EngineTuning.HistoryEntry) {
     Spacer(Modifier.height(4.dp))
     Text(
         "v${h.version} - $day - " + when (h.kind) {
-            EngineTuning.KIND_APPLY -> "Claude's changes" + (if (h.undoneAt > 0) " (later taken back)" else "")
-            EngineTuning.KIND_UNDO -> "undo"
+            EngineTuning.KIND_APPLY -> "Claude's changes"
+            EngineTuning.KIND_UNDO -> h.summary.ifBlank { "undo" }
             else -> "reverted to the original"
-        } + " - on ${gradedTrades(h.gradedTrades)}",
+        } + (if (h.undoneAt > 0) " (later taken back)" else "") + " - on ${gradedTrades(h.gradedTrades)}",
         style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold
     )
     h.changes.forEach { c ->
@@ -201,23 +201,41 @@ private fun HistoryLine(h: EngineTuning.HistoryEntry) {
  * rotation scrolled its item out of view.
  */
 @Composable
-internal fun EngineConfirmDialog(kind: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    val undo = kind == ENGINE_UNDO
+internal fun EngineConfirmDialog(kind: String, state: EngineTuning.State, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val (title, body) = engineConfirmText(kind, state)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (undo) "Undo the last change?" else "Revert to the original engine?") },
-        text = {
-            Text(
-                if (undo) "The engine goes back to exactly how it was before the most recent change " +
-                    "Claude made. Recorded plans and their grades are not touched."
-                else "Every change ever made to the day-trading engine is taken back, and it runs " +
-                    "exactly as it was originally built. The history is kept, and recorded plans and " +
-                    "their grades are not touched."
-            )
-        },
-        confirmButton = { TextButton(onClick = onConfirm) { Text(if (undo) "Undo" else "Revert") } },
+        title = { Text(title) },
+        text = { Text(body) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text(if (kind == ENGINE_UNDO) "Undo" else "Revert") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+/** The undo button's words - "Undo revert" when the last thing done was a revert (audits R2P-1 / R2T-1). */
+internal fun undoLabel(state: EngineTuning.State): String =
+    if (state.undoable?.kind == EngineTuning.KIND_REVERT) "Undo revert" else "Undo last change"
+
+/**
+ * The confirmation's title and text for [kind], for the engine AS IT IS NOW (R2P-1 / R2T-1): after a
+ * revert, Undo brings the whole tuned engine back - the opposite of "goes back to before the most
+ * recent change Claude made", which is what it used to say.
+ */
+internal fun engineConfirmText(kind: String, state: EngineTuning.State): Pair<String, String> {
+    val target = state.undoable
+    return when {
+        kind == ENGINE_UNDO && target?.kind == EngineTuning.KIND_REVERT -> {
+            val n = target.paramsBefore.diffFrom(DayTradingParams.DEFAULTS).size
+            "Undo the revert?" to "The tuned engine from before the revert comes back in force - " +
+                "$n setting${if (n == 1) "" else "s"} different from the original, as Claude's changes had " +
+                "left it. Recorded plans and their grades are not touched."
+        }
+        kind == ENGINE_UNDO -> "Undo the last change?" to "The engine goes back to exactly how it was " +
+            "before the most recent change Claude made. Recorded plans and their grades are not touched."
+        else -> "Revert to the original engine?" to "Every change ever made to the day-trading engine is " +
+            "taken back, and it runs exactly as it was originally built. The history is kept, recorded " +
+            "plans and their grades are not touched, and Undo can bring the tuned engine back."
+    }
 }
 
 /**

@@ -411,6 +411,8 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         val differs = engine.params.diffFrom(com.tj.portfolio.net.DayTradingParams.DEFAULTS).size
         Text(
             if (engine.isOriginal) "The original engine" + (if (engine.version > 0) " (now v${engine.version}, after earlier changes were taken back)." else ".") +
+                (if (engine.undoable?.kind == com.tj.portfolio.net.EngineTuning.KIND_REVERT)
+                    " Undo revert brings back the tuned engine from before the revert." else "") +
                 " Claude can tune it from its graded results - Watch > Research > Day Trading."
             else "Tuned by Claude - v${engine.version}, $differs setting" + (if (differs == 1) "" else "s") + " changed. " +
                 "Undo takes back the last change; Revert brings back the original exactly. The history is kept.",
@@ -419,13 +421,17 @@ fun SettingsScreen(vm: PortfolioViewModel) {
         )
         Row(Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Min)) {
             TextButton(onClick = { engineConfirm = ENGINE_UNDO }, enabled = engine.undoable != null,
-                modifier = Modifier.weight(1f)) { Text("Undo last change") }
+                modifier = Modifier.weight(1f)) { Text(undoLabel(engine)) }
             TextButton(onClick = { engineConfirm = ENGINE_REVERT }, enabled = !engine.isOriginal,
                 modifier = Modifier.weight(1f)) { Text("Revert to original") }
         }
         if (engineConfirm.isNotEmpty()) EngineConfirmDialog(
             kind = engineConfirm,
-            onConfirm = { if (engineConfirm == ENGINE_UNDO) vm.undoEngineChange() else vm.revertEngine(); engineConfirm = "" },
+            state = engine,
+            onConfirm = {
+                if (engineConfirm == ENGINE_UNDO) vm.undoEngineChange(engine.version) else vm.revertEngine(engine.version)
+                engineConfirm = ""
+            },
             onDismiss = { engineConfirm = "" }
         )
 
