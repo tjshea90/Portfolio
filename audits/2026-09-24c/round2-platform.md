@@ -3,7 +3,7 @@
 Read-only verification of the PL-1..PL-15 fixes (diff `5576e0fb..HEAD`, app/src/main)
 plus a hunt for regressions: threading, battery/network, persistence, UI.
 
-Status: IN PROGRESS - findings are appended as they are verified.
+Status: complete - 8 findings (0 H, 2 M, 6 L); summary table at the end.
 
 Severity: H = crash / data loss / runaway battery or network / wrong numbers; M; L.
 
@@ -159,3 +159,75 @@ requests), opens a pick at 11:01 and comes back at 11:02 -> automatic run -> the
 update `evaluateDayTradingLog`'s KDoc, which still says "No automatic call anywhere near this - it runs
 ONLY when pressed".
 
+## Checked and sound
+
+- **checkinit** passes: `engineMutex`, `dtEmptyAnswers`, `dayTradingAutoEvalJob`, `dtLoggedToday`,
+  `dtLoggedDay`, `dayTradingAutoEvalAt` are all declared above `init` (line 2990).
+- **Auto vs pressed check (PL-3/PL-7/PL-8).** No overlap is possible: every entry point runs on Main;
+  a press cancels an auto job still in its 4 s delay (loading is set only after the delay), an auto
+  trigger returns while `dayTradingAutoEvalJob` is active or `_dayTradingStatsLoading` is true.
+  `stopDayTradingLive` cancels the auto job; `setForeground(false)` cancels `fgScope`; a launch into an
+  already-cancelled `fgScope` (engine apply while backgrounded) never runs and never stamps the clock.
+  The clock is stamped at the end (or on a caught failure), not on cancellation. The detail-screen
+  path (`startDayTradingLive(only)`) never grades. Parallelism 2, 5 s pauses, stop on first FAILED or
+  either Yahoo host cooling down (per-host cooldown, `Http.cooldownRemaining`), max 3 x 60 rows per run,
+  no loop - bounded. `delay` on Main is a suspension, not a block.
+- **Cancellation.** `CancellationException` is rethrown at both catch sites. A cancelled in-flight
+  `Http.get` disconnects and rethrows its `SocketException`, which the per-row catch turns into FAILED
+  inside an already-cancelled scope - harmless. Every DB write is a single atomic statement (UPDATE /
+  INSERT), so a cancel between fetch and write only loses that grade (re-fetched later).
+- **No stuck flags.** `_dayTradingStatsLoading` is set and cleared in one try/finally inside the job;
+  `_engineApplying` in a try/finally on `viewModelScope`. The only effect of a slow cancel is that a
+  tab re-opened within that window skips its automatic run until the next trigger (benign).
+- **Engine mutex.** Nothing called inside `engineMutex.withLock` (`engineEvidenceNow`, `saveEngine`,
+  `replanDayTradingNow` -> `startDayTradingLive` -> `evaluateDayTradingLog`) takes the mutex again, so
+  no re-entrant deadlock; `return@launch` inside the inline `withLock` still unlocks.
+  Residual, theoretical only: `loadEngine` (restore path) and its unlocked IO file write are outside the
+  mutex, so an Apply confirmed in the same second as a restore could build on the pre-restore engine, and
+  two writers could share `current.json.tmp`; not reachable by a person in practice.
+- **`Db.setAll` lock order.** Same order as `set` (settingsLock -> connection); `restoreJson` holds the
+  connection and uses only `writeSetting`/`hasSetting` (no lock) inside its transaction and
+  `invalidateSettings` only outside it - no inversion. WAL is on. Throwing inserts roll the pair back.
+- **`dt_bars`.** Created in `onCreate`, `onUpgrade(<10)` and (idempotently) `onOpen` - covers devices
+  already at v10; every accessor is `runCatching`-total; blobs ~5-6 KB (far below the 2 MB CursorWindow);
+  purged at 60 days on every check, keyed `yyyyMMdd` (string order is date order); excluded from backups.
+- **Backup-file adoption vs restore (PL-4).** The recovery card restores with Merge, so an adopted engine
+  is kept; if a restore lands first, `_engine.value == st` fails and adoption is skipped. Files are written
+  tmp+rename. `readEngineBackupFiles` is total.
+- **PL-9** version floor: `versionOfLabel` handles null/blank; bump persisted only when something was
+  stored; test covers it. **PL-10**: one `setAll` transaction, one immutable `DayTradingEngine.Snapshot`.
+- **PL-2 / PL-13.** A decided row's empty re-grade only records `dtEmptyAnswers` (in memory, 24 h);
+  undecided rows become DATA_UNAVAILABLE and are retried at most every 24 h, sorted after never-graded
+  rows. Corrupt `trading_day` costs no request.
+- **Routing (PL-14).** `importClaudeFile` checks `isBackup` first, then tuning (navigates only on
+  `ENGINE_REVIEW_CHECKING`), then research/day-trading; `importShared` returns `dest = null` on an
+  unreadable tuning answer; `shareNav` is consumed in `MainActivity` (Watch > Research); other answer kinds
+  unchanged. (Pre-existing, not a regression: a Research/Day Trading answer picked from Advice/Activity
+  still fills its tab without navigating there.)
+- **Capture (PL-15).** `dtLoggedToday` is filled only after the insert transaction succeeded, keyed by
+  symbol and day like the table's UNIQUE; `loggableDayTradingRows` guarantees entry/stop/target > 0, so a
+  marked row was really attempted. `beforeOwnCutoff` uses the Claude-plan cut-off rules.
+- **Backup count check (PL-12).** `SELECT COUNT(*)` matches the exported array; a count error returns 0,
+  which fails the verification (safe side).
+- **UI.** Restore text is held with a size-bounded saver (no Bundle overflow); the restore dialog does not
+  parse the text in composition; no new state flows were added to `ResearchScreen`; the tuning card now
+  greys out only "Make tuning prompt" while grading, with a line saying why.
+- **Detail.toJson** routes every double through r2/r3/r4 (non-finite -> 0), so `JSONObject.put` cannot
+  throw on NaN in the grading write.
+
+## Summary
+
+| id | sev | one line |
+|---|---|---|
+| R2P-1 | M | Undo confirmation text says the opposite of what Undo does after a Revert; undone revert unmarked in history |
+| R2P-2 | M | Cached bars rounded to 6 dp vs raw float32 fresh bars: re-grades from `dt_bars` flip exact-touch verdicts |
+| R2P-3 | L | Any 400/422 on a 1m request inside the 1m window permanently downgrades a settled row to 5m |
+| R2P-4 | L | 64 MB cap is nominal (memory ~5-7x); verification read can crash on OOM; compact export not done |
+| R2P-5 | L | "Older recommendations not counted" sentence omits the no-price case |
+| R2P-6 | L | `loadEngine` full-scans the log (DISTINCT engine) on Main at every cold start / restore |
+| R2P-7 | L | A known-truncated settled series is cached and freezes the truncation for later re-grades |
+| R2P-8 | L | Pressed Check does not stamp the auto clock -> duplicate requests moments later; stale KDoc |
+
+Totals: 0 H, 2 M, 6 L.
+
+## END OF REPORT (complete)
