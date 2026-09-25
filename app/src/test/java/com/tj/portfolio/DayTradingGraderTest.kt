@@ -513,4 +513,38 @@ class DayTradingGraderTest {
             com.tj.portfolio.net.Http.scriptedForTests = null
         }
     }
+
+    @Test fun `R3G-1 one host's 422 beside the other's failure is not yet an answer`() = kotlinx.coroutines.runBlocking {
+        try {
+            com.tj.portfolio.net.Http.scriptedForTests = { url ->
+                if ("query1" in url) com.tj.portfolio.net.HttpResult(422, "{}") else com.tj.portfolio.net.HttpResult(503, "busy")
+            }
+            assertEquals("asked again next time, never graded on 5m for good", null,
+                DayTradingEval.fetchDaySeries("ZZZ", "20260915", interval = "1m"))
+            com.tj.portfolio.net.Http.scriptedForTests = { url ->
+                if ("query2" in url) com.tj.portfolio.net.HttpResult(422, "{}") else com.tj.portfolio.net.HttpResult(500, "err")
+            }
+            assertEquals(null, DayTradingEval.fetchDaySeries("ZZZ", "20260915", interval = "1m"))
+        } finally {
+            com.tj.portfolio.net.Http.scriptedForTests = null
+        }
+    }
+
+    @Test fun `R3G-2 a gap bar with no open that straddles the stop is marked ambiguous`() {
+        // Filled at 10.50 on the 10:31 bar; the 11:00 bar's open is unknown and the previous close
+        // (10.60) is above it - it gapped down into a range that straddles the 10.00 stop. The stop
+        // may have filled below 10.00: read at the stop, but flagged.
+        val bars = listOf(b(31, 10.44, 10.60, 10.44, 10.55)) + flatBars(32, 60, 10.6) +
+            listOf(IntradayBar(m(60), 10.20, 9.90, 9.95, Double.NaN)) + flatBars(61, 380, 9.95)
+        val g = DayTradingGrader.grade(breakout(), bars, settled, 1)
+        assertEquals(DayTradingOutcome.LOSS, g.outcome)
+        assertEquals(10.00, g.exitPrice!!, 1e-9)
+        assertTrue(g.ambiguous)
+        // The same bar WITH a known open above the stop is a plain stop - not ambiguous.
+        val known = listOf(b(31, 10.44, 10.60, 10.44, 10.55)) + flatBars(32, 60, 10.6) +
+            listOf(b(60, 10.15, 10.20, 9.90, 9.95)) + flatBars(61, 380, 9.95)
+        val k = DayTradingGrader.grade(breakout(), known, settled, 1)
+        assertEquals(DayTradingOutcome.LOSS, k.outcome)
+        assertFalse(k.ambiguous)
+    }
 }
