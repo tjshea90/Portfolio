@@ -7446,14 +7446,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * The "success rate" button. Tj: *"On a separate button that I can press, the app will
      * show the success rate... based on... whether the actual stocks that day actually hit
-     * those targets or not."* No automatic call anywhere near this - it runs ONLY when pressed,
-     * the same "asleep unless asked for" rule the rest of the Day Trading feature already
-     * follows for its own live network activity.
+     * those targets or not."* It runs when pressed, and ([auto]) when the Day Trading list opens -
+     * at most every [DT_AUTO_EVAL_MS], paced, and stopped when the tab closes (2026-09-24c): the
+     * "asleep unless asked for" rule, with the tab being open counted as asking.
      *
-     * Re-fetches intraday history only for rows that still need it - never-evaluated, or
-     * [com.tj.portfolio.data.DayTradingOutcome.PENDING]/[com.tj.portfolio.data.DayTradingOutcome.DATA_UNAVAILABLE]
-     * from an earlier press (see [com.tj.portfolio.data.DayTradingOutcome.isFinal]) - so
-     * pressing it again after the log has grown costs requests only for what actually changed,
+     * Re-fetches intraday history only for rows that still need it ([dayTradingRowsNeedingGrade]) -
+     * so checking again after the log has grown costs requests only for what actually changed,
      * not the whole history every time.
      */
     fun evaluateDayTradingLog(auto: Boolean = false) {
@@ -9218,14 +9216,16 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
                 // read the file back off disk and check it against the live database
                 val readBack = saved.uri?.let {
-                    com.tj.portfolio.util.Storage.readText(getApplication(), it, com.tj.portfolio.util.Storage.BACKUP_READ_MAX)
+                    runCatching {
+                        com.tj.portfolio.util.Storage.readText(getApplication(), it, com.tj.portfolio.util.Storage.BACKUP_READ_MAX)
+                    }.getOrNull()
                 }
                 if (readBack.isNullOrBlank()) {
                     return@withContext BackupOutcome(
                         false, "Wrote ${saved.display} but couldn't read it back to verify"
                     )
                 }
-                val got = runCatching { JSONObject(readBack) }.getOrNull()
+                val got = try { JSONObject(readBack) } catch (t: Throwable) { null }
                     ?: return@withContext BackupOutcome(
                         false, "The file written to ${saved.display} isn't readable"
                     )

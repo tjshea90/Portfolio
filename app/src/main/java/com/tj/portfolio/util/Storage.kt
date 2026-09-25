@@ -267,7 +267,9 @@ object Storage {
      */
     fun readText(ctx: Context, uri: Uri, maxBytes: Int = 8_000_000): String? = try {
         ctx.contentResolver.openInputStream(uri)?.use { input ->
-            val buf = java.io.ByteArrayOutputStream()
+            // Sized from what the stream says it holds, so a large backup is not copied through
+            // every doubling of the buffer (audit R2P-4).
+            val buf = java.io.ByteArrayOutputStream(input.available().coerceIn(64 * 1024, maxBytes))
             val chunk = ByteArray(64 * 1024)
             var total = 0L
             while (true) {
@@ -277,9 +279,12 @@ object Storage {
                 if (total > maxBytes) return@use null
                 buf.write(chunk, 0, n)
             }
-            String(buf.toByteArray(), Charsets.UTF_8)
+            buf.toString(Charsets.UTF_8.name())
         }
-    } catch (e: Exception) {
+    } catch (e: Throwable) {
+        // OutOfMemoryError included (R2P-4): a file too large for this phone reads as "couldn't
+        // read it", never a crash.
+        if (e is kotlinx.coroutines.CancellationException) throw e
         null
     }
 
