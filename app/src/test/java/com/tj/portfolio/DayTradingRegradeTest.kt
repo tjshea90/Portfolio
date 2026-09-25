@@ -179,4 +179,76 @@ class DayTradingRegradeTest {
         db.purgeDayBars(MarketClock.dayKey(System.currentTimeMillis() + 86_400_000L))
         assertEquals(null, db.cachedDayBars("BARS", day, 1))
     }
+
+    // ---------------------------------------------------------------- audit round 2
+
+    /** A weekday about five weeks back: past Yahoo's one-minute window, inside the five-minute one. */
+    private val oldDay: String = run {
+        val now = System.currentTimeMillis()
+        (35..42).map { MarketClock.dayKey(now - it * 86_400_000L) }.first { d ->
+            val ld = java.time.LocalDate.parse(d, java.time.format.DateTimeFormatter.BASIC_ISO_DATE)
+            ld.dayOfWeek != java.time.DayOfWeek.SATURDAY && ld.dayOfWeek != java.time.DayOfWeek.SUNDAY
+        }
+    }
+
+    @Test fun `R2G-1 a verdict decided on one-minute bars is never re-decided on five-minute ones`() {
+        val db = Db(app)
+        val open = DayTradingEval.sessionBoundsMs(oldDay)!!.first
+        insert(db, row(0).copy(symbol = "ONE", tradingDay = oldDay, recordedAt = open + 30 * 60_000L + 30_000L))
+        val id = db.dayTradingLog().single().id
+        val partial = DayTradingGrader.Detail(res = 1, fill = 10.5, why = "stop", partial = true).toJson()
+        db.setDayTradingOutcome(id, DayTradingOutcome.LOSS, 10.0, DayTradingGrader.VERSION, partial)
+        // written at the time - i.e. before the settle
+        db.writableDatabase.execSQL("UPDATE day_trading_log SET outcome_evaluated_at=? WHERE id=?", arrayOf<Any>(open + 3_600_000L, id))
+        val seen = java.util.Collections.synchronizedList(ArrayList<String>())
+        com.tj.portfolio.net.Http.scriptedForTests = { url ->
+            if ("/v8/finance/chart/" in url && "period1" in url) { seen.add(url); HttpResult(200, chartBody(winningDay)) }
+            else HttpResult(-1, "offline")
+        }
+        val vm = PortfolioViewModel(app)
+        settle()
+        assertTrue("queued for its settled re-grade", dayTradingRowsNeedingGrade(db.dayTradingLog()).isNotEmpty())
+        vm.evaluateDayTradingLog()
+        waitFor(vm) { (db.dayTradingLog().single().outcomeEvaluatedAt ?: 0L) > open + 3_600_000L }
+        val after = db.dayTradingLog().single()
+        assertEquals("the LOSS stands", DayTradingOutcome.LOSS, after.outcome)
+        assertEquals(partial, after.evalDetail)
+        assertTrue("no five-minute download for it", seen.isEmpty())
+        assertTrue("and it is not asked again", dayTradingRowsNeedingGrade(db.dayTradingLog()).isEmpty())
+    }
+
+    @Test fun `R2G-3 a reply that stops short is not kept as the day's bars`() {
+        val db = Db(app)
+        insert(db, row(0).copy(symbol = "CUT"))
+        val cut = winningDay.filter { it.t < m(250) }   // ends 13:40
+        com.tj.portfolio.net.Http.scriptedForTests = { url ->
+            if ("/v8/finance/chart/" in url && "period1" in url) HttpResult(200, chartBody(cut)) else HttpResult(-1, "offline")
+        }
+        val vm = PortfolioViewModel(app)
+        settle()
+        vm.evaluateDayTradingLog()
+        waitFor(vm) { db.dayTradingLog().single().outcome != null }
+        val r = db.dayTradingLog().single()
+        assertEquals("the target inside the data still decides it", DayTradingOutcome.WIN, r.outcome)
+        assertTrue(DayTradingGrader.Detail.isPartial(r.evalDetail))
+        assertEquals("not frozen on the phone", null, db.cachedDayBars("CUT", day, 1))
+    }
+
+    @Test fun `R2G-7 a decided row whose re-grade came back empty waits, across restarts`() {
+        val db = Db(app)
+        insert(db, row(0).copy(symbol = "GONE"))
+        val id = db.dayTradingLog().single().id
+        db.setDayTradingOutcome(id, DayTradingOutcome.WIN, 11.5, 0, "")
+        com.tj.portfolio.net.Http.scriptedForTests = { url ->
+            if ("/v8/finance/chart/" in url && "period1" in url) HttpResult(404, "gone") else HttpResult(-1, "offline")
+        }
+        val vm = PortfolioViewModel(app)
+        settle()
+        vm.evaluateDayTradingLog()
+        waitFor(vm) { db.dayTradingLog().single().retryAt > 0L }
+        val r = db.dayTradingLog().single()
+        assertEquals(DayTradingOutcome.WIN, r.outcome)
+        assertTrue("stored, so a restarted app waits too", r.retryAt > System.currentTimeMillis() + DT_RETRY_EMPTY_MS / 2)
+        assertTrue(dayTradingRowsNeedingGrade(db.dayTradingLog()).isEmpty())
+    }
 }
