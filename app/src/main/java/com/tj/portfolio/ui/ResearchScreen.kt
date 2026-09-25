@@ -1428,9 +1428,9 @@ internal fun dayTradingCounts(stats: com.tj.portfolio.data.DayTradingStats): Str
                 "has expired), so " + (if (stats.legacyExcluded == 1) "it is" else "they are") + " not counted."
         else "") +
         (if (stats.oldSkipped > 0)
-            " ${plural(stats.oldSkipped, "older recommendation")} recorded before these rules " +
-                (if (stats.oldSkipped == 1) "was" else "were") + " already past the target or under the stop when " +
-                "shown (a plan the card said to skip), so " + (if (stats.oldSkipped == 1) "it is" else "they are") +
+            " ${plural(stats.oldSkipped, "older recommendation")} recorded before these rules can't be graded " +
+                "fairly - the price when shown was already at or past the target, at or under the stop, through " +
+                "the buy price, or not recorded - so " + (if (stats.oldSkipped == 1) "it is" else "they are") +
                 " not counted."
         else "")
 }

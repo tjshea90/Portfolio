@@ -314,7 +314,7 @@ only: never propose a change because it raises R alone. And without fooling ours
         sb.append("## DATA FROM THE APP\n\n")
         sb.append("Generated $today. engineVersion = ${state.version}. gradedTrades (app plans) = $n. " +
             "Trades graded under an older grader whose price history has expired, and so excluded: ${stats.legacyExcluded}. " +
-            "Plans recorded before the current recording rules that the card itself said to skip (already past the target or under the stop), excluded: ${stats.oldSkipped}.\n\n")
+            "Plans recorded before the current recording rules that cannot be graded fairly (the price when shown was already at or past the target, at or under the stop, through the buy price, or not recorded), excluded: ${stats.oldSkipped}.\n\n")
         sb.append("### Every graded plan (newest first")
         if (graded.size > MAX_TRADE_ROWS) sb.append("; the newest $MAX_TRADE_ROWS of ${graded.size} - the tables above cover all of them")
         sb.append(")\n\n")
