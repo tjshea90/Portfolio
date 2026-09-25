@@ -383,10 +383,10 @@ class EngineTuningTest {
     }
 
     @Test fun `R2T-10 a limited step lands on the round value`() {
-        val r = EngineTuning.review(EngineTuning.parse(answer(0, change(DayTradingParams.MIN_RISK, 1.5, 4.0))),
+        val r = EngineTuning.review(EngineTuning.parse(answer(0, change("score.mentionPoints", 12, 0))),
             EngineTuning.State(), log(160)).items.single()
         assertEquals(Status.LIMITED, r.status)
-        assertEquals(2.725, r.applied!!, 1e-12)   // 1.5 + 0.35 x 3.5, not 2.724
+        assertEquals(3.6, r.applied!!, 1e-12)   // 12 - 0.35 x 24, not 3.601
     }
 
     @Test fun `R2T-12 switching a setup back on rests on the cited group`() {
