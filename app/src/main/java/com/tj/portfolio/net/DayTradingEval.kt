@@ -71,6 +71,7 @@ object DayTradingEval {
         val bounds = sessionBoundsMs(tradingDay) ?: return null
         val period1 = bounds.first / 1000L
         val period2 = bounds.second / 1000L
+        var refused = false
         for (host in listOf("query1", "query2")) {
             val url = "https://$host.finance.yahoo.com/v8/finance/chart/" +
                 MarketData.enc(symbol) + "?period1=$period1&period2=$period2&interval=$interval"
@@ -83,10 +84,12 @@ object DayTradingEval {
             // answer needs no second host asking the same question (N-12).
             if (r.code == 404) return emptyList()
             // AND SO IS YAHOO'S REFUSAL OF A WINDOW IT DOES NOT SERVE (audit PL-13): one-minute
-            // bars older than its limit come back 422 ("must be within the last 30 days"), a bad
-            // window 400. Read as "nothing here", the caller falls back to five-minute bars instead
-            // of asking the same question on every check until the row ages out.
-            if (r.code == 400 || r.code == 422) return emptyList()
+            // bars older than its limit come back 422 ("must be within the last 30 days") - read as
+            // "nothing here" once BOTH hosts have said so, and the caller falls back to five-minute
+            // bars. Only a 422: a 400 can be an edge or proxy blip, and reading it as "no one-minute
+            // bars" would grade a row on the coarser bars for good (audit R2P-3) - it is a failure,
+            // asked again next time.
+            if (r.code == 422) { refused = true; continue }
             if (!r.ok) continue
             // `continue`, NOT `return`: a 200 that parses to nothing (a truncated body, a
             // proxy error page) used to end the loop, so query2 never got its turn and the
