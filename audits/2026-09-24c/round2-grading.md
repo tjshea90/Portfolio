@@ -105,3 +105,26 @@ Status: IN PROGRESS (findings appended as verified)
   `flatSec - TRUNCATED_SEC` (or any bar at/after `flatSec`); a reply reaching past the flat time is the whole
   day whatever its gaps. With that in place `TRUNCATED_SEC` could also be tightened for 1m replies.
 
+### R2G-5 (M) - The DA-1 settled re-grade CAN change a final verdict (the code says it cannot), because the bad-print ruler is the median bar of whatever part of the day existed when the check ran - and one direction erases a real mid-session LOSS
+
+- Where: `net/DayTradingGrader.kt:475-486` (`needsSettledRegrade` doc: "its verdict cannot change"), `:360`
+  (`median = medianRange(day)` over every bar present at grading time), `:310-318` / `:214-222` (both spike
+  tests scale with that median); `ui/PortfolioViewModel.kt:7714` (the settled re-grade overwrites outcome,
+  exit price and detail with no check against the stored verdict).
+- Problem: mid-session the median is taken over the morning only (the volatile open, large 1-minute ranges);
+  after the settle it is taken over the whole day (quiet midday bars, a much smaller median). A wick that was
+  "real" at 10:10 can therefore be a "bad print" at 16:20. For a target that only makes the settled grade
+  stricter; but for a buy-limit's fill (DA-7's `isSpikeLow`) it deletes the fill - and with it a LOSS the
+  mid-session grade had already recorded. Yahoo also revises bars after the close, so a changed verdict is
+  possible in any case; nothing notices or records that it happened.
+- Failing scenario: $50 in-play stock, 1m ranges ~0.20 from 09:30 to 10:10, ~0.04 after. Pullback buy-limit
+  50.00 / stop 49.40, recorded 09:50. The 10:05 bar is O 50.35 H 50.40 L 49.30 C 50.30, neighbours' lows above
+  49.99. 10:10 auto-check: median 0.20, wick 1.00 < 6 x 0.20 -> not a spike -> filled at 50.00, stopped at 49.40
+  in the same bar -> LOSS (`partial:true`). 16:20+ re-grade: median ~0.05, wick 1.00 > 0.30 and > 0.75 -> spike
+  -> no fill; price never returns to 49.99 -> the row is rewritten NO_ENTRY and the loss leaves the stats.
+- Suggested fix: make the verdict independent of when the check ran - measure the spike ruler over a fixed,
+  causal window (e.g. the 30 bars before bar i, or the session up to i) so the mid-session and settled grades
+  judge a print identically; and in the settled re-grade keep the stored outcome/fill unless the new grade is
+  strictly more conservative (log any change), since its job (DA-1) is only to fill in grid/hold/run. Fixing
+  R2G-2 removes the loss-erasing direction outright.
+
