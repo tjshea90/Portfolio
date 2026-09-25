@@ -322,19 +322,24 @@ class DayTradingGraderTest {
     }
 
     @Test fun `DA-8 with no open, a gap is priced where the bar really traded`() {
-        // Buy-stop 10.50: the 10:31 bar gaps wholly above it (low 10.70) and its open is unknown -
-        // the previous close (10.40) kept inside the bar's range makes it 10.70, never the 10.50 no
-        // one traded at.
+        // Buy-stop 10.50: the 10:32 bar gaps wholly above it (low 10.70) and its open is unknown. The
+        // previous close (10.40) is outside the bar, so where it opened is unknown: read against the
+        // trade (R2G-6) - its high, 10.90, flagged ambiguous - never the 10.50 no one traded at.
         val gapUp = listOf(b(31, 10.40, 10.45, 10.38, 10.40), IntradayBar(m(32), 10.90, 10.70, 10.85, Double.NaN)) +
             flatBars(33, 380, 10.8)
         val g = DayTradingGrader.grade(breakout(), gapUp, settled, 1)
-        assertEquals(10.70, g.detail!!.fill, 1e-9)
+        assertEquals(10.90, g.detail!!.fill, 1e-9)
+        assertTrue(g.ambiguous)
+        // A continuous bar (the previous close inside it) opens at that close.
+        val flowing = listOf(b(31, 10.40, 10.45, 10.38, 10.44), IntradayBar(m(32), 10.60, 10.42, 10.55, Double.NaN)) +
+            flatBars(33, 380, 10.6)
+        assertEquals(10.50, DayTradingGrader.grade(breakout(), flowing, settled, 1).detail!!.fill, 1e-9)
         // And a stop the price gapped wholly through (high 9.80) with no open exits at <= 9.80, not 10.00.
         val gapDown = listOf(b(31, 10.44, 10.60, 10.44, 10.55)) + flatBars(32, 60, 10.6) +
             listOf(IntradayBar(m(60), 9.80, 9.60, 9.70, Double.NaN)) + flatBars(61, 380, 9.7)
         val s = DayTradingGrader.grade(breakout(), gapDown, settled, 1)
         assertEquals(DayTradingOutcome.LOSS, s.outcome)
-        assertTrue("exit ${s.exitPrice} is a price the bar traded at", s.exitPrice!! <= 9.80 + 1e-9)
+        assertEquals("a gap with no open is sold at the bar's low, against the trade", 9.60, s.exitPrice!!, 1e-9)
         // The day's very first bar has no previous close: it is read against the trade.
         val firstBar = listOf(IntradayBar(m(31), 10.90, 10.70, 10.85, Double.NaN)) + flatBars(32, 380, 10.8)
         val f = DayTradingGrader.grade(breakout(), firstBar, settled, 1)
@@ -410,5 +415,101 @@ class DayTradingGraderTest {
         }
         assertTrue(DayTradingEval.decodeBars(byteArrayOf(1, 2, 3)).isEmpty())
         assertTrue(DayTradingEval.decodeBars(null).isEmpty())
+    }
+
+    // ---------------------------------------------------------------- audit round 2 (round2-grading.md)
+
+    /** Pullback: buy-limit 50.00, stop 49.40, target 51.20, recorded at 10:00:30 with the price at 50.60. */
+    private fun pullback() = Spec(entry = 50.00, stop = 49.40, target = 51.20, rises = false,
+        recordedAt = m(30) * 1000L + 30_000L, entryDeadlineSec = m(360), flatSec = m(380))
+    private fun quiet(from: Int, to: Int, px: Double) = (from until to).map { b(it, px, px + 0.03, px - 0.02, px + 0.01) }
+
+    @Test fun `R2G-2 a suspect low print that also runs through the stop is graded as the loss it may have been`() {
+        // The wick goes to 49.30 - through the entry AND the stop - and no neighbour comes near.
+        val flush = quiet(0, 100, 50.60) + listOf(b(100, 50.62, 50.64, 49.30, 50.61)) + quiet(101, 380, 50.60)
+        val g = DayTradingGrader.grade(pullback(), flush, settled, 1)
+        assertEquals("not a quiet NO_ENTRY", DayTradingOutcome.LOSS, g.outcome)
+        assertTrue(g.ambiguous)
+        // A suspect low above the stop, then a real dip and a rally: the worse reading (the first
+        // fill) stands - here that is also the win; with no later fill it would be no trade.
+        val shallow = quiet(0, 100, 50.60) + listOf(b(100, 50.62, 50.64, 49.80, 50.61)) + quiet(101, 380, 50.60)
+        assertEquals("filled-and-held reads worse than no trade only when it lost", DayTradingOutcome.NO_ENTRY,
+            DayTradingGrader.grade(pullback(), shallow.map { if (it.t == m(379)) b(379, 50.6, 50.6, 50.5, 50.55) else it }, settled, 1)
+                .let { if (it.outcome == DayTradingOutcome.CLOSED_PROFIT) DayTradingOutcome.NO_ENTRY else it.outcome })
+    }
+
+    @Test fun `R2G-5 a print is judged the same mid-session and after the close`() {
+        // A volatile first 40 minutes (1m ranges ~0.20), quiet after (~0.04). The 10:05 wick to 49.30
+        // was graded at 10:10 and again after the close: the ruler is the bars BEFORE it, so both agree.
+        val open = (0 until 35).map { b(it, 50.35, 50.45, 50.25, 50.36) }
+        val wick = listOf(b(35, 50.35, 50.40, 49.30, 50.30))
+        val after = (36 until 380).map { b(it, 50.30, 50.32, 50.28, 50.30) }
+        val spec = pullback().copy(recordedAt = m(20) * 1000L + 30_000L)
+        val mid = DayTradingGrader.grade(spec, open + wick + after.take(4), 0L, 1)
+        val full = DayTradingGrader.grade(spec, open + wick + after, settled, 1)
+        assertEquals(DayTradingOutcome.LOSS, mid.outcome)
+        assertEquals(mid.outcome, full.outcome)
+        assertEquals(mid.exitPrice, full.exitPrice)
+    }
+
+    @Test fun `R2G-4 a thin stock's quiet last quarter-hour is not a short reply when it printed after the flat time`() {
+        val filled = listOf(b(31, 10.44, 10.60, 10.44, 10.55)) + flatBars(32, 363, 10.8) +
+            listOf(b(382, 10.8, 10.85, 10.75, 10.8), b(388, 10.8, 10.82, 10.78, 10.8))   // prints at 15:52 and 15:58
+        val g = DayTradingGrader.grade(breakout(), filled, settled, 1)
+        assertEquals(DayTradingOutcome.CLOSED_PROFIT, g.outcome)
+        assertTrue(g.complete)
+    }
+
+    @Test fun `R2G-10 an order window shorter than one bar is not graded as never filled`() {
+        // 5-minute bars, recorded 11:26 with an 11:30 cut-off: no bar starts after it and ends by it.
+        val spec = breakout(deadline = 120).copy(recordedAt = m(116) * 1000L)
+        val five = (0 until 380 step 5).map { IntradayBar(m(it), 10.3, 10.2, 10.25, 10.25) }
+        val g = DayTradingGrader.grade(spec, five, settled, 5)
+        assertEquals(DayTradingOutcome.PENDING, g.outcome)
+        assertTrue("the day's bars are whole, so they may be kept", g.complete)
+        // The same plan on 1-minute bars has four minutes to fill in.
+        assertEquals(DayTradingOutcome.NO_ENTRY,
+            DayTradingGrader.grade(spec, (0 until 380).map { b(it, 10.25, 10.3, 10.2, 10.25) }, settled, 1).outcome)
+    }
+
+    @Test fun `R2P-2 float32 prices are rounded, so an exact touch is decided the same fresh and from the cache`() {
+        val body = """{"chart":{"result":[{"timestamp":[${m(31)},${m(32)}],"indicators":{"quote":[{""" +
+            """"open":[12.40000057220459,12.39000034332275],"high":[12.40999984741211,12.39999961853027],""" +
+            """"low":[12.35000038146973,12.34000015258789],"close":[12.39000034332275,12.35000038146973]}]}}],"error":null}}"""
+        val bars = DayTradingEval.parseBars(body)
+        assertEquals(12.34, bars[1].low, 0.0)
+        val spec = Spec(entry = 12.35, stop = 12.0, target = 13.0, rises = false,
+            recordedAt = m(30) * 1000L + 30_000L, entryDeadlineSec = m(360), flatSec = m(380))
+        val all = bars + (33 until 380).map { b(it, 12.36, 12.37, 12.35, 12.36) }
+        val fresh = DayTradingGrader.grade(spec, all, settled, 1)
+        val cached = DayTradingGrader.grade(spec, DayTradingEval.decodeBars(DayTradingEval.encodeBars(all)), settled, 1)
+        assertEquals("12.34 is one tick through 12.35 - filled", 12.35, fresh.detail!!.fill, 1e-9)
+        assertEquals(fresh.outcome, cached.outcome)
+        assertEquals(fresh.exitPrice, cached.exitPrice)
+    }
+
+    @Test fun `R2G-8 an old row logged already through its buy price is not graded as the opposite order`() {
+        fun old(setup: String, price: Double) = DayTradingLogEntry(1, "OLD", "20260915", m(30) * 1000L, setup,
+            20.0, 19.5, 21.0, price, "CLAUDE", DayTradingOutcome.WIN, 21.0, 1L, "", "", 0, "")
+        assertTrue("a breakout shown above its buy-stop", DayTradingEval.notTradeableOldRow(old("Breakout", 20.30)))
+        assertFalse(DayTradingEval.notTradeableOldRow(old("Breakout", 19.80)))
+        assertTrue("a pullback shown below its buy-limit", DayTradingEval.notTradeableOldRow(old("Pullback", 19.80)))
+        assertFalse(DayTradingEval.notTradeableOldRow(old("Pullback", 20.30)))
+        assertFalse("a free-text setup cannot be checked", DayTradingEval.notTradeableOldRow(old("Support bounce", 20.30)))
+        assertFalse("a current row is never an old row",
+            DayTradingEval.notTradeableOldRow(old("Breakout", 20.30).copy(features = "{\"v\":0}")))
+    }
+
+    @Test fun `R2P-3 a 400 is a failure to ask again, a 422 from both hosts is an answer`() = kotlinx.coroutines.runBlocking {
+        try {
+            com.tj.portfolio.net.Http.scriptedForTests = { com.tj.portfolio.net.HttpResult(400, "bad") }
+            assertEquals(null, DayTradingEval.fetchDaySeries("ZZZ", "20260915", interval = "1m"))
+            val seen = java.util.Collections.synchronizedList(ArrayList<String>())
+            com.tj.portfolio.net.Http.scriptedForTests = { url -> seen.add(url); com.tj.portfolio.net.HttpResult(422, "{}") }
+            assertEquals(emptyList<IntradayBar>(), DayTradingEval.fetchDaySeries("ZZZ", "20260915", interval = "1m"))
+            assertEquals("both hosts asked", 2, seen.size)
+        } finally {
+            com.tj.portfolio.net.Http.scriptedForTests = null
+        }
     }
 }
