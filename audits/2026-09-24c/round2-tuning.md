@@ -72,3 +72,62 @@ Status: in progress (findings appended as verified)
 - **Failing scenario:** Google's backup of filesDir was taken Monday night (engine v3). Tj applies v4 on Tuesday, and Tuesday's autosave in Downloads carries `dt_engine` v4 plus the v4 history entry. The phone is replaced on Wednesday. First launch adopts v3 and toasts "Restored the tuned day-trading engine (v3)". Tj taps the recovery card's Restore (Merge). The ledger and log come back, but `dt_engine`/`dt_engine_history` are skipped. `restoreAsync -> loadEngine` sees the log's `v4` rows (`logVersion` 4 > 3), so the engine becomes **v5 with v3's values** and the v4 apply is missing from the history. The next tuning prompt omits the v4 change from "Changes already made" and shows `v4` results with no matching history entry, which breaks rule 4. Nothing tells Tj that his latest engine was dropped.
 - **Fix:** record that the engine was adopted from files (e.g. a `dt_engine_adopted` flag, or keep the adopted state unsaved until the recovery card is dismissed). On a Merge restore, take the backup's `dt_engine`/`dt_engine_history` when its history is newer (compare the last history entry's `at`, or its max version) than what is stored. Or have the Merge restore treat the engine keys as a unit and keep the newer of the two by history.
 
+### R2T-10 (L): `towards()` rounds the double's representation error, so some limited steps land 0.001 short (e.g. 2.724, 3.601, 0.076, 3.901)
+
+- **Where:** `net/EngineTuning.kt:580-585` (`BigDecimal.valueOf(from ± maxDelta).setScale(3, FLOOR/CEILING)`).
+- **Problem:** `from + sign * maxDelta` is computed in binary floating point and can come out a hair below (going up) or above (going down) the exact decimal step. FLOOR/CEILING then round it a whole 0.001 further toward `from`. This does not break a rule, since the result is always inside the step. But it produces odd values that Tj sees on the sheet and in the history, and that Claude has to copy as `from` next round.
+- **Scenarios (IEEE doubles, reproduced):** `stop.minRiskAtrs` 1.5 up at LARGE: 1.5 + 0.35×3.5 = 2.7249999999999996, which rounds to **2.724** (not 2.725). `vol.intradayAtrFromDaily` 0.10 down at SMALL: 0.07500000000000001 rounds to **0.076**. `score.mentionPoints` 12 down at LARGE: 3.6000000000000014 rounds to **3.601**. `filter.maxTriggerAtrs` switched on at LARGE (from 6.0): 3.9000000000000004 rounds to **3.901**.
+- **Fix:** compute the step in decimal (`BigDecimal.valueOf(from).add(BigDecimal.valueOf(tier.maxStep).multiply(BigDecimal.valueOf(spec.range)).multiply(sign))`), or first round `v` HALF_EVEN to ~9 decimals and then apply FLOOR/CEILING at 3.
+
+### R2T-11 (L): with the new mutex, a double confirm of "Undo" now undoes TWO changes
+
+- **Where:** `ui/PortfolioViewModel.kt:8581-8590` (`undoEngineChange`: `engineMutex.withLock { undo(_engine.value, ...) }`, with no "which version did Tj confirm" check); the confirm handlers in `ui/EngineTuningUi.kt:207-222` and `ui/SettingsScreen.kt:426-430` / `ResearchScreen.kt:258-261`.
+- **Problem:** before PL-10 two overlapping undos built on the same base and collided. Now the mutex runs them one after the other, and the second one takes back the *next* apply in force, a change Tj never confirmed. `applyEngineReview` is protected by `_engineApplying` and the same-decisions re-check. Undo has no such guard. (A second Revert is harmless because it returns "already the original".)
+- **Failing scenario:** v3 = apply A (sets `stop.minRiskAtrs`), v4 = apply B (sets `target.capR`). A bounced double tap on the dialog's "Undo" delivers two clicks before the dialog leaves composition. B is undone (v5), then A is undone (v6), leaving the original engine after one confirmation.
+- **Fix:** pass the version shown when the dialog opened (`undoEngineChange(expect = engine.version)`) and do nothing, with a toast, when `_engine.value.version != expect` inside the lock. Do the same for revert, for symmetry.
+
+### R2T-12 (L): after DA-3, a setup or level switched OFF can only be switched back ON through tuning while its old trades still count, and a grader bump can remove them for good
+
+- **Where:** `net/EngineTuning.kt:252-263` (`groupFor`: `setup.<s>.*` -> `setup:<s>`, `level.<l>.enabled` -> `level:<l>`), `:208-211` (`Evidence.decided` requires `evalVersion >= DayTradingGrader.VERSION`); `DayTradingEval.intradayStillAvailable` / `DT_BARS_KEEP_DAYS` (re-grading is limited to about 55-60 days).
+- **Problem:** a switched-off setup or level produces no new trades, so its own group can only ever shrink. While the grader version stays the same, the 30+ trades that justified switching it off are still counted, so it can be switched back on. After a grader bump, rows older than the bar window cannot be re-graded and drop out of `Evidence`. The group then falls under 20 or 30 permanently, and `setup.<s>.enabled 0 -> 1` is refused forever ("Only 0 graded trades in setup:reclaim"). Undo only reaches the most recent change, and Revert throws away every other change. Before DA-3, citing `all` worked.
+- **Failing scenario:** VWAP reclaim was switched off in March on 35 reclaim trades. The grader moves to v4 in June, and March's rows cannot be re-graded (bars gone). In July Claude recommends turning reclaim back on (basis `all`, 400 trades). It is refused: the group count is 0.
+- **Fix:** for a switch back toward the ORIGINAL value (`c.to == spec.default`), don't apply the own-group minimum (use `all`), since it is the less risky direction. Or count rows of the group regardless of grader version for this one purpose. State the rule in the prompt.
+
+### R2T-13 (L): `loadEngine` scans the whole day-trading log on the main thread at every cold start and every restore
+
+- **Where:** `ui/PortfolioViewModel.kt:8395` (`db.dayTradingLogMaxEngineVersion()` inside `loadEngine`, called from `init` at `:3021` and from `restoreAsync` on Main at `:9561`); `data/Db.kt:1771-1778` (`SELECT DISTINCT engine FROM day_trading_log`: there is no index on `engine`, so this is a full table scan over rows that carry the `features` and `eval_detail` TEXT columns).
+- **Problem:** the scan grows linearly with the log's age (PL-12 estimated ~2.5 KB per row) and blocks the first frame. At a few thousand rows that is tens of MB of page reads before the UI draws.
+- **Fix:** move the version read and `load` into the IO coroutine `loadEngine` already launches (installing the settings engine first, then bumping), or add `CREATE INDEX ... ON day_trading_log(engine)` so DISTINCT reads only the index.
+
+### R2T-14 (L): DA-14 item 1 is fixed in the prompt and the spec doc but not in the card's reason line
+
+- **Where:** `net/ResearchScore.kt:456` (`why.add("Within 15% of its 52-week high - breaking out")`), under `rangePos > 0.85`.
+- **Problem:** Tj still reads the old, wrong sentence on every row that earns the points. For a 50-100 52-week range the code needs price > 92.50; the card implies >= 85.
+- **Fix:** "In the top 15% of its 52-week range - near its high".
+
+### R2T-15 (L): with `filter.requireBullishOpeningBar` on, a stock with no 09:30 bar says "waiting for the first 5-minute bar to close" all day
+
+- **Where:** `net/ResearchScore.kt:1000-1001` (new wait: `p.requireBullishOpeningBar && tech.or5High <= 0.0`); `net/DayTradingTechnicals.kt:317, 638-643` (`or5` = the bar stamped 09:30-09:34, null if Yahoo has none).
+- **Problem:** `or5High` is 0 not only before 09:35 but also all day when the opening bar is missing. That happens for a stock halted at the open (LULD or news pending, which is common for the gappers this tab screens) or a thin feed. The wait never ends, and the card shows a live-looking plan with a false "waiting" reason until the close. This is conservative (nothing is logged), hence L.
+- **Fix:** wait only while the bar has not been completed (`!openingBarComplete`). Once a 09:35+ bar exists and `or5` is still null, decline with "no opening bar printed - the tuned engine cannot judge its direction", or treat it as not bullish.
+
+### R2T-16 (L): a row is logged with the engine read at CAPTURE time, not the one that planned it
+
+- **Where:** `ui/PortfolioViewModel.kt:1130` (merge reads `DayTradingEngine.current` per row), `:7404-7408` and `:7436-7443` (capture reads it again for `engine`, `cutoffParams` and the features); `row.planEngine` (the plan-time label) is ignored by capture.
+- **Problem:** an Apply, Undo or Revert that lands during a sweep tick, between a row's merge and `captureDayTradingRecommendations`, logs a plan made by the old engine under the new label, with the new engine's deadline and flat times. The day's first row per symbol is permanent (`INSERT OR IGNORE`, `dtLoggedToday`), so the mislabel sticks and feeds `engine:vN` evidence and the per-version table.
+- **Fix:** in capture, skip a row whose `planEngine` (normalised: "" = `v0`) differs from the snapshot's label. The next tick logs the re-planned row. Or pass one snapshot through the whole tick.
+
+### R2T-17 (L): PL-9 is closed only for "log ahead of the store"; the same number can still name two engines
+
+- **Where:** `net/EngineTuning.kt:147-148` (bump only when `logVersion > v`).
+- **Problem:** a Merge restore of another phone's backup (or of a backup from a diverged lineage) adds rows labelled `v3` made by a different `v3` than this device's. With `logVersion == v` nothing is bumped, and `engine:v3`, the per-version table and the card's "Tuned engine v3" slice add up two parameter sets. This is inherent to counter labels.
+- **Fix:** record a short params hash in `features` (e.g. `"eh": params.hashCode()`) and group or count by label + hash, or label as `v3-<hash4>`.
+
+### R2T-18 (L): prompt nits that a fresh chat can trip on
+
+- **Where:** `net/EngineTuningPrompt.kt:166-181` (rules), `:196-203` (history), `SHAPE`.
+  - "Graded trades" (the unit of every sample-size rule and of `evidenceTrades`) is never tied to a table column. The app counts only filled-and-decided trades, which is the tables' **filled** column, but the CSV is headed "Every graded plan" and includes NO_ENTRY rows. A Claude that cites "plans" overstates every group. Say "graded trades = the *filled* column".
+  - INT parameters (`filter.minScore`, `time.*Minutes`) must be whole numbers (`17.5` is refused), but the rules only say "Values are kept to 3 decimals".
+  - Undo and revert entries print their description after "Verdict then:" ("Verdict then: Undid the change applied ..."), which reads as if Claude had said it.
+  - After a restore bumps the version (R2T-9/PL-9), the engine can be "v5" with no history entry for v3-v5, while the per-version table has rows for them. One line saying "v3-v4 were made on this device before a restore; their changes are not recorded here" would stop Claude from inventing them.
+
