@@ -93,7 +93,7 @@ object EngineTuningPrompt {
         val groups = LinkedHashMap<String, Agg>()
         for (r in rows) { val k = key(r) ?: continue; groups.getOrPut(k) { Agg(k) }.add(r) }
         if (groups.isEmpty()) return ""
-        return "### $title\n\n$AGG_HEAD\n" + groups.values.sortedByDescending { it.planned }.joinToString("\n") { it.line() } + "\n"
+        return "### $title\n\n$AGG_HEAD\n" + groups.values.sortedByDescending { it.planned }.joinToString("\n") { it.line() } + "\n\n"
     }
 
     private fun bucket(v: Double?, edges: List<Double>, unit: String = ""): String? {
@@ -164,7 +164,8 @@ only: never propose a change because it raises R alone. And without fooling ours
 
         // ---------------------------------------------------------------- the rules
         sb.append("## Rules the app enforces on your answer (it will refuse or limit anything else)\n\n")
-        sb.append("- There are **$n graded trades from the app's own plans** (Claude-made plans are listed separately and do not count - they do not measure the engine).\n")
+        sb.append("- There are **$n graded trades from the app's own plans** (Claude-made plans are listed separately and do not count - they do not measure the engine). " +
+            "A graded trade is a plan that FILLED and finished - the tables' *filled* column, not *plans*; cite those counts in `evidenceTrades`.\n")
         sb.append("- Sample-size tiers, by graded trades of the app's own plans:\n")
         for (t in EngineTuning.Tier.values()) sb.append("  - ${t.minTrades}+: ${t.label}${if (t == tier) "  <- **this answer**" else ""}\n")
         next?.let { sb.append("- The next tier starts at ${it.minTrades} graded trades (${it.minTrades - n} to go).\n") }
@@ -172,7 +173,7 @@ only: never propose a change because it raises R alone. And without fooling ours
         sb.append("- Switching an optional filter or a per-setup override ON (from 0) is a step like any other: it is limited to the tier's step, measured from where it changes least - the lenient end of its range (e.g. `filter.minScore` from 1, `target.capR` from 10), or for a per-setup override the global value it replaces.\n")
         sb.append("- `time.lastEntryMinutes` must stay at least ${EngineTuning.MIN_ENTRY_TO_FLAT_MINUTES} more than `time.flatBeforeCloseMinutes`, and a setup's stop floor never above its ceiling - a change that breaks either is refused.\n")
         if (state.lastApplyAt > 0) sb.append("- The last change was applied ${Instant.ofEpochMilli(state.lastApplyAt).atZone(ET).toLocalDate()}; ${ev.sinceLastChange} graded trades since. Another change needs at least ${EngineTuning.MIN_TRADES_BETWEEN_CHANGES} since the last one, so each change can be measured on its own.\n")
-        sb.append("- A step larger than the tier allows is cut down to the allowed step (same direction). Values outside a parameter's hard range are refused. Values are kept to 3 decimals. **Required:** `basedOn.engineVersion` = ${state.version}, and every change's `from` = the current value in the table (a change without `from`, or an answer without `basedOn`, is refused). Give numbers as numbers - `true`/`on`/`off` are read only for 0/1 switches.\n")
+        sb.append("- A step larger than the tier allows is cut down to the allowed step (same direction). Values outside a parameter's hard range are refused. Values are kept to 3 decimals; whole-number parameters (minutes, `filter.minScore`) take whole numbers only. **Required:** `basedOn.engineVersion` = ${state.version}, and every change's `from` = the current value in the table (a change without `from`, or an answer without `basedOn`, is refused). Give numbers as numbers - `true`/`on`/`off` are read only for 0/1 switches.\n")
         sb.append("- Position sizing (1% of the portfolio risked per trade, at most 25% of it in one position, no margin) is fixed - it is not a parameter and must not be the lever.\n")
         sb.append("- Tj confirms every change before it applies, and can undo the last change or revert to the original engine at any time.\n\n")
 
@@ -197,16 +198,27 @@ only: never propose a change because it raises R alone. And without fooling ours
                 val day = Instant.ofEpochMilli(h.at).atZone(ET).toLocalDate()
                 sb.append("- **v${h.version}**, $day, ${h.kind}${if (h.undoneAt > 0) " (later undone)" else ""}, on ${h.gradedTrades} graded trades: ")
                 sb.append(h.changes.joinToString("; ") { "${it.key} ${EngineTuning.describe(it.key, it.from)} -> ${EngineTuning.describe(it.key, it.to)}" }.ifBlank { "no parameter change" })
-                if (h.summary.isNotBlank()) sb.append(". Verdict then: ").append(h.summary.replace('\n', ' '))
+                if (h.summary.isNotBlank()) sb.append(if (h.kind == EngineTuning.KIND_APPLY) ". Verdict then: " else ". Note: ")
+                    .append(h.summary.replace('\n', ' '))
                 sb.append("\n")
                 h.rationale.forEach { sb.append("  - why: ").append(it.replace('\n', ' ')).append("\n") }
             }
+            val recorded = state.history.maxOfOrNull { it.version } ?: 0
+            if (state.version > recorded) sb.append("- v${recorded + 1}${if (state.version > recorded + 1) "-v${state.version}" else ""}: " +
+                "no change recorded on this copy of the app (the number moved past plans restored from another backup) - " +
+                "the parameter table shows what is in force now; do not guess at them.\n")
             sb.append("\n")
         }
+        // One version number can name two engines after a restore of another copy's backup (R2T-17):
+        // those are split by the values that made them.
+        val hashes = app.groupBy { it.e.engine.ifBlank { "v0" } }
+            .mapValues { (_, rs) -> rs.mapNotNull { it.f.optString("eh", "").ifBlank { null } }.toSet() }
         sb.append(table("Results by engine version (the app's own plans) - did each change help?", app) { r ->
-            r.e.engine.ifBlank { "v0 (logged before versions were recorded)" }
+            val label = r.e.engine.ifBlank { "v0" }
+            if ((hashes[label]?.size ?: 0) > 1) "$label #${r.f.optString("eh", "?")}" else label
         })
-        sb.append("\n")
+        sb.append("(v0 is the original engine, including plans recorded before versions were. A label with #xxxx means " +
+            "that version number was used by two different sets of values.)\n\n")
 
         // ---------------------------------------------------------------- results
         sb.append("## Results\n\n")
@@ -216,6 +228,9 @@ only: never propose a change because it raises R alone. And without fooling ours
             "profit factor ${if (stats.profitFactor.isInfinite()) "inf" else f2(stats.profitFactor)}, max drawdown ${f2(stats.maxDrawdownR)}R, " +
             "${stats.noEntry} plans never filled before their cut-off. Portfolio (fundable trades only): ${f2(stats.accountReturnPct)}%. " +
             "Sample: ${stats.sampleNote}.\n\n")
+        sb.append("The tables' *total account %* adds up every trade as if each had been taken; the *Portfolio* figure above " +
+            "counts only the trades the account could have paid for at the time (at most 100% of it invested at once, " +
+            "taken in fill order) - so it can be lower when many plans filled together.\n\n")
         sb.append(table("Who made the plan", graded) { if (it.app) "The app's engine" else "Claude's plans" })
         sb.append(table("By setup (app plans)", app) { it.e.setup.ifBlank { "?" } })
         sb.append(table("By the level the entry was built on (app plans)", app) { it.f.optString("lvl", "").ifBlank { null } })
@@ -227,7 +242,14 @@ only: never propose a change because it raises R alone. And without fooling ours
         sb.append(table("By price vs VWAP, in intraday ATRs (app plans)", app) { bucket(it.num("vwapAtr"), listOf(0.0, 1.0, 2.5)) })
         sb.append(table("By blended score (app plans)", app) { bucket(it.num("score"), listOf(20.0, 40.0, 60.0)) })
         sb.append(table("By paced relative volume (app plans)", app) { bucket(it.num("rvol"), listOf(1.5, 2.0, 3.0, 5.0), "x") })
-        sb.append(table("By opening bar direction (app plans)", app) { if (it.f.has("obb")) (if (it.f.optBoolean("obb")) "first 5-min bar closed up" else "first 5-min bar did not close up") else null })
+        sb.append(table("By opening bar direction (app plans)", app) {
+            when {
+                it.f.has("obb") -> if (it.f.optBoolean("obb")) "first 5-min bar closed up" else "first 5-min bar did not close up"
+                // Shown before that bar had closed (R2T-3) - its direction was not known yet.
+                (it.num("mso") ?: -1.0) in 0.0..5.0 -> "shown before the first 5-min bar closed"
+                else -> null
+            }
+        })
         val sortedApp = app.filter { it.decided }.sortedBy { it.e.recordedAt }
         if (sortedApp.size >= 10) {
             val half = sortedApp.size / 2
