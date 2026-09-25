@@ -115,11 +115,16 @@ object EngineTuning {
         val undoable: HistoryEntry? get() =
             history.lastOrNull()?.takeIf { it.kind == KIND_REVERT && it.undoneAt == 0L } ?: applyInForce
         /**
-         * When the change now IN FORCE was applied (0 = none: never tuned, or every change taken back)
-         * - the start of the "since then" count. An undone or reverted change is not being measured
-         * any more, so it no longer holds the next one back (UI-10).
+         * When the engine now IN FORCE came into force (0 = the original engine: never tuned, or every
+         * change taken back) - the start of the "since then" count. An undone or reverted change is
+         * not being measured any more, so it no longer holds the next one back (UI-10); and after an
+         * undo - of a change or of a revert - the count starts at that undo, not at the old apply, so
+         * trades another engine made meanwhile are not counted for this one (audit R2T-2).
          */
-        val lastApplyAt: Long get() = applyInForce?.at ?: 0L
+        val lastApplyAt: Long get() = when {
+            params.isDefault -> 0L
+            else -> history.lastOrNull()?.takeIf { it.paramsAfter == params }?.at ?: applyInForce?.at ?: 0L
+        }
 
         fun engineJson(): String = JSONObject().put("version", version).put("params", params.toJson()).toString()
         fun historyJson(): String = JSONArray().apply { history.forEach { put(it.toJson()) } }.toString()
@@ -230,7 +235,11 @@ object EngineTuning {
                     ?.let { key -> DayTradingParams.LEVEL_LABELS.getValue(key).let { labels -> levels.count { it in labels } } }
                     ?: levels.count { it.equals(value, true) }
                 "time" -> decided.count { timeBucket(it.recordedAt).equals(value, true) }
-                "engine" -> decided.count { it.engine.equals(value, true) }
+                // "v0" is the original engine, which is also what rows logged before versions were
+                // recorded ran (their label is blank) - the prompt's table lists both as v0 (R2T-19).
+                "engine" -> value.substringBefore(' ').let { v ->
+                    decided.count { it.engine.equals(v, true) || (v.equals("v0", true) && it.engine.isBlank()) }
+                }
                 else -> null
             }
         }
@@ -304,11 +313,14 @@ object EngineTuning {
     data class ProposedChange(
         val key: String,
         val from: Double?,
+        /** NaN when Claude gave none, or not a number ([toMissing] says which). */
         val to: Double,
         val basis: String,
         val evidenceTrades: Int,
         val expectedEffect: String,
-        val rationale: String
+        val rationale: String,
+        /** The change had no `to` at all (audit R2T-23) - shown refused, never silently dropped. */
+        val toMissing: Boolean = false
     )
 
     data class Proposal(
@@ -333,14 +345,18 @@ object EngineTuning {
      * on/off setting (audit DA-18: `"to": true` on a target cap used to become a 1R cap nobody
      * wrote). Anything else present but unreadable is NaN, which the review refuses by name.
      */
-    private fun num(o: JSONObject, key: String, onOff: Boolean = false): Double? {
+    private fun num(o: JSONObject, key: String, onOff: Boolean = false, offOk: Boolean = false): Double? {
         if (!o.has(key) || o.isNull(key)) return null
         val v = o.opt(key)
         return when (v) {
             is Number -> v.toDouble()
-            is Boolean -> if (onOff) (if (v) 1.0 else 0.0) else Double.NaN
-            is String -> v.trim().let { t -> t.toDoubleOrNull() ?: if (!onOff) Double.NaN else when (t.lowercase()) {
-                "true", "on", "yes" -> 1.0; "false", "off", "no" -> 0.0; else -> Double.NaN } }
+            is Boolean -> if (onOff) (if (v) 1.0 else 0.0) else if (offOk && !v) 0.0 else Double.NaN
+            is String -> v.trim().let { t -> t.toDoubleOrNull() ?: when (t.lowercase()) {
+                "true", "on", "yes" -> if (onOff) 1.0 else Double.NaN
+                // "off" IS 0 for a setting that 0 switches off (audit R2T-5) - the prompt's own table
+                // prints it that way, so a `from` copied from it must read.
+                "false", "off", "no", "0 (off)" -> if (onOff || offOk) 0.0 else Double.NaN
+                else -> Double.NaN } }
             else -> Double.NaN
         }?.let { if (it.isFinite()) it else Double.NaN }
     }
@@ -360,11 +376,15 @@ object EngineTuning {
         for (i in 0 until arr.length()) {
             val c = arr.optJSONObject(i) ?: continue
             val key = c.text("param").ifBlank { c.text("key") }.trim()
-            val onOff = DayTradingParams.SPEC_BY_KEY[key]?.kind == DayTradingParams.Kind.BOOL
-            val to = num(c, "to", onOff) ?: continue
-            if (key.isBlank()) continue
+            val spec = DayTradingParams.SPEC_BY_KEY[key]
+            val onOff = spec?.kind == DayTradingParams.Kind.BOOL
+            val offOk = spec?.offAllowed == true
+            // A CHANGE WITH NO NEW VALUE OR NO PARAMETER IS KEPT, AND REFUSED BY NAME (audit R2T-23):
+            // dropped, the sheet said "Claude recommends no changes" beside an analysis proposing one.
+            val to = num(c, "to", onOff, offOk)
+            if (key.isBlank() && to == null) continue
             changes.add(ProposedChange(
-                key = key, from = num(c, "from", onOff), to = to,
+                key = key, from = num(c, "from", onOff, offOk), to = to ?: Double.NaN, toMissing = to == null,
                 basis = c.text("basis").ifBlank { "all" },
                 evidenceTrades = c.optInt("evidenceTrades", 0),
                 expectedEffect = ClaudeBridge.scrub(c.text("expectedEffect")),
@@ -399,7 +419,9 @@ object EngineTuning {
         val current: Double?,
         val reason: String,
         /** The cited group's graded trades BY THE APP'S OWN COUNT (UI-4); null when it could not be counted. */
-        val groupCount: Int? = null
+        val groupCount: Int? = null,
+        /** The group [groupCount] is of - the cited one, or the smaller group the parameter acts on (R2T-4). */
+        val groupName: String = ""
     )
 
     data class Review(
@@ -416,17 +438,18 @@ object EngineTuning {
         val canApply: Boolean get() = blocker.isBlank() && applicable.isNotEmpty()
     }
 
-    private fun fmt(v: Double, spec: DayTradingParams.Spec?): String = when (spec?.kind) {
-        DayTradingParams.Kind.BOOL -> if (v >= 0.5) "on" else "off"
-        DayTradingParams.Kind.INT -> v.toInt().toString()
-        else -> if (spec?.offAllowed == true && v == 0.0) "off" else
-            java.math.BigDecimal(v).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+    private fun fmt(v: Double, spec: DayTradingParams.Spec?): String = when {
+        !v.isFinite() -> "?"
+        spec?.kind == DayTradingParams.Kind.BOOL -> if (v >= 0.5) "on" else "off"
+        spec?.offAllowed == true && v == 0.0 -> "off"
+        spec?.kind == DayTradingParams.Kind.INT -> v.toInt().toString()
+        else -> java.math.BigDecimal.valueOf(v).setScale(3, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
     }
 
     fun describe(key: String, v: Double): String = fmt(v, DayTradingParams.SPEC_BY_KEY[key])
 
-    private fun raw(v: Double): String =
-        java.math.BigDecimal(v).setScale(4, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+    private fun raw(v: Double): String = if (!v.isFinite()) "?" else
+        java.math.BigDecimal.valueOf(v).setScale(4, java.math.RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
 
     /**
      * Every proposed change checked against the CURRENT engine and the log as it stands now:
@@ -477,13 +500,18 @@ object EngineTuning {
             // THE EVIDENCE THE CHANGE RESTS ON (DA-3): the cited group, but never more than the group
             // the parameter itself acts on.
             val cited = ev.count(c.basis)
-            val own = groupFor(c.key)
+            // BACK TO THE ORIGINAL VALUE rests on the cited group alone (audit R2T-12): it is the less
+            // risky direction, and a setup or level switched off makes no new trades of its own - its
+            // group only shrinks, and after a grader change it could never be switched back on.
+            val backToOriginal = spec != null && c.to.isFinite() && kotlin.math.abs(c.to - spec.default) < 1e-9
+            val own = if (backToOriginal) null else groupFor(c.key)
             val ownN = own?.let { ev.count(it) }
             val counted = if (cited != null && ownN != null) minOf(cited, ownN) else cited
             val groupName = if (cited != null && ownN != null && ownN < cited) own!! else c.basis
-            fun refuse(why: String) = Reviewed(c, Status.REFUSED, null, current, why, counted)
+            fun refuse(why: String) = Reviewed(c, Status.REFUSED, null, current, why, counted, groupName)
             val r: Reviewed = when {
-                spec == null -> refuse("Not a parameter this app has - nothing to change.")
+                spec == null -> refuse(if (c.key.isBlank()) "Claude named no parameter for this change."
+                    else "Not a parameter this app has - nothing to change.")
                 !seen.add(c.key) -> refuse("Listed twice - only the first is used.")
                 blocker.isNotBlank() -> refuse("Not applied - see the reason above.")
                 c.from != null && c.from.isNaN() ->
@@ -493,10 +521,11 @@ object EngineTuning {
                         "prompt it saw is the engine as it is now.")
                 current != null && kotlin.math.abs(c.from - current) > FROM_TOLERANCE ->
                     refuse("Claude read it as ${fmt(c.from, spec)}, but it is ${fmt(current, spec)} now - the prompt is out of date.")
+                c.toMissing -> refuse("Claude gave no new value (\"to\") for it - make a new prompt and ask again.")
                 c.to.isNaN() -> refuse(if (spec.kind == DayTradingParams.Kind.BOOL) "Not a value this on/off setting can take."
-                    else "Not a number - this setting needs a number (true/on/off are for on/off settings only).")
+                    else "Not a number - this setting needs a number (true/on are for on/off settings only).")
                 current != null && kotlin.math.abs(c.to - current) < 1e-9 ->
-                    Reviewed(c, Status.UNCHANGED, current, current, "Already ${fmt(current, spec)} - nothing to change.", counted)
+                    Reviewed(c, Status.UNCHANGED, current, current, "Already ${fmt(current, spec)} - nothing to change.", counted, groupName)
                 // THE WRONG KIND OF VALUE, said as such (UI-15) - rounding 0.7 to "on" first would
                 // print "on is outside what this parameter allows (off to on)".
                 spec.kind == DayTradingParams.Kind.BOOL && c.to != 0.0 && c.to != 1.0 ->
@@ -507,6 +536,10 @@ object EngineTuning {
                     "(${fmt(spec.min, spec)} to ${fmt(spec.max, spec)}${if (spec.offAllowed) ", or off" else ""}).")
                 else -> {
                     val turningOn = spec.offAllowed && current == 0.0 && c.to != 0.0
+                    // SWITCHING A PER-SETUP OVERRIDE OFF moves that setup to the GLOBAL value, which
+                    // earlier rounds may have moved far (audit R2T-8): the same step limit applies.
+                    val offDistance = if (spec.offAllowed && current != null && current != 0.0 && c.to == 0.0 &&
+                        c.key.startsWith("setup.")) kotlin.math.abs(current - onBase(c.key, spec, params)) else 0.0
                     val isSwitch = spec.kind == DayTradingParams.Kind.BOOL ||
                         (spec.offAllowed && (current == 0.0 || c.to == 0.0))
                     val groupN = counted
@@ -525,6 +558,10 @@ object EngineTuning {
                         isSwitch && groupN < MIN_GROUP_FOR_SWITCH ->
                             refuse("A switch needs at least $MIN_GROUP_FOR_SWITCH graded trades in its group " +
                                 "(\"$groupName\" has $groupN).")
+                        offDistance > tier.maxStep * spec.range + 1e-9 ->
+                            refuse("Switching it off moves this setup from ${fmt(current!!, spec)} to the global " +
+                                "${fmt(onBase(c.key, spec, params), spec)} - more than one step at this sample size. " +
+                                "Move it toward that value instead; the next review can switch it off.")
                         else -> {
                             // The step, limited to what the tier allows - in the direction Claude chose.
                             // A filter or override SWITCHED ON is a step too (audit DA-4), measured from
@@ -542,20 +579,20 @@ object EngineTuning {
                                 }
                             }
                             val candidate = runCatching { params.with(mapOf(c.key to to)) }.getOrNull()
-                            val inconsistent = candidate?.let { inconsistency(it) }
                             when {
                                 candidate == null || (limited && !turningOn && kotlin.math.abs(to - from) < 1e-9) ->
                                     refuse("The step this sample allows is too small to move it.")
-                                inconsistent != null -> refuse("$inconsistent - refused to keep the engine consistent.")
                                 else -> {
+                                    // Consistency is judged on the whole answer below, not change by
+                                    // change in the order Claude listed them (audit R2T-6).
                                     params = candidate
                                     used++
                                     if (limited) Reviewed(c, Status.LIMITED, to, current,
                                         "Will apply, limited to ${fmt(to, spec)} - with $n graded trades one import may move it at most " +
                                             "${(tier.maxStep * 100).toInt()}% of its range" +
                                             (if (turningOn) ", counted from where switching it on changes least (${fmt(from, spec)})" else "") +
-                                            ". The direction stands; the next review can go further.", counted)
-                                    else Reviewed(c, Status.ACCEPTED, to, current, "", counted)
+                                            ". The direction stands; the next review can go further.", counted, groupName)
+                                    else Reviewed(c, Status.ACCEPTED, to, current, "", counted, groupName)
                                 }
                             }
                         }
@@ -563,6 +600,23 @@ object EngineTuning {
                 }
             }
             items.add(r)
+        }
+        // THE WHOLE ANSWER MUST LEAVE A CONSISTENT ENGINE (audits DA-15, R2T-6, R2T-20). A pair that is
+        // consistent together (a floor and its ceiling both raised) is accepted in either order; when
+        // the result conflicts, the LAST listed change that takes part is refused, until it does not.
+        // A conflict the engine already had before this answer is not blamed on it.
+        val before = conflicts(state.params).map { it.first }.toSet()
+        while (true) {
+            val clash = conflicts(params).firstOrNull { it.first !in before } ?: break
+            val idx = items.indexOfLast {
+                (it.status == Status.ACCEPTED || it.status == Status.LIMITED) && it.change.key in clash.second
+            }
+            if (idx < 0) break
+            val drop = items[idx]
+            items[idx] = Reviewed(drop.change, Status.REFUSED, null, drop.current,
+                "${clash.first} - refused to keep the engine consistent.", drop.groupCount, drop.groupName)
+            params = items.filter { it.status == Status.ACCEPTED || it.status == Status.LIMITED }
+                .fold(state.params) { p, it -> p.with(mapOf(it.change.key to it.applied!!)) }
         }
         return Review(proposal, items, tier, n, ev.sinceLastChange, blocker, params)
     }
@@ -577,11 +631,16 @@ object EngineTuning {
     }
 
     /** A limited step, rounded TOWARD [from] - so rounding never takes it past the step it was limited to. */
-    private fun towards(v: Double, from: Double, spec: DayTradingParams.Spec): Double = when (spec.kind) {
-        DayTradingParams.Kind.INT -> if (v > from) kotlin.math.floor(v) else kotlin.math.ceil(v)
-        DayTradingParams.Kind.NUMBER -> java.math.BigDecimal.valueOf(v).setScale(3,
-            if (v > from) java.math.RoundingMode.FLOOR else java.math.RoundingMode.CEILING).toDouble()
-        else -> v
+    private fun towards(v: Double, from: Double, spec: DayTradingParams.Spec): Double {
+        // The binary error of `from + step` first (audit R2T-10: 1.5 + 0.35 x 3.5 is 2.7249999999999996,
+        // which floored to 2.724), then toward `from`.
+        val clean = java.math.BigDecimal.valueOf(v).setScale(9, java.math.RoundingMode.HALF_EVEN)
+        return when (spec.kind) {
+            DayTradingParams.Kind.INT -> clean.setScale(0, if (v > from) java.math.RoundingMode.FLOOR else java.math.RoundingMode.CEILING).toDouble()
+            DayTradingParams.Kind.NUMBER -> clean.setScale(3,
+                if (v > from) java.math.RoundingMode.FLOOR else java.math.RoundingMode.CEILING).toDouble()
+            else -> v
+        }
     }
 
     /** The filters where a LOWER value is the stricter one - switched on from the top of their range. */
@@ -609,24 +668,51 @@ object EngineTuning {
         return if (key in LOWER_IS_STRICTER) spec.max else spec.min
     }
 
+    /** Why [p] would be self-contradictory, or null - the first of [conflicts]. */
+    internal fun inconsistency(p: DayTradingParams): String? = conflicts(p).firstOrNull()?.first
+
     /**
-     * Why [p] would be self-contradictory, or null: a stop floor above its ceiling (globally or for a
-     * setup), or a last-entry time that leaves no room before the flat time (audit DA-15 - plans
-     * startable after the card's own "be flat by" time).
+     * Everything that would make [p] self-contradictory, each with the parameters taking part: a stop
+     * floor above its ceiling (globally or for a setup); a last-entry time that leaves no room before
+     * the flat time (DA-15 - plans startable after the card's own "be flat by"); every setup switched
+     * off, or time rules that leave no window to start a trade in (R2T-20 - an engine that makes no
+     * plans also makes no evidence to learn from).
      */
-    internal fun inconsistency(p: DayTradingParams): String? {
-        if (p[DayTradingParams.MIN_RISK] > p[DayTradingParams.MAX_RISK] + 1e-9) return "It would put the stop floor above its ceiling"
-        for (k in DayTradingParams.SETUP_KEYS.values) {
+    internal fun conflicts(p: DayTradingParams): List<Pair<String, Set<String>>> {
+        val out = ArrayList<Pair<String, Set<String>>>()
+        val L = DayTradingParams
+        if (p[L.MIN_RISK] > p[L.MAX_RISK] + 1e-9) out.add("It would put the stop floor above its ceiling" to setOf(L.MIN_RISK, L.MAX_RISK))
+        for (k in L.SETUP_KEYS.values) {
             val lo = p["setup.$k.minRiskAtrs"]; val hi = p["setup.$k.maxRiskAtrs"]
-            val effLo = if (lo > 0) lo else p[DayTradingParams.MIN_RISK]
-            val effHi = if (hi > 0) hi else p[DayTradingParams.MAX_RISK]
-            if (effLo > effHi + 1e-9) return "It would put the $k stop floor above its ceiling"
+            val effLo = if (lo > 0) lo else p[L.MIN_RISK]
+            val effHi = if (hi > 0) hi else p[L.MAX_RISK]
+            if (effLo > effHi + 1e-9) out.add("It would put the $k stop floor above its ceiling" to
+                setOf("setup.$k.minRiskAtrs", "setup.$k.maxRiskAtrs", L.MIN_RISK, L.MAX_RISK))
         }
         if (p.lastEntryMinutes < p.flatBeforeCloseMinutes + MIN_ENTRY_TO_FLAT_MINUTES)
-            return "New trades must stop at least $MIN_ENTRY_TO_FLAT_MINUTES minutes before the flat time " +
-                "(last entry ${p.lastEntryMinutes} min before the close, flat ${p.flatBeforeCloseMinutes})"
-        return null
+            out.add(("New trades must stop at least $MIN_ENTRY_TO_FLAT_MINUTES minutes before the flat time " +
+                "(last entry ${p.lastEntryMinutes} min before the close, flat ${p.flatBeforeCloseMinutes})") to
+                setOf(L.LAST_ENTRY_MIN, L.FLAT_BEFORE_CLOSE_MIN))
+        if (L.SETUP_KEYS.values.none { p.flag("setup.$it.enabled") })
+            out.add("It would switch every setup off - no plans at all" to L.SETUP_KEYS.values.map { "setup.$it.enabled" }.toSet())
+        if (entryWindowMinutes(p) < MIN_ENTRY_WINDOW_MINUTES)
+            out.add("The time rules would leave under $MIN_ENTRY_WINDOW_MINUTES minutes a day to start a trade" to
+                setOf(L.EARLIEST_ENTRY_MIN, L.LAST_ENTRY_MIN, L.AVOID_LULL))
+        return out
     }
+
+    /** Minutes of a full session (09:30-16:00) in which the time rules allow a new trade. */
+    internal fun entryWindowMinutes(p: DayTradingParams): Int {
+        val start = p.earliestEntryMinutes.coerceAtLeast(0)
+        val end = 390 - p.lastEntryMinutes
+        if (end <= start) return 0
+        var total = end - start
+        if (p.avoidMiddayLull) total -= (minOf(end, 240) - maxOf(start, 120)).coerceAtLeast(0)
+        return total
+    }
+
+    /** The least time the rules must leave for starting a trade (R2T-20). */
+    const val MIN_ENTRY_WINDOW_MINUTES = 30
 
     /** The least room between the last new entry and the flat time, in minutes (DA-15). */
     const val MIN_ENTRY_TO_FLAT_MINUTES = 10
