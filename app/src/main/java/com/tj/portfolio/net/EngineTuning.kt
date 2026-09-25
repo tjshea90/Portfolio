@@ -559,8 +559,13 @@ object EngineTuning {
                             refuse("A switch needs at least $MIN_GROUP_FOR_SWITCH graded trades in its group " +
                                 "(\"$groupName\" has $groupN).")
                         offDistance > tier.maxStep * spec.range + 1e-9 ->
-                            refuse("Switching it off moves this setup from ${fmt(current!!, spec)} to the global " +
-                                "${fmt(onBase(c.key, spec, params), spec)} - more than one step at this sample size. " +
+                            refuse("Switching it off moves this setup from ${fmt(current!!, spec)} to " +
+                                // The global may be off too (audit R3T-1): then "off" is as lenient as the
+                                // range goes, and that end is what it is measured to - not "the global".
+                                (if (globalOn(c.key, params)) "the global ${fmt(onBase(c.key, spec, params), spec)}"
+                                else "no limit at all (the global setting is off too - as lenient as " +
+                                    "${fmt(onBase(c.key, spec, params), spec)})") +
+                                " - more than one step at this sample size. " +
                                 "Move it toward that value instead; the next review can switch it off.")
                         else -> {
                             // The step, limited to what the tier allows - in the direction Claude chose.
@@ -652,6 +657,20 @@ object EngineTuning {
      * from the global value it replaces (when that is on), anything else from the lenient end of its
      * range.
      */
+    /** A per-setup override's global counterpart is set (non-zero) - [onBase] is then that global value. */
+    private fun globalOn(key: String, p: DayTradingParams): Boolean {
+        val parts = key.split('.')
+        if (parts.size != 3 || parts[0] != "setup") return false
+        val global = when (parts[2]) {
+            "minRiskAtrs" -> DayTradingParams.MIN_RISK
+            "maxRiskAtrs" -> DayTradingParams.MAX_RISK
+            "targetCapR" -> DayTradingParams.TARGET_CAP_R
+            "minRewardRisk" -> DayTradingParams.MIN_RR
+            else -> return false
+        }
+        return p[global] > 0.0
+    }
+
     private fun onBase(key: String, spec: DayTradingParams.Spec, p: DayTradingParams): Double {
         val parts = key.split('.')
         if (parts.size == 3 && parts[0] == "setup") {
