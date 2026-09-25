@@ -1511,6 +1511,9 @@ internal fun beforeOwnCutoff(
     return deadline == null || recordedAt < deadline - 60_000L
 }
 
+/** What an Apply, Undo or Revert says when the settings write failed (audit R2T-22). */
+internal const val ENGINE_SAVE_FAILED = "Couldn't save the engine change - nothing was changed. Free some storage and try again."
+
 /** What [PortfolioViewModel.importEngineTuning] says when an answer was read and is being reviewed. */
 internal const val ENGINE_REVIEW_CHECKING = "Checking Claude's engine review..."
 
@@ -8442,8 +8445,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         return true
     }
 
-    private val engineSaveFailed = "Couldn't save the engine change - nothing was changed. Free some storage and try again."
-
     private fun engineBackupDir() = java.io.File(getApplication<Application>().filesDir, "daytrading-engine")
 
     /**
@@ -8587,8 +8588,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     toast("Nothing was applied - there is nothing in this review that can change the engine")
                     return@launch
                 }
+                if (!saveEngine(next)) { toast(ENGINE_SAVE_FAILED); return@launch }
                 _engineReview.value = null
-                saveEngine(next)
                 engineEvidenceNow()
                 toast("Engine v${next.version} applied - ${fresh.applicable.size} change" +
                     "${if (fresh.applicable.size == 1) "" else "s"}. New plans use it from the next refresh; " +
@@ -8600,25 +8601,35 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** "Undo last change". */
-    fun undoEngineChange() {
+    /**
+     * "Undo last change" - or, when the last thing done was a revert, "Undo revert". [expectVersion] is
+     * the engine version the confirmation was shown for (audit R2T-11): a second tap of the same
+     * dialog finds the engine already moved on and does nothing, instead of undoing the change before.
+     */
+    fun undoEngineChange(expectVersion: Int? = null) {
         viewModelScope.launch { engineMutex.withLock {
+            val st = _engine.value
+            if (expectVersion != null && st.version != expectVersion) return@launch
+            val wasRevert = st.undoable?.kind == com.tj.portfolio.net.EngineTuning.KIND_REVERT
             val ev = engineEvidenceNow()
-            val next = com.tj.portfolio.net.EngineTuning.undo(_engine.value, System.currentTimeMillis(), ev.total)
+            val next = com.tj.portfolio.net.EngineTuning.undo(st, System.currentTimeMillis(), ev.total)
                 ?: return@launch toast("Nothing to undo")
-            saveEngine(next)
-            toast("Undone - the engine is back to how it was before that change (now v${next.version})")
+            if (!saveEngine(next)) return@launch toast(ENGINE_SAVE_FAILED)
+            toast(if (wasRevert) "Revert undone - the tuned engine from before it is back in force (now v${next.version})"
+                else "Undone - the engine is back to how it was before that change (now v${next.version})")
             replanDayTradingNow()
         } }
     }
 
-    /** "Revert to the original engine" - every change ever applied, taken back. */
-    fun revertEngine() {
+    /** "Revert to the original engine" - every change ever applied, taken back. [expectVersion] as for undo. */
+    fun revertEngine(expectVersion: Int? = null) {
         viewModelScope.launch { engineMutex.withLock {
+            val st = _engine.value
+            if (expectVersion != null && st.version != expectVersion) return@launch
             val ev = engineEvidenceNow()
-            val next = com.tj.portfolio.net.EngineTuning.revert(_engine.value, System.currentTimeMillis(), ev.total)
+            val next = com.tj.portfolio.net.EngineTuning.revert(st, System.currentTimeMillis(), ev.total)
                 ?: return@launch toast("The engine is already the original")
-            saveEngine(next)
+            if (!saveEngine(next)) return@launch toast(ENGINE_SAVE_FAILED)
             toast("Reverted - the day-trading engine is the original again (now v${next.version})")
             replanDayTradingNow()
         } }
