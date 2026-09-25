@@ -186,3 +186,29 @@ Status: IN PROGRESS (findings appended as verified)
   Also align the card/prompt wording, which today says "past the target or under the stop" while the rule also
   drops rows with no recorded price (`ResearchScreen.kt:1425-1430`, `EngineTuningPrompt.kt` data header).
 
+### R2G-9 (L) - The fill rules changed (DA-7, DA-8, DA-13, DA-17) and the grid changed units (DA-6) without a `VERSION` bump
+
+- Where: `net/DayTradingGrader.kt:50-51` (`VERSION = 2`, "Bump when the rules above change: every row graded by
+  an older version is re-graded"), unchanged by the diff.
+- Problem: any row graded at v2 by an intermediate build keeps a verdict from the older fill rules and a grid in
+  R units that `EngineTuningPrompt.gridSection` now averages as account %; a v2 mid-session verdict graded
+  before DA-1 keeps its truncated grid/hold and is never re-graded (it carries no `partial` flag). Checked: grader
+  v2 has never shipped (last release v7.41 at 2026-09-24T18:41Z; `DayTradingGrader.kt` was added at 19:44Z), so
+  Tj's phone holds only v0/v1 rows, which are re-graded anyway - hence L. It still breaks the file's own contract
+  and would bite any device (a test phone, a CI-built debug APK) that ran an in-between build.
+- Suggested fix: bump `VERSION` to 3 in this change set. On Tj's phone it costs nothing extra (every row is below
+  2 already).
+
+### R2G-10 (L) - DA-13's "not in its last minute" guard assumes one-minute bars; a row graded on the five-minute fallback and recorded in the last five minutes before its cut-off is a guaranteed NO_ENTRY
+
+- Where: `ui/PortfolioViewModel.kt:1504-1512` (`beforeOwnCutoff`: `recordedAt < deadline - 60_000L`),
+  `net/DayTradingGrader.kt:377` (`b.t + barSec > entryDeadlineSec` -> stop looking).
+- Problem: on 5m bars the first bar that may fill starts at the next 5-minute boundary after `recordedAt` and
+  must END by the deadline. A plan recorded at 11:26 with an 11:30 cut-off has no such bar -> NO_ENTRY, the
+  "guaranteed never filled" DA-13 set out to remove, feeding the fill-rate tables Claude tunes on. Only rows
+  graded on 5m bars (first graded after the 1m window, or 1m came back empty) are affected, and NO_ENTRY is
+  outside the success rate - hence L.
+- Suggested fix: when the grade is on 5m bars and no bar lies wholly inside [recordedAt, deadline], return
+  PENDING -> treat as "cannot tell" (or record a distinct `why = "window-too-short"` that the fill-rate tables
+  skip), rather than NO_ENTRY.
+
