@@ -3,7 +3,7 @@
 Read-only verification of the DA-1..DA-21 / PL-1..PL-15 fixes (diff vs 5576e0fb)
 for the grading, logging and stats paths, plus a hunt for new bugs.
 
-Status: IN PROGRESS (findings appended as verified)
+Status: COMPLETE - 10 findings (1 H, 4 M, 5 L). Line numbers are from the working tree at ckpt 1723 (6b5a909c).
 
 ## Findings
 
@@ -212,3 +212,68 @@ Status: IN PROGRESS (findings appended as verified)
   PENDING -> treat as "cannot tell" (or record a distinct `why = "window-too-short"` that the fill-rate tables
   skip), rather than NO_ENTRY.
 
+## Checked and sound
+
+- **No bar before the recommendation is traded.** `start` = first bar with `t*1000 >= recordedAt`; fill, exit,
+  MFE/MAE, hold and every grid cell run from `fillIdx >= start`. The neighbours the spike tests look at (which
+  may predate `recordedAt`) are used only as evidence about a print, never as a price. The DA-8 proxy open of
+  the first eligible bar comes from a pre-recommendation close but is clamped into that bar's own range, so it
+  is a price the (post-recommendation) bar traded - see R2G-6 for which edge it picks in a gap.
+- **First-bar NaN-open rule** (`grade` :386, :399): priced against the trade (high) and flagged ambiguous; in
+  the app it is effectively unreachable (capture needs `phase() == OPEN`, so `recordedAt` is after the 09:30
+  bar's start and that bar is never `start`).
+- **Bar-length-aware cut-offs.** `t + barSec <= flatSec` and `t + barSec > entryDeadlineSec -> break` are right
+  for 1m and 5m and for tuned minutes off the 5m grid (DA-13 tests); the DA-17 test uses the cut list's last bar
+  correctly for liquid names (R2G-4 is the thin-stock edge).
+- **Half days**: `DayTradingFeatures.flatMs`/`entryDeadlineMs` take the close from `MarketClock.closeMinuteAt`
+  (early-close calendar), so a 13:00 close gives flat 12:50 and the 12:49 bar satisfies `TRUNCATED_SEC`;
+  settling at 16:20 on a half day only delays grading.
+- **Mid-session grading** (`decidedThroughSec = 0`): only a stop or a target can decide; "never filled" and
+  "closed at the flat" always wait for the settle; a forming last bar can only be judged MORE strictly by the
+  spike tests (no next neighbour), never less.
+- **Partial / settled re-grade bookkeeping**: `isPartial` substring test matches `JSONObject.toString`
+  output; every successful re-grade rewrites `outcome_evaluated_at` so `needsSettledRegrade` asks exactly once;
+  a settled re-grade that is still partial is not asked again; PENDING/EMPTY/FAILED re-grades leave the verdict
+  (PL-2) and are bounded by the 55-day window (see R2G-7 for the in-memory back-off). Export/restore carry
+  `eval_detail` (with `partial`), `outcome_evaluated_at`, `features` and `eval_version`.
+- **Stats**: `accountPct` and `stats()`'s account figure are the same formula (`dayTradeSharesPerEquity(entry,
+  stop) x (exitFill - entryFill)`), and `EngineTuningPrompt.Row.acctPct` too (its `?: e.entry` exit fallback
+  differs from stats' `?: target/stop` only for rows with no stored exit price - none at the current version).
+  `counted` (sessions, breakdown) and the headline both exclude old-skipped and old-version rows;
+  `totalRecommendations` keeps "being re-checked" rows by design and the footnote lists them.
+  `EngineTuning.Evidence` and `EngineTuningPrompt.build` apply the same `notTradeableOldRow` exclusion.
+- **`notTradeableOldRow` never drops a current row**: `DayTradingFeatures.build` always writes `v` and `px` (and
+  every double goes through `r()`, so no NaN `JSONException`), the insert stores it whenever non-blank, and a
+  build failure would abort the whole batch insert rather than write a row without features. Claude rows are
+  built the same way (`v = -1`).
+- **Grid units**: every consumer is on account %: `gridSection` (a3 formatting, "account % per trade" text),
+  the per-group tables (`acct`), the CSV `acct` column, and the tests (`DA-6`, plan cell = `accountPct`). The
+  (1.0, plan) cell equals the verdict's account %. Partial rows carry no grid and are left out of the grid
+  section; `runR`/`holdR` are blanked for them in the CSV.
+- **dt_bars**: written only for settled, non-PENDING grades, keyed by (symbol, day, res) so a 5m series can
+  never be read as 1m; `cachedDayBars` treats an empty/corrupt blob as a miss; encode/decode round-trips NaN
+  opens and sub-dollar prices. Purge at 60 days vs the 55-day re-grade window only keeps ~5 days of bars no one
+  reads - harmless (R2G-3 is the one real cache problem).
+- **400/422 handling** stops the old every-check retry for 1m windows Yahoo refuses; for an undecided row the
+  5m fallback / DATA_UNAVAILABLE + 24h retry follows (R2G-1 covers the decided-row side).
+- **No double counting**: one row per (symbol, day) (`UNIQUE` + `INSERT OR IGNORE`); `dtLoggedToday` is only a
+  pre-filter; `stats` visits each row once.
+
+## Summary
+
+| ID | Sev | One line |
+|---|---|---|
+| R2G-1 | H | A decided 1m verdict (notably a DA-1 partial one re-graded after 29+ days, or via a 400/422 on 1m) is replaced by a 5m grade - can turn a LOSS into a WIN |
+| R2G-2 | M | DA-7 spike-low filter vetoes fills whose wick also hit the stop - deletes losses |
+| R2G-3 | M | A truncated settled series is cached and then used forever instead of Yahoo |
+| R2G-4 | L | Truncation judged after the flat-time cut: thin stocks read as truncated -> DATA_UNAVAILABLE for good |
+| R2G-5 | M | Settled re-grade can change a final verdict (median of "the day so far"); can erase a mid-session LOSS |
+| R2G-6 | L | DA-8 proxy open picks the favourable edge of a gapped bar |
+| R2G-7 | L | Decided rows' "came back empty" back-off is in memory only - re-asked after every process start |
+| R2G-8 | M | Old rows already through their buy price are graded as the opposite order type |
+| R2G-9 | L | Rules and grid units changed without a grader VERSION bump (safe today only because v2 never shipped) |
+| R2G-10 | L | DA-13 last-minute guard assumes 1m bars; 5m fallback gives guaranteed NO_ENTRY rows |
+
+Totals: 1 H, 4 M, 5 L.
+
+## END OF REPORT (complete)
