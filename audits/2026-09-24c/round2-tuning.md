@@ -131,3 +131,27 @@ Status: in progress (findings appended as verified)
   - Undo and revert entries print their description after "Verdict then:" ("Verdict then: Undid the change applied ..."), which reads as if Claude had said it.
   - After a restore bumps the version (R2T-9/PL-9), the engine can be "v5" with no history entry for v3-v5, while the per-version table has rows for them. One line saying "v3-v4 were made on this device before a restore; their changes are not recorded here" would stop Claude from inventing them.
 
+### R2T-19 (L): the parameter table names three levels differently from the labels the app counts `level:` evidence by
+
+- **Where:** `net/DayTradingParams.kt:225-229` (`levelDoc`, printed in the prompt's parameter table: "the pre-market high", "the 30-minute opening-range high", "floor pivot R1/R2") vs `LEVEL_LABELS` (`:169-177`: "the premarket high", "the opening-range high", "pivot R1/R2"); `SHAPE` basis help: `"level:<a level key such as prevHigh, or a level name from the tables>"`.
+- **Problem:** the parameter table is one of "the tables". A basis copied from it (`"level:the pre-market high"`) counts 0 trades. Because the review takes `min(cited, own)`, the change is refused with "Only 0 graded trades in "level:the pre-market high"", although the level has plenty of trades. This fails safe but is confusing.
+- **Fix:** build `levelDoc` from `LEVEL_LABELS` (plus a description), or let `Evidence.count("level:…")` also accept the doc names. Or tell Claude to use the level KEY (`level:premarketHigh`), which always works.
+
+### R2T-20 (L): one answer can switch off every setup, leaving an engine that makes no plans (and so produces no further evidence)
+
+- **Where:** `net/EngineTuning.kt:617-630` (`inconsistency` checks stop floors/ceilings and entry-vs-flat only); `net/DayTradingParams.kt` `setupEnabled`.
+- **Problem:** at LARGE (8 changes) with 30+ trades in each setup, `setup.breakout/pullback/reclaim.enabled -> 0` are all accepted in one review. Every row is then declined ("The Breakout setup is switched off ..."). No new plans are logged, so the tuning loop has nothing new to learn from, and only Undo or Revert brings the engine back. A similar degenerate engine comes from `earliestEntryMinutes` + `avoidMiddayLull` + `lastEntryMinutes` leaving no window at all.
+- **Fix:** add to `inconsistency()`: at least one setup enabled, and a non-empty entry window (open + earliest < 11:30 or 13:30 < close − lastEntry, when the lull is on). State it in the prompt's rules.
+
+### R2T-21 (L): PL-15 residual: a stored value outside a (future, narrower) bound is still dropped silently
+
+- **Where:** `net/DayTradingParams.kt:262-272` (`fromJson`: `if (spec.allows(v) && v != spec.default) m[k] = v`, else the key is skipped).
+- **Problem:** if a later build narrows a spec's range, the running engine silently reverts that parameter to its ORIGINAL default (not the nearest allowed value) on the next load. There is no history entry, and the history's `paramsAfter`, parsed the same way, agrees with the new values, so neither the card nor the next prompt shows that anything moved. This is latent until a bound changes.
+- **Fix:** clamp to the new bounds instead of dropping, and when `load` finds that a stored value was changed, record a history entry ("engine updated by app vX: key a -> b").
+
+### R2T-22 (L, pre-existing): a failed settings write in Apply/Undo/Revert crashes the app
+
+- **Where:** `ui/PortfolioViewModel.kt:8415-8418` (`saveEngine`: `db.setAll(...)` is not in `runCatching`), called from `applyEngineReview` / `undoEngineChange` / `revertEngine` inside `viewModelScope.launch` without a handler.
+- **Problem:** an `SQLiteFullException` or a locked or corrupt DB propagates out of the coroutine and takes the process down. The transaction rolls back, so the engine and history stay consistent (good, thanks to PL-10's `setAll`), but Tj gets a crash instead of "couldn't save - nothing changed". `_engineApplying` is reset by `finally`; undo and revert have nothing to reset.
+- **Fix:** wrap `saveEngine`'s DB write, and on failure toast "Couldn't save the engine change - nothing was changed" without installing.
+
