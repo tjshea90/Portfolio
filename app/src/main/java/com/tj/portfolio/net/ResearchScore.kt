@@ -453,7 +453,7 @@ object ResearchScore {
             have++
             if (r.rangePos in 0.0..1.0 && r.rangePos > 0.85) {
                 s += p["score.nearHighPoints"]
-                why.add("Within 15% of its 52-week high - breaking out")
+                why.add("In the top 15% of its 52-week range - near the high, breaking out")
             } else if (r.price > r.fiftyDayAvg) {
                 s += p["score.aboveFiftyDayPoints"]
             }
