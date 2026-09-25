@@ -63,3 +63,45 @@ Status: IN PROGRESS (findings appended as verified)
   starts would be profitable (grade both readings and keep the worse). Test: DA-7's scenario with the spike's
   low under the stop -> LOSS, not NO_ENTRY.
 
+### R2G-3 (M) - A settled series that stops short (DA-17) is cached as if it were the whole day, and then used instead of Yahoo for every later grade of that row
+
+- Where: `ui/PortfolioViewModel.kt:7713-7716` (any non-PENDING settled grade -> `db.cacheDayBars(...)`, including a
+  `partial` one decided on a series the grader itself judged truncated), `:7666`/`:7673` (`cached(1)` is read
+  BEFORE any fetch and a hit is never re-fetched); `data/Db.kt` `createDayBars` doc ("A closed session's bars
+  never change").
+- Problem: DA-17's rule lets a stop or target inside a truncated settled series still decide the row (correct),
+  writing a `partial` detail. But the truncated series is then stored in `dt_bars` exactly like a complete one.
+  From then on every grade of that row reads the cut-off copy and never asks Yahoo again: the row can never get
+  its grid/hold/run measures (it is "partial" for good even if Yahoo's next answer is the full day), and after
+  any future `VERSION` bump the re-grade runs on the same cut-off bars; if the new rules cannot decide from them
+  it returns PENDING -> `noBars()` -> the row keeps its old-version verdict and sits in "being re-checked"
+  (excluded from the headline) until day 55, then in `legacyExcluded` - a real, decided trade dropped from the
+  success rate because a transient short reply was frozen on the phone.
+- Failing scenario: settled day, Yahoo's 1m reply ends at 13:40 (transient). The row's stop was hit at 11:05 ->
+  LOSS, `partial:true`, bars 09:30-13:40 cached as res 1. Tomorrow Yahoo serves the full day, but nothing asks.
+  Next grader bump changes, say, the fill rule so the 11:05 fill is re-examined and the answer needs bars to
+  15:50 -> PENDING -> old verdict kept at old version -> not counted, then legacy.
+- Suggested fix: cache only a series the grader called complete - e.g. expose `complete`/`partial` on `Graded`
+  and write `dt_bars` only when `settled && !fromCache && g.detail?.partial != true` (a partial settled verdict
+  can still be written; just do not freeze its bars). Test: a truncated settled WIN leaves `dt_bars` empty.
+
+### R2G-4 (L) - The DA-17 "truncated" test looks at the series AFTER the flat-time cut, so a thin stock with no prints in its last 15 minutes before the flat time is called truncated even when the reply runs to 15:59
+
+- Where: `net/DayTradingGrader.kt:358` (`sorted` drops every bar ending after `flatSec`) then `:364-367`
+  (`last = day.lastOrNull()?.t` of that CUT list vs `flatSec - TRUNCATED_SEC`); `ui/PortfolioViewModel.kt:7709-7711`
+  (settled + PENDING -> `noBars()` -> DATA_UNAVAILABLE).
+- Problem: missing one-minute bars are normal for a thinly traded stock (no trades that minute; `parseBars`
+  drops null rows). A reply that plainly reaches the close (prints at 15:52 and 15:58) but has no print between
+  15:34 and 15:50 is judged "stops short" because the evidence past the flat time was filtered away first. The
+  row becomes DATA_UNAVAILABLE, is re-downloaded once a day for 55 days (always the same answer), then stays
+  DATA_UNAVAILABLE for good - a trade that really filled and was open at the flat time never enters the stats.
+  Half days are NOT affected (checked: `DayTradingFeatures.flatMs` uses `MarketClock.closeMinuteAt`, so flat is
+  12:50 on a 13:00 close and the last kept 1m bar, 12:49, passes). Liquidity floors ($2, 1M avg volume) make
+  this rare for the app's own picks; Claude-added picks are not screened by them.
+- Failing scenario: 1m series with prints at 15:20, 15:33, 15:52, 15:58; flat 15:50; position filled at 11:00,
+  never hit stop or target. `day` ends at 15:33 < 15:35 -> `through` = 15:34 -> not complete -> PENDING ->
+  DATA_UNAVAILABLE, although selling at 15:50 at about the 15:33 print was perfectly possible.
+- Suggested fix: decide "truncated" from the RAW series: complete when the unfiltered reply has a bar at or after
+  `flatSec - TRUNCATED_SEC` (or any bar at/after `flatSec`); a reply reaching past the flat time is the whole
+  day whatever its gaps. With that in place `TRUNCATED_SEC` could also be tightened for 1m replies.
+
