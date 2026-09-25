@@ -77,11 +77,14 @@ class DayTradingParamsTest {
             .put(DayTradingParams.MAX_RISK, 1000.0).put("setup.reclaim.enabled", 0.0)
         val p = DayTradingParams.fromJson(o)
         assertEquals(2.0, p[DayTradingParams.MIN_RISK], 0.0)
-        assertEquals(ResearchScore.MAX_RISK_ATRS, p[DayTradingParams.MAX_RISK], 0.0)   // out of bounds -> original
+        // out of bounds -> the nearest allowed value (R2T-21: a narrowed range must not silently reset it)
+        assertEquals(6.0, p[DayTradingParams.MAX_RISK], 0.0)
+        assertEquals("unreadable -> original", ResearchScore.MAX_RISK_ATRS,
+            DayTradingParams.fromJson(JSONObject().put(DayTradingParams.MAX_RISK, "junk"))[DayTradingParams.MAX_RISK], 0.0)
         assertFalse(p.setupEnabled(ResearchScore.SETUP_RECLAIM))
         assertEquals(DEFAULTS, DayTradingParams.fromJson(null))
         assertEquals(p, DayTradingParams.fromJson(p.toJson()))   // round trip
-        assertEquals(listOf(DayTradingParams.MIN_RISK, "setup.reclaim.enabled"), p.diffFrom(DEFAULTS).map { it.first })
+        assertEquals(listOf(DayTradingParams.MIN_RISK, DayTradingParams.MAX_RISK, "setup.reclaim.enabled"), p.diffFrom(DEFAULTS).map { it.first })
     }
 
     @Test fun targetCapLimitsTheTargetInR() {

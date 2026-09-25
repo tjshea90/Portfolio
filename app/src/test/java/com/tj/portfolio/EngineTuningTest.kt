@@ -362,7 +362,8 @@ class EngineTuningTest {
         assertEquals(EngineTuning.KIND_UNDO, unreverted.history.last().kind)
         assertTrue(unreverted.history.single { it.kind == EngineTuning.KIND_REVERT }.undoneAt == 7000L)
         assertTrue(unreverted.history.filter { it.kind == EngineTuning.KIND_APPLY }.all { it.undoneAt == 0L })
-        assertEquals("the change in force is measured from its own apply again", 2000L, unreverted.lastApplyAt)
+        // measured from the undo that put it back - the original engine's trades meanwhile are not its (R2T-2)
+        assertEquals(7000L, unreverted.lastApplyAt)
         // ...and the next undo takes back the latest apply, as before the revert
         assertEquals(0.15, EngineTuning.undo(unreverted, 7500L, 200)!!.params[DayTradingParams.BREAK_BUFFER], 1e-9)
         // and the whole history survives storage
@@ -377,9 +378,10 @@ class EngineTuningTest {
         assertEquals(DEFAULTS, st.params)
         assertEquals(0, st.version)
         assertTrue(EngineTuning.load(null, null).isOriginal)
-        // an out-of-range stored value falls back to the original for that one parameter
-        val bad = EngineTuning.load("""{"version":2,"params":{"stop.minRiskAtrs":99,"plan.breakBufferAtrs":0.2}}""", "[]")
-        assertEquals(1.5, bad.params[DayTradingParams.MIN_RISK], 1e-9)
+        // an out-of-range stored value is brought to the nearest allowed value (R2T-21); an unreadable one is the original's
+        val bad = EngineTuning.load("""{"version":2,"params":{"stop.minRiskAtrs":99,"plan.breakBufferAtrs":0.2,"stop.maxRiskAtrs":"x"}}""", "[]")
+        assertEquals(4.0, bad.params[DayTradingParams.MIN_RISK], 1e-9)
+        assertEquals(2.5, bad.params[DayTradingParams.MAX_RISK], 1e-9)
         assertEquals(0.2, bad.params[DayTradingParams.BREAK_BUFFER], 1e-9)
         assertEquals(2, bad.version)
     }
