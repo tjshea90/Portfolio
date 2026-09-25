@@ -145,7 +145,7 @@ Status: in progress (findings appended as verified)
 
 ### R2T-21 (L): PL-15 residual: a stored value outside a (future, narrower) bound is still dropped silently
 
-- **Where:** `net/DayTradingParams.kt:262-272` (`fromJson`: `if (spec.allows(v) && v != spec.default) m[k] = v`, else the key is skipped).
+- **Where:** `net/DayTradingParams.kt:260-270` (`fromJson`: `if (spec.allows(v) && v != spec.default) m[k] = v`, else the key is skipped).
 - **Problem:** if a later build narrows a spec's range, the running engine silently reverts that parameter to its ORIGINAL default (not the nearest allowed value) on the next load. There is no history entry, and the history's `paramsAfter`, parsed the same way, agrees with the new values, so neither the card nor the next prompt shows that anything moved. This is latent until a bound changes.
 - **Fix:** clamp to the new bounds instead of dropping, and when `load` finds that a stored value was changed, record a history entry ("engine updated by app vX: key a -> b").
 
