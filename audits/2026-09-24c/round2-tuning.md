@@ -125,7 +125,7 @@ Status: in progress (findings appended as verified)
 
 ### R2T-18 (L): prompt nits that a fresh chat can trip on
 
-- **Where:** `net/EngineTuningPrompt.kt:166-181` (rules), `:196-203` (history), `SHAPE`.
+- **Where:** `net/EngineTuningPrompt.kt:166-177` (rules), `:192-205` (history), `SHAPE`.
   - "Graded trades" (the unit of every sample-size rule and of `evidenceTrades`) is never tied to a table column. The app counts only filled-and-decided trades, which is the tables' **filled** column, but the CSV is headed "Every graded plan" and includes NO_ENTRY rows. A Claude that cites "plans" overstates every group. Say "graded trades = the *filled* column".
   - INT parameters (`filter.minScore`, `time.*Minutes`) must be whole numbers (`17.5` is refused), but the rules only say "Values are kept to 3 decimals".
   - Undo and revert entries print their description after "Verdict then:" ("Verdict then: Undid the change applied ..."), which reads as if Claude had said it.
