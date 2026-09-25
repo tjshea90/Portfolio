@@ -224,4 +224,76 @@ class DayTradingLoggingTest {
             com.tj.portfolio.net.Http.scriptedForTests = null
         }
     }
+
+    // ---------------------------------------------------------------- audit round 2
+
+    @Test fun `R2T-3 and R2T-15 the opening bar's direction is recorded only once it exists`() {
+        val row = ResearchRow(symbol = "OPEN", price = 20.0, entryPrice = 20.5, stopPrice = 20.0, targetPrice = 21.5,
+            atr = 1.0, atrIntraday = 0.2, setup = "Breakout", or5High = 0.0, openingBarBullish = false)
+        val early = DayTradingFeatures.build(row, "20260915", 1L, 0L, false, 2, 388, false, DEFAULTS, 0)
+        assertFalse("not 'did not close up' - not there yet", early.has("obb"))
+        val later = DayTradingFeatures.build(row.copy(or5High = 20.3, openingBarBullish = false), "20260915", 1L, 0L, false, 40, 350, false, DEFAULTS, 0)
+        assertFalse(later.getBoolean("obb"))
+        assertTrue("the values that made it are recorded", later.getString("eh").length == 4)
+        // With the filter on and no opening bar by 09:36, the plan is declined, not "waiting" all day.
+        val p = DEFAULTS.with(mapOf(DayTradingParams.REQUIRE_BULLISH_BAR to 1.0))
+        val (plan, why) = ResearchScore.planInternal(20.0, live(or5High = 0.0), minutesLeft = 300, minutesSinceOpen = 90, p = p)
+        assertEquals(null, plan)
+        assertTrue(why, why.contains("No first 5-minute bar"))
+    }
+
+    @Test fun `R2T-11 a double-tapped Undo undoes one change`() {
+        val a = DEFAULTS.with(mapOf(DayTradingParams.MIN_RISK to 1.8))
+        val b = a.with(mapOf(DayTradingParams.BREAK_BUFFER to 0.2))
+        val hist = JSONArray()
+            .put(EngineTuning.HistoryEntry(1, 1L, EngineTuning.KIND_APPLY, emptyList(), paramsAfter = a).toJson())
+            .put(EngineTuning.HistoryEntry(2, 2L, EngineTuning.KIND_APPLY, emptyList(), paramsBefore = a, paramsAfter = b).toJson())
+        Db(app).set(Keys.DT_ENGINE, EngineTuning.State(b, 2).engineJson())
+        Db(app).set(Keys.DT_ENGINE_HISTORY, hist.toString())
+        val vm = PortfolioViewModel(app)
+        settle()
+        vm.undoEngineChange(2)
+        vm.undoEngineChange(2)
+        repeat(30) { settle() }
+        assertEquals(3, vm.engine.value.version)
+        assertEquals("only B was taken back", a, DayTradingEngine.params)
+    }
+
+    @Test fun `R2T-24 a damaged history row never overwrites the backup file's record`() {
+        val tuned = DEFAULTS.with(mapOf(DayTradingParams.MIN_RISK to 1.8))
+        val dir = java.io.File(app.filesDir, "daytrading-engine").apply { mkdirs() }
+        val goodHistory = JSONArray().put(EngineTuning.HistoryEntry(3, 1L, EngineTuning.KIND_APPLY, emptyList(), paramsAfter = tuned).toJson())
+        java.io.File(dir, "current.json").writeText(JSONObject().put("version", 3).put("params", tuned.toFullJson()).toString(2))
+        java.io.File(dir, "history.json").writeText(goodHistory.toString(2))
+        Db(app).set(Keys.DT_ENGINE, EngineTuning.State(tuned, 3).engineJson())
+        Db(app).set(Keys.DT_ENGINE_HISTORY, "[{\"version\":3,\"at\":1,\"ki")   // truncated
+        val vm = PortfolioViewModel(app)
+        repeat(30) { if (vm.engine.value.history.isEmpty()) settle() }
+        assertEquals("the files' history is adopted", 1, vm.engine.value.history.size)
+        assertTrue(java.io.File(dir, "history.json").readText().contains("\"version\": 3"))
+    }
+
+    @Test fun `R2T-9 a Merge restore takes the backup's engine when its history is newer`() {
+        val db = Db(app)
+        val old = DEFAULTS.with(mapOf(DayTradingParams.MIN_RISK to 1.7))
+        val newer = DEFAULTS.with(mapOf(DayTradingParams.MIN_RISK to 1.9))
+        db.set(Keys.DT_ENGINE, EngineTuning.State(old, 3).engineJson())
+        db.set(Keys.DT_ENGINE_HISTORY, JSONArray().put(EngineTuning.HistoryEntry(3, 1000L, EngineTuning.KIND_APPLY, emptyList(), paramsAfter = old).toJson()).toString())
+        val file = JSONObject(db.exportJson())
+        val fileHistory = JSONArray()
+            .put(EngineTuning.HistoryEntry(3, 1000L, EngineTuning.KIND_APPLY, emptyList(), paramsAfter = old).toJson())
+            .put(EngineTuning.HistoryEntry(4, 2000L, EngineTuning.KIND_APPLY, emptyList(), paramsBefore = old, paramsAfter = newer).toJson())
+        file.getJSONObject("settings").put(Keys.DT_ENGINE, EngineTuning.State(newer, 4).engineJson())
+            .put(Keys.DT_ENGINE_HISTORY, fileHistory.toString())
+        db.restoreJson(file.toString(), replace = false)
+        val st = EngineTuning.load(Db(app).get(Keys.DT_ENGINE), Db(app).get(Keys.DT_ENGINE_HISTORY))
+        assertEquals(4, st.version)
+        assertEquals(newer, st.params)
+        // ...and an OLDER file's engine is left alone by a Merge
+        val older = JSONObject(Db(app).exportJson())
+        older.getJSONObject("settings").put(Keys.DT_ENGINE, EngineTuning.State(old, 3).engineJson())
+            .put(Keys.DT_ENGINE_HISTORY, JSONArray().put(EngineTuning.HistoryEntry(3, 1000L, EngineTuning.KIND_APPLY, emptyList(), paramsAfter = old).toJson()).toString())
+        Db(app).restoreJson(older.toString(), replace = false)
+        assertEquals(4, EngineTuning.load(Db(app).get(Keys.DT_ENGINE), Db(app).get(Keys.DT_ENGINE_HISTORY)).version)
+    }
 }
