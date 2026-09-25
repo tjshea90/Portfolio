@@ -72,3 +72,27 @@ graded on 5m bars ("any bar that could be read either way was read as a loss") a
 past the 1m window; otherwise return null (FAILED, asked again next check). Optionally do not cache a
 5m series while 1m bars should still exist.
 
+### R2P-4 (L) - The 64 MB backup read cap is nominal: memory, not the cap, is the real limit, and one read path can crash on it
+**Where:** `util/Storage.kt:259` (`BACKUP_READ_MAX = 64_000_000`), `readText` 268-284; callers
+`readOwnDownload` (239-240), `SettingsScreen.kt:118`, `PortfolioViewModel.backupToDownloads` 9210-9218,
+`autoBackupIfDue` shrink guard 9450-9456, `checkForRecoverableBackup` 3042; export side
+`Db.exportJson` (whole log as a JSONObject tree, `root.toString(1)` at 1916).
+**Problem.** A read of N bytes costs: `ByteArrayOutputStream` grown by doubling (capacity up to ~2N,
+with old+new arrays live during each growth), `buf.toByteArray()` (another N), the `String` (N if all
+ASCII, 2N otherwise), then `JSONObject(text)` (roughly 2-3N for the tree) - a peak around 5-7N. On a
+256 MB app heap (typical `heapgrowthlimit` for a mid-range phone without `largeHeap`) that fails near
+N = 35-50 MB, and `exportJson` (log list + JSON tree + `toString(1)` builder doubling) fails in the same
+band - so the 64 MB figure is never reached; the PL-5 point (make the log export compact) was not done,
+only the cap raised. `readText` catches `Exception`, not `OutOfMemoryError`: `readPickedFile`,
+`readOwnDownload`'s callers and `autoBackupIfDue` wrap it in `runCatching` (Throwable - no crash, but the
+shrink guard then silently fails open and a smaller autosave overwrites the larger one), whereas
+`backupToDownloads`' verification read (9210) is not wrapped: an OOM there escapes `withContext` into
+`viewModelScope.launch` and crashes the app when Tj taps Backup.
+At ~1.3 KB per graded log row and 10-20 rows per session this is roughly 5+ years away - hence L.
+**Fix.** (a) In `readText`, pre-size the buffer from the provider's size (`OpenableColumns.SIZE` /
+`available()`) and decode with `buf.toString("UTF-8")` (no `toByteArray()` copy); catch `Throwable` (or at
+least `OutOfMemoryError`) and return null. (b) Wrap the verification read in `runCatching`. (c) Do PL-5's
+second half: export `features`/`evalDetail` as nested objects (or drop the `toString(1)` indentation),
+which roughly halves the per-row bytes. (d) Make the `autoBackupIfDue` shrink guard fail CLOSED (keep
+the old file as `-previous` when it cannot be read) rather than open.
+
