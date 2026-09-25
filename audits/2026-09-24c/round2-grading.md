@@ -36,3 +36,31 @@ Status: IN PROGRESS (findings appended as verified)
   grid). Optionally also let the 400/422 branch fall through to query2 for the 1m interval before concluding.
   Test: a partial 1m LOSS re-graded with only 5m bars available keeps LOSS/res 1.
 
+### R2G-2 (M) - The new buy-limit "bad LOW print" filter (DA-7) mostly deletes LOSSES: a wick deep enough to count as a spike usually also runs through the stop
+
+- Where: `net/DayTradingGrader.kt:310-318` (`isSpikeLow`), `:392-395` (a spike low is "not traded through", the
+  loop moves on to later bars).
+- Problem: the spike test needs a wick > 6 median ranges AND > 1.5% of the price below the bar's body. A day
+  trade's stop sits well inside that: `risk` is clamped to [minRisk, maxRisk] x the 5-minute ATR, typically
+  0.3-1% of the price. So whenever the filter vetoes a pullback fill, the same wick nearly always also reached
+  the stop - if the print was real, the order filled AND was stopped out inside that minute (a LOSS). The
+  filter turns that into "no fill"; the grade then either finds no later fill (NO_ENTRY - the loss simply
+  disappears from every rate) or fills later and can WIN. The header's own principle is that a spike "still
+  counts against a STOP - that is the conservative side"; applied to the ENTRY the filter is not conservative,
+  because it removes the adverse outcome together with the fill. Whether a one-minute flush on a liquid name
+  is a bad tick or a real stop-run cannot be known from bars; the grade resolves that uncertainty in the
+  system's favour.
+- Failing scenario: Pullback buy-limit 50.00 / stop 49.40 / target 51.20, recorded 10:00:30 with price 50.60;
+  quiet 1m bars around 50.60 (median range 0.05). The 10:40 bar is O 50.62 H 50.64 L 49.30 C 50.61 (a real
+  flush that recovered within the minute); neighbours' lows are 50.58. `isSpikeLow`: wick 1.31 > 0.30 and
+  > 0.76 -> spike -> no fill. Price never trades back to 49.99 -> NO_ENTRY. In real life the resting 50.00
+  limit fills and the 49.40 stop triggers in that same minute: about -1.2R after costs that the stats never see.
+  (With a later rally to 51.25 instead, the filter still skips the flush and the row is graded... NO_ENTRY; if
+  the price later dips to 49.99 and rallies it is a WIN - a trade whose real first fill had already been
+  stopped out.)
+- Suggested fix: read the suspect print against the trade, as the rest of the grader does: when the spike bar
+  would fill the limit AND its low is at or below the stop, grade the fill (LOSS, ambiguous) instead of
+  skipping it; only skip a spike fill whose wick stays above the stop - and even then only if the trade it
+  starts would be profitable (grade both readings and keep the worse). Test: DA-7's scenario with the spike's
+  low under the stop -> LOSS, not NO_ENTRY.
+
