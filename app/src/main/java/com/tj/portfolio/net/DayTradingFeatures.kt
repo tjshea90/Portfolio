@@ -90,7 +90,7 @@ object DayTradingFeatures {
         put("v", if (claude) -1 else engineVersion)
         // WHICH VALUES MADE IT, not just which number (audit R2T-17): two engines can share a version
         // number across a restore of another copy's backup; this tells them apart.
-        if (!claude) put("eh", Integer.toHexString(p.toJson().toString().hashCode()).takeLast(4))
+        if (!claude) put("eh", Integer.toHexString(p.toJson().toString().hashCode()).padStart(4, '0').takeLast(4))
         if (row.setup.isNotBlank()) put("setup", row.setup)
         if (row.planLevel.isNotBlank()) put("lvl", row.planLevel)
         put("px", r(price, 4))
