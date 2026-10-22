@@ -169,17 +169,19 @@ class EarningsTest {
             EarningsResult("q", ms(today.minusDays(4)), 1.0, 1.1, 10.0))))
         val b = buildEarningsBoard(state, fundamentals, dates, emptyMap(), holdings, today, now)
 
-        assertEquals(listOf("MSFT", "NVDA"), b.upcoming.map { it.symbol })           // by date, MSFT first
-        assertFalse(b.upcoming.first().owned)                                        // reached only through QQQ
-        assertEquals("QQQ", b.upcoming.first().viaFunds.single().first)
-        val nvda = b.upcoming[1]
-        assertTrue(nvda.owned); assertEquals("QQQ", nvda.viaFunds.single().first)    // owned AND in the fund
+        // Rows: owned stocks and the fund itself - never a holding you only own through the fund.
+        assertEquals(listOf("QQQ", "NVDA"), b.upcoming.map { it.symbol })            // QQQ's soonest holding is MSFT (+3d)
+        val q = b.upcoming.first()
+        assertTrue(q.isFund)
+        assertEquals(today.plusDays(3), q.day)
+        assertEquals(listOf("MSFT", "NVDA"), q.children.map { it.first.symbol })
+        assertTrue(b.upcoming.none { it.symbol == "MSFT" })
+        assertTrue(b.upcoming[1].owned && !b.upcoming[1].isFund)
         assertEquals(listOf("AAPL"), b.recent.map { it.symbol })
         assertNotNull(b.recent.single().reported)
         assertEquals(Light.GREEN, reportedLight(b.recent.single().reported!!))
         assertEquals(listOf("KO"), b.undated.map { it.symbol })
-        assertTrue(b.upcoming.none { it.symbol == "TINY" } && b.undated.none { it.symbol == "TINY" })   // under 2%: ignored
-        assertTrue(b.upcoming.none { it.symbol == "QQQ" })                           // a fund has no report of its own
+        assertTrue(b.upcoming.none { it.symbol == "TINY" } && q.children.none { it.first.symbol == "TINY" })   // under 2%: ignored
     }
 
     @Test fun realYahooEarningsFixtureParses() {

@@ -296,7 +296,7 @@ internal fun EarningsContent(
                 item {
                     Text(
                         board.undated.joinToString(", ") { e ->
-                            e.symbol + (if (!e.owned && e.viaFunds.isNotEmpty()) " (via ${e.viaFunds.first().first})" else "")
+                            e.symbol + if (e.isFund) " (fund: no top holding reporting soon)" else ""
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
