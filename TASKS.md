@@ -18,7 +18,7 @@ Branch `claude/dividends-earnings-tracker-0x47k2`. Design notes: audits/2026-10-
 - [x] (done, tests: DividendsTest 24, EarningsTest 13, IncomeUiTest 4 - all green) IncomeHub single-flight rerun fix pending below
 - [x] F1 IncomeHub: queue a re-run instead of dropping a call made while a pass is running (ETF top holdings arrive mid-pass)
 - [x] Z1 full Gradle suite green (1590 tests) after fixes (Contrast false-positive, catalogue key)
-- [ ] Z  ship v8.1 per CLAUDE.md Releasing, post Release link, versionCode bump, ship per CLAUDE.md "Releasing"
+- [x] Z  ship v8.1 per CLAUDE.md Releasing, post Release link, versionCode bump, ship per CLAUDE.md "Releasing"
 
 ## Tj's request, 2026-09-24c (his own words)
 

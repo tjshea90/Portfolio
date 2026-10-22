@@ -1,28 +1,23 @@
-# CHECKPOINT 1741 — read me first, then TASKS.md
+# CHECKPOINT 1742 — read me first, then TASKS.md
 
-**Written:** 2026-10-22T16:31:22Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `claude/dividends-earnings-tracker-0x47k2` · **builds on:** `c78ce5b4` (this checkpoint is the commit after it)
+**Written:** 2026-10-22T16:42:06Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `claude/dividends-earnings-tracker-0x47k2` · **builds on:** `47fd4d1f` (this checkpoint is the commit after it)
 
 ## Just done
-gated v8.1 (code 100) and pushed it: checkinit, the full unit suite and the
-versionCode check all passed here. NOT yet built - GitHub has not been asked.
+v8.1 released and recorded (dividends + earnings)
 
 ## Do this next
-TRIGGER THE BUILD: mcp__github__actions_run_trigger, method run_workflow, workflow
-android.yml, ref main, inputs {"full_build": "true"}. When that run is green,
-confirm the Release is published (get_release_by_tag is enough) and then run:
-  bash tools/record-release.sh v8.1 "Dividends and Earnings sections inside the Portfolio tab: dividends earned (ledger + calculated), total paid, upcoming payouts by date with amounts from your shares at each ex-date, per-holding yield and pay schedule; earnings calendar for stocks and ETF top holdings with a green/yellow/red outlook from track record, estimates, analyst stance, news tone and momentum"
-Do NOT try to send Tj the APK - he downloads it himself from the Release page
-(CLAUDE.md, his rule of 2026-09-11), and this container cannot fetch a private
-repo's release asset bytes anyway.
+Nothing pending; await Tj feedback
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
+     M TASKS.md
 
 ## Last ten checkpoints
 ```
+  f66cd2ef ckpt 1741: gated v8.1 (code 100) and pushed it: checkinit, the full unit suite and the 
   c78ce5b4 ckpt 1740: pre-ship: Dividends and Earnings sections inside the Portfolio tab: dividend
   b59964a4 ckpt 1739: Income UI + earnings + dividends tests green (34 tests)
   8c6c64a8 ckpt 1738: Dividends screen+engine+feed, earnings outlook/screen, Portfolio sub-tabs wi
@@ -32,5 +27,4 @@ repo's release asset bytes anyway.
   fd830310 ckpt 1734: v8.0 build triggered (android.yml full_build on main, after ship.sh gate)
   4f47e631 ckpt 1733: gated v8.0 (code 99) and pushed it: checkinit, the full unit suite and the v
   ebc9c885 ckpt 1732: C1 done: R3G-2 scoped to realOpens (touch rules keep NaN = no gap); full sui
-  5e9f0eb1 ckpt 1731: Round 3 done inline: R3G-1 (422 from both hosts), R3G-2 (straddle gap ambigu
 ```
