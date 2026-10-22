@@ -236,6 +236,15 @@ class IncomeHub(
     }
 
     companion object {
+        /**
+         * The holdings of a fund big enough to move it: at least 2% each and at most five.
+         * The Earnings screen follows these reports for a fund, since it has none of its own.
+         */
+        fun topHoldings(h: com.tj.portfolio.data.FundHoldings?): List<com.tj.portfolio.data.FundHolding> =
+            h?.holdings.orEmpty()
+                .filter { it.weight >= 0.02 && it.symbol.isNotBlank() }
+                .sortedByDescending { it.weight }.take(5)
+
         /** Headlines this fresh are not fetched again on entering the screen (pull ignores it). */
         const val NEWS_TTL_MS = 3 * 3_600_000L
 

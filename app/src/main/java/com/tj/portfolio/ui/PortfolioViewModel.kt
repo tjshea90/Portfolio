@@ -5646,12 +5646,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         income.refreshDividends(held, others.take(40), force)
     }
 
-    /** Top holdings of a held fund that are big enough to move it: >= 2% and at most [FUND_TOP_N]. */
-    fun fundTopHoldings(fund: String): List<com.tj.portfolio.data.FundHolding> =
-        _holdings.value[fund.uppercase()]?.holdings.orEmpty()
-            .filter { it.weight >= 0.02 && it.symbol.isNotBlank() }
-            .sortedByDescending { it.weight }.take(5)   // the few that actually move the fund
-
     /**
      * Refresh what the Earnings screen shows: fresh report dates, the fundamentals the outlook
      * is scored from, and recent headlines - for every stock held, and for the biggest holdings
@@ -5663,7 +5657,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (rows.isEmpty()) return
         val (funds, stocks) = rows.partition { isFundRow(it) }
         funds.forEach { loadHoldings(it.symbol, force) }
-        val tops = funds.flatMap { f -> fundTopHoldings(f.symbol) }
+        val tops = funds.flatMap { f -> IncomeHub.topHoldings(_holdings.value[f.symbol.uppercase()]) }
         val names = HashMap<String, String>()
         rows.forEach { names[it.symbol.uppercase()] = it.name }
         tops.forEach { names.putIfAbsent(it.symbol.uppercase(), it.name) }
