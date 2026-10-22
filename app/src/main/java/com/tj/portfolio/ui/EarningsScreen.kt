@@ -247,9 +247,7 @@ internal fun EarningsContent(
                 }
             }
             items(board.upcoming, key = { "e:${it.symbol}" }) { e ->
-                EarnRow(e, today, e.symbol in expanded, onOpen) {
-                    expanded = if (e.symbol in expanded) expanded - e.symbol else expanded + e.symbol
-                }
+                EarnRow(e, today, e.symbol in expanded, onOpen) { onToggle(e.symbol) }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
             }
 
