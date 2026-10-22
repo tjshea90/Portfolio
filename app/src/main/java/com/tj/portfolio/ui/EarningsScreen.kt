@@ -111,7 +111,7 @@ internal fun buildEarningsBoard(
         val f = fundamentals[sym]
         val date = dates[sym] ?: f?.earningsDate?.takeIf { it > 0 }?.let { EarningsFeed.Date(it) }
         val day = date?.day
-        val price = row?.quote?.price?.takeIf { it > 0 } ?: f?.value("previousClose") ?: 0.0
+        val price = row?.quote?.price?.takeIf { it > 0 } ?: 0.0
         val news = headlines[sym].orEmpty()
         val outlook = if (f == null && news.size < 2) EarningsOutlook.Result.UNKNOWN
         else EarningsOutlook.evaluate(
@@ -155,11 +155,7 @@ internal fun reportedLight(r: EarningsResult): Light = when {
 }
 
 @Composable
-private fun lightColor(l: Light): Color = when (l) {
-    Light.GREEN -> Green
-    Light.YELLOW -> AMBER
-    Light.RED -> Red
-}
+private fun lightColor(l: Light): Color = if (l == Light.GREEN) Green else if (l == Light.RED) Red else AMBER
 
 private fun lightWord(l: Light, known: Boolean): String = when {
     l == Light.GREEN -> "Looks good"

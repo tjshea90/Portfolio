@@ -62,6 +62,11 @@ class IncomeHub(
 
     private val newsFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
+    private val divRunning = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var divQueued: Triple<List<String>, List<String>, Boolean>? = null
+    private val earnRunning = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var earnQueued: Pair<List<String>, Boolean>? = null
+
     private val histFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val calFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val earnFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -74,10 +79,15 @@ class IncomeHub(
      *        fetched only when there is nothing cached at all, since it no longer changes.
      */
     fun refreshDividends(held: List<String>, others: List<String>, force: Boolean) {
-        if (_dividendsLoading.value) return
+        // A call made while a pass is running is not dropped - the held set may have changed
+        // under it, or this is the pull the user just made - it runs once the pass ends.
+        if (!divRunning.compareAndSet(false, true)) {
+            divQueued = Triple(held, others, force || (divQueued?.third == true))
+            return
+        }
         val heldSyms = held.map { it.uppercase() }.distinct()
         val otherSyms = others.map { it.uppercase() }.distinct() - heldSyms.toSet()
-        if (heldSyms.isEmpty() && otherSyms.isEmpty()) return
+        if (heldSyms.isEmpty() && otherSyms.isEmpty()) { divRunning.set(false); return }
         scope().launch {
             _dividendsLoading.value = true
             try {
@@ -101,6 +111,8 @@ class IncomeHub(
                 _dividends.update { it.copy(completedAt = System.currentTimeMillis()) }
             } finally {
                 _dividendsLoading.value = false
+                divRunning.set(false)
+                divQueued?.let { (h, o, f) -> divQueued = null; refreshDividends(h, o, f) }
             }
         }
     }
@@ -150,9 +162,12 @@ class IncomeHub(
     // ============================================================ earnings dates
 
     fun refreshEarningsDates(symbols: List<String>, force: Boolean) {
-        if (_earningsLoading.value) return
+        if (!earnRunning.compareAndSet(false, true)) {
+            earnQueued = ((earnQueued?.first.orEmpty() + symbols).distinct()) to (force || earnQueued?.second == true)
+            return
+        }
         val syms = symbols.map { it.uppercase() }.distinct()
-        if (syms.isEmpty()) return
+        if (syms.isEmpty()) { earnRunning.set(false); return }
         scope().launch {
             _earningsLoading.value = true
             try {
@@ -185,6 +200,8 @@ class IncomeHub(
                 }
             } finally {
                 _earningsLoading.value = false
+                earnRunning.set(false)
+                earnQueued?.let { (s, f) -> earnQueued = null; refreshEarningsDates(s, f) }
             }
         }
     }
