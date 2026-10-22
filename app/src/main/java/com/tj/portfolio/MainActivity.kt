@@ -545,7 +545,7 @@ fun App() {
                 // describes exactly one screen. See `SwipeTabs.kt`.
                 else -> TabSlide(tab, Modifier.fillMaxSize()) { t ->
                     layers.SaveableStateProvider("tab:$t") { when (t) {
-                        TAB_PORTFOLIO -> PortfolioScreen(
+                        TAB_PORTFOLIO -> com.tj.portfolio.ui.PortfolioTab(
                             vm, state,
                             onOpen = { detail = it; detailToNews = false },
                             onOpenNews = { detail = it; detailToNews = true },
