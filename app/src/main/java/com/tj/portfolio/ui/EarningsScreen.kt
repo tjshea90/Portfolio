@@ -70,7 +70,10 @@ internal data class EarnEntry(
     /** The result, once reported. */
     val reported: EarningsResult?,
     val epsExpected: Double?,
-    val headlines: List<NewsItem>
+    val headlines: List<NewsItem>,
+    /** A held fund: its row stands for the fund, and [children] are its top holdings reporting. */
+    val isFund: Boolean = false,
+    val children: List<Pair<EarnEntry, Double>> = emptyList()
 )
 
 internal data class EarningsBoard(
@@ -137,12 +140,45 @@ internal fun buildEarningsBoard(
             headlines = news.filter { it.published > 0 }.sortedByDescending { it.published }.take(3)
         )
     }
+    // Stocks you own appear as themselves. A fund appears ONCE, as the fund: its date is the
+    // soonest of its top holdings' reports and its light the weight-averaged read of them. The
+    // holdings themselves are never listed as rows - only inside the fund's expanded detail.
+    val byTop = entries.associateBy { it.symbol }
+    val stockEntries = entries.filter { it.owned }
+    val fundEntries = held.filter { isFund(it) }.map { f ->
+        val kids = IncomeHub.topHoldings(holdings[f.symbol.uppercase()]).mapNotNull { h ->
+            byTop[h.symbol.uppercase()]?.takeIf { it.day != null && it.daysAway >= 0 }?.let { it to h.weight }
+        }.sortedBy { it.first.date!!.startMs }
+        val known = kids.filter { it.first.outlook.known }
+        val wSum = known.sumOf { it.second }
+        val score = if (wSum > 0) known.sumOf { it.second * it.first.outlook.score } / wSum else 0.0
+        val light = when {
+            known.isEmpty() -> Light.YELLOW
+            score >= EarningsOutlook.GREEN_AT -> Light.GREEN
+            score <= EarningsOutlook.RED_AT -> Light.RED
+            else -> Light.YELLOW
+        }
+        val reasons = kids.map { (k, w) ->
+            EarningsOutlook.Reason(k.symbol,
+                "reports ${k.day!!.format(SHORT_FMT)} · ${"%.1f".format(w * 100)}% of the fund · ${lightWord(k.outlook.light, k.outlook.known)}",
+                when (k.outlook.light) { Light.GREEN -> 1; Light.RED -> -1; Light.YELLOW -> 0 }, w)
+        }.ifEmpty { EarningsOutlook.Result.UNKNOWN.reasons }
+        val first = kids.firstOrNull()?.first
+        EarnEntry(
+            symbol = f.symbol.uppercase(), name = f.name, owned = true, viaFunds = emptyList(),
+            date = first?.date, day = first?.day,
+            daysAway = first?.daysAway ?: Long.MIN_VALUE,
+            outlook = EarningsOutlook.Result(score, light, known.isNotEmpty(), wSum.coerceAtMost(1.0), reasons),
+            reported = null, epsExpected = null, headlines = emptyList(), isFund = true, children = kids
+        )
+    }
+    val listed = stockEntries + fundEntries
     return EarningsBoard(
-        upcoming = entries.filter { it.day != null && it.daysAway >= 0 }.sortedWith(
+        upcoming = listed.filter { it.day != null && it.daysAway >= 0 }.sortedWith(
             compareBy<EarnEntry> { it.date!!.startMs }.thenByDescending { it.owned }.thenBy { it.symbol }),
-        recent = entries.filter { it.day != null && it.daysAway in -RECENT_DAYS..-1L }
+        recent = stockEntries.filter { it.day != null && it.daysAway in -RECENT_DAYS..-1L }
             .sortedByDescending { it.date!!.startMs },
-        undated = entries.filter { it.day == null || it.daysAway < -RECENT_DAYS }
+        undated = listed.filter { it.day == null || (it.daysAway < -RECENT_DAYS) }
             .sortedWith(compareByDescending<EarnEntry> { it.owned }.thenBy { it.symbol })
     )
 }
@@ -355,10 +391,10 @@ private fun EarnRow(e: EarnEntry, today: LocalDate, open: Boolean, onOpen: (Stri
                             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     }
                 }
-                if (!e.owned && e.viaFunds.isNotEmpty()) {
-                    val (f, w) = e.viaFunds.first()
-                    Text("Held through $f (${"%.1f".format(w * 100)}% of the fund)", fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (e.isFund && e.children.isNotEmpty()) {
+                    Text("Fund · top holdings reporting: " + e.children.take(3).joinToString(", ") { it.first.symbol } +
+                        if (e.children.size > 3) " +${e.children.size - 3}" else "",
+                        fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -434,7 +470,7 @@ private fun EarningsHowItWorks() {
                 "Green = the signs point to a good report, yellow = mixed or not enough known, red = the signs point to a poor one. It is an estimate, not a prediction: how a stock reacts depends on what the market already expected, which nobody publishes.",
                 "It averages: the company's track record against estimates over the last four quarters (30%), the growth analysts expect (20%), the tone of the last three weeks of headlines (20%), the analyst rating and whether it is improving (15%), the price against its 50-day average (10%, a big run-up counts against because good news is already in the price), and the average price target (5%).",
                 "Tap a row to see exactly which signals pushed it which way.",
-                "Funds have no earnings of their own, so each fund you hold is followed through its biggest holdings.",
+                "Funds have no earnings of their own, so a fund shows one row: the date is its soonest big holding's report, the light is the weighted read of those holdings, and tapping it lists them.",
                 "Dates marked (est.) are the company's rough window, not a confirmed day."
             ).forEach {
                 Text("• $it", style = MaterialTheme.typography.bodySmall,
