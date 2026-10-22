@@ -7,6 +7,7 @@ import com.tj.portfolio.domain.DivEvent
 import com.tj.portfolio.net.DividendFeed
 import com.tj.portfolio.net.EarningsFeed
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -88,7 +89,9 @@ class IncomeHub(
         val heldSyms = held.map { it.uppercase() }.distinct()
         val otherSyms = others.map { it.uppercase() }.distinct() - heldSyms.toSet()
         if (heldSyms.isEmpty() && otherSyms.isEmpty()) { divRunning.set(false); return }
-        scope().launch {
+        // ATOMIC: if the foreground scope was cancelled between the flag and here, the body must
+        // still start so its `finally` clears the flag - or the hub would stay "running" forever.
+        scope().launch(start = CoroutineStart.ATOMIC) {
             _dividendsLoading.value = true
             try {
                 paintDividendsFromDisk(heldSyms + otherSyms)
@@ -168,7 +171,7 @@ class IncomeHub(
         }
         val syms = symbols.map { it.uppercase() }.distinct()
         if (syms.isEmpty()) { earnRunning.set(false); return }
-        scope().launch {
+        scope().launch(start = CoroutineStart.ATOMIC) {
             _earningsLoading.value = true
             try {
                 val missing = syms.filter { _earnings.value[it] == null }
