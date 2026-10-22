@@ -298,9 +298,7 @@ object Dividends {
 
         // Every symbol that ever paid you OR that you hold now: a sold-out position's
         // dividends are still dividends you earned.
-        val symbols = (heldBySym.keys + divTxns.keys + bySym.keys.filter { s ->
-            txns.any { it.symbol?.uppercase() == s }
-        }).toSortedSet()
+        val symbols = (heldBySym.keys + divTxns.keys + bySym.keys).toSortedSet()
 
         for (sym in symbols) {
             val input = bySym[sym] ?: DivInput(sym)
@@ -351,13 +349,25 @@ object Dividends {
                 val confirmedPay = input.calExDate == e.exDate && input.calPayDate != null
                 val pay = if (confirmedPay) input.calPayDate!!
                 else businessDayOnOrAfter(e.exDate.plusDays(lag))
-                val stillComing = pay > today ||
-                    (!confirmedPay && pay.plusDays(DUE_GRACE_DAYS) >= today && pay >= today.minusDays(DUE_GRACE_DAYS) && e.exDate <= today && pay > e.exDate && pay.plusDays(DUE_GRACE_DAYS) > today && pay >= today)
+                val status = when {
+                    e.exDate > today -> DivStatus.SCHEDULED
+                    pay > today -> DivStatus.DECLARED
+                    // An ESTIMATED pay date a few days gone with nothing in the ledger yet is
+                    // far more likely a guess that was a little early than a payment that
+                    // never came: keep it in "upcoming" for a week rather than book it.
+                    !confirmedPay && pay.plusDays(DUE_GRACE_DAYS) >= today -> DivStatus.DECLARED
+                    else -> DivStatus.CALCULATED
+                }
                 val row = DivItem(sym, e.exDate, pay, !confirmedPay, e.amount, p.shares, p.shares * e.amount,
-                    if (pay > today) DivStatus.DECLARED else DivStatus.CALCULATED, isSpecial,
-                    if (pay > today) "Ex-date passed - amount is fixed"
-                    else "Per-share amount x your shares at the ex-date; not in your ledger")
-                if (stillComing && e.exDate <= today) pending.add(row.copy(status = DivStatus.DECLARED)) else pastRows.add(row)
+                    status, isSpecial,
+                    when (status) {
+                        DivStatus.CALCULATED -> "Per-share amount x your shares at the ex-date; not in your ledger"
+                        DivStatus.DECLARED ->
+                            if (pay > today) "Ex-date passed - amount is fixed"
+                            else "Should land any day - pay date is estimated"
+                        else -> "Ex-date confirmed"
+                    })
+                if (status == DivStatus.CALCULATED) pastRows.add(row) else pending.add(row)
             }
             // Ledger rows no provider event explains (sold-out holdings, older than the
             // provider's history window, a differently-timed record): still money received.
@@ -375,9 +385,14 @@ object Dividends {
                 ChronoUnit.DAYS.between(lastRegular.exDate, today) <= (365.0 / ppy * 1.6).toLong() + 14
             val calFuture = input.calExDate?.takeIf { it >= today && (lastRegular == null || it > lastRegular.exDate.plusDays(3)) }
             val perPay = nextAmount(sp.regular, ppy, input.annualRate)
-            val fallbackAmt = if (perPay > 0) perPay
-            else if (input.annualRate != null && input.annualRate > 0 && calFuture != null) input.annualRate
-            else 0.0
+            // One lone payment is all the pattern there is; with none, a quarter of the forward
+            // rate (quarterly is by far the commonest US schedule) is the least-bad guess.
+            val fallbackAmt = when {
+                perPay > 0 -> perPay
+                sorted.isNotEmpty() -> sorted.last().amount
+                input.annualRate != null && input.annualRate > 0 -> input.annualRate / 4.0
+                else -> 0.0
+            }
             val nowShares = h?.shares ?: 0.0
 
             var caveat = ""
@@ -395,14 +410,12 @@ object Dividends {
                 if (ppy > 0 && recent && perPay > 0) {
                     val base = anchor ?: lastRegular!!.exDate
                     var k = 1
-                    // When the anchor is the last PAID event, step from it until we pass today;
-                    // when it is a scheduled one, just continue from there.
+                    // Steps from the last paid event (or the confirmed one) until the horizon;
+                    // slots already in the past are skipped, not shown.
                     while (k < 400) {
                         val ex = rollForward(base, ppy, k)
                         k++
-                        val alreadyKnown = (anchor == null && ex <= (lastRegular?.exDate ?: ex)) ||
-                            ex < today
-                        if (alreadyKnown) continue
+                        if (ex < today) continue
                         if (ChronoUnit.DAYS.between(today, ex) > HORIZON_DAYS) break
                         // A provider-confirmed row already covers this slot.
                         if (ahead.any { abs(ChronoUnit.DAYS.between(it.exDate, ex)) <= 10 } ) continue
