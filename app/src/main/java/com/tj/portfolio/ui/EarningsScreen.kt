@@ -201,66 +201,80 @@ fun EarningsScreen(
         refreshing = pulled && loading,
         onRefresh = { pulled = true; vm.refreshEarnings(force = true) }
     ) {
-        Column(Modifier.fillMaxSize()) {
-            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
-            LazyColumn(
-                Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp)
-            ) {
-                if (heldSig.isEmpty()) {
-                    item {
-                        Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Nothing held yet", style = MaterialTheme.typography.titleMedium)
-                            Text("Upcoming earnings for what you own show up here.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                    return@LazyColumn
-                }
-                item { EarningsSummary(board, today) }
+        EarningsContent(board, today, heldSig.isEmpty(), loading, expanded, onOpen) { sym ->
+            expanded = if (sym in expanded) expanded - sym else expanded + sym
+        }
+    }
+}
 
-                item { SectionHeader("Upcoming reports") }
-                if (board.upcoming.isEmpty()) {
-                    item {
-                        Text(if (loading) "Checking dates…" else "No upcoming report dates found.",
+/** The stateless body, so it can be rendered in tests with a hand-built board. */
+@Composable
+internal fun EarningsContent(
+    board: EarningsBoard,
+    today: LocalDate,
+    noHoldings: Boolean,
+    loading: Boolean,
+    expanded: Set<String>,
+    onOpen: (String) -> Unit,
+    onToggle: (String) -> Unit
+) {
+    Column(Modifier.fillMaxSize()) {
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp)
+        ) {
+            if (noHoldings) {
+                item {
+                    Column(Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Nothing held yet", style = MaterialTheme.typography.titleMedium)
+                        Text("Upcoming earnings for what you own show up here.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                items(board.upcoming, key = { "e:${it.symbol}" }) { e ->
-                    EarnRow(e, today, e.symbol in expanded, onOpen) {
-                        expanded = if (e.symbol in expanded) expanded - e.symbol else expanded + e.symbol
-                    }
+                return@LazyColumn
+            }
+            item { EarningsSummary(board, today) }
+
+            item { SectionHeader("Upcoming reports") }
+            if (board.upcoming.isEmpty()) {
+                item {
+                    Text(if (loading) "Checking dates…" else "No upcoming report dates found.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
+                }
+            }
+            items(board.upcoming, key = { "e:${it.symbol}" }) { e ->
+                EarnRow(e, today, e.symbol in expanded, onOpen) {
+                    expanded = if (e.symbol in expanded) expanded - e.symbol else expanded + e.symbol
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            }
+
+            if (board.recent.isNotEmpty()) {
+                item { SectionHeader("Just reported") }
+                items(board.recent, key = { "r:${it.symbol}" }) { e ->
+                    EarnRow(e, today, e.symbol in expanded, onOpen) { onToggle(e.symbol) }
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                 }
-
-                if (board.recent.isNotEmpty()) {
-                    item { SectionHeader("Just reported") }
-                    items(board.recent, key = { "r:${it.symbol}" }) { e ->
-                        EarnRow(e, today, e.symbol in expanded, onOpen) {
-                            expanded = if (e.symbol in expanded) expanded - e.symbol else expanded + e.symbol
-                        }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                    }
-                }
-
-                if (board.undated.isNotEmpty()) {
-                    item { SectionHeader("No date announced") }
-                    item {
-                        Text(
-                            board.undated.joinToString(", ") { e ->
-                                e.symbol + (if (!e.owned && e.viaFunds.isNotEmpty()) " (via ${e.viaFunds.first().first})" else "")
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-                item { EarningsHowItWorks() }
             }
+
+            if (board.undated.isNotEmpty()) {
+                item { SectionHeader("No date announced") }
+                item {
+                    Text(
+                        board.undated.joinToString(", ") { e ->
+                            e.symbol + (if (!e.owned && e.viaFunds.isNotEmpty()) " (via ${e.viaFunds.first().first})" else "")
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                    )
+                }
+            }
+            item { EarningsHowItWorks() }
         }
     }
 }

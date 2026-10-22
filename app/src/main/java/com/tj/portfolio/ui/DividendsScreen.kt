@@ -119,105 +119,118 @@ fun DividendsScreen(
         refreshing = pulled && loading,
         onRefresh = { pulled = true; vm.refreshDividends(force = true) }
     ) {
-        Column(Modifier.fillMaxSize()) {
-            if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
-            LazyColumn(
-                Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp)
-            ) {
-                if (heldSymbols.isEmpty()) {
-                    item { EmptyNote("Nothing held yet", "Dividends appear here once you own stocks or ETFs.") }
-                    return@LazyColumn
-                }
-                item { SummaryCard(report, loading, data.completedAt) }
-                report.nextPayout?.let { next -> item { NextPayoutCard(next, report.today, onOpen) } }
+        DividendsContent(report, heldSymbols.isEmpty(), loading, data.completedAt, others.size, onOpen)
+    }
+}
 
-                item { SectionHeader("Upcoming dividends") }
-                if (report.upcoming.isEmpty()) {
-                    item {
-                        Text(
-                            if (loading || data.completedAt == 0L) "Checking your holdings…"
-                            else "No upcoming dividends found for what you hold.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                        )
-                    }
-                } else {
-                    val byMonth = report.upcoming.groupBy { it.payDate.withDayOfMonth(1) }
-                    byMonth.forEach { (month, rows) ->
-                        item(key = "m:$month") {
-                            Row(
-                                Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 10.dp, bottom = 2.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(month.format(MONTH_FMT), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                Text(Fmt.usd(rows.sumOf { it.total }), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                            }
-                        }
-                        items(rows, key = { "u:${it.symbol}:${it.exDate}:${it.status}" }) { r ->
-                            DivRow(r, report.today, onOpen)
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                        }
-                    }
-                }
+/** The stateless body, so it can be rendered in tests with a hand-built report. */
+@Composable
+internal fun DividendsContent(
+    report: DividendReport,
+    noHoldings: Boolean,
+    loading: Boolean,
+    completedAt: Long,
+    otherCount: Int,
+    onOpen: (String) -> Unit
+) {
+    Column(Modifier.fillMaxSize()) {
+        if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp)
+        ) {
+            if (noHoldings) {
+                item { EmptyNote("Nothing held yet", "Dividends appear here once you own stocks or ETFs.") }
+                return@LazyColumn
+            }
+            item { SummaryCard(report, loading, completedAt) }
+            report.nextPayout?.let { next -> item { NextPayoutCard(next, report.today, onOpen) } }
 
-                val payers = report.holdings.filter { it.pays }
-                item { SectionHeader("Your dividend payers") }
-                if (payers.isEmpty()) {
-                    item {
-                        Text("None of what you hold pays a dividend right now.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
-                    }
+            item { SectionHeader("Upcoming dividends") }
+            if (report.upcoming.isEmpty()) {
+                item {
+                    Text(
+                        if (loading || completedAt == 0L) "Checking your holdings…"
+                        else "No upcoming dividends found for what you hold.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                    )
                 }
-                items(payers, key = { "h:${it.symbol}" }) { h ->
-                    HoldingRow(h, report.today, onOpen)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
-                }
-                val non = report.holdings.filter { !it.pays }
-                if (non.isNotEmpty()) {
-                    item {
-                        Text(
-                            "No dividend: " + non.joinToString(", ") { h ->
-                                if (h.caveat == "No recent dividend") "${h.symbol} (stopped)" else h.symbol
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-
-                item { SectionHeader("Paid so far") }
-                if (report.past.isEmpty()) {
-                    item {
-                        Text("No dividends found yet for the shares you have held.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
-                    }
-                }
-                val byYear = report.past.groupBy { it.payDate.year }
-                byYear.forEach { (year, rows) ->
-                    item(key = "y:$year") {
+            } else {
+                val byMonth = report.upcoming.groupBy { it.payDate.withDayOfMonth(1) }
+                byMonth.forEach { (month, rows) ->
+                    item(key = "m:$month") {
                         Row(
                             Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 10.dp, bottom = 2.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(year.toString(), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(month.format(MONTH_FMT), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             Text(Fmt.usd(rows.sumOf { it.total }), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                         }
                     }
-                    items(rows, key = { "p:${it.symbol}:${it.payDate}:${it.exDate}:${it.total}" }) { r ->
+                    items(rows, key = { "u:${it.symbol}:${it.exDate}:${it.status}" }) { r ->
                         DivRow(r, report.today, onOpen)
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                     }
                 }
-
-                item { HowItWorks(others.size) }
             }
+
+            val payers = report.holdings.filter { it.pays }
+            item { SectionHeader("Your dividend payers") }
+            if (payers.isEmpty()) {
+                item {
+                    Text("None of what you hold pays a dividend right now.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
+                }
+            }
+            items(payers, key = { "h:${it.symbol}" }) { h ->
+                HoldingRow(h, report.today, onOpen)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            }
+            val non = report.holdings.filter { !it.pays }
+            if (non.isNotEmpty()) {
+                item {
+                    Text(
+                        "No dividend: " + non.joinToString(", ") { h ->
+                            if (h.caveat == "No recent dividend") "${h.symbol} (stopped)" else h.symbol
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                    )
+                }
+            }
+
+            item { SectionHeader("Paid so far") }
+            if (report.past.isEmpty()) {
+                item {
+                    Text("No dividends found yet for the shares you have held.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
+                }
+            }
+            val byYear = report.past.groupBy { it.payDate.year }
+            byYear.forEach { (year, rows) ->
+                item(key = "y:$year") {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 10.dp, bottom = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(year.toString(), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(Fmt.usd(rows.sumOf { it.total }), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    }
+                }
+                items(rows, key = { "p:${it.symbol}:${it.payDate}:${it.exDate}:${it.total}" }) { r ->
+                    DivRow(r, report.today, onOpen)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+                }
+            }
+
+            item { HowItWorks(otherCount) }
         }
     }
 }
