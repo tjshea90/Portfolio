@@ -46,13 +46,23 @@ class IncomeUiTest {
 
     private val today = LocalDate.of(2026, 10, 22)
 
+    private var scaleState by androidx.compose.runtime.mutableFloatStateOf(1f)
+    private var darkState by androidx.compose.runtime.mutableStateOf(false)
+
+    /** One setContent per test (the rule allows only one); scale and theme are state, flipped by [restyle]. */
     private fun show(fontScale: Float, dark: Boolean, content: @Composable () -> Unit) {
+        scaleState = fontScale; darkState = dark
         rule.setContent {
             val base = LocalDensity.current
-            CompositionLocalProvider(LocalDensity provides Density(base.density, fontScale)) {
-                PortfolioTheme(dark = dark) { Box(Modifier.fillMaxSize()) { content() } }
+            CompositionLocalProvider(LocalDensity provides Density(base.density, scaleState)) {
+                PortfolioTheme(dark = darkState) { Box(Modifier.fillMaxSize()) { content() } }
             }
         }
+    }
+
+    private fun restyle(fontScale: Float, dark: Boolean) {
+        scaleState = fontScale; darkState = dark
+        rule.waitForIdle()
     }
 
     private fun assertNothingOverflows(label: String) {
@@ -92,13 +102,12 @@ class IncomeUiTest {
     @Test fun dividendsRenderAtEveryFontScaleAndTheme() {
         val r = report()
         assertTrue("fixture should have rows", r.past.isNotEmpty() && r.upcoming.isNotEmpty())
+        show(1f, false) { DividendsContent(r, false, false, 0L, 2) {} }
         for (scale in listOf(1f, 1.3f, 2f)) for (dark in listOf(false, true)) {
-            val label = "scale=$scale dark=$dark"
-            show(scale, dark) { DividendsContent(r, false, false, 0L, 2) {} }
+            restyle(scale, dark)
             rule.onNodeWithText("Total dividends paid").assertExists()
             rule.onNodeWithText("Upcoming dividends", ignoreCase = true).assertExists()
-            assertNothingOverflows(label)
-            rule.activityRule.scenario.recreate()
+            assertNothingOverflows("scale=$scale dark=$dark")
         }
     }
 
@@ -129,13 +138,13 @@ class IncomeUiTest {
             upcoming = listOf(entry("NVDA", 3, l[0]), entry("MSFT", 6, l[1], owned = false), entry("INTC", 11, l[2])),
             recent = emptyList(), undated = listOf(entry("KO", -80, l[1]))
         )
+        show(1f, false) { EarningsContent(board, today, false, false, setOf("NVDA"), {}) {} }
         for (scale in listOf(1f, 2f)) for (dark in listOf(false, true)) {
-            show(scale, dark) { EarningsContent(board, today, false, false, setOf("NVDA"), {}) {} }
+            restyle(scale, dark)
             rule.onNodeWithText("Upcoming reports", ignoreCase = true).assertExists()
             // The green row is expanded: its reasons are on screen.
             rule.onNodeWithText("Track record: Beat estimates in 4 of the last 4 quarters", substring = true).assertExists()
             assertNothingOverflows("scale=$scale dark=$dark")
-            rule.activityRule.scenario.recreate()
         }
     }
 
