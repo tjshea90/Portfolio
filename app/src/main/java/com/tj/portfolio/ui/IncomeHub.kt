@@ -1,6 +1,8 @@
 package com.tj.portfolio.ui
 
 import com.tj.portfolio.data.Db
+import com.tj.portfolio.data.NewsItem
+import com.tj.portfolio.net.News
 import com.tj.portfolio.domain.DivEvent
 import com.tj.portfolio.net.DividendFeed
 import com.tj.portfolio.net.EarningsFeed
@@ -54,6 +56,11 @@ class IncomeHub(
 
     private val _earningsLoading = MutableStateFlow(false)
     val earningsLoading: StateFlow<Boolean> = _earningsLoading.asStateFlow()
+
+    private val _headlines = MutableStateFlow<Map<String, List<NewsItem>>>(emptyMap())
+    val headlines: StateFlow<Map<String, List<NewsItem>>> = _headlines.asStateFlow()
+
+    private val newsFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     private val histFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
     private val calFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
@@ -182,7 +189,56 @@ class IncomeHub(
         }
     }
 
+    // ============================================================ headlines for the outlook
+
+    /**
+     * Recent headlines per symbol, for the news-tone part of the outlook. Disk first (the Feed
+     * and detail screens already store what they fetch), then the cheap source cascade - which
+     * stops as soon as it has enough relevant stories - only when nothing under [NEWS_TTL_MS]
+     * old is held. In memory only: the stories themselves are already persisted by their owners.
+     */
+    fun refreshHeadlines(symbols: List<Pair<String, String>>, finnhubKey: String, force: Boolean) {
+        val wanted = symbols.distinctBy { it.first.uppercase() }
+        if (wanted.isEmpty()) return
+        scope().launch {
+            val missing = wanted.filter { _headlines.value[it.first.uppercase()] == null }
+            if (missing.isNotEmpty()) {
+                val loaded = withContext(Dispatchers.IO) {
+                    missing.map { (s, _) -> s.uppercase() to runCatching { db.cachedNewsFor(s) }.getOrDefault(emptyList()) }
+                }
+                _headlines.update { cur -> cur + loaded.filter { (s, v) -> v.isNotEmpty() && cur[s] == null } }
+            }
+            val now = System.currentTimeMillis()
+            coroutineScope {
+                wanted.filter { (s, _) ->
+                    val sym = s.uppercase()
+                    val newest = _headlines.value[sym]?.maxOfOrNull { it.published } ?: 0L
+                    force || (now - (newsFetchedAt[sym] ?: 0L) >= NEWS_TTL_MS && now - newest >= NEWS_TTL_MS)
+                }.chunked(3).forEach { batch ->
+                    batch.map { (s, name) ->
+                        async {
+                            val sym = s.uppercase()
+                            val items = runCatching { News.forSymbol(sym, name, finnhubKey, deep = false) }
+                                .getOrDefault(emptyList())
+                            newsFetchedAt[sym] = System.currentTimeMillis()
+                            if (items.isNotEmpty()) {
+                                _headlines.update { cur ->
+                                    val merged = (items + cur[sym].orEmpty()).distinctBy { News.dedupeKey(it) }
+                                        .sortedByDescending { it.published }.take(40)
+                                    cur + (sym to merged)
+                                }
+                            }
+                        }
+                    }.awaitAll()
+                }
+            }
+        }
+    }
+
     companion object {
+        /** Headlines this fresh are not fetched again on entering the screen (pull ignores it). */
+        const val NEWS_TTL_MS = 3 * 3_600_000L
+
         /** Settings-key prefixes. Excluded from backups (`Db.isDerivedCache`): all re-fetchable. */
         const val DIV_HISTORY = "divhist:"
         const val DIV_CALENDAR = "divcal:"
