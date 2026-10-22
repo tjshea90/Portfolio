@@ -276,4 +276,30 @@ class DividendsTest {
         assertEquals(c, DividendFeed.decodeCalendar(DividendFeed.encodeCalendar(c)))
         assertNotNull(c)
     }
+
+    private fun fixture(name: String) = org.json.JSONObject(
+        javaClass.classLoader!!.getResourceAsStream(name)!!.bufferedReader().use { it.readText() }
+    ).getJSONObject("quoteSummary").getJSONArray("result").getJSONObject(0)
+
+    @Test fun realYahooCalendarFixtureParses() {
+        val c = DividendFeed.parseCalendar(fixture("yahoo_AAPL.json"))
+        assertEquals(LocalDate.of(2026, 8, 10), c.exDate)
+        assertEquals(LocalDate.of(2026, 8, 13), c.payDate)
+        assertEquals(1.08, c.annualRate!!, 1e-9)
+        assertEquals(0.0033, c.yieldFraction!!, 1e-6)
+    }
+
+    @Test fun calendarExDateAlreadyInHistoryDoesNotDuplicateAndSuppliesThePayDate() {
+        // The provider's calendar lags: it still names the ex-date that is already in the history.
+        val ev = quarterly(0.26, from = LocalDate.of(2025, 5, 12)) + DivEvent(LocalDate.of(2026, 8, 10), 0.26)
+        val txns = listOf(buy("AAPL", LocalDate.of(2024, 1, 5), 50.0))
+        val r = Dividends.build(today, txns, listOf(DivHeld("AAPL", 50.0, 5000.0)),
+            listOf(DivInput("AAPL", price = 328.0, history = ev,
+                calExDate = LocalDate.of(2026, 8, 10), calPayDate = LocalDate.of(2026, 8, 13))))
+        val aug = (r.past + r.upcoming).filter { it.exDate == LocalDate.of(2026, 8, 10) }
+        assertEquals(1, aug.size)
+        assertEquals(LocalDate.of(2026, 8, 13), aug.single().payDate)
+        assertFalse(aug.single().payEstimated)
+        assertEquals(0, r.upcoming.count { it.status == DivStatus.SCHEDULED })
+    }
 }

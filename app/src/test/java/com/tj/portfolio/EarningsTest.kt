@@ -181,4 +181,14 @@ class EarningsTest {
         assertTrue(b.upcoming.none { it.symbol == "TINY" } && b.undated.none { it.symbol == "TINY" })   // under 2%: ignored
         assertTrue(b.upcoming.none { it.symbol == "QQQ" })                           // a fund has no report of its own
     }
+
+    @Test fun realYahooEarningsFixtureParses() {
+        val res = org.json.JSONObject(
+            javaClass.classLoader!!.getResourceAsStream("yahoo_AAPL.json")!!.bufferedReader().use { it.readText() }
+        ).getJSONObject("quoteSummary").getJSONArray("result").getJSONObject(0)
+        val d = EarningsFeed.parse(res)!!
+        assertEquals(LocalDate.of(2026, 10, 29), d.day)
+        assertFalse(d.estimated)
+        assertEquals("After close", d.timing)
+    }
 }
