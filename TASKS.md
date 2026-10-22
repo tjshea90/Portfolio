@@ -8,13 +8,15 @@
 
 Branch `claude/dividends-earnings-tracker-0x47k2`. Design notes: audits/2026-10-22/DESIGN.md (written before code).
 
-- [ ] D0 Explore existing code (ledger, Yahoo feeds, nav, existing dividend/earnings bits); write DESIGN.md
-- [ ] D1 Dividend data feed (Yahoo chart events=div history + quoteSummary calendarEvents/summaryDetail), cached
-- [ ] D2 Pure Dividends engine: earned history (shares held on ex-date from ledger), totals, upcoming projection (cadence, ex/pay date, amount), yield per holding. Unit tests.
-- [ ] D3 Dividends screen in Portfolio area, refresh on entering tab + pull-to-refresh
-- [ ] E1 Earnings calendar feed (Yahoo calendarEvents / earningsDate) for held stocks (ETFs: other major events), cached
-- [ ] E2 Pure earnings-outlook engine: green/yellow/red from estimate trend, surprise history, news sentiment, analyst revisions. Unit tests.
-- [ ] E3 Earnings screen with traffic-light per report, ordered by date
+- [x] D0 Explore existing code (ledger, Yahoo feeds, nav, existing dividend/earnings bits); write DESIGN.md
+- [x] D1 Dividend data feed (Yahoo chart events=div history + quoteSummary calendarEvents/summaryDetail), cached
+- [x] D2 Pure Dividends engine: earned history (shares held on ex-date from ledger), totals, upcoming projection (cadence, ex/pay date, amount), yield per holding. Unit tests.
+- [x] D3 Dividends screen in Portfolio area, refresh on entering tab + pull-to-refresh
+- [x] E1 Earnings calendar feed (Yahoo calendarEvents / earningsDate) for held stocks (ETFs: other major events), cached
+- [x] E2 Pure earnings-outlook engine: green/yellow/red from estimate trend, surprise history, news sentiment, analyst revisions. Unit tests.
+- [x] E3 Earnings screen with traffic-light per report, ordered by date
+- [x] (done, tests: DividendsTest 24, EarningsTest 13, IncomeUiTest 4 - all green) IncomeHub single-flight rerun fix pending below
+- [ ] F1 IncomeHub: queue a re-run instead of dropping a call made while a pass is running (ETF top holdings arrive mid-pass)
 - [ ] Z  Light tests, versionCode bump, ship per CLAUDE.md "Releasing"
 
 ## Tj's request, 2026-09-24c (his own words)
