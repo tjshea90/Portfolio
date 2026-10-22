@@ -1,5 +1,22 @@
 # TASKS — the current job
 
+## Tj's request, 2026-10-22 (his own words) — Dividends + Earnings sections
+
+> For this app, make a dividends section in a logical place in the app, maybe inside my portfolio. The dividends section should keep track of dividends I've already earned, a total on all dividends paid, and upcoming dividends and expected amount. This section must keep active information on the stocks and etfs I own, which ones pay dividends, the current dividend percentages per stock or etf I own, the dividend pay dates, and it should automatically calculate the expected dividend payout I should have on each date based on the amount of shares of each etf and stock I have and when I bought them. Figure out the best way to make the most accurate expected dividend amount and date, based on accurate data from my portfolio and from the stock and etf data. This should refresh for the most up to date, accurate information when I go to the dividend section from another tab, or if I pull down to refresh inside the dividend section.
+>
+> Then make another section for upcoming earnings reports, which shows the dates of upcoming scheduled earnings reports or other major press reports for all of my owned stocks and etfs. This section should tell me which press reports or earnings statements are upcoming in order, and if possible, a rating type system which shows whether the report is expected to be good for the stock value, average, or bad. If the report is expected to be a good report overall with good news and a good chance to increase the stock value, put a green light next to the report date, if it is unknown or expected to be average, put a yellow light, if it is expected to be bad news, put a red light. Figure out the best way to gather data and make an average for the overall news, for example, current news stories and expectations
+
+Branch `claude/dividends-earnings-tracker-0x47k2`. Design notes: audits/2026-10-22/DESIGN.md (written before code).
+
+- [ ] D0 Explore existing code (ledger, Yahoo feeds, nav, existing dividend/earnings bits); write DESIGN.md
+- [ ] D1 Dividend data feed (Yahoo chart events=div history + quoteSummary calendarEvents/summaryDetail), cached
+- [ ] D2 Pure Dividends engine: earned history (shares held on ex-date from ledger), totals, upcoming projection (cadence, ex/pay date, amount), yield per holding. Unit tests.
+- [ ] D3 Dividends screen in Portfolio area, refresh on entering tab + pull-to-refresh
+- [ ] E1 Earnings calendar feed (Yahoo calendarEvents / earningsDate) for held stocks (ETFs: other major events), cached
+- [ ] E2 Pure earnings-outlook engine: green/yellow/red from estimate trend, surprise history, news sentiment, analyst revisions. Unit tests.
+- [ ] E3 Earnings screen with traffic-light per report, ordered by date
+- [ ] Z  Light tests, versionCode bump, ship per CLAUDE.md "Releasing"
+
 ## Tj's request, 2026-09-24c (his own words)
 
 > For this app, make sure the check day trading success rate is an accurate representation of
