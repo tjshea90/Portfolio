@@ -2975,6 +2975,12 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     /** When each symbol's holdings were last pulled from the NETWORK - see [coreFetchedAt]. */
 
+    /**
+     * DIVIDEND + EARNINGS FEEDS (2026-10-22). Own class so this one does not grow; ABOVE init
+     * like every property here. See [IncomeHub].
+     */
+    val income = IncomeHub(db) { fgScope }
+
     // ============================================================ RECOMMENDATION
 
     /** Today's BUY/HOLD/SELL for each symbol. Absent means "not computed yet today". */
@@ -5618,6 +5624,63 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * requests an hour to a provider that has no idea this is one person's phone.
      */
     // ================================================================ FUND HOLDINGS
+
+    // ============================================================ DIVIDENDS + EARNINGS
+
+    /** Held symbols (shares > 0) from the live rows. */
+    private fun heldRows() = _ui.value.rows.filter { !it.watchOnly && (it.position?.shares ?: 0.0) > 1e-9 }
+
+    private fun isFundRow(r: Row): Boolean {
+        val qt = r.quote?.quoteType.orEmpty().uppercase()
+        return qt == "ETF" || qt == "MUTUALFUND"
+    }
+
+    /**
+     * Refresh what the Dividends screen shows. Called when the screen is opened and on a pull
+     * (`force`). History for symbols no longer held is read once and cached - it cannot change.
+     */
+    fun refreshDividends(force: Boolean = false) {
+        val held = heldRows().map { it.symbol }
+        if (held.isEmpty()) return
+        val others = _ui.value.txns.mapNotNull { it.symbol?.uppercase() }.distinct() - held.toSet()
+        income.refreshDividends(held, others.take(40), force)
+    }
+
+    /** How many of a fund's biggest holdings the Earnings screen follows for it. */
+    private val FUND_TOP_N = 5
+
+    /** Top holdings of a held fund that are big enough to move it: >= 2% and at most [FUND_TOP_N]. */
+    fun fundTopHoldings(fund: String): List<com.tj.portfolio.data.FundHolding> =
+        _holdings.value[fund.uppercase()]?.holdings.orEmpty()
+            .filter { it.weight >= 0.02 && it.symbol.isNotBlank() }
+            .sortedByDescending { it.weight }.take(FUND_TOP_N)
+
+    /**
+     * Refresh what the Earnings screen shows: fresh report dates, the fundamentals the outlook
+     * is scored from, and recent headlines - for every stock held, and for the biggest holdings
+     * of every fund held (a fund has no earnings of its own; its top holdings' reports are what
+     * move it).
+     */
+    fun refreshEarnings(force: Boolean = false) {
+        val rows = heldRows()
+        if (rows.isEmpty()) return
+        val (funds, stocks) = rows.partition { isFundRow(it) }
+        funds.forEach { loadHoldings(it.symbol, force) }
+        val tops = funds.flatMap { f -> fundTopHoldings(f.symbol) }
+        val names = HashMap<String, String>()
+        rows.forEach { names[it.symbol.uppercase()] = it.name }
+        tops.forEach { names.putIfAbsent(it.symbol.uppercase(), it.name) }
+        val symbols = (stocks.map { it.symbol } + tops.map { it.symbol }).map { it.uppercase() }.distinct()
+        if (symbols.isEmpty()) return
+        income.refreshEarningsDates(symbols, force)
+        fgScope.launch {
+            symbols.forEachIndexed { i, sym ->
+                if (i > 0 && i % 3 == 0) delay(400L)
+                loadFundamentals(sym, force)
+            }
+        }
+        income.refreshHeadlines(symbols.map { it to (names[it] ?: it) }, finnhubKey(), force)
+    }
 
     /**
      * What this fund holds. Cheap and idempotent - safe to call on every screen open.

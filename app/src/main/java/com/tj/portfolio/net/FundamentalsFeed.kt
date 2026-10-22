@@ -372,6 +372,10 @@ object FundamentalsFeed {
         put("fiftyTwoWeekHigh", num(summary, "fiftyTwoWeekHigh"))
         put("fiftyTwoWeekLow", num(summary, "fiftyTwoWeekLow"))
         put("fiftyDayAverage", num(summary, "fiftyDayAverage"))
+        // A price proxy for the Earnings screen's look at an ETF's top holdings, which are not
+        // in the quote list and so have no live price: the previous close is close enough to
+        // measure a 50-day trend and a target gap against.
+        put("previousClose", num(summary, "previousClose") ?: num(summary, "regularMarketPreviousClose"))
         put("twoHundredDayAverage", num(summary, "twoHundredDayAverage"))
         put("volume", num(summary, "volume") ?: num(summary, "regularMarketVolume"))
         put("averageVolume", num(summary, "averageVolume"))

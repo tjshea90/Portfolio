@@ -2346,7 +2346,9 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
             k == Keys.FEED_AT || k == Keys.FILINGS_AT ||
             k == Keys.AUTOSAVE_AT || k == Keys.AUTO_BACKUP_AT || k == Keys.DOWNLOADS_TIDIED ||
             k == Keys.PENDING_IMPORT || k == Keys.REPLAY_REPAIR_BELOW_ID ||
-            k == Keys.REPLAY_REPAIR_RANGES
+            k == Keys.REPLAY_REPAIR_RANGES ||
+            // Dividend history / calendar and earnings dates (2026-10-22): all re-fetchable.
+            com.tj.portfolio.ui.IncomeHub.PREFIXES.any { k.startsWith(it) }
 
     /** A backup's number, or 0 when missing, malformed or not finite (A-8). */
     private fun JSONObject.finiteOrZero(key: String): Double =
