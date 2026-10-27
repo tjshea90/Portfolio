@@ -496,6 +496,7 @@ fun App() {
                     // these are SQLite reads, and the v2.4 rule is that nothing touching the
                     // database runs bare inside composition.
                     blockAds = remember(article) { vm.blockAds() },
+                    offlineHtml = { u -> vm.offlinePage(u) },
                     declutter = remember(article) { vm.declutter() },
                     autoReader = remember(article) { vm.autoReader() }
                 )

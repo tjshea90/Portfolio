@@ -193,6 +193,7 @@ fun WatchlistScreen(
 
         Refreshable(refreshing = state.pulling(PULL_PRICES), onRefresh = { vm.refresh(manual = true) }) {
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
+            item(key = "offline-strip") { OfflineStrip(vm) }
             items(rows, key = { it.symbol }, contentType = { "stock" }) { row ->
                 StockRowItem(
                     row,

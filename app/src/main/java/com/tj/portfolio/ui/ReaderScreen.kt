@@ -83,7 +83,9 @@ fun ReaderScreen(
     /** Strip overlays and registration panels, and restore the page's scroll. */
     declutter: Boolean = true,
     /** Go straight to the text-only article when the page has one. */
-    autoReader: Boolean = false
+    autoReader: Boolean = false,
+    /** The saved readable copy of a URL (see OfflinePages), or null. Used when the page cannot load. */
+    offlineHtml: (String) -> String? = { null }
 ) {
     val ctx = LocalContext.current
     // Updated on every WebView progress callback - dozens per page load - so this one
@@ -94,6 +96,8 @@ fun ReaderScreen(
     var menu by remember { mutableStateOf(false) }
     var readerMode by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf<String?>(null) }
+    // True once the saved offline copy is what the WebView is showing.
+    var showingSaved by remember { mutableStateOf(false) }
     // a transient one-line message under the toolbar (reader view declined, and so on)
     var notice by remember { mutableStateOf<String?>(null) }
 
@@ -344,8 +348,15 @@ fun ReaderScreen(
                             // Only the main document matters - a blocked tracker or a failed
                             // ad image must not put an error banner over a readable article.
                             if (request.isForMainFrame) {
-                                failed = "Couldn't load this page. Try \"Open in browser\" " +
-                                    "from the menu."
+                                // A saved copy beats an error banner: this is the offline case.
+                                val saved = offlineHtml(target.url)
+                                if (saved != null && !showingSaved) {
+                                    showingSaved = true
+                                    view.loadDataWithBaseURL(target.url, saved, "text/html", "utf-8", null)
+                                } else if (!showingSaved) {
+                                    failed = "Couldn't load this page. Try \"Open in browser\" " +
+                                        "from the menu."
+                                }
                             }
                         }
                     }
@@ -358,7 +369,14 @@ fun ReaderScreen(
                             if (title.isNotBlank()) pageTitle = title
                         }
                     }
-                    loadUrl(target.url)
+                    // OFFLINE: with no network, open the saved readable copy straight away
+                    // instead of waiting for a load that cannot succeed.
+                    val saved = if (!com.tj.portfolio.util.Connectivity.isOnline(c)) offlineHtml(target.url) else null
+                    if (saved != null) {
+                        showingSaved = true
+                        notice = "Offline - showing the copy saved on this device."
+                        loadDataWithBaseURL(target.url, saved, "text/html", "utf-8", null)
+                    } else loadUrl(target.url)
                     web = this
                 }
             }

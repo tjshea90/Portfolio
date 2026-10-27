@@ -3114,6 +3114,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** The saved readable copy of an article, for the reader when the page cannot be loaded. */
     fun offlinePage(url: String): String? = db.offlinePage(url)
 
+    fun clearOfflinePages() { viewModelScope.launch(Dispatchers.IO) { db.clearOfflinePages() } }
+
     // ============================================================ RECOMMENDATION
 
     /** Today's BUY/HOLD/SELL for each symbol. Absent means "not computed yet today". */

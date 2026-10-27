@@ -456,6 +456,37 @@ fun SettingsScreen(vm: PortfolioViewModel) {
             )
         }
 
+        // ---- OFFLINE DATA (2026-10-27)
+        run {
+            val light by vm.lightRefresh.collectAsState()
+            val prog by vm.offline.progress.collectAsState()
+            LaunchedEffect(prog.lastFinishedAt) { vm.offline.refreshCacheSize() }
+            Text("Offline data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                "Pulling down to refresh saves prices, charts, dividends, earnings, news, analyst " +
+                    "notes, your watch list, research and readable copies of articles on this device " +
+                    "(about 50 MB, freshest first), so they can be read with no connection. " +
+                    "Currently stored: " + megabytes(prog.cacheBytes) + ".",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Light refresh")
+                    Text(
+                        "Pull-to-refresh only updates your holdings' prices and charts and the " +
+                            "headlines - no full pages, no research rebuild. Uses very little data.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(checked = light, onCheckedChange = { vm.setLightRefresh(it) })
+            }
+            OutlinedButton(
+                onClick = { vm.clearOfflinePages(); vm.offline.refreshCacheSize() },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Delete saved article pages") }
+        }
         // ---- what the reader does to a page once it has it
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
