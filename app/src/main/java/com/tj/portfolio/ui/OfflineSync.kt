@@ -98,7 +98,11 @@ class OfflineSync(
             return false
         }
         running = true
-        scope().launch { runCatching { run(mode) }.onFailure { if (it is CancellationException) throw it }; running = false }
+        // ATOMIC: if the foreground scope was cancelled between the flag and here, the body must
+        // still start so its `finally` clears the flag - or sync would stay "running" forever.
+        scope().launch(start = kotlinx.coroutines.CoroutineStart.ATOMIC) {
+            try { run(mode) } catch (e: CancellationException) { throw e } catch (_: Exception) { } finally { running = false }
+        }
         return true
     }
 
@@ -117,7 +121,7 @@ class OfflineSync(
         val heldSet = held.map { it.symbol.uppercase() }.toSet()
         val watch = host.watchlist().distinctBy { it.symbol.uppercase() }.filter { it.symbol.uppercase() !in heldSet }
         val full = mode == Mode.FULL
-        val totalSteps = if (full) 8 else 2
+        val totalSteps = if (full) 8 else 3
         var step = 0
         var pages = 0
         val completedTiers = LinkedHashSet<Int>()
@@ -131,7 +135,7 @@ class OfflineSync(
         }
 
         suspend fun <T> each(items: List<T>, body: suspend (T) -> Unit) = coroutineScope {
-            items.map { it -> async { gate.withPermit { runCatching { body(it) }.onFailure { e -> if (e is CancellationException) throw e } } } }.awaitAll()
+            items.map { item -> async { gate.withPermit { try { body(item) } catch (e: CancellationException) { throw e } catch (_: Exception) { } } } }.awaitAll()
         }
 
         _progress.value = _progress.value.copy(running = true, mode = mode, phase = "Starting", step = 0, steps = totalSteps, pagesSaved = 0)
@@ -160,7 +164,7 @@ class OfflineSync(
                     host.fundamentals(s.symbol)
                     host.analysisPieces(s.symbol, s.name)
                 }
-                pages += savePages(runId, 4, heldUrls(held, perSymbol = 12, skip = 8), gate)
+                pages += savePages(runId, 4, analysisUrls(held, perSymbol = 5), gate)
                 completedTiers += 4
 
                 // ------------------------------------------------ 5. watch list (tier 5)
@@ -230,14 +234,36 @@ class OfflineSync(
 
     private fun mb(bytes: Long) = String.format(java.util.Locale.US, "%.1f MB", bytes / 1048576.0)
 
-    /** Story URLs on file for these symbols, newest first, [skip] already claimed by a higher tier. */
-    private suspend fun heldUrls(syms: List<Sym>, perSymbol: Int, skip: Int = 0): List<Pair<String, String>> =
+    /** Story URLs on file for these symbols, newest first. */
+    private suspend fun heldUrls(syms: List<Sym>, perSymbol: Int): List<Pair<String, String>> =
         withContext(Dispatchers.IO) {
             syms.flatMap { s ->
-                runCatching { db.cachedNewsFor(s.symbol, limit = perSymbol + skip) }.getOrDefault(emptyList())
-                    .drop(skip).filter { it.url.isNotBlank() }.map { it.url to it.title }
+                runCatching { db.cachedNewsFor(s.symbol, limit = perSymbol) }.getOrDefault(emptyList())
+                    .filter { it.url.isNotBlank() }.map { it.url to it.title }
             }
         }
+
+    /** The analyst / opinion pieces among a symbol's saved stories (see [isAnalysis]). */
+    private suspend fun analysisUrls(syms: List<Sym>, perSymbol: Int): List<Pair<String, String>> =
+        withContext(Dispatchers.IO) {
+            syms.flatMap { s ->
+                runCatching { db.cachedNewsFor(s.symbol, limit = 80) }.getOrDefault(emptyList())
+                    .filter { it.url.isNotBlank() && isAnalysis(it.source, it.title) }
+                    .take(perSymbol).map { it.url to it.title }
+            }
+        }
+
+    companion object {
+        private val ANALYSIS_WORDS = Regex(
+            "\\b(analyst|upgrade[sd]?|downgrade[sd]?|price target|rating|outlook|forecast|" +
+                "opinion|valuation|buy or sell|should you|why .* (stock|shares)|deep dive|" +
+                "overweight|underweight|outperform|initiat\\w+ coverage)\\b", RegexOption.IGNORE_CASE
+        )
+
+        /** Is this story an analyst note or opinion piece rather than a plain news item? */
+        fun isAnalysis(source: String, title: String): Boolean =
+            source.startsWith("Analyst") || source.startsWith("Opinion") || ANALYSIS_WORDS.containsMatchIn(title)
+    }
 
     /**
      * Save readable copies of [urls] for [tier]. A page already held is only re-confirmed (an
@@ -259,7 +285,10 @@ class OfflineSync(
                 async {
                     gate.withPermit {
                         ensureActive()
-                        if (db.hasOfflinePage(url)) { db.touchOfflinePage(url, tier, run); return@withPermit }
+                        val have = withContext(Dispatchers.IO) {
+                            db.hasOfflinePage(url).also { if (it) db.touchOfflinePage(url, tier, run) }
+                        }
+                        if (have) return@withPermit
                         if (synchronized(lock) { room } < 20_000L) return@withPermit
                         val r = Http.get(url, mapOf("Accept" to "text/html"), timeoutMs = 12_000)
                         if (!r.ok || r.body.isBlank()) return@withPermit
