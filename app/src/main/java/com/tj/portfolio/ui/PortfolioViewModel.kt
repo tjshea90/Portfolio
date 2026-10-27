@@ -1905,7 +1905,9 @@ internal class RetryClock {
 
 class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
-    init { com.tj.portfolio.util.DeviceProfile.init(app) }
+    /** Reads the device class once, before anything sizes a gate or a cache from it. */
+    @Suppress("unused")
+    private val deviceProfile = com.tj.portfolio.util.DeviceProfile.init(app)
 
     private val db = Db(app)
 
