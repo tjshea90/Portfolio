@@ -148,6 +148,8 @@ the new requirement.
 | Chart cache | `chart_cache` (db v7), one row per (symbol, range), disk read before any network request | Switching apps must never blank a chart |
 | Chart refresh rate | The range's own candle interval, never faster | Asking more often than the provider updates returns nothing new |
 | Memory trims | Nothing VISIBLE released below `TRIM_MODERATE` (60); at `TRIM_MEMORY_BACKGROUND` (40) only invisible speed caches go (Http heap cache, search memo, story-key memo) | `TRIM_MEMORY_UI_HIDDEN` fires on every app switch and was blanking charts; Android 14+ never delivers 60, so without the 40 tier nothing was ever given back (Tj approved 2026-09-24b) |
+| Offline refresh (v8.3) | Pull-to-refresh runs `OfflineSync`: tiers 1-7 in priority order, saves gzip article text in `offline_pages` (db v11), 50 MB budget, evicts HTTP cache > feed > research > watch > analysis > news; prices/charts/dividends/earnings pinned. Light-refresh switch = prices, charts, headlines only. See audits/2026-10-27/DESIGN.md | Tj reads the app on an Android 10 Go tablet (MT8168) that rarely has internet |
+| Low-RAM devices | `DeviceProfile.lowRam` (`isLowRamDevice`) scales parallel requests and the heap response cache only | Same behavior everywhere else |
 | Fund holdings | Yahoo `topHoldings` — top holdings only, and the screen says so | No keyless feed publishes a full fund register |
 
 ## Manual verification tools (not part of the automated gate)

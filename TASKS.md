@@ -12,14 +12,14 @@
 > For every refresh with internet, delete stale information from the app and save the newest, fresh data, maintaining about 50mb cache always of the freshest data.
 > Finally, include a button or toggle for a light refresh, which only uses minimal data for refreshing only my holdings prices and charts, and basic information throughout the app such as headlines only but not full websites.
 
-- [ ] O0 Explore refresh flow, http_cache, Db, minSdk/Android 10 + MT8168 (low RAM, 32-bit?) constraints; write audits/2026-10-27/DESIGN.md
-- [ ] O1 Tiered offline cache budget (50 MB) with priority eviction P1 prices/charts > P2 divs/earnings > P3 news > P4 analysis > P5 watchlist > P6 research > P7 feed; persistent across restart
-- [ ] O2 Full refresh (pull-to-refresh) pipeline: per holding fetch prices+charts, dividends, earnings, news, analyst/opinion, + watchlist + research (not day trading/live feed ext.); saves offline
-- [ ] O3 Offline page saving (article pages) for news/analysis within budget; Reader shows saved copy offline
-- [ ] O4 Stale purge on each successful refresh; keep ~50 MB of freshest
-- [ ] O5 Light refresh toggle/button: holdings prices+charts + headlines only, no full pages
-- [ ] O6 Android 10 Go / MT8168 optimizations (memory, startup, threads, image/chart cost); verify minSdk/targets
-- [ ] O7 Unit tests; full suite green; do not break functionality
+- [x] O0 Explore refresh flow, http_cache, Db, minSdk/Android 10 + MT8168 (low RAM, 32-bit?) constraints; write audits/2026-10-27/DESIGN.md
+- [x] O1 Tiered offline cache budget (50 MB) with priority eviction P1 prices/charts > P2 divs/earnings > P3 news > P4 analysis > P5 watchlist > P6 research > P7 feed; persistent across restart
+- [x] O2 Full refresh (pull-to-refresh) pipeline: per holding fetch prices+charts, dividends, earnings, news, analyst/opinion, + watchlist + research (not day trading/live feed ext.); saves offline
+- [x] O3 Offline page saving (article pages) for news/analysis within budget; Reader shows saved copy offline
+- [x] O4 Stale purge on each successful refresh; keep ~50 MB of freshest
+- [x] O5 Light refresh toggle/button: holdings prices+charts + headlines only, no full pages
+- [x] O6 Android 10 Go / MT8168 optimizations (memory, startup, threads, image/chart cost); verify minSdk/targets
+- [x] O7 Unit tests; full suite green; do not break functionality
 - [ ] O8 Ship per CLAUDE.md Releasing
 
 ## Tj's request, 2026-10-22 (his own words) — Dividends + Earnings sections
