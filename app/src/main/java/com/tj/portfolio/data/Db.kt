@@ -1489,6 +1489,29 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         return out
     }
 
+    /** Newest linked stories of a kind (`MARKET`, `NEWS`) for the offline page saver. */
+    fun recentStoryUrls(kind: String, limit: Int, notSymbols: Collection<String> = emptyList()): List<Pair<String, String>> {
+        val out = ArrayList<Pair<String, String>>()
+        runCatching {
+            val skip = if (notSymbols.isEmpty()) "" else
+                " AND symbol NOT IN (${notSymbols.joinToString(",") { "?" }})"
+            readableDatabase.rawQuery(
+                "SELECT url,title FROM news_cache WHERE kind=? AND url<>''$skip " +
+                    "ORDER BY published DESC LIMIT ?",
+                (listOf(kind) + notSymbols.map { it.uppercase() } + limit.toString()).toTypedArray()
+            ).use { c -> while (c.moveToNext()) out.add(c.getString(0) to c.getString(1).orEmpty()) }
+        }
+        return out
+    }
+
+    /** Chart rows for symbols the app no longer tracks are stale by definition. */
+    fun purgeChartsExcept(symbols: Collection<String>): Int = runCatching {
+        if (symbols.isEmpty()) 0 else writableDatabase.delete(
+            "chart_cache", "symbol NOT IN (${symbols.joinToString(",") { "?" }})",
+            symbols.map { it.uppercase() }.toTypedArray()
+        )
+    }.getOrDefault(0)
+
     /**
      * Drop headlines the app first saw more than a month ago.
      *
