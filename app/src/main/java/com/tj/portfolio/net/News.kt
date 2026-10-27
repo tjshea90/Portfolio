@@ -147,6 +147,38 @@ object News {
         out.values.sortedByDescending { it.published }
     }
 
+
+    /**
+     * ANALYST NOTES AND OPINION PIECES for one stock (2026-10-27, offline-first refresh).
+     *
+     * The ordinary feeds are news wires; what an investor reads to form a view is analysts'
+     * rating and price-target changes and columnists' takes. Google News search carries both
+     * and is the one keyless source that does, so two scoped queries ask for them directly.
+     * Every result still goes through [Relevance] — "Apple" stories about the fruit are real.
+     * Tagged in `source` so the list can say what kind of piece it is.
+     */
+    suspend fun analysisAndOpinion(symbol: String, companyName: String): List<NewsItem> = coroutineScope {
+        val who = if (companyName.isNotBlank()) "\"$companyName\"" else "\"$symbol\" stock"
+        val queries = listOf(
+            "$who analyst rating price target" to "Analyst",
+            "$who opinion analysis outlook" to "Opinion"
+        )
+        val all = queries.map { (q, tag) ->
+            async {
+                runCatching {
+                    rss(
+                        "https://news.google.com/rss/search?q=" + MarketData.enc(q) +
+                            "&hl=en-US&gl=US&ceid=US:en",
+                        symbol, "Google News"
+                    ).map { it.copy(source = "$tag · ${it.source}") }
+                }.getOrDefault(emptyList())
+            }
+        }.awaitAll().flatten()
+        val out = LinkedHashMap<String, NewsItem>()
+        relevantOnly(all, symbol, companyName).forEach { out.putIfAbsent(key(it), it) }
+        out.values.sortedByDescending { it.published }.take(12)
+    }
+
     /**
      * Two headlines are the same story when their titles agree.
      *
