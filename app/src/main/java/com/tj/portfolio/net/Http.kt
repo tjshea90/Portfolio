@@ -423,7 +423,8 @@ object Http {
      * holding. Entries are evicted oldest-first until the total is back under the budget, so
      * the bound holds whatever mix of feed sizes turns up.
      */
-    private const val CACHE_MAX_TOTAL_CHARS = 1_500_000   // ~3MB of UTF-16
+    private const val CACHE_MAX_TOTAL_CHARS_NORMAL = 1_500_000   // ~3MB of UTF-16
+    private val CACHE_MAX_TOTAL_CHARS: Int get() = com.tj.portfolio.util.DeviceProfile.heapCacheChars(CACHE_MAX_TOTAL_CHARS_NORMAL)
 
     /** Total characters currently held. Guarded by the same lock as the map. */
     private var cacheChars: Long = 0L

@@ -227,7 +227,9 @@ const val SORT_PRICE = "price"
  * comfortably under two seconds - imperceptible on a 15-second refresh, and a far quieter
  * neighbour.
  */
-private const val MAX_PARALLEL_REQUESTS = 5
+private const val MAX_PARALLEL_REQUESTS_NORMAL = 5
+/** Fewer simultaneous requests on a low-RAM device (Android Go tablet). See DeviceProfile. */
+private val MAX_PARALLEL_REQUESTS: Int get() = com.tj.portfolio.util.DeviceProfile.parallel(MAX_PARALLEL_REQUESTS_NORMAL)
 
 /** EDGAR publishes a hard 10 requests/second cap, so it gets its own smaller gate. */
 private const val MAX_PARALLEL_SEC = 3
@@ -1903,6 +1905,8 @@ internal class RetryClock {
 
 class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
+    init { com.tj.portfolio.util.DeviceProfile.init(app) }
+
     private val db = Db(app)
 
     private val _ui = MutableStateFlow(UiState())
@@ -2998,9 +3002,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private val offlineHost = object : OfflineSync.Host {
-        override val lowRam: Boolean =
-            (app.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager)
-                ?.isLowRamDevice == true
+        override val lowRam: Boolean get() = com.tj.portfolio.util.DeviceProfile.lowRam
 
         override fun online() = com.tj.portfolio.util.Connectivity.isOnline(app)
 
