@@ -33,7 +33,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     companion object {
         const val DB_NAME = "portfolio.db"
         /** Bump only alongside an additive block in onUpgrade. */
-        const val DB_VERSION = 10
+        const val DB_VERSION = 11
         const val BACKUP_FORMAT = "tj-portfolio-backup"
 
         /**
@@ -96,6 +96,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         // costs nothing and removes the asymmetry.
         createHttpCache(db)
         createChartCache(db)
+        createOfflinePages(db)
     }
 
     /**
@@ -424,7 +425,8 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         if (oldV < 8) addColumn(db, "watchlist", "added_price", "REAL NOT NULL DEFAULT 0")
         if (oldV < 9) createDayTradingLog(db)
         if (oldV < 10) { ensureDayTradingLogV10(db); createDayBars(db) }
-        // future: if (oldV < 11) { ...additive changes only... }
+        if (oldV < 11) createOfflinePages(db)
+        // future: if (oldV < 12) { ...additive changes only... }
     }
 
     /**
@@ -442,6 +444,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         runCatching { createFundamentals(db) }
         runCatching { createHttpCache(db) }
         runCatching { createChartCache(db) }
+        runCatching { createOfflinePages(db) }
         // ROUND 66: and the txns indexes, which until now existed only on databases that were
         // freshly created rather than upgraded. See [createTxnIndexes].
         runCatching { createTxnIndexes(db) }
@@ -571,6 +574,164 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
     }
 
     fun clearHttpCache() { runCatching { writableDatabase.delete("http_cache", null, null) } }
+
+
+    // ---------- saved article pages for offline reading (db v11, 2026-10-27) ----------
+
+    /**
+     * `offline_pages`: the readable core of a web page, gzip-packed (see
+     * [com.tj.portfolio.net.OfflinePages]). Purely additive and purely derived, so excluded from
+     * backups like every other cache. `tier` is the priority tier of the screen that wanted it
+     * (3 holdings news ... 7 live feed) and drives eviction; `seen` is the sync run that last
+     * confirmed the page is still wanted, which is how a refresh knows what is stale.
+     */
+    private fun createOfflinePages(db: SQLiteDatabase) {
+        db.execSQL(
+            """CREATE TABLE IF NOT EXISTS offline_pages(
+                url TEXT PRIMARY KEY,
+                symbol TEXT NOT NULL DEFAULT '',
+                tier INTEGER NOT NULL DEFAULT 7,
+                title TEXT NOT NULL DEFAULT '',
+                fetched INTEGER NOT NULL DEFAULT 0,
+                seen INTEGER NOT NULL DEFAULT 0,
+                bytes INTEGER NOT NULL DEFAULT 0,
+                body BLOB
+            )"""
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_offline_tier ON offline_pages(tier, fetched)")
+    }
+
+    fun hasOfflinePage(url: String): Boolean = runCatching {
+        readableDatabase.rawQuery("SELECT 1 FROM offline_pages WHERE url=? LIMIT 1", arrayOf(url))
+            .use { it.moveToFirst() }
+    }.getOrDefault(false)
+
+    /** The saved, readable HTML for [url] (already wrapped for display), or null. */
+    fun offlinePage(url: String): String? = runCatching {
+        readableDatabase.rawQuery(
+            "SELECT title,fetched,body FROM offline_pages WHERE url=?", arrayOf(url)
+        ).use { c ->
+            if (!c.moveToFirst()) null
+            else com.tj.portfolio.net.OfflinePages.wrap(
+                c.getString(0).orEmpty(), url, c.getLong(1),
+                com.tj.portfolio.net.OfflinePages.unpack(c.getBlob(2))
+            )
+        }
+    }.getOrNull()
+
+    /** Store (or refresh) one page. [html] is the sanitised body, not the wrapped document. */
+    fun putOfflinePage(url: String, symbol: String, tier: Int, title: String, html: String, run: Long) {
+        runCatching {
+            val packed = com.tj.portfolio.net.OfflinePages.pack(html)
+            writableDatabase.insertWithOnConflict(
+                "offline_pages", null,
+                ContentValues().apply {
+                    put("url", url); put("symbol", symbol.uppercase()); put("tier", tier)
+                    put("title", title); put("fetched", System.currentTimeMillis())
+                    put("seen", run); put("bytes", packed.size); put("body", packed)
+                },
+                SQLiteDatabase.CONFLICT_REPLACE
+            )
+        }
+    }
+
+    /** Mark pages as still wanted by sync [run] without re-downloading them. */
+    fun touchOfflinePage(url: String, tier: Int, run: Long) {
+        runCatching {
+            writableDatabase.execSQL(
+                "UPDATE offline_pages SET seen=?, tier=MIN(tier, ?) WHERE url=?",
+                arrayOf<Any>(run, tier, url)
+            )
+        }
+    }
+
+    /**
+     * Stale-page purge for the tiers a finished sync actually covered: anything in [tiers] that
+     * this [run] did not confirm is no longer in any list the app shows. Tiers a run never
+     * reached are left alone, so an interrupted refresh deletes nothing it failed to replace.
+     */
+    fun purgeUnseenOfflinePages(tiers: Collection<Int>, run: Long): Int = runCatching {
+        if (tiers.isEmpty()) 0 else writableDatabase.delete(
+            "offline_pages", "seen < ? AND tier IN (${tiers.joinToString(",")})", arrayOf(run.toString())
+        )
+    }.getOrDefault(0)
+
+    fun purgeOldOfflinePages(olderThanMs: Long, now: Long = System.currentTimeMillis()): Int = runCatching {
+        writableDatabase.delete("offline_pages", "fetched < ?", arrayOf((now - olderThanMs).toString()))
+    }.getOrDefault(0)
+
+    fun clearOfflinePages() { runCatching { writableDatabase.delete("offline_pages", null, null) } }
+
+    fun offlinePageCount(): Int = runCatching {
+        readableDatabase.rawQuery("SELECT COUNT(*) FROM offline_pages", null).use { if (it.moveToFirst()) it.getInt(0) else 0 }
+    }.getOrDefault(0)
+
+    /** Saved-page bytes per budget bucket. */
+    fun offlinePageBytes(): Map<com.tj.portfolio.net.OfflineBudget.Bucket, Long> = runCatching {
+        val out = HashMap<com.tj.portfolio.net.OfflineBudget.Bucket, Long>()
+        readableDatabase.rawQuery("SELECT tier, COALESCE(SUM(bytes),0) FROM offline_pages GROUP BY tier", null).use { c ->
+            while (c.moveToNext()) {
+                val b = com.tj.portfolio.net.OfflineBudget.Bucket.ofTier(c.getInt(0))
+                out[b] = (out[b] ?: 0L) + c.getLong(1)
+            }
+        }
+        out
+    }.getOrDefault(HashMap())
+
+    /**
+     * Everything the budget counts but never partially evicts: charts, headlines, parsed
+     * fundamentals, quotes and the `settings` blobs (research lists, dividend/earnings caches).
+     * `LENGTH()` of TEXT counts characters, which for this ASCII-dominant data is within a few
+     * percent of bytes — close enough for a budget that says "around 50 MB".
+     */
+    fun pinnedCacheBytes(): Long = runCatching {
+        var total = 0L
+        val db = readableDatabase
+        listOf(
+            "SELECT COALESCE(SUM(LENGTH(json)),0) FROM chart_cache",
+            "SELECT COALESCE(SUM(LENGTH(title)+LENGTH(detail)+LENGTH(url)+LENGTH(summary)+LENGTH(source)+80),0) FROM news_cache",
+            "SELECT COALESCE(SUM(LENGTH(settings.v)),0) FROM settings",
+            "SELECT COALESCE(SUM(LENGTH(json)),0) FROM fundamentals"
+        ).forEach { q -> runCatching { db.rawQuery(q, null).use { if (it.moveToFirst()) total += it.getLong(0) } } }
+        total
+    }.getOrDefault(0L)
+
+    /**
+     * Delete up to [bytes] from [bucket], oldest first. Returns what was actually freed.
+     * The HTTP bucket is the validator cache; the rest are saved pages of that bucket's tier.
+     */
+    fun evictBucket(bucket: com.tj.portfolio.net.OfflineBudget.Bucket, bytes: Long): Long = runCatching {
+        if (bytes <= 0L) return@runCatching 0L
+        val db = writableDatabase
+        val (table, where, args) = if (bucket == com.tj.portfolio.net.OfflineBudget.Bucket.HTTP)
+            Triple("http_cache", "1=1", emptyArray<String>())
+        else Triple("offline_pages", "tier=?", arrayOf(bucket.tier.toString()))
+        var freed = 0L
+        val victims = ArrayList<Pair<String, Long>>()
+        db.rawQuery("SELECT url, bytes FROM $table WHERE $where ORDER BY fetched ASC", args).use { c ->
+            while (c.moveToNext() && freed < bytes) { victims.add(c.getString(0) to c.getLong(1)); freed += c.getLong(1) }
+        }
+        db.beginTransaction()
+        try {
+            victims.forEach { (u, _) -> db.delete(table, "url=?", arrayOf(u)) }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
+        freed
+    }.getOrDefault(0L)
+
+    /** Enforce [com.tj.portfolio.net.OfflineBudget.BUDGET_BYTES] across everything the budget counts. */
+    fun enforceOfflineBudget(budget: Long = com.tj.portfolio.net.OfflineBudget.BUDGET_BYTES): Long {
+        val sizes = HashMap(offlinePageBytes())
+        sizes[com.tj.portfolio.net.OfflineBudget.Bucket.HTTP] = httpCacheStats().second
+        val plan = com.tj.portfolio.net.OfflineBudget.plan(pinnedCacheBytes(), sizes, budget)
+        var freed = 0L
+        plan.forEach { (b, n) -> freed += evictBucket(b, n) }
+        return freed
+    }
+
+    /** Total bytes the budget currently counts, for the Settings readout. */
+    fun offlineCacheBytes(): Long =
+        pinnedCacheBytes() + offlinePageBytes().values.sum() + httpCacheStats().second
 
     // ---------- fundamentals / analyst ratings cache ----------
 
