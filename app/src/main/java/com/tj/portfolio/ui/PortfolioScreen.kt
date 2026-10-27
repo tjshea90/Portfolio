@@ -172,6 +172,7 @@ fun PortfolioScreen(
                     }
                 }
             }
+            item(key = "offline-strip") { OfflineStrip(vm) }
             item {
                 SummaryHeader(
                     state.totals, state.lastRefresh, state.error,
