@@ -1,5 +1,27 @@
 # TASKS — the current job
 
+## Tj's request, 2026-10-27 (his own words) — Offline cache + MT8168 Android 10 Go tablet
+
+> For this app, optimize it for an android 10 go tablet mt8168. Make sure any changes do not break any functionality.
+>
+> I rarely have internet access on the tablet which I run the app on. Therefore, I want as much data as practical to read and review offline.
+> To do this, when I do have internet access, when I pull down to refresh, make it so the app downloads a lot of pertinent and up to date information about each of my holdings in my portfolio, including but not limited to, earnings reports and schedules, dividends, news stories, analyst's research and reports about my holdings, opinion pieces about my holdings, the most current prices and updated charts for my holdings, update the entire watch list and research sections except the day trading section, the live feed section.
+> The app must cache and save all of the refreshed data for offline viewing, up to around 50mb of data. Make sure the saved data persists through the app closing and tablet restarts.
+> If the 50mb limit is not enough, always prioritize the current prices and graphs of my holdings, then dividends and earnings reports/schedules of my holdings, then news of my holdings, then analysis of my holdings, then my watch list, then the research section, and finally as much of the live feed as possible within limits.
+> The app may save websites for offline viewing.
+> For every refresh with internet, delete stale information from the app and save the newest, fresh data, maintaining about 50mb cache always of the freshest data.
+> Finally, include a button or toggle for a light refresh, which only uses minimal data for refreshing only my holdings prices and charts, and basic information throughout the app such as headlines only but not full websites.
+
+- [ ] O0 Explore refresh flow, http_cache, Db, minSdk/Android 10 + MT8168 (low RAM, 32-bit?) constraints; write audits/2026-10-27/DESIGN.md
+- [ ] O1 Tiered offline cache budget (50 MB) with priority eviction P1 prices/charts > P2 divs/earnings > P3 news > P4 analysis > P5 watchlist > P6 research > P7 feed; persistent across restart
+- [ ] O2 Full refresh (pull-to-refresh) pipeline: per holding fetch prices+charts, dividends, earnings, news, analyst/opinion, + watchlist + research (not day trading/live feed ext.); saves offline
+- [ ] O3 Offline page saving (article pages) for news/analysis within budget; Reader shows saved copy offline
+- [ ] O4 Stale purge on each successful refresh; keep ~50 MB of freshest
+- [ ] O5 Light refresh toggle/button: holdings prices+charts + headlines only, no full pages
+- [ ] O6 Android 10 Go / MT8168 optimizations (memory, startup, threads, image/chart cost); verify minSdk/targets
+- [ ] O7 Unit tests; full suite green; do not break functionality
+- [ ] O8 Ship per CLAUDE.md Releasing
+
 ## Tj's request, 2026-10-22 (his own words) — Dividends + Earnings sections
 
 > For this app, make a dividends section in a logical place in the app, maybe inside my portfolio. The dividends section should keep track of dividends I've already earned, a total on all dividends paid, and upcoming dividends and expected amount. This section must keep active information on the stocks and etfs I own, which ones pay dividends, the current dividend percentages per stock or etf I own, the dividend pay dates, and it should automatically calculate the expected dividend payout I should have on each date based on the amount of shares of each etf and stock I have and when I bought them. Figure out the best way to make the most accurate expected dividend amount and date, based on accurate data from my portfolio and from the stock and etf data. This should refresh for the most up to date, accurate information when I go to the dividend section from another tab, or if I pull down to refresh inside the dividend section.
