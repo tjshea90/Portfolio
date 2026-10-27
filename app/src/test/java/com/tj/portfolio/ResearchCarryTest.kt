@@ -373,13 +373,17 @@ class ResearchCarryTest {
     // must not leave it on screen.
 
     @Test fun `a day-trading plan from a previous trading day is cleared on cold launch`() {
-        val yesterday = System.currentTimeMillis() - 2L * 86_400_000L
+        // FIXED CLOCKS (2026-10-27): "two days ago" fell on a weekend whenever the suite ran on a
+        // Monday evening, and a weekend plan is legitimately still good for Monday's session -
+        // so the test failed for the calendar, not the code. Wednesday's plan, read on Friday.
+        val wed = java.time.ZonedDateTime.of(2026, 10, 21, 15, 0, 0, 0, java.time.ZoneId.of("America/New_York")).toInstant().toEpochMilli()
+        val fri = wed + 2L * 86_400_000L
         val row = ResearchRow(
             symbol = "GME", score = 88, price = 22.5,
             entryPrice = 22.5, stopPrice = 21.0, targetPrice = 25.5,
             setup = "Breakout", trigger = "Buy the break of 22.50", planByClaude = true
         )
-        val out = com.tj.portfolio.ui.evictStaleDayTradingPlan(listOf(row), generated = yesterday)
+        val out = com.tj.portfolio.ui.evictStaleDayTradingPlan(listOf(row), generated = wed, now = fri)
         val gme = out.first()
         assertEquals(0.0, gme.entryPrice, 0.0)
         assertEquals(0.0, gme.stopPrice, 0.0)
