@@ -2981,6 +2981,139 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      */
     val income = IncomeHub(db) { fgScope }
 
+    // ============================================================ OFFLINE REFRESH (2026-10-27)
+
+    private val _lightRefresh = MutableStateFlow(db.getB(Keys.LIGHT_REFRESH, false))
+    /** True = pull-to-refresh only updates prices, charts and headlines. Persisted. */
+    val lightRefresh: StateFlow<Boolean> = _lightRefresh.asStateFlow()
+
+    fun setLightRefresh(on: Boolean) {
+        _lightRefresh.value = on
+        viewModelScope.launch(Dispatchers.IO) { db.setB(Keys.LIGHT_REFRESH, on) }
+    }
+
+    /** Wait (bounded) until [sym] is no longer in an in-flight set. A stuck loader never stalls the pass. */
+    private suspend fun awaitGone(flow: StateFlow<Set<String>>, sym: String, ms: Long = 45_000L) {
+        kotlinx.coroutines.withTimeoutOrNull(ms) { flow.first { sym !in it } }
+    }
+
+    private val offlineHost = object : OfflineSync.Host {
+        override val lowRam: Boolean =
+            (app.getSystemService(android.content.Context.ACTIVITY_SERVICE) as? android.app.ActivityManager)
+                ?.isLowRamDevice == true
+
+        override fun online() = com.tj.portfolio.util.Connectivity.isOnline(app)
+
+        override fun holdings() = heldRows().map { OfflineSync.Sym(it.symbol, it.name) }
+
+        override fun watchlist() = _ui.value.rows.filter { it.watchOnly }.map { OfflineSync.Sym(it.symbol, it.name) }
+
+        override suspend fun quotes(): Boolean {
+            // The price pass was started by refresh() a moment ago; this just waits for it.
+            kotlinx.coroutines.withTimeoutOrNull(60_000L) { quoteJob?.join() }
+            val cutoff = System.currentTimeMillis() - 5 * 60_000L
+            return _quotes.value.values.any { it.updated >= cutoff && !it.stale }
+        }
+
+        override suspend fun chart(symbol: String, rangeKey: String) {
+            val range = runCatching { ChartRange.valueOf(rangeKey) }.getOrNull() ?: return
+            kotlinx.coroutines.withTimeoutOrNull(45_000L) { loadChart(symbol, range, force = true)?.join() }
+        }
+
+        override suspend fun news(symbol: String, name: String, deep: Boolean) {
+            val sym = symbol.uppercase()
+            if (deep) {
+                loadNews(sym, force = true)
+                awaitGone(_newsLoading, sym)
+                return
+            }
+            val items = withContext(Dispatchers.IO) {
+                runCatching { News.forSymbol(sym, name, finnhubKey(), deep = false) }.getOrDefault(emptyList())
+            }
+            storeNews(sym, items)
+        }
+
+        override suspend fun analysisPieces(symbol: String, name: String) {
+            val sym = symbol.uppercase()
+            val items = withContext(Dispatchers.IO) {
+                runCatching { News.analysisAndOpinion(sym, name) }.getOrDefault(emptyList())
+            }
+            storeNews(sym, items)
+        }
+
+        override suspend fun fundamentals(symbol: String) {
+            val sym = symbol.uppercase()
+            loadFundamentals(sym, force = true)
+            loadRatings(sym, force = true)
+            awaitGone(_fundLoading, sym)
+            awaitGone(_ratingsLoading, sym)
+            val fund = _ui.value.rows.firstOrNull { it.symbol.equals(sym, true) }?.let { isFundRow(it) } == true
+            if (fund) { loadHoldings(sym, force = true); awaitGone(_holdingsLoading, sym) }
+        }
+
+        override suspend fun dividends(held: List<String>) {
+            refreshDividends(force = true)
+            kotlinx.coroutines.withTimeoutOrNull(120_000L) { income.dividendsLoading.first { !it } }
+        }
+
+        override suspend fun earnings() {
+            refreshEarnings(force = true)
+            kotlinx.coroutines.withTimeoutOrNull(90_000L) { income.earningsLoading.first { !it } }
+        }
+
+        override suspend fun research() {
+            researchCacheReady.await()
+            // Wait out a build the user started themselves rather than toasting "busy" at them.
+            kotlinx.coroutines.withTimeoutOrNull(90_000L) { _researchBusy.first { it.isEmpty() } }
+            loadResearch(force = true)
+            kotlinx.coroutines.withTimeoutOrNull(180_000L) { _researchBusy.first { it.isEmpty() } }
+            loadEtfs(force = true)
+            kotlinx.coroutines.withTimeoutOrNull(180_000L) { _researchBusy.first { it.isEmpty() } }
+        }
+
+        override fun researchPicks(limit: Int): List<OfflineSync.Sym> {
+            val r = _research.value
+            return (r.best + r.trending + r.etfs).distinctBy { it.symbol.uppercase() }
+                .take(limit).map { OfflineSync.Sym(it.symbol, it.name) }
+        }
+
+        override suspend fun feed(includeInsider: Boolean) {
+            refreshFeed(includeInsider = includeInsider, manual = true)
+            kotlinx.coroutines.withTimeoutOrNull(120_000L) { _feedLoading.first { !it } }
+        }
+    }
+
+    /** Headlines fetched for [sym] go to the same table every screen already paints from. */
+    private suspend fun storeNews(sym: String, items: List<NewsItem>) {
+        if (items.isEmpty()) return
+        val owned = _ui.value.rows.any { it.symbol == sym && !it.watchOnly }
+        val rows = items.map {
+            com.tj.portfolio.data.FeedItem(
+                kind = com.tj.portfolio.data.FeedItem.NEWS, symbol = sym, title = it.title,
+                url = it.url, source = it.source, published = it.published, owned = owned
+            )
+        }
+        val blurbs = rows.indices.filter { items[it].summary.isNotBlank() }.associate { rows[it].id to items[it].summary }
+        withContext(Dispatchers.IO) { runCatching { db.cacheNews(rows, summaries = blurbs) } }
+    }
+
+    val offline = OfflineSync(db, offlineHost) { fgScope }
+
+    /** When the last COMPLETE offline refresh was started, to stop a second pull right after it. */
+    private var offlineStartedAt = 0L
+
+    private fun startOfflineSync() {
+        val light = _lightRefresh.value
+        val now = System.currentTimeMillis()
+        // A second pull within five minutes of a full pass is an ordinary price refresh: the
+        // loaders are forced, so repeating them back-to-back is pure rate-limit risk.
+        if (!light && now - offlineStartedAt < 5 * 60_000L && offline.progress.value.lastMode == OfflineSync.Mode.FULL) return
+        if (offline.start(if (light) OfflineSync.Mode.LIGHT else OfflineSync.Mode.FULL)) offlineStartedAt = now
+    }
+
+    /** The saved readable copy of an article, for the reader when the page cannot be loaded. */
+    fun offlinePage(url: String): String? = db.offlinePage(url)
+
     // ============================================================ RECOMMENDATION
 
     /** Today's BUY/HOLD/SELL for each symbol. Absent means "not computed yet today". */
@@ -3434,7 +3567,18 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * tick. If a refresh is already in flight, a user pull attaches its indicator to that one
      * rather than snapping back with nothing happening.
      */
+    /**
+     * The public refresh. A pull (`manual`) is also the cue for the OFFLINE REFRESH
+     * ([OfflineSync]): the price pass below runs exactly as it always did, and the sync then
+     * fills the rest of the app for reading without a connection - everything, or only the
+     * minimal set when the user has chosen the light refresh.
+     */
     fun refresh(manual: Boolean = false) {
+        refreshQuotes(manual)
+        if (manual) startOfflineSync()
+    }
+
+    private fun refreshQuotes(manual: Boolean = false) {
         if (_ui.value.loading && quoteJob?.isActive != false) {
             if (manual) _ui.value =
                 _ui.value.copy(manualRefresh = true, refreshSource = PULL_PRICES)

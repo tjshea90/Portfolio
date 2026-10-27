@@ -2665,6 +2665,8 @@ object Keys {
 
     /** Block ad, tracker and pop-up hosts in the in-app reader. On by default. */
     const val BLOCK_ADS = "block_ads"
+    /** Pull-to-refresh does the minimal pass: prices, charts and headlines only (2026-10-27). */
+    const val LIGHT_REFRESH = "light_refresh"
 
     /** Strip overlays and registration panels, and give the page its scroll back. */
     const val DECLUTTER = "declutter"
