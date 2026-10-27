@@ -481,7 +481,7 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
      * unbounded cache is a bug rather than a feature, but the bound is set by what is useful
      * rather than by what a heap can hold.
      */
-    private val HTTP_CACHE_MAX_CHARS = 24_000_000L
+    private val HTTP_CACHE_MAX_CHARS = 12_000_000L
 
     /** Entries older than this are dropped: a validator for a feed nobody reads is dead weight. */
     private val HTTP_CACHE_RETENTION_MS = 30L * 86_400_000L
