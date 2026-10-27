@@ -282,3 +282,26 @@ class OfflineSyncTest {
         db = Db(ctx)
     }
 }
+
+class DeviceProfileTest {
+    @org.junit.After fun reset() = com.tj.portfolio.util.DeviceProfile.setForTests(false)
+
+    @Test fun normalDeviceIsUnchanged() {
+        com.tj.portfolio.util.DeviceProfile.setForTests(false)
+        assertEquals(5, com.tj.portfolio.util.DeviceProfile.parallel(5))
+        assertEquals(1_500_000, com.tj.portfolio.util.DeviceProfile.heapCacheChars(1_500_000))
+    }
+
+    @Test fun lowRamDeviceGetsFewerSocketsAndASmallerHeapCache() {
+        com.tj.portfolio.util.DeviceProfile.setForTests(true)
+        assertEquals(3, com.tj.portfolio.util.DeviceProfile.parallel(5))
+        assertEquals(2, com.tj.portfolio.util.DeviceProfile.parallel(2))
+        assertEquals(750_000, com.tj.portfolio.util.DeviceProfile.heapCacheChars(1_500_000))
+    }
+
+    @Test fun statusLineReflectsRunningAndLightStates() {
+        val running = OfflineSync.Progress(running = true, mode = OfflineSync.Mode.FULL, phase = "News on your holdings", step = 3, steps = 8, pagesSaved = 12)
+        assertEquals("Saving for offline: News on your holdings (3/8) - 12 pages", com.tj.portfolio.ui.offlineStatusLine(running, false))
+        assertTrue(com.tj.portfolio.ui.offlineStatusLine(OfflineSync.Progress(), true).contains("light refresh"))
+    }
+}
