@@ -27,6 +27,9 @@ object OfflinePages {
     /** Hosts whose links are JS redirect stubs that never yield an article to a plain GET. */
     private val UNFETCHABLE_HOSTS = listOf("news.google.com", "consent.yahoo.com", "t.co", "bit.ly")
 
+    /** Google News links are redirects; [GoogleNewsLink] resolves them to the publisher first. */
+    fun needsResolving(url: String) = GoogleNewsLink.isGoogleNews(url)
+
     fun worthFetching(url: String): Boolean {
         val u = url.trim()
         if (!u.startsWith("http://") && !u.startsWith("https://")) return false
@@ -114,6 +117,21 @@ object OfflinePages {
 
     private fun unescape(s: String) = s.replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<")
         .replace("&gt;", ">").replace("&quot;", "\"").replace("&#39;", "'").replace("&apos;", "'")
+
+    /**
+     * A page built from what the feed itself delivered - headline, source, summary - for stories
+     * whose full page cannot be saved (paywall, JavaScript shell, blocked fetch). A tap still
+     * opens something offline instead of an error. Null when the feed gave no summary at all.
+     */
+    fun card(title: String, source: String, summary: String, published: Long): String? {
+        val sum = summary.trim()
+        if (sum.length < 40 || sum.equals(title.trim(), true)) return null
+        val when_ = if (published > 0)
+            java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.US).format(java.util.Date(published)) else ""
+        return "<p><b>${escape(source)}</b>${if (when_.isNotEmpty()) " &middot; $when_" else ""}</p>" +
+            "<p>${escape(sum)}</p>" +
+            "<p><i>Summary only - the full article could not be saved. Open it when you are online.</i></p>"
+    }
 
     fun pack(html: String): ByteArray {
         val out = ByteArrayOutputStream(html.length / 3 + 64)
