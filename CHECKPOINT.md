@@ -1,22 +1,24 @@
-# CHECKPOINT 1750 — read me first, then TASKS.md
+# CHECKPOINT 1751 — read me first, then TASKS.md
 
-**Written:** 2026-10-28T18:06:22Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `ccr-39dee522-y8oyky` · **builds on:** `c09cec2c` (this checkpoint is the commit after it)
+**Written:** 2026-10-28T18:14:23Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `ccr-39dee522-y8oyky` · **builds on:** `1fb52661` (this checkpoint is the commit after it)
 
 ## Just done
-captured saved-website request
+W1-W2 coded: GoogleNewsLink resolver, summary-card fallback, saved markers, v8.4 bump; full unit suite running
 
 ## Do this next
-W1 trace page saver -> reader
+confirm suite green, then bash ship.sh, trigger android.yml, record-release v8.4, post Release link
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
+     M BRIEF.md
      M CHECKPOINT.md
-     M TASKS.md
+     M app/build.gradle.kts
 
 ## Last ten checkpoints
 ```
+  1c0c3509 ckpt 1750: captured saved-website request
   7a464da5 ckpt 1749: gated v8.3 (code 102) and pushed it: checkinit, the full unit suite and the 
   8a6945db ckpt 1748: v8.3 prepared: version bump, BRIEF row, tests (OfflineCacheTest 20, Research
   207e8fae ckpt 1747: offline sync: budget, page saver, db v11, OfflineSync orchestrator, VM wirin
@@ -26,5 +28,7 @@ W1 trace page saver -> reader
   5b0c59a8 ckpt 1743: pre-ship: Earnings tab now lists only stocks you own and each ETF you own as
   c13b08b9 ckpt 1742: v8.1 released and recorded (dividends + earnings)
   f66cd2ef ckpt 1741: gated v8.1 (code 100) and pushed it: checkinit, the full unit suite and the 
-  c78ce5b4 ckpt 1740: pre-ship: Dividends and Earnings sections inside the Portfolio tab: dividend
 ```
+
+(7 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
