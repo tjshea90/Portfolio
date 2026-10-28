@@ -1,5 +1,13 @@
 # TASKS — the current job
 
+## Tj's request, 2026-10-28 (his own words) — saved websites not usable
+
+> It wasn't saving websites. I couldn't click on websites to see cached articles. Make it do this
+
+- [ ] W1 Find why saved article pages aren't saved/openable (trace OfflineSync page saver -> Reader/UI click path)
+- [ ] W2 Fix: every news/feed/analysis link opens the saved text copy when offline (and a visible "saved" indicator)
+- [ ] W3 Tests; full suite green; checkpoint; ship per auto-ship rule
+
 ## Tj's request, 2026-10-27 (his own words) — Offline cache + MT8168 Android 10 Go tablet
 
 > For this app, optimize it for an android 10 go tablet mt8168. Make sure any changes do not break any functionality.
