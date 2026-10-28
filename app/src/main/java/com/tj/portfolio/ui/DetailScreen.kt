@@ -951,6 +951,7 @@ fun DetailScreen(
                     filings = filings,
                     loadingNews = loadingNews,
                     symbol = symbol,
+                    saved = vm.savedUrls.collectAsState().value,
                     onOpenUrl = onOpenUrl
                 )
             }
@@ -1627,6 +1628,7 @@ private fun NewsTab(
     filings: List<com.tj.portfolio.data.InsiderFiling>,
     loadingNews: Boolean,
     symbol: String,
+    saved: Set<String>,
     onOpenUrl: (String, String) -> Unit
 ) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
@@ -1707,7 +1709,7 @@ private fun NewsTab(
                     buildString {
                         append(n.source)
                         if (n.published > 0) append("  -  ").append(Fmt.relative(n.published))
-                        if (hasLink) append("  -  tap to read")
+                        if (hasLink) append(if (n.url in saved) "  -  saved for offline" else "  -  tap to read")
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -62,6 +62,7 @@ fun FeedScreen(
     onOpenUrl: (String, String) -> Unit
 ) {
     val items by vm.feed.collectAsState()
+    val savedUrls by vm.savedUrls.collectAsState()
     val trending by vm.trending.collectAsState()
     val loading by vm.feedLoading.collectAsState()
     val at by vm.feedAt.collectAsState()
@@ -386,7 +387,7 @@ fun FeedScreen(
                         // that silently did nothing. Mirrors DetailScreen's NewsTab fix for the
                         // identical case: only a row with somewhere to go is tappable at all.
                         val hasTarget = f.url.isNotBlank() || f.symbol.isNotBlank()
-                        FeedRow(f, onClick = if (!hasTarget) null else {
+                        FeedRow(f, saved = f.url in savedUrls, onClick = if (!hasTarget) null else {
                             {
                                 if (f.url.isNotBlank()) onOpenUrl(f.url, f.title)
                                 else onOpen(f.symbol)
@@ -419,7 +420,7 @@ private fun Empty(text: String) {
 }
 
 @Composable
-private fun FeedRow(f: FeedItem, onClick: (() -> Unit)?) {
+private fun FeedRow(f: FeedItem, saved: Boolean, onClick: (() -> Unit)?) {
     val isInsider = f.kind == FeedItem.INSIDER
     Column(
         Modifier.fillMaxWidth()
@@ -446,6 +447,10 @@ private fun FeedRow(f: FeedItem, onClick: (() -> Unit)?) {
                     style = MaterialTheme.typography.labelSmall,
                     color = greenText
                 )
+            }
+            if (saved) {
+                Spacer(Modifier.width(6.dp))
+                Text("saved", style = MaterialTheme.typography.labelSmall, color = greenText)
             }
             Spacer(Modifier.weight(1f))
             if (f.published > 0) {
