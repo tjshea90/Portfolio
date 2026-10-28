@@ -4,9 +4,9 @@
 
 > It wasn't saving websites. I couldn't click on websites to see cached articles. Make it do this
 
-- [ ] W1 Find why saved article pages aren't saved/openable (trace OfflineSync page saver -> Reader/UI click path)
-- [ ] W2 Fix: every news/feed/analysis link opens the saved text copy when offline (and a visible "saved" indicator)
-- [ ] W3 Tests; full suite green; checkpoint; ship per auto-ship rule
+- [x] W1 Find why saved article pages aren't saved/openable (trace OfflineSync page saver -> Reader/UI click path)
+- [x] W2 Fix: every news/feed/analysis link opens the saved text copy when offline (and a visible "saved" indicator)
+- [x] W3 Tests; full suite green; checkpoint; ship per auto-ship rule
 
 ## Tj's request, 2026-10-27 (his own words) — Offline cache + MT8168 Android 10 Go tablet
 
