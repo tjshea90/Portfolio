@@ -3118,7 +3118,20 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     /** The saved readable copy of an article, for the reader when the page cannot be loaded. */
     fun offlinePage(url: String): String? = db.offlinePage(url)
 
-    fun clearOfflinePages() { viewModelScope.launch(Dispatchers.IO) { db.clearOfflinePages() } }
+    /** URLs with a saved copy, for the "Saved" marker on story rows. Reloaded after every refresh. */
+    private val _savedUrls = MutableStateFlow<Set<String>>(emptySet())
+    val savedUrls: StateFlow<Set<String>> = _savedUrls.asStateFlow()
+
+    fun reloadSavedUrls() { viewModelScope.launch(Dispatchers.IO) { _savedUrls.value = db.savedPageUrls() } }
+
+    init {
+        reloadSavedUrls()
+        viewModelScope.launch {
+            offline.progress.map { it.lastFinishedAt }.distinctUntilChanged().collect { reloadSavedUrls() }
+        }
+    }
+
+    fun clearOfflinePages() { viewModelScope.launch(Dispatchers.IO) { db.clearOfflinePages(); _savedUrls.value = emptySet() } }
 
     // ============================================================ RECOMMENDATION
 

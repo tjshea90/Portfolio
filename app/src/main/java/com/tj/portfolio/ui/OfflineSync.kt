@@ -307,9 +307,9 @@ class OfflineSync(
                         // Paywalled / script-only / unresolvable: keep what the feed gave us so the
                         // tap still opens a readable summary offline.
                         if (body == null) body = OfflinePages.card(n.title, n.source, n.summary, n.published)
-                        if (body == null) return@withPermit
-                        withContext(Dispatchers.IO) { db.putOfflinePage(n.url, "", tier, title, body, run) }
-                        synchronized(lock) { room -= body.length / 3; saved++ }
+                        val page = body ?: return@withPermit
+                        withContext(Dispatchers.IO) { db.putOfflinePage(n.url, "", tier, title, page, run) }
+                        synchronized(lock) { room -= page.length / 3; saved++ }
                         _progress.value = _progress.value.copy(pagesSaved = _progress.value.pagesSaved + 1)
                     }
                 }
