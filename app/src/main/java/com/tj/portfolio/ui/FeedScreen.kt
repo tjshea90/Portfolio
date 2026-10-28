@@ -63,6 +63,7 @@ fun FeedScreen(
 ) {
     val items by vm.feed.collectAsState()
     val savedUrls by vm.savedUrls.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.reloadSavedUrls() }
     val trending by vm.trending.collectAsState()
     val loading by vm.feedLoading.collectAsState()
     val at by vm.feedAt.collectAsState()

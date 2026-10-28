@@ -951,7 +951,7 @@ fun DetailScreen(
                     filings = filings,
                     loadingNews = loadingNews,
                     symbol = symbol,
-                    saved = vm.savedUrls.collectAsState().value,
+                    saved = vm.savedUrls.collectAsState().value.also { androidx.compose.runtime.LaunchedEffect(Unit) { vm.reloadSavedUrls() } },
                     onOpenUrl = onOpenUrl
                 )
             }

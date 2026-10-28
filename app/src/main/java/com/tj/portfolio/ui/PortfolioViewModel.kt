@@ -42,8 +42,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -3103,7 +3101,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         withContext(Dispatchers.IO) { runCatching { db.cacheNews(rows, summaries = blurbs) } }
     }
 
-    val offline = OfflineSync(db, offlineHost) { fgScope }
+    val offline = OfflineSync(db, offlineHost, onFinished = { reloadSavedUrls() }) { fgScope }
 
     /** When the last COMPLETE offline refresh was started, to stop a second pull right after it. */
     private var offlineStartedAt = 0L
@@ -3125,13 +3123,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     val savedUrls: StateFlow<Set<String>> = _savedUrls.asStateFlow()
 
     fun reloadSavedUrls() { viewModelScope.launch(Dispatchers.IO) { _savedUrls.value = db.savedPageUrls() } }
-
-    init {
-        reloadSavedUrls()
-        viewModelScope.launch {
-            offline.progress.map { it.lastFinishedAt }.distinctUntilChanged().collect { reloadSavedUrls() }
-        }
-    }
 
     fun clearOfflinePages() { viewModelScope.launch(Dispatchers.IO) { db.clearOfflinePages(); _savedUrls.value = emptySet() } }
 

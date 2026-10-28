@@ -46,6 +46,7 @@ import kotlinx.coroutines.withContext
 class OfflineSync(
     private val db: Db,
     private val host: Host,
+    private val onFinished: () -> Unit = {},
     private val scope: () -> CoroutineScope
 ) {
     enum class Mode { FULL, LIGHT }
@@ -103,7 +104,7 @@ class OfflineSync(
         // ATOMIC: if the foreground scope was cancelled between the flag and here, the body must
         // still start so its `finally` clears the flag - or sync would stay "running" forever.
         scope().launch(start = kotlinx.coroutines.CoroutineStart.ATOMIC) {
-            try { run(mode) } catch (e: CancellationException) { throw e } catch (_: Exception) { } finally { running = false }
+            try { run(mode) } catch (e: CancellationException) { throw e } catch (_: Exception) { } finally { running = false; runCatching(onFinished) }
         }
         return true
     }
