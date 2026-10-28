@@ -1504,6 +1504,31 @@ class Db(context: Context) : SQLiteOpenHelper(context.applicationContext, DB_NAM
         return out
     }
 
+    /** Like [recentStoryUrls] but whole items, so a page that cannot be fetched can fall back to its summary. */
+    fun recentStories(kind: String, limit: Int, notSymbols: Collection<String> = emptyList()): List<NewsItem> {
+        val out = ArrayList<NewsItem>()
+        runCatching {
+            val skip = if (notSymbols.isEmpty()) "" else
+                " AND symbol NOT IN (${notSymbols.joinToString(",") { "?" }})"
+            readableDatabase.rawQuery(
+                "SELECT symbol,title,url,source,published,summary FROM news_cache WHERE kind=? AND url<>''$skip " +
+                    "ORDER BY published DESC LIMIT ?",
+                (listOf(kind) + notSymbols.map { it.uppercase() } + limit.toString()).toTypedArray()
+            ).use { c ->
+                while (c.moveToNext()) out.add(NewsItem(c.getString(0).orEmpty(), c.getString(1).orEmpty(),
+                    c.getString(2).orEmpty(), c.getString(3).orEmpty(), c.getLong(4), c.getString(5).orEmpty()))
+            }
+        }
+        return out
+    }
+
+    /** URLs that have a saved copy, for the "Saved" marker on story rows. */
+    fun savedPageUrls(): Set<String> = runCatching {
+        readableDatabase.rawQuery("SELECT url FROM offline_pages", null).use { c ->
+            val s = HashSet<String>(); while (c.moveToNext()) s.add(c.getString(0)); s
+        }
+    }.getOrDefault(emptySet())
+
     /** Chart rows for symbols the app no longer tracks are stale by definition. */
     fun purgeChartsExcept(symbols: Collection<String>): Int = runCatching {
         if (symbols.isEmpty()) 0 else writableDatabase.delete(

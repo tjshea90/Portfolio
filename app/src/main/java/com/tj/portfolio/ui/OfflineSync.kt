@@ -2,6 +2,8 @@ package com.tj.portfolio.ui
 
 import com.tj.portfolio.data.Db
 import com.tj.portfolio.data.FeedItem
+import com.tj.portfolio.data.NewsItem
+import com.tj.portfolio.net.GoogleNewsLink
 import com.tj.portfolio.net.Http
 import com.tj.portfolio.net.OfflineBudget
 import com.tj.portfolio.net.OfflinePages
@@ -193,8 +195,8 @@ class OfflineSync(
             runCatching { host.feed(includeInsider = full) }
             if (full) {
                 val feedUrls = withContext(Dispatchers.IO) {
-                    db.recentStoryUrls(FeedItem.NEWS, 80, notSymbols = heldSet + watch.map { it.symbol.uppercase() })
-                        .plus(db.recentStoryUrls(FeedItem.MARKET, 60))
+                    db.recentStories(FeedItem.NEWS, 80, notSymbols = heldSet + watch.map { it.symbol.uppercase() })
+                        .plus(db.recentStories(FeedItem.MARKET, 60))
                 }
                 pages += savePages(runId, 7, feedUrls, gate)
                 completedTiers += 7
@@ -235,21 +237,21 @@ class OfflineSync(
     private fun mb(bytes: Long) = String.format(java.util.Locale.US, "%.1f MB", bytes / 1048576.0)
 
     /** Story URLs on file for these symbols, newest first. */
-    private suspend fun heldUrls(syms: List<Sym>, perSymbol: Int): List<Pair<String, String>> =
+    private suspend fun heldUrls(syms: List<Sym>, perSymbol: Int): List<NewsItem> =
         withContext(Dispatchers.IO) {
             syms.flatMap { s ->
                 runCatching { db.cachedNewsFor(s.symbol, limit = perSymbol) }.getOrDefault(emptyList())
-                    .filter { it.url.isNotBlank() }.map { it.url to it.title }
+                    .filter { it.url.isNotBlank() }
             }
         }
 
     /** The analyst / opinion pieces among a symbol's saved stories (see [isAnalysis]). */
-    private suspend fun analysisUrls(syms: List<Sym>, perSymbol: Int): List<Pair<String, String>> =
+    private suspend fun analysisUrls(syms: List<Sym>, perSymbol: Int): List<NewsItem> =
         withContext(Dispatchers.IO) {
             syms.flatMap { s ->
                 runCatching { db.cachedNewsFor(s.symbol, limit = 80) }.getOrDefault(emptyList())
                     .filter { it.url.isNotBlank() && isAnalysis(it.source, it.title) }
-                    .take(perSymbol).map { it.url to it.title }
+                    .take(perSymbol)
             }
         }
 
@@ -271,30 +273,42 @@ class OfflineSync(
      * Stops when the tier's share of the budget is spent.
      */
     private suspend fun savePages(
-        run: Long, tier: Int, urls: List<Pair<String, String>>, gate: Semaphore
+        run: Long, tier: Int, urls: List<NewsItem>, gate: Semaphore
     ): Int {
         if (urls.isEmpty()) return 0
         var saved = 0
-        val wanted = urls.distinctBy { it.first }.filter { OfflinePages.worthFetching(it.first) }
+        val wanted = urls.distinctBy { it.url }.filter { it.url.startsWith("http") }
         val sizes = withContext(Dispatchers.IO) { db.offlinePageBytes() }
         var room = OfflineBudget.roomFor(tier, withContext(Dispatchers.IO) { db.pinnedCacheBytes() },
             sizes + (OfflineBudget.Bucket.HTTP to withContext(Dispatchers.IO) { db.httpCacheStats().second }))
         val lock = Any()
         coroutineScope {
-            wanted.map { (url, title) ->
+            wanted.map { n ->
                 async {
                     gate.withPermit {
                         ensureActive()
                         val have = withContext(Dispatchers.IO) {
-                            db.hasOfflinePage(url).also { if (it) db.touchOfflinePage(url, tier, run) }
+                            db.hasOfflinePage(n.url).also { if (it) db.touchOfflinePage(n.url, tier, run) }
                         }
                         if (have) return@withPermit
                         if (synchronized(lock) { room } < 20_000L) return@withPermit
-                        val r = Http.get(url, mapOf("Accept" to "text/html"), timeoutMs = 12_000)
-                        if (!r.ok || r.body.isBlank()) return@withPermit
-                        val body = withContext(Dispatchers.Default) { OfflinePages.sanitize(r.body) } ?: return@withPermit
-                        val t = OfflinePages.titleOf(r.body).ifBlank { title }
-                        withContext(Dispatchers.IO) { db.putOfflinePage(url, "", tier, t, body, run) }
+                        // The page is filed under the URL the LIST holds (what a tap opens),
+                        // even when it had to be fetched from the publisher's own address.
+                        var title = n.title
+                        var body: String? = null
+                        val real = if (OfflinePages.needsResolving(n.url)) resolveGoogle(n.url) else n.url
+                        if (real != null && OfflinePages.worthFetching(real)) {
+                            val r = Http.get(real, mapOf("Accept" to "text/html"), timeoutMs = 12_000)
+                            if (r.ok && r.body.isNotBlank()) {
+                                body = withContext(Dispatchers.Default) { OfflinePages.sanitize(r.body) }
+                                if (body != null) title = OfflinePages.titleOf(r.body).ifBlank { n.title }
+                            }
+                        }
+                        // Paywalled / script-only / unresolvable: keep what the feed gave us so the
+                        // tap still opens a readable summary offline.
+                        if (body == null) body = OfflinePages.card(n.title, n.source, n.summary, n.published)
+                        if (body == null) return@withPermit
+                        withContext(Dispatchers.IO) { db.putOfflinePage(n.url, "", tier, title, body, run) }
                         synchronized(lock) { room -= body.length / 3; saved++ }
                         _progress.value = _progress.value.copy(pagesSaved = _progress.value.pagesSaved + 1)
                     }
@@ -302,5 +316,20 @@ class OfflineSync(
             }.awaitAll()
         }
         return saved
+    }
+
+    /** A Google News redirect link -> the publisher's URL, or null when it cannot be resolved. */
+    private suspend fun resolveGoogle(url: String): String? {
+        val id = GoogleNewsLink.articleId(url) ?: return null
+        GoogleNewsLink.decodeLegacy(id)?.let { return it }
+        val page = Http.get("https://news.google.com/rss/articles/$id?hl=en-US&gl=US&ceid=US:en",
+            mapOf("Accept" to "text/html", "Cookie" to "CONSENT=YES+cb"), timeoutMs = 10_000)
+        if (!page.ok) return null
+        val (sg, ts) = GoogleNewsLink.signature(page.body) ?: return null
+        val r = Http.postJson(
+            GoogleNewsLink.EXCHANGE_URL, GoogleNewsLink.exchangeBody(id, sg, ts),
+            mapOf("Content-Type" to "application/x-www-form-urlencoded;charset=UTF-8"), timeoutMs = 10_000
+        )
+        return if (r.ok) GoogleNewsLink.parseExchange(r.body) else null
     }
 }
