@@ -391,3 +391,19 @@ This rule is identical in all five of Tj's repos (novig, scorebox, fantasy-footb
 4. **Make the handoff cold-resumable.** A new session on any account must be able to read, with nothing else, what is DONE, what is IN PROGRESS, what comes NEXT and HOW to resume: that is `CHECKPOINT.md` + `TASKS.md` (+ `tools/resume.sh`'s briefing at session start). If you did not see the briefing, run `bash tools/resume.sh` and tell Tj the hook didn't fire. If `tools/install-hooks.sh` exists, run it first.
 5. **Longer sessions are fine; waste is not.** Spend usage where it makes a better product or fixes a bug. Save it where it doesn't: hand mechanical or long-running work (builds, test runs, waiting on CI) to GitHub Actions rather than polling, run only the tests that matter on the way and the full suite at milestones, don't re-read finished work or re-derive established facts, and use prompt caching when calling the Claude API from app code.
 6. **If this rule and the repo's older text disagree, tell Tj in one line and follow the stricter safety (save more, not less).** To change this rule, edit it in all five repos so they stay identical.
+
+<!-- handoff:learnings:begin -->
+## Session Learnings (auto-updated by handoff)
+
+### Implicit Rules
+- Follow CLAUDE.md: run tools/install-hooks.sh first, tools/ckpt.sh after each step, ship via ship.sh then actions_run_trigger android.yml then record-release.sh
+- GitHub builds APKs; never send APK bytes; post Release page link
+- Build only via bash tools/gradle.sh
+
+### Key Decisions
+- Decision: resolve Google News links to publisher URL before fetch — Reason: they are JS redirects, plain GET gets no article
+- Decision: file saved page under list's original URL — Reason: reader looks up target.url, avoids key mismatch
+- Decision: fall back to headline+summary card when full page unsavable — Reason: every linked story must open something offline
+- Decision: onFinished callback on OfflineSync instead of VM init block — Reason: tools/checkinit.py forbids properties declared below init
+
+<!-- handoff:learnings:end -->
