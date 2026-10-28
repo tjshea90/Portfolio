@@ -3101,7 +3101,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         withContext(Dispatchers.IO) { runCatching { db.cacheNews(rows, summaries = blurbs) } }
     }
 
-    val offline = OfflineSync(db, offlineHost, onFinished = { reloadSavedUrls() }) { fgScope }
+    val offline = OfflineSync(db, offlineHost, { fgScope }, { reloadSavedUrls() })
 
     /** When the last COMPLETE offline refresh was started, to stop a second pull right after it. */
     private var offlineStartedAt = 0L

@@ -46,8 +46,8 @@ import kotlinx.coroutines.withContext
 class OfflineSync(
     private val db: Db,
     private val host: Host,
-    private val onFinished: () -> Unit = {},
-    private val scope: () -> CoroutineScope
+    private val scope: () -> CoroutineScope,
+    private val onFinished: () -> Unit = {}
 ) {
     enum class Mode { FULL, LIGHT }
 
