@@ -4,8 +4,9 @@
 
 > Also add somewhere in the app that shows all current major indices prices such as sp500, dow, nasdaq
 
-- [ ] I1 Find existing index handling (grep ^GSPC, market pulse); add Indices view (S&P 500, Dow, Nasdaq, Russell 2000, VIX, + global) w/ price, change, %, cached for offline
-- [ ] I2 Tests; checkpoint; ship per auto-ship rule
+- [x] I1 Find existing index handling (grep ^GSPC, market pulse); add Indices view (S&P 500, Dow, Nasdaq, Russell 2000, VIX, + global) w/ price, change, %, cached for offline
+- [x] I2 IndicesTest (3, green sdk36)
+- [ ] I3 ship v8.6 (fold with 8.5 if its CI run not yet released)
 
 ## Tj's request, 2026-10-31 (his own words) — more offline pages + recent earnings results
 
