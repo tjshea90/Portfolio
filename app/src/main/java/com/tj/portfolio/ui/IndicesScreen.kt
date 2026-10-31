@@ -19,6 +19,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,13 +34,15 @@ import java.util.Locale
 /** The Markets sub-tab: major index levels and today's move, saved for offline reading. */
 @Composable
 fun IndicesScreen(vm: PortfolioViewModel) {
+    val charts by vm.charts.collectAsState()
+    val chartLoading by vm.chartLoading.collectAsState()
     val quotes by vm.income.indices.collectAsState()
     val loading by vm.income.indicesLoading.collectAsState()
     var pulled by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.income.refreshIndices() }
     LaunchedEffect(loading) { if (!loading) pulled = false }
     Refreshable(refreshing = pulled && loading, onRefresh = { pulled = true; vm.income.refreshIndices() }) {
-        IndicesContent(quotes, loading)
+        IndicesContent(quotes, loading) { d, expanded, setExpanded -> IndexChart(vm, d, quotes[d.symbol], charts, chartLoading, expanded, setExpanded) }
     }
 }
 
@@ -46,7 +50,12 @@ internal fun indexLevel(symbol: String, price: Double): String =
     String.format(Locale.US, if (symbol == "^TNX" || symbol == "^VIX") "%.2f" else "%,.2f", price)
 
 @Composable
-internal fun IndicesContent(quotes: Map<String, Quote>, loading: Boolean) {
+internal fun IndicesContent(
+    quotes: Map<String, Quote>,
+    loading: Boolean,
+    chart: @Composable (Indices.Def, Boolean, (Boolean) -> Unit) -> Unit = { _, _, _ -> }
+) {
+    var open by rememberSaveable { mutableStateOf(setOf<String>()) }
     Column(Modifier.fillMaxSize()) {
         if (loading) LinearProgressIndicator(Modifier.fillMaxWidth().height(2.dp))
         LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp)) {
@@ -66,6 +75,8 @@ internal fun IndicesContent(quotes: Map<String, Quote>, loading: Boolean) {
                 defs.forEach { d ->
                     item(key = d.symbol) {
                         IndexRow(d, quotes[d.symbol])
+                        // US indices carry a chart (tap to maximize, pinch to zoom); the rest are a level.
+                        if (g == Indices.US) chart(d, d.symbol in open) { on -> open = if (on) open + d.symbol else open - d.symbol }
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                     }
                 }
@@ -95,5 +106,51 @@ private fun IndexRow(d: Indices.Def, q: Quote?) {
                 )
             }
         }
+    }
+}
+
+/**
+ * A US index chart: the app's own [PriceChart] (inline, pinch to zoom, tap to maximize) with the
+ * range chips, and the same [FullScreenChart] the detail screen uses. Charts are fetched through
+ * the shared loader, which writes to SQLite - so they also open offline.
+ */
+@Composable
+private fun IndexChart(
+    vm: PortfolioViewModel, d: Indices.Def, q: Quote?,
+    charts: Map<String, com.tj.portfolio.data.ChartSeries>, loadingKeys: Set<String>,
+    expanded: Boolean, setExpanded: (Boolean) -> Unit
+) {
+    var range by rememberSaveable { mutableStateOf(com.tj.portfolio.data.ChartRange.D1.name) }
+    val r = com.tj.portfolio.data.ChartRange.valueOf(range)
+    var window by remember { mutableStateOf<com.tj.portfolio.data.ChartWindow?>(null) }
+    var pinching by remember { mutableStateOf(false) }
+    LaunchedEffect(d.symbol, r) { vm.loadChart(d.symbol, r) }
+    val series = charts[vm.chartKey(d.symbol, r)]
+    val bounds = remember(series) { series?.let { windowBounds(it, listOf(it)) } }
+    val loading = vm.chartKey(d.symbol, r) in loadingKeys
+    val live = q?.price ?: 0.0
+    Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        RangeChips(selected = r, onSelect = { window = null; range = it.name },
+            loading = emptySet())
+        PriceChart(
+            series = series, range = r, loading = loading, chartHeight = 150.dp,
+            livePrice = live, liveEdge = live > 0 && r == com.tj.portfolio.data.ChartRange.D1,
+            window = window, windowBounds = bounds,
+            onWindow = { window = it }, onResetWindow = { window = null },
+            onExpand = { setExpanded(true) }, onZoomingChanged = { pinching = it }
+        )
+    }
+    if (expanded) {
+        FullScreenChart(
+            symbol = d.symbol, series = series, range = r, loading = loading,
+            onRange = { window = null; range = it.name },
+            perf = emptyMap(), loadingRanges = emptySet(),
+            livePrice = live, liveEdge = live > 0 && r == com.tj.portfolio.data.ChartRange.D1,
+            window = window, windowBounds = bounds,
+            onWindow = { window = it }, onResetWindow = { window = null },
+            onZoomingChanged = { pinching = it },
+            compare = null, compareLabel = "", compareLivePrice = 0.0,
+            onClose = { setExpanded(false) }
+        )
     }
 }
