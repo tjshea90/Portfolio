@@ -3060,6 +3060,11 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             kotlinx.coroutines.withTimeoutOrNull(120_000L) { income.dividendsLoading.first { !it } }
         }
 
+        override suspend fun indices() {
+            income.refreshIndices()
+            kotlinx.coroutines.withTimeoutOrNull(45_000L) { income.indicesLoading.first { !it } }
+        }
+
         override suspend fun earnings() {
             refreshEarnings(force = true)
             kotlinx.coroutines.withTimeoutOrNull(90_000L) { income.earningsLoading.first { !it } }

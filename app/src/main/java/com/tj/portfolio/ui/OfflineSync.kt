@@ -5,6 +5,7 @@ import com.tj.portfolio.data.FeedItem
 import com.tj.portfolio.data.NewsItem
 import com.tj.portfolio.net.GoogleNewsLink
 import com.tj.portfolio.net.Http
+import com.tj.portfolio.net.Indices
 import com.tj.portfolio.net.OfflineBudget
 import com.tj.portfolio.net.OfflinePages
 import kotlinx.coroutines.CancellationException
@@ -71,6 +72,8 @@ class OfflineSync(
         /** Symbols of the top research picks (stocks and ETFs), best first. */
         fun researchPicks(limit: Int): List<Sym>
         suspend fun feed(includeInsider: Boolean)
+        /** Major index levels (Markets tab). Default no-op so older hosts keep compiling. */
+        suspend fun indices() {}
     }
 
     data class Progress(
@@ -148,6 +151,11 @@ class OfflineSync(
             priceOk = runCatching { host.quotes() }.getOrDefault(false)
             val chartRanges = if (full) listOf("D1", "D5", "M1", "M6", "Y1", "Y5", "MAX") else listOf("D1", "M1", "Y1")
             each(held) { s -> chartRanges.forEach { r -> host.chart(s.symbol, r) } }
+            // WATCH LIST + US INDEX CHARTS (2026-10-31): charts are small and Tj reads them offline,
+            // so they are fetched right after the holdings' own, not at the tail of the pass.
+            each(watch) { s -> chartRanges.forEach { r -> host.chart(s.symbol, r) } }
+            runCatching { host.indices() }
+            each(Indices.ALL.filter { it.group == Indices.US }) { d -> chartRanges.forEach { r -> host.chart(d.symbol, r) } }
 
             if (full) {
                 // ------------------------------------------------ 2. dividends + earnings (tier 2)
@@ -173,7 +181,6 @@ class OfflineSync(
                 // ------------------------------------------------ 5. watch list (tier 5)
                 phase("Watch list")
                 each(watch) { s ->
-                    chartRanges.forEach { r -> host.chart(s.symbol, r) }
                     host.news(s.symbol, s.name, deep = false)
                     host.fundamentals(s.symbol)
                 }
@@ -210,7 +217,7 @@ class OfflineSync(
                     // Only a pass that really reached the network may declare anything stale.
                     db.purgeUnseenOfflinePages(completedTiers, runId)
                     db.purgeOldNews(System.currentTimeMillis() - 16L * 86_400_000L)
-                    db.purgeChartsExcept((held + watch).map { it.symbol })
+                    db.purgeChartsExcept((held + watch).map { it.symbol } + Indices.SYMBOLS)
                 }
                 db.purgeOldOfflinePages(21L * 86_400_000L)
                 db.purgeHttpCache()
