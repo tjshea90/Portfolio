@@ -4,9 +4,9 @@
 
 > For this app, try to save more offline web pages. Most of them don't save and show an error. Also, for the earnings tab, show recent earnings reports for the stocks I hold, within the last 1 month. Find the data online for the earnings and whether the report was good, neutral, or poor, whether it beat expectations, etc. Save all this for offline viewing as well
 
-- [ ] P1 Find why most article pages fail to save (OfflineSync page fetch: blocked hosts, paywalls, consent walls, timeouts, parser) and raise the save rate; fallback card never an "error"
-- [ ] P2 Earnings tab: "Recent reports" (last 30 days) for held stocks: actual vs estimate EPS, surprise %, revenue if available, beat/inline/miss, good/neutral/poor verdict
-- [ ] P3 Persist recent-earnings data for offline (http_cache / Db, in 50MB budget P2 tier) and show offline
+- [x] P1 Find why most article pages fail to save (OfflineSync page fetch: blocked hosts, paywalls, consent walls, timeouts, parser) and raise the save rate; fallback card never an "error"
+- [x] P2 Earnings tab: "Recent reports" (last 30 days) for held stocks: actual vs estimate EPS, surprise %, revenue if available, beat/inline/miss, good/neutral/poor verdict
+- [x] P3 Persist recent-earnings data for offline (http_cache / Db, in 50MB budget P2 tier) and show offline
 - [ ] P4 Unit tests; full suite green; checkpoint; ship per auto-ship rule
 
 ## Tj's request, 2026-10-28 (his own words) — saved websites not usable
