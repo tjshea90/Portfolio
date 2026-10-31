@@ -1,5 +1,14 @@
 # TASKS — the current job
 
+## Tj's request, 2026-10-31c (his own words) — Markets charts, earnings check, Watch charts offline
+
+> For the markets section, for the united states,  also download charts just like for the other parts of the app, which i can click to maximize and pinch zoom. You can adopt the code from other parts of the app.  Also check that the earnings section works for the reported in the last month section because it says none of your holdings reported in the last 30 days, but I'm pretty sure some have.  For the watch tab, download charts for offline viewing
+
+- [ ] M1 Markets: US indices get charts (same chart component as elsewhere), tap to maximize, pinch zoom; downloaded + cached for offline
+- [ ] M2 Earnings "Reported in the last month" shows nothing though holdings reported: find cause (Yahoo events=earn unverified) and add reliable source (Nasdaq earnings-surprise has dateReported)
+- [ ] M3 Watch tab: charts downloaded/persisted for offline viewing
+- [ ] M4 tests, ckpt, ship v8.7
+
 ## Tj's request, 2026-10-31b (his own words) — market indices
 
 > Also add somewhere in the app that shows all current major indices prices such as sp500, dow, nasdaq
