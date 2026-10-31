@@ -63,6 +63,36 @@ class IncomeHub(
     private val _lastDates = MutableStateFlow<Map<String, Long>>(emptyMap())
     val lastReportDates: StateFlow<Map<String, Long>> = _lastDates.asStateFlow()
 
+    private val _indices = MutableStateFlow<Map<String, com.tj.portfolio.data.Quote>>(emptyMap())
+    val indices: StateFlow<Map<String, com.tj.portfolio.data.Quote>> = _indices.asStateFlow()
+    private val _indicesLoading = MutableStateFlow(false)
+    val indicesLoading: StateFlow<Boolean> = _indicesLoading.asStateFlow()
+    private val indicesRunning = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Paints the saved prices at once, then asks for fresh ones. A failure keeps what is held. */
+    fun refreshIndices() {
+        if (!indicesRunning.compareAndSet(false, true)) return
+        scope().launch(start = CoroutineStart.ATOMIC) {
+            _indicesLoading.value = true
+            try {
+                if (_indices.value.isEmpty()) {
+                    val saved = withContext(Dispatchers.IO) { com.tj.portfolio.net.Indices.decode(db.get(com.tj.portfolio.net.Indices.KEY)) }
+                    if (saved.isNotEmpty()) _indices.update { if (it.isEmpty()) saved else it }
+                }
+                val fresh = com.tj.portfolio.net.Indices.fetch()
+                if (fresh != null) {
+                    val now = System.currentTimeMillis()
+                    val merged = _indices.value + fresh.associate { it.symbol to it.copy(updated = now) }
+                    _indices.value = merged
+                    withContext(Dispatchers.IO) { runCatching { db.set(com.tj.portfolio.net.Indices.KEY, com.tj.portfolio.net.Indices.encode(merged.values)) } }
+                }
+            } finally {
+                _indicesLoading.value = false
+                indicesRunning.set(false)
+            }
+        }
+    }
+
     private val reportFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     private val _earningsLoading = MutableStateFlow(false)
@@ -322,6 +352,6 @@ class IncomeHub(
         const val EARN_DATE = "earndate:"
         const val EARN_REPORTS = "earnrep:"
         const val EARN_LAST = "earnlast:"
-        val PREFIXES = listOf(DIV_HISTORY, DIV_CALENDAR, EARN_DATE, EARN_REPORTS, EARN_LAST)
+        val PREFIXES = listOf(DIV_HISTORY, DIV_CALENDAR, EARN_DATE, EARN_REPORTS, EARN_LAST, com.tj.portfolio.net.Indices.KEY)
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 const val PF_HOLDINGS = 0
 const val PF_DIVIDENDS = 1
 const val PF_EARNINGS = 2
+const val PF_MARKETS = 3
 
 /**
  * The Portfolio tab: your holdings, and the two screens that are about the same holdings -
@@ -48,10 +49,10 @@ fun PortfolioTab(
     val saved = rememberSaveableStateHolder()
     Column(Modifier.fillMaxSize()) {
         PrimaryTabRow(
-            selectedTabIndex = sub.coerceIn(0, 2),
+            selectedTabIndex = sub.coerceIn(0, 3),
             containerColor = MaterialTheme.colorScheme.background
         ) {
-            listOf("Holdings", "Dividends", "Earnings").forEachIndexed { i, label ->
+            listOf("Holdings", "Dividends", "Earnings", "Markets").forEachIndexed { i, label ->
                 Tab(
                     selected = sub == i,
                     onClick = { sub = i },
@@ -66,6 +67,7 @@ fun PortfolioTab(
             when (sub) {
                 PF_DIVIDENDS -> DividendsScreen(vm, state, onOpen)
                 PF_EARNINGS -> EarningsScreen(vm, state, onOpen)
+                PF_MARKETS -> IndicesScreen(vm)
                 else -> PortfolioScreen(vm, state, onOpen, onOpenNews, onSearch)
             }
         }
