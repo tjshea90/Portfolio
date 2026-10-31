@@ -586,7 +586,7 @@ private fun EarningsHowItWorks() {
                 "Tap a row to see exactly which signals pushed it which way.",
                 "Funds have no earnings of their own, so a fund shows one row: the date is its soonest big holding's report, the light is the weighted read of those holdings, and tapping it lists them.",
                 "Dates marked (est.) are the company's rough window, not a confirmed day.",
-                "Reported reports: Good = EPS beat the analyst estimate (and the stock did not fall hard), Poor = it missed (and the stock did not jump), Neutral = in line or mixed. Saved on this device for offline reading."
+                "Past reports: Good = EPS beat the analyst estimate (and the stock did not fall hard), Poor = it missed (and the stock did not jump), Neutral = in line or mixed. Saved on this device for offline reading."
             ).forEach {
                 Text("• $it", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
