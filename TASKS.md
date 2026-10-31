@@ -6,7 +6,7 @@
 
 - [x] I1 Find existing index handling (grep ^GSPC, market pulse); add Indices view (S&P 500, Dow, Nasdaq, Russell 2000, VIX, + global) w/ price, change, %, cached for offline
 - [x] I2 IndicesTest (3, green sdk36)
-- [ ] I3 ship v8.6 (fold with 8.5 if its CI run not yet released)
+- [x] I3 shipped v8.6
 
 ## Tj's request, 2026-10-31 (his own words) — more offline pages + recent earnings results
 
@@ -15,7 +15,7 @@
 - [x] P1 Find why most article pages fail to save (OfflineSync page fetch: blocked hosts, paywalls, consent walls, timeouts, parser) and raise the save rate; fallback card never an "error"
 - [x] P2 Earnings tab: "Recent reports" (last 30 days) for held stocks: actual vs estimate EPS, surprise %, revenue if available, beat/inline/miss, good/neutral/poor verdict
 - [x] P3 Persist recent-earnings data for offline (http_cache / Db, in 50MB budget P2 tier) and show offline
-- [ ] P4 Unit tests; full suite green; checkpoint; ship per auto-ship rule
+- [x] P4 Unit tests; full suite green; checkpoint; ship per auto-ship rule
 
 ## Tj's request, 2026-10-28 (his own words) — saved websites not usable
 
