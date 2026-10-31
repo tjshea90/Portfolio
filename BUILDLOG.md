@@ -45,3 +45,4 @@ ones, so `ship.sh` can always compute the next versionCode correctly.
 | v8.2 | code 101 | 2026-10-22T17:31Z | Earnings tab lists only owned stocks and each owned ETF as one row (soonest big-holding report, weighted light, holdings listed when tapped)
 | v8.3 | code 102 | 2026-10-27T04:05Z | v8.3: offline refresh (50 MB prioritized cache, saved article pages, light-refresh switch), Android 10 Go / MT8168 low-RAM tuning
 | v8.4 | code 103 | 2026-10-28T18:29Z | v8.4: saved articles - Google News links resolved to the publisher page, summary-card fallback so every story opens offline, 'saved' markers on stories
+| v8.5 | code 104 | 2026-10-31T18:40Z | v8.5: more saved offline pages (retry, JSON-LD/meta fallback, always a card); Earnings tab lists last-month reports with EPS beat/miss, stock reaction, good/neutral/poor, saved offline
