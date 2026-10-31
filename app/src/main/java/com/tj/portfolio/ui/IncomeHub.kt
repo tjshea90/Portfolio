@@ -55,6 +55,16 @@ class IncomeHub(
     private val _earnings = MutableStateFlow<Map<String, EarningsFeed.Date>>(emptyMap())
     val earningsDates: StateFlow<Map<String, EarningsFeed.Date>> = _earnings.asStateFlow()
 
+    /** Reports from the last month per symbol (newest first), disk-backed for offline reading. */
+    private val _reports = MutableStateFlow<Map<String, List<EarningsFeed.Report>>>(emptyMap())
+    val recentReports: StateFlow<Map<String, List<EarningsFeed.Report>>> = _reports.asStateFlow()
+
+    /** The date a symbol's most recent report ran, kept when the calendar moves on to the next one. */
+    private val _lastDates = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val lastReportDates: StateFlow<Map<String, Long>> = _lastDates.asStateFlow()
+
+    private val reportFetchedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
     private val _earningsLoading = MutableStateFlow(false)
     val earningsLoading: StateFlow<Boolean> = _earningsLoading.asStateFlow()
 
@@ -185,14 +195,18 @@ class IncomeHub(
                         m
                     }
                 }
+                paintReportsFromDisk(syms)
                 val now = System.currentTimeMillis()
+                val dueReports = syms.filter { force || now - (reportFetchedAt[it] ?: 0L) >= EarningsFeed.REPORT_TTL_MS }
                 val due = syms.filter { force || now - (earnFetchedAt[it] ?: 0L) >= EarningsFeed.TTL_MS }
                 coroutineScope {
                     due.chunked(3).forEach { batch ->
                         batch.map { sym ->
                             async {
+                                if (sym in dueReports) fetchReports(sym)
                                 val d = runCatching { EarningsFeed.calendar(sym) }.getOrNull()
                                 if (d != null) {
+                                    noteLastDate(sym, _earnings.value[sym], d)
                                     earnFetchedAt[sym] = d.fetched
                                     _earnings.update { it + (sym to d) }
                                     withContext(Dispatchers.IO) { runCatching { db.set(EARN_DATE + sym, EarningsFeed.encode(d)) } }
@@ -206,6 +220,40 @@ class IncomeHub(
                 earnRunning.set(false)
                 earnQueued?.let { (s, f) -> earnQueued = null; refreshEarningsDates(s, f) }
             }
+        }
+    }
+
+    private suspend fun paintReportsFromDisk(syms: List<String>) {
+        val missing = syms.filter { _reports.value[it] == null }
+        if (missing.isEmpty()) return
+        val loaded = withContext(Dispatchers.IO) {
+            missing.map { s -> Triple(s, EarningsFeed.decodeReports(db.get(EARN_REPORTS + s).ifBlank { null }), db.get(EARN_LAST + s).toLongOrNull()) }
+        }
+        _reports.update { cur ->
+            var m = cur
+            for ((s, r, _) in loaded) if (r != null && m[s] == null) { m = m + (s to r); reportFetchedAt.putIfAbsent(s, r.maxOfOrNull { it.fetched } ?: 0L) }
+            m
+        }
+        _lastDates.update { cur -> cur + loaded.mapNotNull { (s, _, l) -> l?.let { s to it } }.filter { (s, _) -> cur[s] == null } }
+    }
+
+    private suspend fun fetchReports(sym: String) {
+        val now = System.currentTimeMillis()
+        val list = runCatching { EarningsFeed.recent(sym, now) }.getOrNull() ?: return
+        reportFetchedAt[sym] = now
+        val cutoff = now - 45L * 86_400_000L
+        val keep = list.filter { it.dateMs >= cutoff }
+        _reports.update { it + (sym to keep) }
+        withContext(Dispatchers.IO) { runCatching { db.set(EARN_REPORTS + sym, EarningsFeed.encodeReports(keep)) } }
+    }
+
+    /** When the calendar rolls from a report that just ran to the next one, remember the one that ran. */
+    private suspend fun noteLastDate(sym: String, old: EarningsFeed.Date?, new: EarningsFeed.Date) {
+        val o = old ?: return
+        val now = System.currentTimeMillis()
+        if (o.startMs < new.startMs && o.startMs < now && o.startMs >= now - 45L * 86_400_000L) {
+            _lastDates.update { it + (sym to o.startMs) }
+            withContext(Dispatchers.IO) { runCatching { db.set(EARN_LAST + sym, o.startMs.toString()) } }
         }
     }
 
@@ -272,6 +320,8 @@ class IncomeHub(
         const val DIV_HISTORY = "divhist:"
         const val DIV_CALENDAR = "divcal:"
         const val EARN_DATE = "earndate:"
-        val PREFIXES = listOf(DIV_HISTORY, DIV_CALENDAR, EARN_DATE)
+        const val EARN_REPORTS = "earnrep:"
+        const val EARN_LAST = "earnlast:"
+        val PREFIXES = listOf(DIV_HISTORY, DIV_CALENDAR, EARN_DATE, EARN_REPORTS, EARN_LAST)
     }
 }
