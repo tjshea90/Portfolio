@@ -21,7 +21,7 @@ import org.robolectric.annotation.Config
  * has come undone and the suite is live again.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class OfflineGateTest {
 
     @Before fun clean() { Http.clearCooldowns() }

@@ -280,14 +280,14 @@ class UiTest {
     // v1.6 - so it is rendered and measured here rather than assumed to fit.
 
     @Test
-    @Config(sdk = [34])
+    @Config(sdk = [36])
     fun `the request meter fits at normal text`() {
         show { MeterRows() }
         assertNothingOverflows("request meter at fontScale 1.0")
     }
 
     @Test
-    @Config(sdk = [34])
+    @Config(sdk = [36])
     fun `the request meter fits at large text`() {
         show(fontScale = 2.0f) { MeterRows() }
         assertNothingOverflows("request meter at fontScale 2.0")
@@ -309,14 +309,14 @@ class UiTest {
     // it is measured rather than eyeballed.
 
     @Test
-    @Config(sdk = [34])
+    @Config(sdk = [36])
     fun `the labelled two-session block fits at normal text`() {
         show { PriceBlock(row(quote(ext = 269.10, state = "AFTER")), big = false) }
         assertNothingOverflows("labelled two-column price block, fontScale 1.0")
     }
 
     @Test
-    @Config(sdk = [34])
+    @Config(sdk = [36])
     fun `the labelled two-session block fits at large text`() {
         show(fontScale = 2.0f) { PriceBlock(row(quote(ext = 269.10, state = "AFTER")), big = true) }
         assertNothingOverflows("labelled two-column price block, fontScale 2.0, big")
@@ -330,7 +330,7 @@ class UiTest {
     }
 
     @Test
-    @Config(sdk = [34])
+    @Config(sdk = [36])
     fun `both baselines are stated on screen`() {
         // The actual fix: two columns measured against DIFFERENT things must each say what.
         show { PriceBlock(row(quote(ext = 269.10, state = "AFTER")), big = false) }
@@ -341,7 +341,7 @@ class UiTest {
     }
 
     @Test
-    @Config(sdk = [34])
+    @Config(sdk = [36])
     fun `pre-market names its own baseline`() {
         // Pre-market is measured from the LAST regular close, which is the previous day's -
         // same arithmetic as after hours, different day, so it must not say "today's close".

@@ -38,7 +38,7 @@ import org.robolectric.shadows.ShadowLooper
  * `Row.watched` is the second question, asked separately.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class WatchToggleTest {
 
     private lateinit var app: Application

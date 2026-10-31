@@ -37,7 +37,7 @@ import org.robolectric.annotation.GraphicsMode
  * TJ actually holds) does not get one at all.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class StockRowRecommendationUiTest {
 

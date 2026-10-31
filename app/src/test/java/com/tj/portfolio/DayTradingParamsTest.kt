@@ -23,7 +23,7 @@ import org.robolectric.annotation.Config
  * key, an out-of-range value - can install an engine outside the hard bounds.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DayTradingParamsTest {
 
     /** A live breakout: price 100 under the prior high 101, plenty of room left in the day. */

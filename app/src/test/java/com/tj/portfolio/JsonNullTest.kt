@@ -30,7 +30,7 @@ import org.robolectric.annotation.Config
  * fabricated ticker row called NULL into a list.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class JsonNullTest {
 
     // ------------------------------------------------------------------ the guard

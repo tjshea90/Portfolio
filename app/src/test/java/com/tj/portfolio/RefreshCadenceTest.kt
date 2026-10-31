@@ -38,7 +38,7 @@ import org.robolectric.shadows.ShadowLooper
  * can be checked without waiting half an hour for a coroutine.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class RefreshCadenceTest {
 
     private lateinit var app: Application

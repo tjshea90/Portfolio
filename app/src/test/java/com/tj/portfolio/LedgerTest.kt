@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
  * keep - which is precisely how a guard gets pinned by a test that proves nothing.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class LedgerTest {
 
     private val day = 86_400_000L

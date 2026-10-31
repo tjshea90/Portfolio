@@ -33,7 +33,7 @@ import org.robolectric.annotation.Config
  *     after-hours filter keep the whole week's regular sessions.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ChartTest {
 
     private fun fixture(name: String): String =

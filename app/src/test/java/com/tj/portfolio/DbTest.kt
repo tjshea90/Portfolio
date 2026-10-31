@@ -38,7 +38,7 @@ import java.util.Calendar
  * runs the actual class, on the actual database engine, through the actual upgrade path.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DbTest {
 
     private lateinit var ctx: Context

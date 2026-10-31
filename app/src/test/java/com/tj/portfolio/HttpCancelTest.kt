@@ -35,7 +35,7 @@ import kotlin.concurrent.thread
  * (measured: 5.3 s for a 6 s stall), whereas Android's OkHttp-backed one closes the socket.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class HttpCancelTest {
 
     @Before fun clean() { Http.clearCooldowns() }

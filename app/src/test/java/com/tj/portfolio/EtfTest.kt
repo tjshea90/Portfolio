@@ -27,7 +27,7 @@ import org.robolectric.annotation.Config
  * name and Yahoo changing a UNIT - and only a real response can catch either.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class EtfTest {
 
     // A real ETF, a leveraged one, an equity that slipped into a fund list, and a row with

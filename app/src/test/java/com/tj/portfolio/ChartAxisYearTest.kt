@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
  * guards itself.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ChartAxisYearTest {
 
     // 2023-09-09 and 2026-09-10, the two ends TJ's chart actually showed.

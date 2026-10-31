@@ -33,7 +33,7 @@ import java.util.TimeZone
  *  - and the 09:30-10:00 opening range was the one window the cited study found WORST.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DayTradingSoundnessTest {
 
     // ------------------------------------------------------------------ helpers

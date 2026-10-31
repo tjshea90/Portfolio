@@ -28,7 +28,7 @@ import org.robolectric.annotation.Config
  * summaries started being passed, a row already on file with a blank one could never gain it.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class NewsCacheSummaryTest {
 
     private lateinit var ctx: Context

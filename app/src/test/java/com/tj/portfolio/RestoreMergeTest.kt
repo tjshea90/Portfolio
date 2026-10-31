@@ -34,7 +34,7 @@ import org.robolectric.annotation.Config
  * wrong afterwards, and re-running the restore could never repair it.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class RestoreMergeTest {
 
     private lateinit var app: Application

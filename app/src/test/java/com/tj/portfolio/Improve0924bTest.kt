@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
  * round trip. One section per item.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class Improve0924bTest {
 
     private lateinit var app: Application

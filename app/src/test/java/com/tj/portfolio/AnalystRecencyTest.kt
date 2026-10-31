@@ -31,7 +31,7 @@ import org.robolectric.annotation.Config
  * 239-day-old rating and a 241-day-old one both be checked in the same millisecond.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class AnalystRecencyTest {
 
     private val now = 1_800_000_000_000L

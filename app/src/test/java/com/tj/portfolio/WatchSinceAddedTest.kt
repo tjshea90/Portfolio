@@ -35,7 +35,7 @@ import org.robolectric.shadows.ShadowLooper
  * [Row.sinceWatchedPct].
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class WatchSinceAddedTest {
 
     private lateinit var app: Application

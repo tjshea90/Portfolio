@@ -40,7 +40,7 @@ import org.robolectric.shadows.ShadowLooper
  *  4. the prompt carries the current engine, every change made, and the data.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class EngineTuningTest {
 
     private lateinit var app: Application

@@ -134,7 +134,7 @@ class OfflinePagesTest {
 }
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class OfflineSyncTest {
 
     private lateinit var ctx: Context

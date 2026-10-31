@@ -38,7 +38,7 @@ import org.robolectric.annotation.Config
  * A model of SQLite agrees with whatever assumption produced it. This runs the engine.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ChartCacheDbTest {
 
     private lateinit var ctx: Context

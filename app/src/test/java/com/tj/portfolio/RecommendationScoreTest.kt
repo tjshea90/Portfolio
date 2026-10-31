@@ -23,7 +23,7 @@ import org.robolectric.annotation.Config
  * numbers already in hand, per its own KDoc, and that is what makes it testable at all.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class RecommendationScoreTest {
 
     private val input = ResearchScore.HoldingInput(price = 100.0)

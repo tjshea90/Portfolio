@@ -34,7 +34,7 @@ import org.robolectric.shadows.ShadowLooper
  * finding ID; the pure-logic halves live next to the code they test where a file exists.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class FullTest0924Test {
 
     private lateinit var app: Application

@@ -38,7 +38,7 @@ import org.robolectric.shadows.ShadowLooper
  * On the list TJ said he is going to buy from.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ResearchCacheMigrationTest {
 
     private lateinit var app: Application

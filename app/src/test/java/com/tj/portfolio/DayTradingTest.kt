@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
  * Research or Advice reply now that one file chooser accepts all three.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DayTradingTest {
 
     // ================================================================== scorer

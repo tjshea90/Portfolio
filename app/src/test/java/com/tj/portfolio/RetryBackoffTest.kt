@@ -29,7 +29,7 @@ import org.robolectric.annotation.Config
  * be asked for less and less often, and one success must put it back to normal.**
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class RetryBackoffTest {
 
     /**

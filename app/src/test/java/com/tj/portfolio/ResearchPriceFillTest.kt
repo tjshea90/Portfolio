@@ -46,7 +46,7 @@ import org.robolectric.shadows.ShadowLooper
  * network: which symbols the fill asks about, in what order, and what it leaves alone.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ResearchPriceFillTest {
 
     private lateinit var app: Application

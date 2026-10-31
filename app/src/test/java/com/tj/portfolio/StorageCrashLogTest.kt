@@ -24,7 +24,7 @@ import java.util.TimeZone
  * diagnostic a sideloaded app has. Neither has ever been executed under test.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class StorageCrashLogTest {
 
     private lateinit var ctx: Context

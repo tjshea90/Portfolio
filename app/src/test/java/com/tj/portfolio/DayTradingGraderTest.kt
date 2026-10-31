@@ -25,7 +25,7 @@ import org.robolectric.annotation.Config
  * answer beside the new one. All on 2026-09-15, a real session (09:30 ET = 1_789_479_000).
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DayTradingGraderTest {
 
     private val open = 1_789_479_000L

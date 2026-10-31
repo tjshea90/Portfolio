@@ -52,7 +52,7 @@ import org.robolectric.annotation.Config
  * file can still be worth taking, and a warning is the honest answer rather than a refusal.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class RestoreSafetyTest {
 
     private lateinit var app: Application

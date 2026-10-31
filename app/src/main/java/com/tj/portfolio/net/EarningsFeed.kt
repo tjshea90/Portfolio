@@ -148,15 +148,46 @@ object EarningsFeed {
      * reaction for free. Null = could not be fetched (keep what is held); empty = none lately.
      */
     suspend fun recent(symbol: String, nowMs: Long = System.currentTimeMillis()): List<Report>? {
+        val sym = symbol.uppercase()
+        var chartBody: String? = null
         for (host in listOf("query1", "query2")) {
-            val url = "https://$host.finance.yahoo.com/v8/finance/chart/" + MarketData.enc(symbol.uppercase()) +
+            val url = "https://$host.finance.yahoo.com/v8/finance/chart/" + MarketData.enc(sym) +
                 "?range=6mo&interval=1d&events=earn"
             val r = Http.get(url, mapOf("Accept" to "application/json"))
             if (r.throttledLocally || !r.ok) continue
-            val parsed = runCatching { parseReports(r.body, nowMs) }.getOrNull() ?: continue
-            return parsed
+            chartBody = r.body
+            break
         }
-        return null
+        val fromChart = chartBody?.let { runCatching { parseReports(it, nowMs) }.getOrNull() }
+        if (!fromChart.isNullOrEmpty()) return fromChart
+        // Yahoo's chart carried no report events (it often does not): Nasdaq's earnings-surprise
+        // table has the real report DATE, the actual EPS and the consensus, with no key.
+        val n = Http.get("https://api.nasdaq.com/api/company/" + MarketData.enc(sym) + "/earnings-surprise",
+            mapOf("Accept" to "application/json"))
+        val fromNasdaq = if (n.ok) runCatching { parseNasdaqReports(n.body, nowMs, chartBody) }.getOrNull() else null
+        return fromNasdaq ?: fromChart
+    }
+
+    /** nasdaq.com `earnings-surprise` rows -> reports; the price reaction comes from [chartBody]'s candles. */
+    internal fun parseNasdaqReports(body: String, nowMs: Long, chartBody: String? = null): List<Report>? {
+        val rows = JSONObject(body).optJSONObject("data")?.optJSONObject("earningsSurpriseTable")
+            ?.optJSONArray("rows") ?: return null
+        val res = chartBody?.let { runCatching { JSONObject(it).optJSONObject("chart")?.optJSONArray("result")?.optJSONObject(0) }.getOrNull() }
+        val ts = res?.optJSONArray("timestamp")
+        val closes = res?.optJSONObject("indicators")?.optJSONArray("quote")?.optJSONObject(0)?.optJSONArray("close")
+        val fmt = java.time.format.DateTimeFormatter.ofPattern("M/d/yyyy")
+        fun num(o: JSONObject, k: String) = o.opt(k)?.toString()?.replace(",", "")?.replace("$", "")?.trim()?.toDoubleOrNull()
+        val out = ArrayList<Report>()
+        for (i in 0 until rows.length()) {
+            val o = rows.optJSONObject(i) ?: continue
+            val day = runCatching { LocalDate.parse(o.optString("dateReported").trim(), fmt) }.getOrNull() ?: continue
+            val actual = num(o, "eps") ?: continue
+            val est = num(o, "consensusForecast") ?: 0.0
+            val ms = day.atTime(12, 0).atZone(ET).toInstant().toEpochMilli()
+            val surprise = if (est != 0.0) (actual - est) / kotlin.math.abs(est) * 100.0 else 0.0
+            out.add(Report(ms, o.optString("fiscalQtrEnd", ""), actual, est, surprise, reaction(ts, closes, ms), nowMs))
+        }
+        return out.sortedByDescending { it.dateMs }
     }
 
     internal fun parseReports(body: String, nowMs: Long): List<Report>? {

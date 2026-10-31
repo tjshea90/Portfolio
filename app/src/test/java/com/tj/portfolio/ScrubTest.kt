@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
  *      have to return something rather than throw.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ScrubTest {
 
     /** An evenly spaced five-minute series, like a 1D chart. */

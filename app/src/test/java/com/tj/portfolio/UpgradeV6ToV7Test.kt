@@ -40,7 +40,7 @@ import org.robolectric.annotation.Config
  *      every CREATE TABLE IF NOT EXISTS as a repair for an interrupted upgrade.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class UpgradeV6ToV7Test {
 
     private lateinit var ctx: Context

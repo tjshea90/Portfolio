@@ -22,7 +22,7 @@ import java.time.ZoneId
 
 /** The dividend engine + feed: entitlement, matching, cadence, projection, parsing. */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DividendsTest {
 
     private val today = LocalDate.of(2026, 10, 22)

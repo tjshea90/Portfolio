@@ -30,7 +30,7 @@ import org.robolectric.shadows.ShadowLooper
  * every launch, which is a bug that would look exactly like "the setting does not save".
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class PlModeViewModelTest {
 
     private lateinit var app: Application

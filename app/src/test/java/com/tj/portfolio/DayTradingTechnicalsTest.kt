@@ -27,7 +27,7 @@ import java.util.TimeZone
  * only Robolectric's shadow makes [DayTradingTechnicals.parseBars] usable here.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DayTradingTechnicalsTest {
 
     private val ET: TimeZone = TimeZone.getTimeZone("America/New_York")

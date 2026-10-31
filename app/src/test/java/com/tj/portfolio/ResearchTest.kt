@@ -36,7 +36,7 @@ import org.robolectric.annotation.Config
  *     (or vice versa) now that one file chooser accepts both.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ResearchTest {
 
     private fun res(name: String): String =

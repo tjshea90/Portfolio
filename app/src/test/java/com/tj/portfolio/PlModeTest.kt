@@ -22,7 +22,7 @@ import org.robolectric.annotation.Config
  * the mode, the two halves are always the same two numbers, only swapped.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class PlModeTest {
 
     private val money = 1234.56

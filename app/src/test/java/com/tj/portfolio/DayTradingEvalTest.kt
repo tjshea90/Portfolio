@@ -24,7 +24,7 @@ import org.robolectric.annotation.Config
  * `InsiderTest` needs it.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DayTradingEvalTest {
 
     private fun res(name: String): String =

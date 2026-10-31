@@ -17,7 +17,7 @@ import org.robolectric.annotation.Config
  * belong to an existing subsystem test file. Each test names the finding it pins.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class FullTest0923Test {
 
     // ---- A-1: the autosave is never shrunk without keeping the larger copy; that decision

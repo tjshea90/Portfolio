@@ -34,7 +34,7 @@ import org.robolectric.annotation.GraphicsMode
  * a second after the screen opens - the same second the News tab's headlines land.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class DetailTabCrashTest {
 

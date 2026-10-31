@@ -29,7 +29,7 @@ import org.robolectric.shadows.ShadowLooper
  * (audits/2026-09-24/review-hm.md = R1-*, review-lq.md = R2-*). One section per finding ID.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class Review0924Test {
 
     private lateinit var app: Application

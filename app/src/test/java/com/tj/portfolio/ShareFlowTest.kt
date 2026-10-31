@@ -42,7 +42,7 @@ import org.robolectric.shadows.ShadowLooper
  *   3. the inbox hand-off imports a share exactly once.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ShareFlowTest {
 
     private lateinit var app: Application

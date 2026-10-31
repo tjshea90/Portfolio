@@ -30,7 +30,7 @@ import org.robolectric.annotation.Config
  *     `{name, weight}` pairs.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class HoldingsTest {
 
     private fun result(name: String): JSONObject =

@@ -33,7 +33,7 @@ import org.robolectric.shadows.ShadowLooper
  * daytrading.md DA-1, DA-12, DA-19; platform.md PL-2, PL-6, PL-13).
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class DayTradingRegradeTest {
 
     private lateinit var app: Application

@@ -19,7 +19,7 @@ import org.robolectric.annotation.Config
  * after a stock's news appeared.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class FeedIdentityTest {
 
     private fun news(sym: String, title: String, pub: Long = 1_756_000_000_000L) = FeedItem(

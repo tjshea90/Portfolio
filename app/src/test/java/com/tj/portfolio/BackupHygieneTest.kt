@@ -35,7 +35,7 @@ import org.robolectric.annotation.Config
  * on the new device at all.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class BackupHygieneTest {
 
     private lateinit var ctx: Context

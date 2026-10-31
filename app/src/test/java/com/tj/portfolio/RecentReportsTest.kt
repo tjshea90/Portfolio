@@ -59,3 +59,20 @@ class RecentReportsTest {
         assertNotNull(OfflinePages.sanitize(html))
     }
 }
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [36])
+class NasdaqReportsTest {
+    @Test fun parsesEarningsSurpriseTable() {
+        val body = """{"data":{"earningsSurpriseTable":{"rows":[
+          {"fiscalQtrEnd":"Sep 2026","dateReported":"10/30/2026","eps":1.85,"consensusForecast":"1.77","percentageSurprise":"4.52"},
+          {"fiscalQtrEnd":"Jun 2026","dateReported":"7/31/2026","eps":"1.40","consensusForecast":"$1.43","percentageSurprise":"-2.1"}]}}}"""
+        val l = EarningsFeed.parseNasdaqReports(body, 1_761_900_000_000L)!!
+        assertEquals(2, l.size)
+        assertEquals(java.time.LocalDate.of(2026, 10, 30), l[0].day)
+        assertEquals(4.52, l[0].surprisePct, 0.05)
+        assertEquals(EarningsFeed.Verdict.GOOD, EarningsFeed.verdict(l[0]))
+        assertEquals("Missed", EarningsFeed.beatWord(l[1]))
+        assertNull(EarningsFeed.parseNasdaqReports("{}", 0L))
+    }
+}

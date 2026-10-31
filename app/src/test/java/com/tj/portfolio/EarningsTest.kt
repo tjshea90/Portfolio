@@ -30,7 +30,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class EarningsTest {
 
     private val now = 1_790_000_000_000L

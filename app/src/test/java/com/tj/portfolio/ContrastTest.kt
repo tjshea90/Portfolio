@@ -47,7 +47,7 @@ import kotlin.math.pow
  * cannot read is a gain they will go and look up somewhere else.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class ContrastTest {
 
     @get:Rule val rule = createComposeRule()

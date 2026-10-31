@@ -38,7 +38,7 @@ import org.robolectric.annotation.Config
  * agrees with itself.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [36])
 class FundamentalsTest {
 
     private fun fixture(name: String): String =
