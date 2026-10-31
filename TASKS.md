@@ -1,5 +1,12 @@
 # TASKS — the current job
 
+## Tj's request, 2026-10-31b (his own words) — market indices
+
+> Also add somewhere in the app that shows all current major indices prices such as sp500, dow, nasdaq
+
+- [ ] I1 Find existing index handling (grep ^GSPC, market pulse); add Indices view (S&P 500, Dow, Nasdaq, Russell 2000, VIX, + global) w/ price, change, %, cached for offline
+- [ ] I2 Tests; checkpoint; ship per auto-ship rule
+
 ## Tj's request, 2026-10-31 (his own words) — more offline pages + recent earnings results
 
 > For this app, try to save more offline web pages. Most of them don't save and show an error. Also, for the earnings tab, show recent earnings reports for the stocks I hold, within the last 1 month. Find the data online for the earnings and whether the report was good, neutral, or poor, whether it beat expectations, etc. Save all this for offline viewing as well
