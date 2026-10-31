@@ -158,7 +158,7 @@ class OfflineSync(
                 // ------------------------------------------------ 3. news of holdings (tier 3)
                 phase("News on your holdings")
                 each(held) { s -> host.news(s.symbol, s.name, deep = true) }
-                pages += savePages(runId, 3, heldUrls(held, perSymbol = 8), gate)
+                pages += savePages(runId, 3, heldUrls(held, perSymbol = 15), gate)
                 completedTiers += 3
 
                 // ------------------------------------------------ 4. analysis of holdings (tier 4)
@@ -167,7 +167,7 @@ class OfflineSync(
                     host.fundamentals(s.symbol)
                     host.analysisPieces(s.symbol, s.name)
                 }
-                pages += savePages(runId, 4, analysisUrls(held, perSymbol = 5), gate)
+                pages += savePages(runId, 4, analysisUrls(held, perSymbol = 10), gate)
                 completedTiers += 4
 
                 // ------------------------------------------------ 5. watch list (tier 5)
@@ -177,7 +177,7 @@ class OfflineSync(
                     host.news(s.symbol, s.name, deep = false)
                     host.fundamentals(s.symbol)
                 }
-                pages += savePages(runId, 5, heldUrls(watch, perSymbol = 3), gate)
+                pages += savePages(runId, 5, heldUrls(watch, perSymbol = 5), gate)
                 completedTiers += 5
 
                 // ------------------------------------------------ 6. research (tier 6)
@@ -186,7 +186,7 @@ class OfflineSync(
                 val picks = host.researchPicks(10)
                     .filter { it.symbol.uppercase() !in heldSet }
                 each(picks) { s -> host.news(s.symbol, s.name, deep = false) }
-                pages += savePages(runId, 6, heldUrls(picks, perSymbol = 2), gate)
+                pages += savePages(runId, 6, heldUrls(picks, perSymbol = 3), gate)
                 completedTiers += 6
             }
 
@@ -257,6 +257,11 @@ class OfflineSync(
         }
 
     companion object {
+        private val PAGE_UAS = listOf(
+            Http.UA,
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+        )
+
         private val ANALYSIS_WORDS = Regex(
             "\\b(analyst|upgrade[sd]?|downgrade[sd]?|price target|rating|outlook|forecast|" +
                 "opinion|valuation|buy or sell|should you|why .* (stock|shares)|deep dive|" +
@@ -297,17 +302,28 @@ class OfflineSync(
                         // even when it had to be fetched from the publisher's own address.
                         var title = n.title
                         var body: String? = null
+                        var metaDesc = ""
                         val real = if (OfflinePages.needsResolving(n.url)) resolveGoogle(n.url) else n.url
                         if (real != null && OfflinePages.worthFetching(real)) {
-                            val r = Http.get(real, mapOf("Accept" to "text/html"), timeoutMs = 12_000)
-                            if (r.ok && r.body.isNotBlank()) {
-                                body = withContext(Dispatchers.Default) { OfflinePages.sanitize(r.body) }
-                                if (body != null) title = OfflinePages.titleOf(r.body).ifBlank { n.title }
+                            // Publishers often refuse the first client string; try a second one
+                            // before settling for a summary card.
+                            for (ua in PAGE_UAS) {
+                                val r = Http.get(real, mapOf("Accept" to "text/html,application/xhtml+xml", "User-Agent" to ua),
+                                    timeoutMs = 12_000, softBlock = true)
+                                if (r.ok && r.body.isNotBlank()) {
+                                    body = withContext(Dispatchers.Default) { OfflinePages.sanitize(r.body) }
+                                    if (body != null) { title = OfflinePages.titleOf(r.body).ifBlank { n.title }; break }
+                                    if (metaDesc.isEmpty()) metaDesc = OfflinePages.metaDescription(r.body)
+                                } else if (r.code != 403 && r.code != 503 && r.code != 401) break
                             }
                         }
-                        // Paywalled / script-only / unresolvable: keep what the feed gave us so the
-                        // tap still opens a readable summary offline.
-                        if (body == null) body = OfflinePages.card(n.title, n.source, n.summary, n.published)
+                        // Paywalled / script-only / unresolvable: keep what the feed (or the
+                        // page's own description) gave us so the tap still opens something.
+                        if (body == null) body = OfflinePages.card(
+                            n.title, n.source,
+                            n.summary.ifBlank { metaDesc }.let { if (it.length < 20 && metaDesc.isNotEmpty()) metaDesc else it },
+                            n.published
+                        )
                         val page = body ?: return@withPermit
                         withContext(Dispatchers.IO) { db.putOfflinePage(n.url, "", tier, title, page, run) }
                         synchronized(lock) { room -= page.length / 3; saved++ }
