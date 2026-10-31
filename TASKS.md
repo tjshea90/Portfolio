@@ -7,7 +7,7 @@
 - [x] M1 Markets: US indices get charts (same chart component as elsewhere), tap to maximize, pinch zoom; downloaded + cached for offline
 - [x] M2 Earnings "Reported in the last month" shows nothing though holdings reported: find cause (Yahoo events=earn unverified) and add reliable source (Nasdaq earnings-surprise has dateReported)
 - [x] M3 Watch tab: charts downloaded/persisted for offline viewing
-- [ ] M4 tests, ckpt, ship v8.7
+- [x] M4 tests, ckpt, ship v8.7
 
 ## Tj's request, 2026-10-31b (his own words) — market indices
 

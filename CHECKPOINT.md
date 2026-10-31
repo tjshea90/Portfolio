@@ -1,22 +1,24 @@
-# CHECKPOINT 1764 — read me first, then TASKS.md
+# CHECKPOINT 1765 — read me first, then TASKS.md
 
-**Written:** 2026-10-31T21:05:26Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `ccr-ab1c4af9-vyzicn` · **builds on:** `a8170c81` (this checkpoint is the commit after it)
+**Written:** 2026-10-31T21:12:07Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `ccr-ab1c4af9-vyzicn` · **builds on:** `1cdb5680` (this checkpoint is the commit after it)
 
 ## Just done
-captured request M1-M4
+Markets: US index charts (inline, fullscreen, pinch), watch+index charts fetched early in offline sync; earnings: Nasdaq earnings-surprise fallback for report dates; v8.7 bumped
 
 ## Do this next
-explore chart component + nasdaq feed
+trigger android.yml full_build main for v8.7, record-release.sh v8.7
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
 ## Uncommitted right now
      M CHECKPOINT.md
      M TASKS.md
+     M app/build.gradle.kts
 
 ## Last ten checkpoints
 ```
+  605fdc42 ckpt 1764: captured request M1-M4
   a8170c81 ckpt 1763: v8.6 released and recorded (Markets tab)
   fd7e0b23 ckpt 1762: v8.5 recorded; bumped to v8.6 (Markets tab)
   89b93ad6 ckpt 1761: Markets sub-tab (Portfolio tab): 14 indices, offline-saved, IndicesTest
@@ -26,5 +28,7 @@ explore chart component + nasdaq feed
   da8421c8 ckpt 1757: page saver: retry UAs, softBlock, JSON-LD/meta fallback, card never null; Ea
   60fb415c ckpt 1756: captured request in TASKS.md
   5fdf58dc ckpt 1755: context handoff saved (.handoff/, CLAUDE.md learnings block)
-  c99eb5e5 ckpt 1754: v8.4 released and recorded (saved articles fix)
 ```
+
+(3 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
