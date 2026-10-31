@@ -47,3 +47,4 @@ ones, so `ship.sh` can always compute the next versionCode correctly.
 | v8.4 | code 103 | 2026-10-28T18:29Z | v8.4: saved articles - Google News links resolved to the publisher page, summary-card fallback so every story opens offline, 'saved' markers on stories
 | v8.5 | code 104 | 2026-10-31T18:40Z | v8.5: more saved offline pages (retry, JSON-LD/meta fallback, always a card); Earnings tab lists last-month reports with EPS beat/miss, stock reaction, good/neutral/poor, saved offline
 | v8.6 | code 105 | 2026-10-31T18:55Z | v8.6: Markets sub-tab with major indices (S&P 500, Dow, Nasdaq, Russell, world, VIX, 10y), saved offline
+| v8.7 | code 106 | 2026-10-31T21:26Z | v8.7: Markets US index charts (maximize + pinch zoom), earnings last-month reports via Nasdaq fallback, watch/index charts saved offline
