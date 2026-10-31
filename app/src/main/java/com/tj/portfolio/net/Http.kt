@@ -562,7 +562,8 @@ object Http {
         headers: Map<String, String> = emptyMap(),
         timeoutMs: Int = 15000,
         conditionalKey: Boolean = false,
-        cacheAs: String? = null
+        cacheAs: String? = null,
+        softBlock: Boolean = false
     ): HttpResult = withContext(Dispatchers.IO) {
         val cacheKey = cacheAs ?: url
         val host = hostOf(url)
@@ -650,6 +651,11 @@ object Http {
                 // caching, ages out of the table and has to be downloaded in full again.
                 runCatching { disk?.touch(cacheKey) }
                 return@withContext HttpResult(200, prior.body)
+            }
+            // softBlock: an ARTICLE page refusing a bot (403/503 is routine there) must not arm a
+            // host-wide cooldown that then fails every other page of that publisher.
+            if (softBlock && (code == 403 || code == 503)) {
+                return@withContext HttpResult(code, "")
             }
             if (code == 429 || code == 503 || code == 403) {
                 // 403 is in here on purpose: Yahoo and Google both answer a client they have

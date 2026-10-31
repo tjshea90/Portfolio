@@ -19,7 +19,7 @@ import java.util.zip.GZIPOutputStream
 object OfflinePages {
 
     /** Visible-text floor. Below this the page was a consent wall, a JS shell or a redirect stub. */
-    const val MIN_TEXT_CHARS = 600
+    const val MIN_TEXT_CHARS = 350
 
     /** Hard ceiling on one saved page's readable HTML, before gzip. */
     const val MAX_HTML_CHARS = 200_000
@@ -94,8 +94,36 @@ object OfflinePages {
                 else -> "<$name>"
             }
         }.replace(WS, " ").trim()
-        if (textLength(cleaned) < MIN_TEXT_CHARS) return null
+        if (textLength(cleaned) < MIN_TEXT_CHARS) {
+            // A JavaScript-rendered page often still ships its text in JSON-LD or <meta>.
+            return structured(raw)
+        }
         return if (cleaned.length > MAX_HTML_CHARS) cleaned.substring(0, MAX_HTML_CHARS) else cleaned
+    }
+
+    private val JSONLD = Regex("<script[^>]*application/ld\\+json[^>]*>(.*?)</script>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
+    private val BODY_FIELD = Regex("\"articleBody\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"", RegexOption.DOT_MATCHES_ALL)
+    private val META_DESC = listOf(
+        Regex("<meta[^>]+(?:property|name)=[\"'](?:og:description|description|twitter:description)[\"'][^>]*content=[\"']([^\"']*)[\"']", RegexOption.IGNORE_CASE),
+        Regex("<meta[^>]+content=[\"']([^\"']*)[\"'][^>]*(?:property|name)=[\"'](?:og:description|description|twitter:description)[\"']", RegexOption.IGNORE_CASE)
+    )
+
+    /** The page's own description (og/meta), unescaped; blank if none. */
+    fun metaDescription(html: String): String =
+        META_DESC.firstNotNullOfOrNull { it.find(html)?.groupValues?.get(1) }?.let { unescape(it).trim() }.orEmpty()
+
+    /** Article text from JSON-LD `articleBody`, as paragraphs, or null if absent/too short. */
+    internal fun structured(raw: String): String? {
+        for (m in JSONLD.findAll(raw)) {
+            val f = BODY_FIELD.find(m.groupValues[1]) ?: continue
+            val txt = runCatching { org.json.JSONObject("{\"v\":\"" + f.groupValues[1] + "\"}").getString("v") }.getOrNull()
+                ?: continue
+            val plain = unescape(txt.replace(TEXT_STRIP, " ")).replace(WS, " ").trim()
+            if (plain.length < MIN_TEXT_CHARS) continue
+            return plain.split(Regex("(?<=[.!?])\\s{1,}(?=[A-Z])")).chunked(3)
+                .joinToString("") { "<p>" + escape(it.joinToString(" ")) + "</p>" }
+        }
+        return null
     }
 
     /** The complete document shown in the reader: viewport, readable CSS, source line, body. */
@@ -123,13 +151,12 @@ object OfflinePages {
      * whose full page cannot be saved (paywall, JavaScript shell, blocked fetch). A tap still
      * opens something offline instead of an error. Null when the feed gave no summary at all.
      */
-    fun card(title: String, source: String, summary: String, published: Long): String? {
-        val sum = summary.trim()
-        if (sum.length < 40 || sum.equals(title.trim(), true)) return null
+    fun card(title: String, source: String, summary: String, published: Long, url: String = ""): String {
+        val sum = summary.trim().takeUnless { it.length < 20 || it.equals(title.trim(), true) }.orEmpty()
         val when_ = if (published > 0)
             java.text.SimpleDateFormat("MMM d, yyyy", java.util.Locale.US).format(java.util.Date(published)) else ""
         return "<p><b>${escape(source)}</b>${if (when_.isNotEmpty()) " &middot; $when_" else ""}</p>" +
-            "<p>${escape(sum)}</p>" +
+            (if (sum.isNotEmpty()) "<p>${escape(sum)}</p>" else "<p>${escape(title)}</p>") +
             "<p><i>Summary only - the full article could not be saved. Open it when you are online.</i></p>"
     }
 
