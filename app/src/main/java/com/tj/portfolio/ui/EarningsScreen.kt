@@ -79,8 +79,42 @@ internal data class EarnEntry(
 internal data class EarningsBoard(
     val upcoming: List<EarnEntry>,
     val recent: List<EarnEntry>,
-    val undated: List<EarnEntry>
+    val undated: List<EarnEntry>,
+    /** Reports from the last [EarningsFeed.RECENT_DAYS] days, newest first. */
+    val reports: List<ReportEntry> = emptyList()
 )
+
+/** A report that already happened, with its verdict. */
+internal data class ReportEntry(
+    val symbol: String,
+    val name: String,
+    val viaFunds: List<Pair<String, Double>>,
+    val report: EarningsFeed.Report,
+    val verdict: EarningsFeed.Verdict,
+    val daysAgo: Long,
+    val headlines: List<NewsItem>
+)
+
+/**
+ * Reports in the last month for [symbols]. Source 1: Yahoo's report events (date, EPS, price
+ * reaction). Source 2 (when that gave nothing): the newest quarter in `earningsHistory`, dated
+ * by the last report date the calendar showed before it rolled to the next quarter.
+ */
+internal fun recentReportsFor(
+    sym: String,
+    reports: Map<String, List<EarningsFeed.Report>>,
+    lastDates: Map<String, Long>,
+    f: Fundamentals?,
+    now: Long
+): List<EarningsFeed.Report> {
+    val cutoff = now - EarningsFeed.RECENT_DAYS * 86_400_000L
+    val direct = reports[sym].orEmpty().filter { it.dateMs in cutoff..now }
+    if (direct.isNotEmpty()) return direct
+    val last = lastDates[sym]?.takeIf { it in cutoff..now } ?: return emptyList()
+    val h = f?.history?.firstOrNull { it.date in 1 until last && last - it.date < 150L * 86_400_000L } ?: return emptyList()
+    val surprise = if (h.epsEstimate != 0.0) (h.epsActual - h.epsEstimate) / kotlin.math.abs(h.epsEstimate) * 100.0 else 0.0
+    return listOf(EarningsFeed.Report(last, h.quarter, h.epsActual, h.epsEstimate, surprise, null, now))
+}
 
 /** Reports this recent still show, with their result. */
 private const val RECENT_DAYS = 14L
@@ -93,7 +127,9 @@ internal fun buildEarningsBoard(
     headlines: Map<String, List<NewsItem>>,
     holdings: Map<String, FundHoldings>,
     today: LocalDate,
-    now: Long
+    now: Long,
+    reports: Map<String, List<EarningsFeed.Report>> = emptyMap(),
+    lastDates: Map<String, Long> = emptyMap()
 ): EarningsBoard {
     val held = state.rows.filter { !it.watchOnly && (it.position?.shares ?: 0.0) > 1e-9 }
     fun isFund(r: Row): Boolean = r.quote?.quoteType.orEmpty().uppercase().let { it == "ETF" || it == "MUTUALFUND" }
@@ -173,7 +209,18 @@ internal fun buildEarningsBoard(
         )
     }
     val listed = stockEntries + fundEntries
+    val reportEntries = entries.flatMap { e ->
+        recentReportsFor(e.symbol, reports, lastDates, fundamentals[e.symbol], now).map { r ->
+            ReportEntry(
+                e.symbol, e.name, e.viaFunds, r, EarningsFeed.verdict(r),
+                java.time.temporal.ChronoUnit.DAYS.between(r.day, today).coerceAtLeast(0),
+                headlines[e.symbol].orEmpty().filter { it.published >= r.dateMs - 86_400_000L }
+                    .sortedByDescending { it.published }.take(3)
+            )
+        }
+    }.sortedByDescending { it.report.dateMs }
     return EarningsBoard(
+        reports = reportEntries,
         upcoming = listed.filter { it.day != null && it.daysAway >= 0 }.sortedWith(
             compareBy<EarnEntry> { it.date!!.startMs }.thenByDescending { it.owned }.thenBy { it.symbol }),
         recent = stockEntries.filter { it.day != null && it.daysAway in -RECENT_DAYS..-1L }
@@ -210,6 +257,8 @@ fun EarningsScreen(
     onOpen: (String) -> Unit
 ) {
     val dates by vm.income.earningsDates.collectAsState()
+    val reports by vm.income.recentReports.collectAsState()
+    val lastDates by vm.income.lastReportDates.collectAsState()
     val loading by vm.income.earningsLoading.collectAsState()
     val headlines by vm.income.headlines.collectAsState()
     val fundamentals by vm.fundamentals.collectAsState()
@@ -225,8 +274,8 @@ fun EarningsScreen(
     LaunchedEffect(loading) { if (!loading) pulled = false }
 
     val today = Dividends.etDate(System.currentTimeMillis())
-    val board = remember(state.rows.size, heldSig, fundamentals, dates, headlines, holdings, today) {
-        buildEarningsBoard(state, fundamentals, dates, headlines, holdings, today, System.currentTimeMillis())
+    val board = remember(state.rows.size, heldSig, fundamentals, dates, headlines, holdings, today, reports, lastDates) {
+        buildEarningsBoard(state, fundamentals, dates, headlines, holdings, today, System.currentTimeMillis(), reports, lastDates)
     }
 
     Refreshable(
@@ -283,12 +332,19 @@ internal fun EarningsContent(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
             }
 
-            if (board.recent.isNotEmpty()) {
-                item { SectionHeader("Just reported") }
-                items(board.recent, key = { "r:${it.symbol}" }) { e ->
-                    EarnRow(e, today, e.symbol in expanded, onOpen) { onToggle(e.symbol) }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+            item { SectionHeader("Reported in the last month") }
+            if (board.reports.isEmpty()) {
+                item {
+                    Text(if (loading) "Checking recent reports…" else "None of your holdings reported in the last 30 days.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
                 }
+            }
+            items(board.reports, key = { "p:${it.symbol}:${it.report.dateMs}" }) { e ->
+                val k = "p:${e.symbol}"
+                ReportRow(e, k in expanded, onOpen) { onToggle(k) }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
             }
 
             if (board.undated.isNotEmpty()) {
@@ -459,6 +515,64 @@ private fun EarnRow(e: EarnEntry, today: LocalDate, open: Boolean, onOpen: (Stri
 }
 
 @Composable
+private fun ReportRow(e: ReportEntry, open: Boolean, onOpen: (String) -> Unit, onToggle: () -> Unit) {
+    val r = e.report
+    val light = when (e.verdict) {
+        EarningsFeed.Verdict.GOOD -> Light.GREEN
+        EarningsFeed.Verdict.POOR -> Light.RED
+        EarningsFeed.Verdict.NEUTRAL -> Light.YELLOW
+    }
+    val verdictWord = when (e.verdict) { EarningsFeed.Verdict.GOOD -> "Good"; EarningsFeed.Verdict.POOR -> "Poor"; else -> "Neutral" }
+    Column(Modifier.fillMaxWidth().clickable { onToggle() }.padding(horizontal = 4.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Dot(light, 18, true)
+            Spacer(Modifier.size(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(r.day.format(DATE_FMT) + when (e.daysAgo) { 0L -> " · today"; 1L -> " · yesterday"; else -> " · ${e.daysAgo} days ago" },
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(e.symbol, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    if (e.name.isNotBlank()) Text(e.name, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                }
+                if (e.viaFunds.isNotEmpty()) Text("Held via " + e.viaFunds.joinToString(", ") { it.first },
+                    fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(verdictWord + " · " + EarningsFeed.beatWord(r), fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                    color = when (light) { Light.GREEN -> greenText; Light.RED -> redText; Light.YELLOW -> MaterialTheme.colorScheme.onSurface })
+                r.reactionPct?.let {
+                    Text("Stock ${if (it >= 0) "+" else ""}${"%.1f".format(it)}% after", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        if (open) {
+            Column(Modifier.padding(start = 30.dp, top = 10.dp)) {
+                Text(
+                    if (r.hasEstimate) "EPS ${"%.2f".format(r.epsActual)} vs ${"%.2f".format(r.epsEstimate)} expected " +
+                        "(${if (r.surprisePct >= 0) "+" else ""}${"%.1f".format(r.surprisePct)}%)"
+                    else "EPS ${"%.2f".format(r.epsActual)} (no analyst estimate on file)",
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                )
+                if (r.quarter.isNotBlank()) Text("Quarter ${r.quarter}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (e.headlines.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Coverage since the report", fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    e.headlines.forEach { h ->
+                        Text("• ${h.title} — ${h.source}", fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 3.dp))
+                    }
+                }
+                Text("Open ${e.symbol} →", fontSize = 13.sp, color = accentText, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clickable { onOpen(e.symbol) }.padding(vertical = 8.dp))
+            }
+        }
+    }
+}
+
+@Composable
 private fun EarningsHowItWorks() {
     var open by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(top = 16.dp).clickable { open = !open }.padding(4.dp)) {
@@ -471,7 +585,8 @@ private fun EarningsHowItWorks() {
                 "It averages: the company's track record against estimates over the last four quarters (30%), the growth analysts expect (20%), the tone of the last three weeks of headlines (20%), the analyst rating and whether it is improving (15%), the price against its 50-day average (10%, a big run-up counts against because good news is already in the price), and the average price target (5%).",
                 "Tap a row to see exactly which signals pushed it which way.",
                 "Funds have no earnings of their own, so a fund shows one row: the date is its soonest big holding's report, the light is the weighted read of those holdings, and tapping it lists them.",
-                "Dates marked (est.) are the company's rough window, not a confirmed day."
+                "Dates marked (est.) are the company's rough window, not a confirmed day.",
+                "Reported reports: Good = EPS beat the analyst estimate (and the stock did not fall hard), Poor = it missed (and the stock did not jump), Neutral = in line or mixed. Saved on this device for offline reading."
             ).forEach {
                 Text("• $it", style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))

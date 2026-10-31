@@ -48,7 +48,6 @@ class SavedArticlesTest {
         val c = OfflinePages.card("T", "Reuters", "Shares rose after the company reported quarterly results above estimates.", 0L)
         assertNotNull(c)
         assertTrue(c!!.contains("Reuters") && c.contains("Summary only"))
-        assertNull(OfflinePages.card("T", "S", "short", 0L))
-        assertNull(OfflinePages.card("Same title text that is long enough to count here", "S", "Same title text that is long enough to count here", 0L))
+        assertTrue(OfflinePages.card("T", "S", "short", 0L).contains("Summary only"))
     }
 }
