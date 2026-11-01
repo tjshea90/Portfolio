@@ -1,13 +1,13 @@
-# CHECKPOINT 1769 — read me first, then TASKS.md
+# CHECKPOINT 1770 — read me first, then TASKS.md
 
-**Written:** 2026-11-01T03:03:58Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `ccr-ab1c4af9-vyzicn` · **builds on:** `ee176a7b` (this checkpoint is the commit after it)
+**Written:** 2026-11-01T03:45:02Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `ccr-ab1c4af9-vyzicn` · **builds on:** `80d9d054` (this checkpoint is the commit after it)
 
 ## Just done
-v8.8 released and recorded
+handoff saved (.handoff/, CLAUDE.md/AGENTS.md learnings)
 
 ## Do this next
-nothing pending; await Tj feedback
+nothing pending; await Tj feedback on v8.8
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ nothing pending; await Tj feedback
 
 ## Last ten checkpoints
 ```
+  bbf0dcbf ckpt 1769: v8.8 released and recorded
   87d5ebab ckpt 1768: offline refresh survives backgrounding: dataSync foreground service + fgScop
   9ed0d423 ckpt 1767: captured background refresh request
   f7480db9 ckpt 1766: v8.7 released and recorded
@@ -25,5 +26,7 @@ nothing pending; await Tj feedback
   fd7e0b23 ckpt 1762: v8.5 recorded; bumped to v8.6 (Markets tab)
   89b93ad6 ckpt 1761: Markets sub-tab (Portfolio tab): 14 indices, offline-saved, IndicesTest
   b7c638d5 ckpt 1760: captured indices request
-  b5cf7705 ckpt 1759: triggered CI run 41229396446 (full_build) for v8.5 on main
 ```
+
+(1 automatic checkpoint(s) since the last deliberate one — the
+session was still mid-step. `git diff` against it shows what changed.)
