@@ -4,9 +4,9 @@
 
 > Make the app still properly download and refresh even if it is in the background. Right now when I pull down to refresh and switch apps, when I come back to the app it says interrupted
 
-- [ ] B1 Find why switching apps cancels the offline refresh (fgScope cancelled on ON_STOP -> "Refresh interrupted")
-- [ ] B2 Let a user-started refresh keep running when backgrounded (foreground service / keep scope alive) incl. Android 16 rules; battery: stop when done
-- [ ] B3 Tests, ckpt, ship v8.8
+- [x] B1 Find why switching apps cancels the offline refresh (fgScope cancelled on ON_STOP -> "Refresh interrupted")
+- [x] B2 Let a user-started refresh keep running when backgrounded (foreground service / keep scope alive) incl. Android 16 rules; battery: stop when done
+- [x] B3 Tests, ckpt, ship v8.8
 
 ## Tj's request, 2026-10-31c (his own words) — Markets charts, earnings check, Watch charts offline
 
