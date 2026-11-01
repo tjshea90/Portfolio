@@ -1,5 +1,13 @@
 # TASKS — the current job
 
+## Tj's request, 2026-11-01 (his own words) — keep refreshing in background
+
+> Make the app still properly download and refresh even if it is in the background. Right now when I pull down to refresh and switch apps, when I come back to the app it says interrupted
+
+- [ ] B1 Find why switching apps cancels the offline refresh (fgScope cancelled on ON_STOP -> "Refresh interrupted")
+- [ ] B2 Let a user-started refresh keep running when backgrounded (foreground service / keep scope alive) incl. Android 16 rules; battery: stop when done
+- [ ] B3 Tests, ckpt, ship v8.8
+
 ## Tj's request, 2026-10-31c (his own words) — Markets charts, earnings check, Watch charts offline
 
 > For the markets section, for the united states,  also download charts just like for the other parts of the app, which i can click to maximize and pinch zoom. You can adopt the code from other parts of the app.  Also check that the earnings section works for the reported in the last month section because it says none of your holdings reported in the last 30 days, but I'm pretty sure some have.  For the watch tab, download charts for offline viewing
