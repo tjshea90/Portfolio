@@ -1,1 +1,2 @@
 2026-10-28T18:39:03.335Z | offline articles, google news, portfolio, v8.4 | Portfolio Android app (tjshea90/Portfolio, Kotlin+Compose, sideloaded on Android 10 Go MT8168 tablet, rarely online). Go | 2026-10-28/handoff-2026-10-28T18-39-03-335Z.md
+2026-11-01T03:44:48.551Z | portfolio, offline sync, earnings reports, markets indices, sync service, v8.8 | Portfolio Android app (Kotlin/Compose, tjshea90/Portfolio, sideloaded). Goal: Tj requests iterated 2026-10-31..11-01 — m | 2026-11-01/handoff-2026-11-01T03-44-48-551Z.md

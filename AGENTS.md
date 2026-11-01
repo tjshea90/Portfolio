@@ -4,14 +4,16 @@
 ## Session Learnings (auto-updated by handoff)
 
 ### Implicit Rules
-- Follow CLAUDE.md: run tools/install-hooks.sh first, tools/ckpt.sh after each step, ship via ship.sh then actions_run_trigger android.yml then record-release.sh
-- GitHub builds APKs; never send APK bytes; post Release page link
-- Build only via bash tools/gradle.sh
+- Build only via bash tools/gradle.sh; run tools/install-hooks.sh first; tools/ckpt.sh after each step
+- Release: bump versionCode/Name, ckpt, trigger android.yml full_build on main, record-release.sh after green, post Release page link; never send APK
+- Settings-key prefixes for derived caches go in IncomeHub.PREFIXES (excluded from backups)
+- tools/checkinit.py: properties must be declared above VM init
 
 ### Key Decisions
-- Decision: resolve Google News links to publisher URL before fetch — Reason: they are JS redirects, plain GET gets no article
-- Decision: file saved page under list's original URL — Reason: reader looks up target.url, avoids key mismatch
-- Decision: fall back to headline+summary card when full page unsavable — Reason: every linked story must open something offline
-- Decision: onFinished callback on OfflineSync instead of VM init block — Reason: tools/checkinit.py forbids properties declared below init
+- Decision: GitHub Actions builds/signs (android.yml full_build on main) — Reason: CLAUDE.md rule; keystore in GitHub Secrets; record-release.sh only after green
+- Decision: Nasdaq earnings-surprise as report-date source fallback — Reason: Yahoo chart events=earn unverified, earningsHistory has quarter-end not report date
+- Decision: US index charts reuse PriceChart+FullScreenChart with local window state — Reason: user asked to adopt existing chart code
+- Decision: foreground service + defer fgScope cancel while offline pass runs — Reason: ON_STOP cancel caused 'Refresh interrupted'; frozen process loses network
+- Decision: new Robolectric tests use sdk 36 — Reason: only android-all 36 cached in sandbox
 
 <!-- handoff:learnings:end -->
