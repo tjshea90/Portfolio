@@ -31,6 +31,7 @@ import com.tj.portfolio.net.Social
 import com.tj.portfolio.util.Fmt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
+import com.tj.portfolio.SyncService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.plus
