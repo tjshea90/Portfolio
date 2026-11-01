@@ -3106,7 +3106,23 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         withContext(Dispatchers.IO) { runCatching { db.cacheNews(rows, summaries = blurbs) } }
     }
 
-    val offline = OfflineSync(db, offlineHost, { fgScope }, { reloadSavedUrls() })
+    val offline = OfflineSync(db, offlineHost, { fgScope }, { reloadSavedUrls(); offlinePassEnded() })
+
+    /** True while the foreground scope is being kept alive for a running offline refresh. */
+    @Volatile private var scopeKeptForSync = false
+
+    /**
+     * The refresh ended (finished, failed or was cancelled). Stop the service, and if the app
+     * is still in the background, do now the cancellation `setForeground(false)` postponed.
+     */
+    private fun offlinePassEnded() {
+        SyncService.stop(getApplication())
+        if (scopeKeptForSync && !foreground) {
+            scopeKeptForSync = false
+            fgScope.coroutineContext[Job]?.cancel()
+            flushResearchCache()
+        } else scopeKeptForSync = false
+    }
 
     /** When the last COMPLETE offline refresh was started, to stop a second pull right after it. */
     private var offlineStartedAt = 0L
@@ -3117,7 +3133,10 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         // A second pull within five minutes of a full pass is an ordinary price refresh: the
         // loaders are forced, so repeating them back-to-back is pure rate-limit risk.
         if (!light && now - offlineStartedAt < 5 * 60_000L && offline.progress.value.lastMode == OfflineSync.Mode.FULL) return
-        if (offline.start(if (light) OfflineSync.Mode.LIGHT else OfflineSync.Mode.FULL)) offlineStartedAt = now
+        if (offline.start(if (light) OfflineSync.Mode.LIGHT else OfflineSync.Mode.FULL)) {
+            offlineStartedAt = now
+            SyncService.start(getApplication())
+        }
     }
 
     /** The saved readable copy of an article, for the reader when the page cannot be loaded. */
@@ -4146,7 +4165,9 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             // A NEW SCOPE FIRST. The old one was cancelled on the way out and a cancelled Job
             // rejects every launch silently - without this, coming back to the app would find
             // every on-demand fetch a no-op and the screens would sit empty forever.
-            fgScope = newForegroundScope()
+            // A refresh that outlived the background keeps the scope it runs in; replacing it would
+            // orphan the pass.
+            if (!scopeKeptForSync) fgScope = newForegroundScope()
             // Put the headlines back before anything else - a trim while backgrounded may
             // have released them, and the user should never see an empty Feed tab on return.
             restoreFromCache()
@@ -4187,7 +4208,13 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
             marketInsiderJob = null
             // EVERYTHING ELSE THE SCREEN ASKED FOR, IN ONE CANCELLATION. See [fgScope] for
             // the list of what this reaches and what it deliberately does not.
-            fgScope.coroutineContext[Job]?.cancel()
+            //
+            // EXCEPT WHEN THE USER'S OFFLINE REFRESH IS RUNNING (2026-11-01): Tj pulled down,
+            // switched apps, and came back to "interrupted". That pass runs in this scope, so the
+            // cancellation waits until it ends ([offlinePassEnded]); the polling jobs above are
+            // still stopped, and a foreground service keeps the process alive meanwhile.
+            if (offline.progress.value.running) scopeKeptForSync = true
+            else fgScope.coroutineContext[Job]?.cancel()
             researchJob = null
             enrichJob = null
             searchJob = null
