@@ -301,7 +301,7 @@ class DeviceProfileTest {
 
     @Test fun statusLineReflectsRunningAndLightStates() {
         val running = OfflineSync.Progress(running = true, mode = OfflineSync.Mode.FULL, phase = "News on your holdings", step = 3, steps = 8, pagesSaved = 12)
-        assertEquals("Saving for offline: News on your holdings (3/8) - 12 pages", com.tj.portfolio.ui.offlineStatusLine(running, false))
-        assertTrue(com.tj.portfolio.ui.offlineStatusLine(OfflineSync.Progress(), true).contains("light refresh"))
+        assertEquals("Saving for offline: News on your holdings (3/8) - 12 pages", com.tj.portfolio.ui.offlineStatusLine(running, OfflineSync.Mode.FULL))
+        assertTrue(com.tj.portfolio.ui.offlineStatusLine(OfflineSync.Progress(), OfflineSync.Mode.LIGHT).contains("light refresh"))
     }
 }
