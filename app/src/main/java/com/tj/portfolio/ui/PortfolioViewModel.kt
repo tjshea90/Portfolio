@@ -3849,7 +3849,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * It touches ONLY the symbols in [fetched] - never `lastRefresh`, which means "the whole
      * portfolio was refreshed" and is set by the caller that actually did that.
      */
-    private fun applyFetchedQuotes(fetched: List<Quote>): Long {
+    internal fun applyFetchedQuotes(fetched: List<Quote>): Long {
         val now = System.currentTimeMillis()
         val previous = _quotes.value
         val stamped = fetched.map {
