@@ -750,32 +750,22 @@ fun DetailScreen(
     // and this screen recomposes on every quote tick - so `Refreshable` and the header button
     // were being invalidated four times a minute for a callback that had not changed. Keyed
     // on what it actually captures.
-    val refreshEverything = remember(symbol, tab, chartRange, compareOn, isBenchmark) {
+    //
+    // ---- ONE STOCK, NOTHING ELSE (Tj, 2026-11-20). This used to start with
+    // `vm.refresh(manual = true)`, which a deliberate pull turns into every tracked symbol's quote
+    // plus the whole-app offline pass - for a gesture made on ONE stock's page. Now the VM refreshes
+    // this symbol only: its quote, news, insider filings, fundamentals, the fund-holdings register
+    // (UNCONDITIONAL - Round 66 audit DET-7: the Holdings tab only exists once the register has
+    // loaded, so gating on it skipped the very lookup a pull-down is for), the chart on screen
+    // (TJ's earlier rule, kept: periodic refresh on its own, but a pull-down always re-fetches), the
+    // SPY overlay only while "vs SPY" is on, and analyst ratings only on that tab.
+    val refreshThisStock = remember(symbol, tab, chartRange, compareOn, isBenchmark) {
         {
-            vm.refresh(manual = true)
-            vm.loadNews(symbol, force = true)
-            vm.loadInsider(symbol, force = true)
-            vm.loadFundamentals(symbol, force = true)
-            // TJ's rule for this round, exactly: cache and refresh periodically on its own,
-            // but a pull-down always re-fetches. `force` is what bypasses the TTL.
-            vm.loadChart(symbol, chartRange, force = true)
-            if (compareOn && !isBenchmark) {
-                vm.loadChart(BENCHMARK_SYMBOL, chartRange, force = true)
-            }
-            if (tab == DetailTab.ANALYSTS) vm.loadRatings(symbol, force = true)
-            // ---- UNCONDITIONAL (Round 66 audit, DET-7).
-            //
-            // THE BUG THIS FIXES. This was gated on `tab == HOLDINGS`, and the Holdings tab
-            // only EXISTS once the register has already loaded - `tabs` includes it when
-            // `fundHoldings?.isFund == true`, and a selection outside `tabs` is forced back to
-            // Overview. So the condition was unreachable in exactly the situation a pull-down
-            // is for: the lookup failed, there is no tab, and `holdingsRetry` is now refusing
-            // every un-forced route back in for up to five minutes. Open SPY on a flaky
-            // connection and the fund's own holdings never appeared, and the one gesture TJ
-            // said should always re-fetch - "refresh every time I gesture pull down" - was
-            // quietly skipping it. One request per deliberate pull, against a register cached
-            // for twelve hours.
-            vm.loadHoldings(symbol, force = true)
+            vm.refreshStock(
+                symbol, chartRange,
+                benchmark = if (compareOn && !isBenchmark) BENCHMARK_SYMBOL else null,
+                ratings = tab == DetailTab.ANALYSTS
+            )
         }
     }
 
