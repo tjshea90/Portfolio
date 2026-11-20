@@ -3630,6 +3630,61 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         if (manual) startOfflineSync()
     }
 
+    /**
+     * THE REFRESH BUTTON AND THE PULL-DOWN ON A STOCK PAGE (Tj, 2026-11-20): "only refresh the data
+     * for that particular stock and do not refresh anything else in the background".
+     *
+     * It used to call [refresh], which a deliberate pull turns into the whole app: every tracked
+     * symbol's quote, then the offline pass over the entire portfolio. This touches [symbol] only:
+     *  - its quote (one request, merged through [applyFetchedQuotes], so the row, the header and
+     *    the portfolio total all see the new price, while `lastRefresh` - "the portfolio was
+     *    repriced" - is left alone),
+     *  - the loaders that feed this page, each forced and each guarded by its own in-flight set:
+     *    news, insider filings, fundamentals, fund holdings, the chart on screen, and analyst
+     *    ratings when that tab is open.
+     * Nothing else: no other symbol's quote, no sparklines, no dividends/earnings/feed/research, no
+     * [OfflineSync] pass and no foreground service.
+     *
+     * [benchmark] is the comparison symbol ONLY while the "vs SPY" overlay is switched on - it is
+     * drawn on this page's own chart, and refreshing the stock without it would put a live line
+     * beside a stale one. Null (the normal case) fetches nothing extra.
+     */
+    fun refreshStock(symbol: String, range: ChartRange, benchmark: String? = null, ratings: Boolean = false) {
+        val sym = symbol.uppercase()
+        // A second pull while one runs attaches to it (the spinner is derived from the set).
+        if (sym in _stockRefreshing.value) return
+        _stockRefreshing.value = _stockRefreshing.value + sym
+        // "Try it now": clear the backoffs that would silently swallow this deliberate request.
+        // Only timers are reset here - nothing is fetched for any other symbol by doing so.
+        com.tj.portfolio.net.Http.clearCooldowns()
+        MarketData.resetBatchState()
+        MarketData.resetFallbackState()
+        loadNews(sym, force = true)
+        loadInsider(sym, force = true)
+        loadFundamentals(sym, force = true)
+        if (ratings) loadRatings(sym, force = true)
+        loadHoldings(sym, force = true)
+        val chartJob = loadChart(sym, range, force = true)
+        val benchJob = if (benchmark != null && !sym.equals(benchmark, true))
+            loadChart(benchmark, range, force = true) else null
+        // ATOMIC, like OfflineSync.start: if the foreground scope was cancelled just now the body
+        // must still start so its `finally` clears the flag, or this stock could never refresh again.
+        fgScope.launch(start = kotlinx.coroutines.CoroutineStart.ATOMIC) {
+            try {
+                val fk = finnhubKey()
+                val fetched = withContext(Dispatchers.IO) {
+                    runCatching { MarketData.quotes(listOf(sym), fk) }.getOrDefault(emptyList())
+                }
+                if (fetched.isEmpty()) toast("Couldn't refresh $sym - showing the last known price")
+                else { applyFetchedQuotes(fetched); reprice() }
+                // The spinner covers the price and the chart; the other loaders show their own.
+                kotlinx.coroutines.withTimeoutOrNull(30_000L) { chartJob?.join(); benchJob?.join() }
+            } finally {
+                _stockRefreshing.value = _stockRefreshing.value - sym
+            }
+        }
+    }
+
     private fun refreshQuotes(manual: Boolean = false) {
         if (_ui.value.loading && quoteJob?.isActive != false) {
             if (manual) _ui.value =
