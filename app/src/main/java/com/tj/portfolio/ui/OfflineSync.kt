@@ -132,7 +132,8 @@ class OfflineSync(
         val heldSet = held.map { it.symbol.uppercase() }.toSet()
         val watch = host.watchlist().distinctBy { it.symbol.uppercase() }.filter { it.symbol.uppercase() !in heldSet }
         val full = mode == Mode.FULL
-        val totalSteps = if (full) 8 else 3
+        val pricesOnly = mode == Mode.PRICES
+        val totalSteps = when (mode) { Mode.FULL -> 8; Mode.LIGHT -> 3; Mode.PRICES -> 2 }
         var step = 0
         var pages = 0
         val completedTiers = LinkedHashSet<Int>()
