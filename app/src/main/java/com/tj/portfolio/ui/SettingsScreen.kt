@@ -459,7 +459,7 @@ fun SettingsScreen(vm: PortfolioViewModel) {
 
         // ---- OFFLINE DATA (2026-10-27)
         run {
-            val light by vm.lightRefresh.collectAsState()
+            val mode by vm.refreshMode.collectAsState()
             val prog by vm.offline.progress.collectAsState()
             LaunchedEffect(prog.lastFinishedAt) { vm.offline.refreshCacheSize() }
             Text("Offline data", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
