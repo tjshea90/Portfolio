@@ -471,18 +471,16 @@ fun SettingsScreen(vm: PortfolioViewModel) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Light refresh")
-                    Text(
-                        "Pull-to-refresh only updates your holdings' prices and charts and the " +
-                            "headlines - no full pages, no research rebuild. Uses very little data.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(checked = light, onCheckedChange = { vm.setLightRefresh(it) })
-            }
+            Text("Refresh level")
+            RefreshLevelPicker(mode, onChange = { vm.setRefreshMode(it) })
+            Text(
+                "Full: everything above. Light: prices, charts, market indices and headlines only - " +
+                    "no full pages, no research rebuild. Prices: the lightest - only your holdings' and " +
+                    "watch list's prices and charts. Opening a stock and pulling down (or tapping " +
+                    "Refresh) always refreshes just that stock, whatever the level.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             OutlinedButton(
                 onClick = { vm.clearOfflinePages(); vm.offline.refreshCacheSize() },
                 modifier = Modifier.fillMaxWidth()
