@@ -323,6 +323,8 @@ fun DetailScreen(
     val chartMap by vm.charts.collectAsState()
     val quotesMap by vm.quotes.collectAsState()
     val chartLoadingSet by vm.chartLoading.collectAsState()
+    // This stock's own refresh (button or pull-down) - see [PortfolioViewModel.refreshStock].
+    val stockRefreshingSet by vm.stockRefreshing.collectAsState()
     val chartKey = vm.chartKey(symbol, chartRange)
     val chart = chartMap[chartKey]
     val chartLoading = chartLoadingSet.contains(chartKey)
