@@ -3135,14 +3135,15 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
     private var offlineStartedAt = 0L
 
     private fun startOfflineSync() {
-        val light = _lightRefresh.value
+        val mode = _refreshMode.value
         val now = System.currentTimeMillis()
         // A second pull within five minutes of a full pass is an ordinary price refresh: the
         // loaders are forced, so repeating them back-to-back is pure rate-limit risk.
-        if (!light && now - offlineStartedAt < 5 * 60_000L && offline.progress.value.lastMode == OfflineSync.Mode.FULL) return
-        if (offline.start(if (light) OfflineSync.Mode.LIGHT else OfflineSync.Mode.FULL)) {
+        if (mode == OfflineSync.Mode.FULL && now - offlineStartedAt < 5 * 60_000L &&
+            offline.progress.value.lastMode == OfflineSync.Mode.FULL) return
+        if (offline.start(mode)) {
             offlineStartedAt = now
-            SyncService.start(getApplication())
+            SyncService.start(getApplication(), mode)
         }
     }
 
