@@ -1,5 +1,15 @@
 # TASKS — the current job
 
+## Tj's request, 2026-11-20 (his own words) — lightest refresh + stock-page refresh is stock-only
+
+> Make an option which is even lighter than the light refresh which only refreshes current prices of my holdings and watch list and their charts. Also, if I'm currently looking at a stock page and press refresh or pull down to refresh, automatically only refresh the data for that particular stock and do not refresh anything else in the background
+
+Design notes: today `DetailScreen.refreshEverything` calls `vm.refresh(manual = true)` = ALL tracked quotes + `startOfflineSync()` (the whole-app FULL/LIGHT pass). That is what must stop on a stock page.
+
+- [ ] R1 New third refresh level "Prices" (OfflineSync.Mode.PRICES): quotes + charts (D1/M1/Y1) for holdings + watch list ONLY — no indices/index charts, no headlines, no feed, no pages. Persisted level (migrate old light_refresh boolean). Replaces the Light switch with a Full/Light/Prices selector (OfflineStrip + Settings).
+- [ ] R2 Stock page (DetailScreen) refresh button AND pull-down = refresh ONLY that symbol (its quote + its own detail loaders + chart), nothing else: no other symbols' quotes, no offline sync, no service. Spinner tracks that symbol only.
+- [ ] R3 Tests (PRICES mode touches nothing but holdings/watch quotes+charts; per-symbol refresh leaves other quotes + offline sync alone; mode persistence/migration), full suite green, ckpt, ship per auto-ship rule.
+
 ## Tj's request, 2026-11-01 (his own words) — keep refreshing in background
 
 > Make the app still properly download and refresh even if it is in the background. Right now when I pull down to refresh and switch apps, when I come back to the app it says interrupted
