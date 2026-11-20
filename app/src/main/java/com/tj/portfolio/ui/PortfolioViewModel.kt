@@ -6027,8 +6027,8 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
      * DELIBERATELY HAS NO `force` PARAMETER. TJ asked explicitly that this "only needs to
      * refresh for each new day session" - not on pull-to-refresh, not on resume - so the day
      * check is the ONLY thing that can trigger a recompute, by construction rather than by a
-     * flag some caller could pass wrong. `refreshEverything` in DetailScreen does not call this
-     * at all, on purpose.
+     * flag some caller could pass wrong. The stock page's refresh ([refreshStock]) does not call
+     * this at all, on purpose.
      */
     fun loadRecommendation(symbol: String, price: Double) {
         val sym = symbol.uppercase()
