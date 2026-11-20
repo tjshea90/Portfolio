@@ -3730,30 +3730,7 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     return@launch
                 }
 
-                val now = System.currentTimeMillis()
-                val previous = _quotes.value
-                val stamped = fetched.map {
-                    carryDisplayFields(previous[it.symbol], it.copy(updated = now, stale = false))
-                }
-                // REBUILT FROM THE CURRENT STATE, NOT FROM `previous`. `refreshSparklines`
-                // writes into `_quotes` from its own coroutine, and this function suspended
-                // twice on the way here (the fetch, and - before Round 59 moved it off the
-                // critical path - the cache write), so a sparkline that landed in between
-                // would be overwritten by a map snapshotted before it existed. Because
-                // `sparkAt` is marked before the fetch, that lost write also cost a
-                // five-minute wait for the retry, with `carryDisplayFields` keeping the old
-                // series alive so nothing looked wrong. Reading `_quotes.value` here rather
-                // than reusing `previous` is what makes that impossible.
-                val merged = HashMap(_quotes.value)
-                stamped.forEach { fresh ->
-                    // The series is the one field the sparkline pass owns; never let a quote
-                    // update stamp an older one back over it.
-                    val live = merged[fresh.symbol]
-                    merged[fresh.symbol] =
-                        if (fresh.spark.isEmpty() && live != null && live.spark.isNotEmpty())
-                            fresh.copy(spark = live.spark) else fresh
-                }
-                _quotes.value = merged
+                val now = applyFetchedQuotes(fetched)
 
                 // Coerced: a provider that answers for a symbol under a normalised ticker
                 // could otherwise make this negative and print "-1 symbol(s) failed".
@@ -3762,25 +3739,6 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                     lastRefresh = now,
                     error = if (missing > 0) "$missing symbol(s) failed to update" else null
                 )
-
-                // ---- persist, AFTER the merge and on a scope that survives backgrounding.
-                //
-                // ON `viewModelScope`, so a price already paid for reaches disk even if the
-                // user walks away a millisecond later - the fetch above is cancellable, this
-                // deliberately is not.
-                //
-                // AND IT WRITES `merged`, NOT `stamped`, which is the difference between a
-                // correct write and a racy one. `stamped` is the pre-merge snapshot: it does
-                // not carry a sparkline that `refreshSparklines` or `adoptAsSparkline` landed
-                // while the fetch was in flight. Written after them, it would put a
-                // series-less row over a good one, and the next cold start would paint a
-                // blank chart from it. `merged` is what is actually on screen.
-                val toPersist = stamped.mapNotNull { merged[it.symbol] }
-                if (toPersist.isNotEmpty()) {
-                    viewModelScope.launch(Dispatchers.IO) {
-                        runCatching { db.cacheQuotes(toPersist) }
-                    }
-                }
 
             } catch (e: kotlinx.coroutines.CancellationException) {
                 // ---- BACKGROUNDING THE APP IS NOT A REFRESH FAILURE.
@@ -3818,6 +3776,61 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
                 reprice()
             }
         }
+    }
+
+    /**
+     * Stamp [fetched] as fresh, fold it into `_quotes` and write it to disk; returns the stamp time.
+     *
+     * ONE COPY of the merge, shared by the whole-portfolio pass ([refreshQuotes]) and the one-stock
+     * refresh on a stock page ([refreshStock], 2026-11-20), so the race notes below hold for both.
+     * It touches ONLY the symbols in [fetched] - never `lastRefresh`, which means "the whole
+     * portfolio was refreshed" and is set by the caller that actually did that.
+     */
+    private fun applyFetchedQuotes(fetched: List<Quote>): Long {
+        val now = System.currentTimeMillis()
+        val previous = _quotes.value
+        val stamped = fetched.map {
+            carryDisplayFields(previous[it.symbol], it.copy(updated = now, stale = false))
+        }
+        // REBUILT FROM THE CURRENT STATE, NOT FROM `previous`. `refreshSparklines`
+        // writes into `_quotes` from its own coroutine, and this function suspended
+        // twice on the way here (the fetch, and - before Round 59 moved it off the
+        // critical path - the cache write), so a sparkline that landed in between
+        // would be overwritten by a map snapshotted before it existed. Because
+        // `sparkAt` is marked before the fetch, that lost write also cost a
+        // five-minute wait for the retry, with `carryDisplayFields` keeping the old
+        // series alive so nothing looked wrong. Reading `_quotes.value` here rather
+        // than reusing `previous` is what makes that impossible.
+        val merged = HashMap(_quotes.value)
+        stamped.forEach { fresh ->
+            // The series is the one field the sparkline pass owns; never let a quote
+            // update stamp an older one back over it.
+            val live = merged[fresh.symbol]
+            merged[fresh.symbol] =
+                if (fresh.spark.isEmpty() && live != null && live.spark.isNotEmpty())
+                    fresh.copy(spark = live.spark) else fresh
+        }
+        _quotes.value = merged
+
+        // ---- persist, AFTER the merge and on a scope that survives backgrounding.
+        //
+        // ON `viewModelScope`, so a price already paid for reaches disk even if the
+        // user walks away a millisecond later - the fetch above is cancellable, this
+        // deliberately is not.
+        //
+        // AND IT WRITES `merged`, NOT `stamped`, which is the difference between a
+        // correct write and a racy one. `stamped` is the pre-merge snapshot: it does
+        // not carry a sparkline that `refreshSparklines` or `adoptAsSparkline` landed
+        // while the fetch was in flight. Written after them, it would put a
+        // series-less row over a good one, and the next cold start would paint a
+        // blank chart from it. `merged` is what is actually on screen.
+        val toPersist = stamped.mapNotNull { merged[it.symbol] }
+        if (toPersist.isNotEmpty()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                runCatching { db.cacheQuotes(toPersist) }
+            }
+        }
+        return now
     }
 
     /**
