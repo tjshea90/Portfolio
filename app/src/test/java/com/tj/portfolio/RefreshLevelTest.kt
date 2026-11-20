@@ -266,12 +266,12 @@ class RefreshLevelViewModelTest {
         record()
         vm.refreshStock("NVDA", ChartRange.D1)
         vm.refreshStock("NVDA", ChartRange.D1)
-        assertEquals(setOf("NVDA"), vm.stockRefreshing.value)
+        assertEquals("while the first is running", setOf("NVDA"), vm.stockRefreshing.value)
         quiet(vm)
         assertTrue(vm.stockRefreshing.value.isEmpty())
         // ...and it can be run again afterwards.
         vm.refreshStock("NVDA", ChartRange.D1)
-        assertEquals(setOf("NVDA"), vm.stockRefreshing.value)
+        assertEquals("a later pull starts a fresh refresh", setOf("NVDA"), vm.stockRefreshing.value)
         quiet(vm)
     }
 }
