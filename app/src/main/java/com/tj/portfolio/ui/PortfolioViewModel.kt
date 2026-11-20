@@ -3005,6 +3005,14 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(Dispatchers.IO) { db.set(Keys.REFRESH_MODE, mode.name) }
     }
 
+    private val _stockRefreshing = MutableStateFlow<Set<String>>(emptySet())
+    /**
+     * Symbols whose OWN refresh (the button or a pull-down on that stock's page, see [refreshStock])
+     * is in flight. Separate from `UiState.loading`/`manualRefresh`, which mean "the whole portfolio
+     * is being repriced" and must not light up for one stock.
+     */
+    val stockRefreshing: StateFlow<Set<String>> = _stockRefreshing.asStateFlow()
+
     /** Wait (bounded) until [sym] is no longer in an in-flight set. A stuck loader never stalls the pass. */
     private suspend fun awaitGone(flow: StateFlow<Set<String>>, sym: String, ms: Long = 45_000L) {
         kotlinx.coroutines.withTimeoutOrNull(ms) { flow.first { sym !in it } }
