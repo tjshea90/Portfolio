@@ -207,9 +207,11 @@ class OfflineSync(
             }
 
             // -------------------------------------------------------- headlines (+ feed in full)
-            phase(if (full) "Live feed" else "Headlines")
-            if (!full) each(held) { s -> host.news(s.symbol, s.name, deep = false) }
-            runCatching { host.feed(includeInsider = full) }
+            if (!pricesOnly) {
+                phase(if (full) "Live feed" else "Headlines")
+                if (!full) each(held) { s -> host.news(s.symbol, s.name, deep = false) }
+                runCatching { host.feed(includeInsider = full) }
+            }
             if (full) {
                 val feedUrls = withContext(Dispatchers.IO) {
                     db.recentStories(FeedItem.NEWS, 80, notSymbols = heldSet + watch.map { it.symbol.uppercase() })
