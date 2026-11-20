@@ -43,6 +43,10 @@ import kotlinx.coroutines.withContext
  *
  * LIGHT mode runs only phase 1 (quotes + a few charts) and headlines: no dividends, no analysis,
  * no research rebuild, and never a full page.
+ *
+ * PRICES mode (Tj, 2026-11-20: "even lighter than the light refresh which only refreshes current
+ * prices of my holdings and watch list and their charts") is phase 1 for the HOLDINGS and the
+ * WATCH LIST and nothing else: no market indices or their charts, no headlines, no feed, no pages.
  */
 class OfflineSync(
     private val db: Db,
