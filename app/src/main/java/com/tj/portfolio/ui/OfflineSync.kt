@@ -278,6 +278,13 @@ class OfflineSync(
         }
 
     companion object {
+        /**
+         * The saved refresh level. A stored name wins; an unset or unrecognised value falls back to
+         * the pre-2026-11-20 boolean ("Light" switch), so nobody's choice changes on update.
+         */
+        fun modeFromSetting(stored: String, legacyLight: Boolean): Mode =
+            Mode.values().firstOrNull { it.name == stored } ?: if (legacyLight) Mode.LIGHT else Mode.FULL
+
         private val PAGE_UAS = listOf(
             Http.UA,
             "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
