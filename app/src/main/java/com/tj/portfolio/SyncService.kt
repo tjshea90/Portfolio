@@ -65,9 +65,13 @@ class SyncService : Service() {
     companion object {
         private const val CHANNEL = "offline_refresh"
         private const val ID = 4107
+        private const val EXTRA_MODE = "mode"
 
-        fun start(ctx: Context) {
-            runCatching { ctx.startForegroundService(Intent(ctx, SyncService::class.java)) }
+        /** [mode] is the `OfflineSync.Mode` name, used only to word the notification. */
+        fun start(ctx: Context, mode: com.tj.portfolio.ui.OfflineSync.Mode) {
+            runCatching {
+                ctx.startForegroundService(Intent(ctx, SyncService::class.java).putExtra(EXTRA_MODE, mode.name))
+            }
         }
 
         fun stop(ctx: Context) {
