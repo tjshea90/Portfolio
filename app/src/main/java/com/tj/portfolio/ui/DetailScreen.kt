@@ -816,7 +816,7 @@ fun DetailScreen(
                     vm.toast("$symbol added to your watchlist")
                 }
             }
-            BigIconButton(Icons.Filled.Refresh, "Refresh") { refreshEverything() }
+            BigIconButton(Icons.Filled.Refresh, "Refresh") { refreshThisStock() }
         }
 
         // ---- pinned price
