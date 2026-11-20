@@ -1,13 +1,13 @@
-# CHECKPOINT 1771 — read me first, then TASKS.md
+# CHECKPOINT 1772 — read me first, then TASKS.md
 
-**Written:** 2026-11-20T19:43:15Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
-**Branch:** `ccr-3afdf19c-9h8n14` · **builds on:** `0cb7228c` (this checkpoint is the commit after it)
+**Written:** 2026-11-20T19:54:16Z · **tests:** all 2 fast checks green (gradle suite: see ship.sh)
+**Branch:** `ccr-3afdf19c-9h8n14` · **builds on:** `b40e4c43` (this checkpoint is the commit after it)
 
 ## Just done
-Recorded Tj's 2026-11-20 request (Prices-only refresh level + stock-page refresh is per-symbol) in TASKS.md; read OfflineSync/VM refresh paths
+R1+R2 implemented: OfflineSync.Mode.PRICES (holdings+watch prices/charts only), 3-way RefreshLevelPicker (strip+Settings), Keys.REFRESH_MODE w/ legacy migration, vm.refreshStock() used by DetailScreen button+pull, applyFetchedQuotes extracted; RefreshLevelTest added (all green in isolation)
 
 ## Do this next
-R1: add OfflineSync.Mode.PRICES + 3-way selector; R2: vm.refreshSymbol() used by DetailScreen refresh button + pull
+run full gradle unit suite; light-test diff review (callers of changed fns); bump versionCode/Name; ship.sh; trigger android.yml; record-release; post Release link
 
 *(resuming? CLAUDE.md's "FIRST ACTION OF EVERY SESSION" comes before "Starting a session" — do that one first, or autosave stays off all session.)*
 
@@ -16,6 +16,7 @@ R1: add OfflineSync.Mode.PRICES + 3-way selector; R2: vm.refreshSymbol() used by
 
 ## Last ten checkpoints
 ```
+  e9c417ff ckpt 1771: Recorded Tj's 2026-11-20 request (Prices-only refresh level + stock-page ref
   209cecef ckpt 1770: handoff saved (.handoff/, CLAUDE.md/AGENTS.md learnings)
   bbf0dcbf ckpt 1769: v8.8 released and recorded
   87d5ebab ckpt 1768: offline refresh survives backgrounding: dataSync foreground service + fgScop
@@ -25,8 +26,7 @@ R1: add OfflineSync.Mode.PRICES + 3-way selector; R2: vm.refreshSymbol() used by
   605fdc42 ckpt 1764: captured request M1-M4
   a8170c81 ckpt 1763: v8.6 released and recorded (Markets tab)
   fd7e0b23 ckpt 1762: v8.5 recorded; bumped to v8.6 (Markets tab)
-  89b93ad6 ckpt 1761: Markets sub-tab (Portfolio tab): 14 indices, offline-saved, IndicesTest
 ```
 
-(1 automatic checkpoint(s) since the last deliberate one — the
+(27 automatic checkpoint(s) since the last deliberate one — the
 session was still mid-step. `git diff` against it shows what changed.)
