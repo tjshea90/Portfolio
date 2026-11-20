@@ -176,7 +176,7 @@ class RefreshLevelViewModelTest {
     private fun quiet(vm: PortfolioViewModel) = waitFor("every loader to go quiet") {
         vm.stockRefreshing.value.isEmpty() && vm.newsLoading.value.isEmpty() && vm.fundLoading.value.isEmpty() &&
             vm.ratingsLoading.value.isEmpty() && vm.holdingsLoading.value.isEmpty() &&
-            vm.chartLoading.value.isEmpty() && !vm.ui.value.loading
+            vm.chartLoading.value.isEmpty() && !vm.ui.value.loading && !vm.offline.progress.value.running
     }
 
     private fun record(): MutableList<String> {
@@ -221,7 +221,9 @@ class RefreshLevelViewModelTest {
         buy(vm, "AAPL"); buy(vm, "NVDA"); vm.addWatch("TSLA"); settle()
         quiet(vm)
 
-        // CONTROL: the whole-app pull does ask about the others, so the recorder can see it.
+        // CONTROL: a portfolio-wide pull does ask about the other symbols, so the recorder can
+        // see it. The Prices level keeps the offline pass this starts small and quick.
+        vm.setRefreshMode(OfflineSync.Mode.PRICES)
         val seen = record()
         vm.refresh(manual = true)
         quiet(vm)
@@ -230,6 +232,7 @@ class RefreshLevelViewModelTest {
         seen.clear()
 
         val lastRefresh = vm.ui.value.lastRefresh
+        val passesBefore = vm.offline.progress.value.lastFinishedAt
         vm.refreshStock("NVDA", ChartRange.D1)
         assertEquals("the page's own spinner is up at once", setOf("NVDA"), vm.stockRefreshing.value)
         quiet(vm)
@@ -238,6 +241,7 @@ class RefreshLevelViewModelTest {
         assertEquals("no other holding, watch-list stock or index was requested",
             emptyList<String>(), seen.filter { mentions(it, "AAPL", "TSLA", "^GSPC", "^DJI", "^IXIC", "SPY") })
         assertFalse("no whole-app offline pass", vm.offline.progress.value.running)
+        assertEquals("...and none was started", passesBefore, vm.offline.progress.value.lastFinishedAt)
         assertEquals(lastRefresh, vm.ui.value.lastRefresh)
         assertFalse("the shared portfolio spinner never lit", vm.ui.value.manualRefresh)
         assertTrue("the failure is said out loud", vm.toast.value.orEmpty().contains("NVDA"))
