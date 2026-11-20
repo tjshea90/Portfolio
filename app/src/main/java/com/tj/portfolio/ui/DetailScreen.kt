@@ -846,8 +846,10 @@ fun DetailScreen(
         DetailTabRow(tabs, tab) { tab = it }
 
         Refreshable(
-            refreshing = state.pulling(PULL_PRICES),
-            onRefresh = refreshEverything
+            // This stock's own refresh, NOT the portfolio-wide `pulling(PULL_PRICES)`: a pull on
+            // another tab or a background repricing must not spin the circle on this page.
+            refreshing = symbol.uppercase() in stockRefreshingSet,
+            onRefresh = refreshThisStock
         ) {
             when (tab) {
                 DetailTab.OVERVIEW -> OverviewTab(
