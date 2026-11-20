@@ -160,8 +160,11 @@ class OfflineSync(
             // WATCH LIST + US INDEX CHARTS (2026-10-31): charts are small and Tj reads them offline,
             // so they are fetched right after the holdings' own, not at the tail of the pass.
             each(watch) { s -> chartRanges.forEach { r -> host.chart(s.symbol, r) } }
-            runCatching { host.indices() }
-            each(Indices.ALL.filter { it.group == Indices.US }) { d -> chartRanges.forEach { r -> host.chart(d.symbol, r) } }
+            // PRICES mode stops here: holdings and watch list only, no market-index requests.
+            if (!pricesOnly) {
+                runCatching { host.indices() }
+                each(Indices.ALL.filter { it.group == Indices.US }) { d -> chartRanges.forEach { r -> host.chart(d.symbol, r) } }
+            }
 
             if (full) {
                 // ------------------------------------------------ 2. dividends + earnings (tier 2)
