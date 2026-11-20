@@ -239,8 +239,11 @@ class OfflineSync(
                 running = false, phase = "", lastFinishedAt = System.currentTimeMillis(), lastMode = mode,
                 cacheBytes = bytes, pagesSaved = pages,
                 lastSummary = (if (priceOk) "" else "Prices could not be reached - ") +
-                    (if (full) "Offline refresh finished: ${held.size} holdings, ${watch.size} watched, $pages pages saved, ${mb(bytes)} stored."
-                    else "Light refresh finished: prices, charts and headlines updated.")
+                    (when (mode) {
+                        Mode.FULL -> "Offline refresh finished: ${held.size} holdings, ${watch.size} watched, $pages pages saved, ${mb(bytes)} stored."
+                        Mode.LIGHT -> "Light refresh finished: prices, charts and headlines updated."
+                        Mode.PRICES -> "Prices refresh finished: ${held.size + watch.size} holdings and watched stocks, prices and charts updated."
+                    })
             )
         } catch (e: CancellationException) {
             // Leaving the app mid-pass: nothing was purged (that happens only at the end), so
