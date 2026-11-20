@@ -2990,13 +2990,19 @@ class PortfolioViewModel(app: Application) : AndroidViewModel(app) {
 
     // ============================================================ OFFLINE REFRESH (2026-10-27)
 
-    private val _lightRefresh = MutableStateFlow(db.getB(Keys.LIGHT_REFRESH, false))
-    /** True = pull-to-refresh only updates prices, charts and headlines. Persisted. */
-    val lightRefresh: StateFlow<Boolean> = _lightRefresh.asStateFlow()
+    private val _refreshMode = MutableStateFlow(
+        OfflineSync.modeFromSetting(db.get(Keys.REFRESH_MODE), db.getB(Keys.LIGHT_REFRESH, false))
+    )
+    /**
+     * What a pull-to-refresh does outside a stock page: FULL (everything, saved for offline),
+     * LIGHT (prices, charts, indices, headlines) or PRICES (holdings + watch list prices and
+     * charts only). Persisted.
+     */
+    val refreshMode: StateFlow<OfflineSync.Mode> = _refreshMode.asStateFlow()
 
-    fun setLightRefresh(on: Boolean) {
-        _lightRefresh.value = on
-        viewModelScope.launch(Dispatchers.IO) { db.setB(Keys.LIGHT_REFRESH, on) }
+    fun setRefreshMode(mode: OfflineSync.Mode) {
+        _refreshMode.value = mode
+        viewModelScope.launch(Dispatchers.IO) { db.set(Keys.REFRESH_MODE, mode.name) }
     }
 
     /** Wait (bounded) until [sym] is no longer in an in-flight set. A stuck loader never stalls the pass. */
