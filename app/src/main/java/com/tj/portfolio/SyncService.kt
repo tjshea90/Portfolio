@@ -37,9 +37,16 @@ class SyncService : Service() {
             this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
         )
+        // The wording follows the refresh level the user chose (2026-11-20): a prices-only pass
+        // must not claim to be fetching news and reports.
+        val (title, text) = when (intent?.getStringExtra(EXTRA_MODE)) {
+            "PRICES" -> "Refreshing prices and charts" to "Updating your holdings and watch list…"
+            "LIGHT" -> "Refreshing your portfolio" to "Prices, charts and headlines…"
+            else -> "Saving your portfolio for offline" to "Refreshing prices, charts, news and reports…"
+        }
         val n = Notification.Builder(this, CHANNEL)
-            .setContentTitle("Saving your portfolio for offline")
-            .setContentText("Refreshing prices, charts, news and reports…")
+            .setContentTitle(title)
+            .setContentText(text)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setOngoing(true)
             .setContentIntent(open)
