@@ -2692,6 +2692,11 @@ object Keys {
     const val BLOCK_ADS = "block_ads"
     /** Pull-to-refresh does the minimal pass: prices, charts and headlines only (2026-10-27). */
     const val LIGHT_REFRESH = "light_refresh"
+    /**
+     * Which refresh a pull does: FULL, LIGHT or PRICES (2026-11-20). Supersedes the boolean
+     * [LIGHT_REFRESH], which is only READ now - once, to carry an old "Light on" choice over.
+     */
+    const val REFRESH_MODE = "refresh_mode"
 
     /** Strip overlays and registration panels, and give the page its scroll back. */
     const val DECLUTTER = "declutter"
