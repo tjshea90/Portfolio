@@ -54,7 +54,8 @@ class OfflineSync(
     private val scope: () -> CoroutineScope,
     private val onFinished: () -> Unit = {}
 ) {
-    enum class Mode { FULL, LIGHT }
+    /** FULL = everything; LIGHT = prices, charts, indices, headlines; PRICES = holdings + watch prices and charts only. */
+    enum class Mode { FULL, LIGHT, PRICES }
 
     data class Sym(val symbol: String, val name: String = "")
 
